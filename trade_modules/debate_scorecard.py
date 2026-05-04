@@ -19,25 +19,24 @@ Round 2 each consume Opus tokens per contentious stock).
 import json
 import logging
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_OUTPUT_PATH = (
-    Path.home() / ".weirdapps-trading" / "committee" / "debate_scorecard.json"
-)
+DEFAULT_OUTPUT_PATH = Path.home() / ".weirdapps-trading" / "committee" / "debate_scorecard.json"
 
 
-def _safe_float(v) -> Optional[float]:
+def _safe_float(v) -> float | None:
     try:
         return float(v)
     except (TypeError, ValueError):
         return None
 
 
-def _waterfall_value(wf: Dict[str, Any], key: str) -> Optional[int]:
+def _waterfall_value(wf: dict[str, Any], key: str) -> int | None:
     if not wf:
         return None
     v = wf.get(key)
@@ -48,10 +47,10 @@ def _waterfall_value(wf: Dict[str, Any], key: str) -> Optional[int]:
 
 
 def compute_debate_scorecard(
-    history: Iterable[Dict[str, Any]],
-    forward_returns: Dict[str, Dict[str, float]],
+    history: Iterable[dict[str, Any]],
+    forward_returns: dict[str, dict[str, float]],
     horizon: str = "T+30",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Aggregate by debate_signal across all historical concordances.
 
@@ -65,8 +64,8 @@ def compute_debate_scorecard(
       * comparison vs control (same conviction band, no debate)
     """
     alpha_key = f"{horizon}_alpha"
-    by_signal: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    control: List[Dict[str, Any]] = []
+    by_signal: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    control: list[dict[str, Any]] = []
 
     for entry in history:
         date_str = entry.get("date", "")
@@ -108,13 +107,12 @@ def compute_debate_scorecard(
                 control.append(row)
 
     # Compute scorecard per signal
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "generated_at": datetime.now().isoformat(),
         "horizon": horizon,
         "control_n": len(control),
         "control_mean_alpha": (
-            round(sum(r["alpha"] for r in control) / len(control), 2)
-            if control else None
+            round(sum(r["alpha"] for r in control) / len(control), 2) if control else None
         ),
         "signals": {},
     }
@@ -151,7 +149,7 @@ def compute_debate_scorecard(
     return out
 
 
-def _summarise_verdict(signals: Dict[str, Any], control_n: int) -> str:
+def _summarise_verdict(signals: dict[str, Any], control_n: int) -> str:
     if not signals or control_n < 30:
         return "INSUFFICIENT_EVIDENCE — need ≥30 control + 5/signal"
 
@@ -159,22 +157,24 @@ def _summarise_verdict(signals: Dict[str, Any], control_n: int) -> str:
     total_n = sum(s.get("count", 0) for s in signals.values())
     if total_n == 0:
         return "INSUFFICIENT_EVIDENCE"
-    weighted_excess = sum(
-        s.get("excess_alpha_vs_control", 0) * s.get("count", 0)
-        for s in signals.values()
-    ) / total_n
+    weighted_excess = (
+        sum(s.get("excess_alpha_vs_control", 0) * s.get("count", 0) for s in signals.values())
+        / total_n
+    )
 
     if abs(weighted_excess) < 0.5:
         return f"NO_EDGE — weighted excess α = {weighted_excess:+.2f}pp. Consider deprecating adversarial debate (Opus cost not justified)."
     elif weighted_excess > 0:
-        return f"POSITIVE_EDGE — weighted excess α = {weighted_excess:+.2f}pp. Debate is adding value."
+        return (
+            f"POSITIVE_EDGE — weighted excess α = {weighted_excess:+.2f}pp. Debate is adding value."
+        )
     else:
         return f"NEGATIVE_EDGE — weighted excess α = {weighted_excess:+.2f}pp. Debate adjustments are HARMFUL — flip the sign or disable."
 
 
 def persist_scorecard(
-    scorecard: Dict[str, Any],
-    path: Optional[Path] = None,
+    scorecard: dict[str, Any],
+    path: Path | None = None,
 ) -> Path:
     out = path or DEFAULT_OUTPUT_PATH
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -182,7 +182,7 @@ def persist_scorecard(
     return out
 
 
-def load_scorecard(path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def load_scorecard(path: Path | None = None) -> dict[str, Any] | None:
     p = path or DEFAULT_OUTPUT_PATH
     if not p.exists():
         return None

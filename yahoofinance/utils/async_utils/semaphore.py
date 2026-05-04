@@ -9,13 +9,14 @@ import asyncio
 import secrets
 import time
 from functools import wraps
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.config import RATE_LIMIT
+from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.logging import get_logger
-from .retry import retry_async_with_backoff
+
 from ...utils.network.circuit_breaker import get_async_circuit_breaker
+from .retry import retry_async_with_backoff
 
 # Set up logging
 logger = get_logger(__name__)
@@ -23,6 +24,7 @@ logger = get_logger(__name__)
 # Constants for rate limit error detection
 RATE_LIMIT_ERROR_MESSAGE = "rate limit"
 TOO_MANY_REQUESTS_ERROR_MESSAGE = "too many requests"
+
 
 class AsyncRateLimiter:
     """
@@ -86,7 +88,7 @@ class AsyncRateLimiter:
         self.vip_tickers = RATE_LIMIT.get("VIP_TICKERS", set())
 
         # State tracking
-        self.call_times: List[float] = []
+        self.call_times: list[float] = []
         self.current_delay = self.base_delay
         self.success_streak = 0
         self.failure_streak = 0
@@ -111,9 +113,9 @@ class AsyncRateLimiter:
         self.min_success_rate = RATE_LIMIT.get("MIN_SUCCESS_RATE", 0.95)
 
         # Recent ticker delay tracking (for metrics)
-        self.ticker_delays: Dict[str, List[float]] = {}
-        self.ticker_success: Dict[str, int] = {}
-        self.ticker_failures: Dict[str, int] = {}
+        self.ticker_delays: dict[str, list[float]] = {}
+        self.ticker_success: dict[str, int] = {}
+        self.ticker_failures: dict[str, int] = {}
 
         # Lock for concurrency safety
         self.lock = asyncio.Lock()
@@ -123,7 +125,7 @@ class AsyncRateLimiter:
             f"max_calls={self.max_calls}, base_delay={self.base_delay}s"
         )
 
-    async def wait(self, ticker: Optional[str] = None) -> float:
+    async def wait(self, ticker: str | None = None) -> float:
         """
         Wait for appropriate delay before making a call.
 
@@ -221,7 +223,7 @@ class AsyncRateLimiter:
 
             return actual_delay
 
-    async def record_success(self, ticker: Optional[str] = None) -> None:
+    async def record_success(self, ticker: str | None = None) -> None:
         """
         Record a successful API call and adjust delay.
 
@@ -248,9 +250,7 @@ class AsyncRateLimiter:
                     f"Reduced delay to {self.current_delay:.2f}s after {self.success_streak} successes"
                 )
 
-    async def record_failure(
-        self, is_rate_limit: bool = False, ticker: Optional[str] = None
-    ) -> None:
+    async def record_failure(self, is_rate_limit: bool = False, ticker: str | None = None) -> None:
         """
         Record a failed API call and adjust delay.
 
@@ -287,7 +287,7 @@ class AsyncRateLimiter:
                     f"Increased delay to {self.current_delay:.2f}s after {self.failure_streak} failures"
                 )
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """
         Get performance metrics for the rate limiter.
 
@@ -323,7 +323,7 @@ class AsyncRateLimiter:
 
         return metrics
 
-    def _get_delay_for_ticker(self, ticker: Optional[str] = None) -> float:
+    def _get_delay_for_ticker(self, ticker: str | None = None) -> float:
         """
         Get appropriate delay for a ticker based on its priority and region.
 
@@ -415,6 +415,7 @@ class AsyncRateLimiter:
                     f"Decreasing delay from {old_delay:.2f}s to {self.current_delay:.2f}s"
                 )
 
+
 class PriorityAsyncRateLimiter(AsyncRateLimiter):
     """
     Enhanced AsyncRateLimiter with support for advanced priority tiers and token bucket algorithm.
@@ -474,7 +475,7 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
             f"LOW={self.low_priority_quota}"
         )
 
-    def _get_priority_for_ticker(self, ticker: Optional[str]) -> str:
+    def _get_priority_for_ticker(self, ticker: str | None) -> str:
         """
         Determine the priority tier for a ticker.
 
@@ -500,7 +501,7 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
         else:
             return "MEDIUM"  # US markets and others
 
-    async def wait(self, ticker: Optional[str] = None) -> float:
+    async def wait(self, ticker: str | None = None) -> float:
         """
         Wait based on priority before making a call.
 
@@ -617,7 +618,7 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
 
             return actual_delay
 
-    async def record_success(self, ticker: Optional[str] = None) -> None:
+    async def record_success(self, ticker: str | None = None) -> None:
         """
         Record a successful API call with priority awareness.
 
@@ -630,9 +631,7 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
             await super().record_success(ticker)
             self.priority_metrics[priority]["success"] += 1
 
-    async def record_failure(
-        self, is_rate_limit: bool = False, ticker: Optional[str] = None
-    ) -> None:
+    async def record_failure(self, is_rate_limit: bool = False, ticker: str | None = None) -> None:
         """
         Record a failed API call with priority awareness.
 
@@ -646,7 +645,7 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
             await super().record_failure(is_rate_limit, ticker)
             self.priority_metrics[priority]["failure"] += 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """
         Get detailed metrics including priority-specific metrics.
 
@@ -693,11 +692,13 @@ class PriorityAsyncRateLimiter(AsyncRateLimiter):
         metrics["priority"] = priority_stats
         return metrics
 
+
 # Create global async rate limiter instances
 global_async_rate_limiter = AsyncRateLimiter()
 global_priority_rate_limiter = PriorityAsyncRateLimiter()
 
-def async_rate_limited(rate_limiter: Optional[AsyncRateLimiter] = None):
+
+def async_rate_limited(rate_limiter: AsyncRateLimiter | None = None):
     """
     Decorator for rate-limiting async functions.
 
@@ -752,10 +753,11 @@ def async_rate_limited(rate_limiter: Optional[AsyncRateLimiter] = None):
 
     return decorator
 
+
 def enhanced_async_rate_limited(
-    circuit_name: Optional[str] = None,
+    circuit_name: str | None = None,
     max_retries: int = 3,
-    rate_limiter: Optional[AsyncRateLimiter] = None,
+    rate_limiter: AsyncRateLimiter | None = None,
     priority: bool = False,
 ):
     """

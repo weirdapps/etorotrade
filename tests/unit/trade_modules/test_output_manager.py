@@ -4,39 +4,42 @@ ITERATION 14: Output Manager Tests
 Target: Test output management, file exports, and display formatting
 """
 
-import pandas as pd
-import tempfile
 import os
+import tempfile
 from unittest.mock import patch
+
+import pandas as pd
+
 from trade_modules.output_manager import (
-    ensure_output_directory,
-    _setup_output_files,
-    _clean_si_value,
-    _add_ranking_column,
-    get_column_alignments,
-    _get_color_by_title,
-    create_empty_results_file,
-    format_display_dataframe,
-    _format_price_value,
-    _format_percentage_value,
-    _format_numeric_value,
-    _format_date_value,
-    _format_size_value,
-    _format_beta_value,
-    _format_pe_value,
-    _format_peg_value,
-    _format_eg_pp_value,
-    _format_basic_percentage_value,
-    _format_buy_percentage_value,
-    prepare_display_dataframe,
-    export_results_to_files,
-    display_and_save_results,
-    OutputManager,
     COLOR_GREEN,
     COLOR_RED,
-    COLOR_YELLOW,
     COLOR_RESET,
+    COLOR_YELLOW,
+    OutputManager,
+    _add_ranking_column,
+    _clean_si_value,
+    _format_basic_percentage_value,
+    _format_beta_value,
+    _format_buy_percentage_value,
+    _format_date_value,
+    _format_eg_pp_value,
+    _format_numeric_value,
+    _format_pe_value,
+    _format_peg_value,
+    _format_percentage_value,
+    _format_price_value,
+    _format_size_value,
+    _get_color_by_title,
+    _setup_output_files,
+    create_empty_results_file,
+    display_and_save_results,
+    ensure_output_directory,
+    export_results_to_files,
+    format_display_dataframe,
+    get_column_alignments,
+    prepare_display_dataframe,
 )
+
 
 class TestEnsureOutputDirectory:
     """Test output directory creation."""
@@ -57,6 +60,7 @@ class TestEnsureOutputDirectory:
             # Directory already exists
             ensure_output_directory(tmpdir)
             assert os.path.exists(tmpdir)
+
 
 class TestSetupOutputFiles:
     """Test output file path setup."""
@@ -84,6 +88,7 @@ class TestSetupOutputFiles:
         assert isinstance(buy_file, str)
         assert isinstance(sell_file, str)
         assert isinstance(hold_file, str)
+
 
 class TestCleanSIValue:
     """Test short interest value cleaning."""
@@ -118,6 +123,7 @@ class TestCleanSIValue:
         result = _clean_si_value("invalid")
         assert result == "--"
 
+
 class TestAddRankingColumn:
     """Test ranking column addition."""
 
@@ -129,6 +135,7 @@ class TestAddRankingColumn:
         assert "#" in result.columns
         assert list(result["#"]) == [1, 2, 3]
         assert result.columns[0] == "#"
+
 
 class TestGetColumnAlignments:
     """Test column alignment logic."""
@@ -154,6 +161,7 @@ class TestGetColumnAlignments:
 
         assert alignments == ["center", "center"]
 
+
 class TestGetColorByTitle:
     """Test color code selection by title."""
 
@@ -173,6 +181,7 @@ class TestGetColorByTitle:
     def test_get_color_by_title_neutral(self):
         """Neutral title returns reset."""
         assert _get_color_by_title("Market Analysis") == COLOR_RESET
+
 
 class TestFormatPriceValue:
     """Test price value formatting."""
@@ -202,6 +211,7 @@ class TestFormatPriceValue:
         result = _format_price_value(0)
         assert result == "--"
 
+
 class TestFormatPercentageValue:
     """Test percentage value formatting."""
 
@@ -225,6 +235,7 @@ class TestFormatPercentageValue:
         result = _format_percentage_value(None)
         assert result == "--"
 
+
 class TestFormatNumericValue:
     """Test numeric value formatting."""
 
@@ -237,6 +248,7 @@ class TestFormatNumericValue:
         """Handle None value."""
         result = _format_numeric_value(None)
         assert result == "--"
+
 
 class TestFormatDateValue:
     """Test date value formatting."""
@@ -256,6 +268,7 @@ class TestFormatDateValue:
         result = _format_date_value(None)
         assert result == "--"
 
+
 class TestFormatSizeValue:
     """Test position size value formatting."""
 
@@ -270,6 +283,7 @@ class TestFormatSizeValue:
         """Handle None value."""
         result = _format_size_value(None)
         assert result == "--"
+
 
 class TestFormatBetaValue:
     """Test beta value formatting."""
@@ -290,6 +304,7 @@ class TestFormatBetaValue:
         result = _format_beta_value(-12.5)
         assert result == "L"
 
+
 class TestFormatPEValue:
     """Test P/E ratio value formatting."""
 
@@ -303,6 +318,7 @@ class TestFormatPEValue:
         result = _format_pe_value(150.0)
         assert result == "H"
 
+
 class TestFormatPEGValue:
     """Test PEG ratio value formatting."""
 
@@ -315,6 +331,7 @@ class TestFormatPEGValue:
         """Format high PEG (>9) as H."""
         result = _format_peg_value(12.0)
         assert result == "H"
+
 
 class TestFormatEGPPValue:
     """Test EG/PP value formatting."""
@@ -334,6 +351,7 @@ class TestFormatEGPPValue:
         result = _format_eg_pp_value(-150.0)
         assert result == "L"
 
+
 class TestFormatBasicPercentageValue:
     """Test basic percentage value formatting."""
 
@@ -346,6 +364,7 @@ class TestFormatBasicPercentageValue:
         """Handle zero value."""
         result = _format_basic_percentage_value(0)
         assert result == "--"
+
 
 class TestFormatBuyPercentageValue:
     """Test buy percentage value formatting."""
@@ -360,15 +379,13 @@ class TestFormatBuyPercentageValue:
         result = _format_buy_percentage_value(None)
         assert result == "--"
 
+
 class TestFormatDisplayDataframe:
     """Test comprehensive dataframe formatting."""
 
     def test_format_display_dataframe_price_columns(self):
         """Format price columns correctly."""
-        df = pd.DataFrame({
-            "PRICE": [150.5, 25.75, 5.125],
-            "TARGET": [180.0, 30.0, 6.0]
-        })
+        df = pd.DataFrame({"PRICE": [150.5, 25.75, 5.125], "TARGET": [180.0, 30.0, 6.0]})
         result = format_display_dataframe(df)
 
         # Check that values are formatted (contain $ or --)
@@ -376,10 +393,7 @@ class TestFormatDisplayDataframe:
 
     def test_format_display_dataframe_percentage_columns(self):
         """Format percentage columns correctly."""
-        df = pd.DataFrame({
-            "UPSIDE": [15.5, 150.0, -150.0],
-            "EXRET": [10.0, None, 5.0]
-        })
+        df = pd.DataFrame({"UPSIDE": [15.5, 150.0, -150.0], "EXRET": [10.0, None, 5.0]})
         result = format_display_dataframe(df)
 
         # Check UPSIDE formatting
@@ -387,15 +401,13 @@ class TestFormatDisplayDataframe:
         assert result["UPSIDE"].iloc[1] == "H"  # >99
         assert result["UPSIDE"].iloc[2] == "L"  # <-99
 
+
 class TestPrepareDisplayDataframe:
     """Test display dataframe preparation."""
 
     def test_prepare_display_dataframe_adds_ranking(self):
         """Prepare dataframe adds ranking column."""
-        df = pd.DataFrame({
-            "TICKER": ["AAPL", "MSFT"],
-            "PRICE": [150.0, 300.0]
-        })
+        df = pd.DataFrame({"TICKER": ["AAPL", "MSFT"], "PRICE": [150.0, 300.0]})
         result = prepare_display_dataframe(df)
 
         assert "#" in result.columns
@@ -403,19 +415,17 @@ class TestPrepareDisplayDataframe:
 
     def test_prepare_display_dataframe_formats_values(self):
         """Prepare dataframe formats all values."""
-        df = pd.DataFrame({
-            "TICKER": ["AAPL"],
-            "PRICE": [150.5]
-        })
+        df = pd.DataFrame({"TICKER": ["AAPL"], "PRICE": [150.5]})
         result = prepare_display_dataframe(df)
 
         # Price should be formatted
         assert "$" in str(result["PRICE"].iloc[0])
 
+
 class TestCreateEmptyResultsFile:
     """Test empty results file creation."""
 
-    @patch('trade_modules.output_manager.HTMLGenerator')
+    @patch("trade_modules.output_manager.HTMLGenerator")
     def test_create_empty_results_file(self, mock_html_gen):
         """Create empty CSV and HTML files."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -429,21 +439,18 @@ class TestCreateEmptyResultsFile:
             # Should have called HTML generator
             mock_html_gen.return_value.generate_stock_table.assert_called_once()
 
+
 class TestDisplayAndSaveResults:
     """Test display and save results functionality."""
 
-    @patch('trade_modules.output_manager.HTMLGenerator')
-    @patch('trade_modules.output_manager.tabulate')
-    @patch('builtins.print')
+    @patch("trade_modules.output_manager.HTMLGenerator")
+    @patch("trade_modules.output_manager.tabulate")
+    @patch("builtins.print")
     def test_display_and_save_results_with_data(self, mock_print, mock_tabulate, mock_html_gen):
         """Display and save results with data."""
         with tempfile.TemporaryDirectory() as tmpdir:
             output_file = os.path.join(tmpdir, "results.csv")
-            df = pd.DataFrame({
-                "#": [1],
-                "TICKER": ["AAPL"],
-                "PRICE": ["$150.00"]
-            })
+            df = pd.DataFrame({"#": [1], "TICKER": ["AAPL"], "PRICE": ["$150.00"]})
 
             display_and_save_results(df, "Test Results", output_file)
 
@@ -453,7 +460,7 @@ class TestDisplayAndSaveResults:
             # Should have printed
             assert mock_print.called
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_display_and_save_results_empty(self, mock_print):
         """Display and save results with empty dataframe."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -465,16 +472,17 @@ class TestDisplayAndSaveResults:
             # Should create empty file
             assert os.path.exists(output_file)
 
+
 class TestExportResultsToFiles:
     """Test results export to files."""
 
-    @patch('trade_modules.output_manager.display_and_save_results')
+    @patch("trade_modules.output_manager.display_and_save_results")
     def test_export_results_to_files_all_types(self, mock_display_save):
         """Export all result types (buy/sell/hold)."""
         results_dict = {
             "buy_opportunities": pd.DataFrame({"ticker": ["AAPL"]}),
             "sell_candidates": pd.DataFrame({"ticker": ["MSFT"]}),
-            "hold_candidates": pd.DataFrame({"ticker": ["GOOGL"]})
+            "hold_candidates": pd.DataFrame({"ticker": ["GOOGL"]}),
         }
 
         output_files = export_results_to_files(results_dict, "market")
@@ -486,6 +494,7 @@ class TestExportResultsToFiles:
         assert "buy" in output_files
         assert "sell" in output_files
         assert "hold" in output_files
+
 
 class TestOutputManager:
     """Test OutputManager class."""
@@ -503,8 +512,8 @@ class TestOutputManager:
             manager = OutputManager(output_dir=tmpdir)
             assert manager.output_dir == tmpdir
 
-    @patch('trade_modules.output_manager.prepare_display_dataframe')
-    @patch('trade_modules.output_manager.export_results_to_files')
+    @patch("trade_modules.output_manager.prepare_display_dataframe")
+    @patch("trade_modules.output_manager.export_results_to_files")
     def test_save_analysis_results(self, mock_export, mock_prepare):
         """Save analysis results."""
         manager = OutputManager()
@@ -513,9 +522,7 @@ class TestOutputManager:
         mock_prepare.side_effect = lambda df: df
         mock_export.return_value = {"buy": "buy.csv"}
 
-        results = {
-            "buy_opportunities": pd.DataFrame({"ticker": ["AAPL"]})
-        }
+        results = {"buy_opportunities": pd.DataFrame({"ticker": ["AAPL"]})}
 
         output_files = manager.save_analysis_results(results)
 
@@ -528,7 +535,7 @@ class TestOutputManager:
 
         results = {
             "buy_opportunities": pd.DataFrame({"ticker": ["AAPL", "MSFT"]}),
-            "sell_candidates": pd.DataFrame({"ticker": ["GOOGL"]})
+            "sell_candidates": pd.DataFrame({"ticker": ["GOOGL"]}),
         }
 
         summary = manager.generate_summary_report(results)

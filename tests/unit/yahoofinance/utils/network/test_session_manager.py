@@ -4,8 +4,10 @@ Tests for session manager with connection pooling.
 Target: Increase coverage for yahoofinance/utils/network/session_manager.py
 """
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 
 class TestSharedSessionManager:
     """Test SharedSessionManager class."""
@@ -25,8 +27,8 @@ class TestSharedSessionManager:
 
         manager = SharedSessionManager()
 
-        assert hasattr(manager, '_session')
-        assert hasattr(manager, '_connection_stats')
+        assert hasattr(manager, "_session")
+        assert hasattr(manager, "_connection_stats")
         assert manager._connection_stats["total_requests"] >= 0
         assert manager._connection_stats["session_recreations"] >= 0
 
@@ -95,13 +97,15 @@ class TestSharedSessionManager:
 
         manager._session = original
 
+
 class TestGetSessionManager:
     """Test get_session_manager function."""
 
     def test_get_session_manager_returns_manager(self):
         """Get session manager returns SharedSessionManager."""
         from yahoofinance.utils.network.session_manager import (
-            get_session_manager, SharedSessionManager
+            SharedSessionManager,
+            get_session_manager,
         )
 
         manager = get_session_manager()
@@ -117,6 +121,7 @@ class TestGetSessionManager:
 
         assert manager1 is manager2
 
+
 class TestGetConnectionPoolStats:
     """Test get_connection_pool_stats function."""
 
@@ -128,14 +133,16 @@ class TestGetConnectionPoolStats:
 
         assert isinstance(stats, dict)
 
+
 class TestAsyncOperations:
     """Test async operations."""
 
     @pytest.mark.asyncio
     async def test_get_session_creates_session(self):
         """Get session creates new session if needed."""
-        from yahoofinance.utils.network.session_manager import SharedSessionManager
         import aiohttp
+
+        from yahoofinance.utils.network.session_manager import SharedSessionManager
 
         manager = SharedSessionManager()
 
@@ -159,8 +166,9 @@ class TestAsyncOperations:
     @pytest.mark.asyncio
     async def test_get_shared_session(self):
         """Get shared session returns session."""
-        from yahoofinance.utils.network.session_manager import get_shared_session
         import aiohttp
+
+        from yahoofinance.utils.network.session_manager import get_shared_session
 
         session = await get_shared_session()
 
@@ -171,8 +179,8 @@ class TestAsyncOperations:
     async def test_close_shared_session(self):
         """Close shared session works without error."""
         from yahoofinance.utils.network.session_manager import (
-            get_shared_session,
             close_shared_session,
+            get_shared_session,
         )
 
         # Ensure session exists
@@ -194,13 +202,15 @@ class TestAsyncOperations:
         # Close should not raise
         await manager.close()
 
+
 class TestNeedsNewSession:
     """Test _needs_new_session method."""
 
     def test_needs_new_session_expired(self):
         """Needs new session when session is expired."""
-        from yahoofinance.utils.network.session_manager import SharedSessionManager
         import time
+
+        from yahoofinance.utils.network.session_manager import SharedSessionManager
 
         manager = SharedSessionManager()
         # Set created time to far past
@@ -227,6 +237,7 @@ class TestNeedsNewSession:
 
         assert manager._needs_new_session() is True
 
+
 class TestModuleStructure:
     """Test module structure."""
 
@@ -234,15 +245,15 @@ class TestModuleStructure:
         """Module has logger."""
         from yahoofinance.utils.network import session_manager
 
-        assert hasattr(session_manager, 'logger')
+        assert hasattr(session_manager, "logger")
         assert session_manager.logger is not None
 
     def test_all_exports(self):
         """All expected exports exist."""
         from yahoofinance.utils.network import session_manager
 
-        assert hasattr(session_manager, 'SharedSessionManager')
-        assert hasattr(session_manager, 'get_session_manager')
-        assert hasattr(session_manager, 'get_shared_session')
-        assert hasattr(session_manager, 'close_shared_session')
-        assert hasattr(session_manager, 'get_connection_pool_stats')
+        assert hasattr(session_manager, "SharedSessionManager")
+        assert hasattr(session_manager, "get_session_manager")
+        assert hasattr(session_manager, "get_shared_session")
+        assert hasattr(session_manager, "close_shared_session")
+        assert hasattr(session_manager, "get_connection_pool_stats")

@@ -7,10 +7,12 @@ integration, and configurable exception handling for async operations.
 
 import asyncio
 import secrets
-from typing import Any, Callable, Coroutine, Optional, Tuple, TypeVar
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.logging import get_logger
+
 from ...utils.network.circuit_breaker import (
     CircuitOpenError,
     get_async_circuit_breaker,
@@ -22,14 +24,15 @@ T = TypeVar("T")
 # Set up logging
 logger = get_logger(__name__)
 
+
 async def retry_async_with_backoff(
     func: Callable[..., Coroutine[Any, Any, T]],
     *args,
     max_retries: int = 3,
     base_delay: float = 1.0,
     max_delay: float = 30.0,
-    circuit_name: Optional[str] = None,
-    retry_exceptions: Optional[Tuple[type, ...]] = None,
+    circuit_name: str | None = None,
+    retry_exceptions: tuple[type, ...] | None = None,
     **kwargs,
 ) -> T:
     """

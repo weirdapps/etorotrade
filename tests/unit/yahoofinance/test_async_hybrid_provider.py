@@ -10,10 +10,12 @@ Tests cover:
 - Data supplementation logic
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from yahoofinance.core.errors import APIError, NetworkError, ValidationError, YFinanceError
+
 
 class TestAsyncHybridProviderBasic:
     """Basic tests for AsyncHybridProvider initialization and configuration."""
@@ -39,13 +41,17 @@ class TestAsyncHybridProviderBasic:
 
     def test_provider_initialization(self, mock_config):
         """Test that provider initializes with correct configuration."""
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config):
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+        ):
             mock_yf.return_value.max_concurrency = 15
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             assert provider.yf_provider is not None
@@ -54,13 +60,17 @@ class TestAsyncHybridProviderBasic:
 
     def test_provider_yahooquery_disabled(self, mock_config):
         """Test that yahooquery is disabled by default configuration."""
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config):
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+        ):
             mock_yf.return_value.max_concurrency = 15
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             assert provider.enable_yahooquery is False
@@ -69,16 +79,21 @@ class TestAsyncHybridProviderBasic:
         """Test that yahooquery can be enabled via configuration."""
         enabled_config = {"ENABLE_YAHOOQUERY": True}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', enabled_config):
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", enabled_config),
+        ):
             mock_yf.return_value.max_concurrency = 15
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             assert provider.enable_yahooquery is True
+
 
 class TestAsyncHybridProviderTickerInfo:
     """Tests for get_ticker_info method."""
@@ -119,11 +134,14 @@ class TestAsyncHybridProviderTickerInfo:
         """Test get_ticker_info with yfinance data only (yahooquery disabled)."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+        ):
             # Setup mocks
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
@@ -135,6 +153,7 @@ class TestAsyncHybridProviderTickerInfo:
             mock_get_config.return_value = mock_config_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             result = await provider.get_ticker_info("AAPL")
@@ -145,7 +164,9 @@ class TestAsyncHybridProviderTickerInfo:
             mock_yf_instance.get_ticker_info.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_ticker_info_with_supplementation(self, sample_yf_response, sample_yq_response):
+    async def test_get_ticker_info_with_supplementation(
+        self, sample_yf_response, sample_yq_response
+    ):
         """Test get_ticker_info with yahooquery supplementation for missing fields."""
         mock_config = {"ENABLE_YAHOOQUERY": True}
 
@@ -153,11 +174,16 @@ class TestAsyncHybridProviderTickerInfo:
         yf_missing_peg = sample_yf_response.copy()
         yf_missing_peg["peg_ratio"] = None
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"
+            ) as mock_yq_class,
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+        ):
             # Setup yfinance mock with missing peg_ratio
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
@@ -174,6 +200,7 @@ class TestAsyncHybridProviderTickerInfo:
             mock_get_config.return_value = mock_config_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             result = await provider.get_ticker_info("AAPL")
@@ -188,11 +215,14 @@ class TestAsyncHybridProviderTickerInfo:
         """Test error handling when yfinance returns an error."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+        ):
             # Setup yfinance mock to return error
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
@@ -204,6 +234,7 @@ class TestAsyncHybridProviderTickerInfo:
             mock_get_config.return_value = mock_config_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             result = await provider.get_ticker_info("INVALID")
@@ -217,11 +248,14 @@ class TestAsyncHybridProviderTickerInfo:
         """Test handling when yfinance raises an exception."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+        ):
             # Setup yfinance mock to raise exception
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
@@ -233,6 +267,7 @@ class TestAsyncHybridProviderTickerInfo:
             mock_get_config.return_value = mock_config_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             result = await provider.get_ticker_info("AAPL")
@@ -240,6 +275,7 @@ class TestAsyncHybridProviderTickerInfo:
             # Should handle exception gracefully
             assert result["ticker"] == "AAPL"
             assert result["data_source"] == "none"
+
 
 class TestAsyncHybridProviderBatchProcessing:
     """Tests for batch_get_ticker_info method."""
@@ -279,12 +315,17 @@ class TestAsyncHybridProviderBatchProcessing:
         """Test successful batch processing of multiple tickers."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.gather_with_concurrency') as mock_gather:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.gather_with_concurrency"
+            ) as mock_gather,
+        ):
             # Setup mocks
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
@@ -298,6 +339,7 @@ class TestAsyncHybridProviderBatchProcessing:
             mock_gather.return_value = list(sample_batch_responses.values())
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             tickers = ["AAPL", "MSFT", "GOOGL"]
@@ -311,20 +353,25 @@ class TestAsyncHybridProviderBatchProcessing:
         """Test batch processing with empty ticker list."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config):
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+        ):
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
             mock_yf_class.return_value = mock_yf_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             result = await provider.batch_get_ticker_info([])
 
             assert result == {}
+
 
 class TestAsyncHybridProviderTickerMapping:
     """Tests for ticker mapping functionality."""
@@ -333,15 +380,19 @@ class TestAsyncHybridProviderTickerMapping:
         """Test that crypto tickers are mapped correctly."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config):
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+        ):
             mock_yf_instance = MagicMock()
             mock_yf_instance.max_concurrency = 15
             mock_yf_class.return_value = mock_yf_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             assert provider._ticker_mappings.get("BTC") == "BTC-USD"
@@ -352,20 +403,25 @@ class TestAsyncHybridProviderTickerMapping:
         """Test that commodity tickers are mapped correctly."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config):
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+        ):
             mock_yf_instance = MagicMock()
             mock_yf_instance.max_concurrency = 15
             mock_yf_class.return_value = mock_yf_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             assert provider._ticker_mappings.get("GOLD") == "GC=F"
             assert provider._ticker_mappings.get("OIL") == "CL=F"
             assert provider._ticker_mappings.get("SILVER") == "SI=F"
+
 
 class TestAsyncHybridProviderErrorHandling:
     """Tests for error handling in various scenarios."""
@@ -375,11 +431,14 @@ class TestAsyncHybridProviderErrorHandling:
         """Test handling of APIError exceptions."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+        ):
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
             mock_yf_instance.get_ticker_info.side_effect = APIError("Rate limit exceeded")
@@ -390,6 +449,7 @@ class TestAsyncHybridProviderErrorHandling:
             mock_get_config.return_value = mock_config_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             # Should not raise - should handle gracefully
@@ -402,11 +462,14 @@ class TestAsyncHybridProviderErrorHandling:
         """Test handling of NetworkError exceptions."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+        ):
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
             mock_yf_instance.get_ticker_info.side_effect = NetworkError("Connection timeout")
@@ -417,6 +480,7 @@ class TestAsyncHybridProviderErrorHandling:
             mock_get_config.return_value = mock_config_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             # Should not raise - should handle gracefully
@@ -428,11 +492,14 @@ class TestAsyncHybridProviderErrorHandling:
         """Test handling of ValidationError exceptions."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+        ):
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
             mock_yf_instance.get_ticker_info.side_effect = ValidationError("Invalid ticker format")
@@ -443,11 +510,13 @@ class TestAsyncHybridProviderErrorHandling:
             mock_get_config.return_value = mock_config_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             # Should not raise - should handle gracefully
             result = await provider.get_ticker_info("INVALID$")
             assert result is not None
+
 
 class TestAsyncHybridProviderDataQuality:
     """Tests for data quality and integrity."""
@@ -476,11 +545,14 @@ class TestAsyncHybridProviderDataQuality:
         """Test that essential fields are always present in results."""
         mock_config = {"ENABLE_YAHOOQUERY": False}
 
-        with patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider') as mock_yf_class, \
-             patch('yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider') as mock_yq_class, \
-             patch('yahoofinance.core.config.PROVIDER_CONFIG', mock_config), \
-             patch('trade_modules.config_manager.get_config') as mock_get_config:
-
+        with (
+            patch(
+                "yahoofinance.api.providers.async_hybrid_provider.AsyncYahooFinanceProvider"
+            ) as mock_yf_class,
+            patch("yahoofinance.api.providers.async_hybrid_provider.AsyncYahooQueryProvider"),
+            patch("yahoofinance.core.config.PROVIDER_CONFIG", mock_config),
+            patch("trade_modules.config_manager.get_config") as mock_get_config,
+        ):
             # Return minimal data
             mock_yf_instance = AsyncMock()
             mock_yf_instance.max_concurrency = 15
@@ -492,6 +564,7 @@ class TestAsyncHybridProviderDataQuality:
             mock_get_config.return_value = mock_config_instance
 
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+
             provider = AsyncHybridProvider()
 
             result = await provider.get_ticker_info("AAPL")

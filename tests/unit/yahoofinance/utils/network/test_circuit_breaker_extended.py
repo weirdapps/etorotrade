@@ -7,7 +7,9 @@ Target: Increase coverage for yahoofinance/utils/network/circuit_breaker.py
 import os
 import tempfile
 import time
+
 import pytest
+
 
 class TestCircuitState:
     """Test CircuitState enum."""
@@ -19,6 +21,7 @@ class TestCircuitState:
         assert CircuitState.CLOSED.value == "CLOSED"
         assert CircuitState.OPEN.value == "OPEN"
         assert CircuitState.HALF_OPEN.value == "HALF_OPEN"
+
 
 class TestCircuitBreaker:
     """Test CircuitBreaker class."""
@@ -44,7 +47,7 @@ class TestCircuitBreaker:
             failure_window=120,
             recovery_timeout=600,
             success_threshold=5,
-            enabled=False
+            enabled=False,
         )
 
         assert cb.failure_threshold == 10
@@ -55,8 +58,9 @@ class TestCircuitBreaker:
 
     def test_record_success_in_closed_state(self):
         """Record success in closed state."""
-        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
         import uuid
+
+        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
 
         # Use unique name to avoid state file conflicts
         cb = CircuitBreaker(name=f"test_success_{uuid.uuid4().hex[:8]}", state_file=None)
@@ -69,10 +73,13 @@ class TestCircuitBreaker:
 
     def test_record_failure_in_closed_state(self):
         """Record failure in closed state."""
-        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
         import uuid
 
-        cb = CircuitBreaker(name=f"test_failure_{uuid.uuid4().hex[:8]}", failure_threshold=5, state_file=None)
+        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
+
+        cb = CircuitBreaker(
+            name=f"test_failure_{uuid.uuid4().hex[:8]}", failure_threshold=5, state_file=None
+        )
         initial_failures = cb.total_failures
         cb.record_failure()
 
@@ -85,11 +92,7 @@ class TestCircuitBreaker:
         """Circuit trips open after reaching failure threshold."""
         from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
 
-        cb = CircuitBreaker(
-            name="test_trip",
-            failure_threshold=3,
-            failure_window=60
-        )
+        cb = CircuitBreaker(name="test_trip", failure_threshold=3, failure_window=60)
 
         # Record failures up to threshold
         for _ in range(3):
@@ -100,16 +103,19 @@ class TestCircuitBreaker:
 
     def test_circuit_rejects_requests_when_open(self):
         """Circuit rejects requests when open."""
-        from yahoofinance.utils.network.circuit_breaker import (
-            CircuitBreaker, CircuitState, CircuitOpenError
-        )
         import uuid
+
+        from yahoofinance.utils.network.circuit_breaker import (
+            CircuitBreaker,
+            CircuitOpenError,
+            CircuitState,
+        )
 
         cb = CircuitBreaker(
             name=f"test_reject_{uuid.uuid4().hex[:8]}",
             failure_threshold=2,
             recovery_timeout=300,
-            state_file=None
+            state_file=None,
         )
 
         # Trip the circuit
@@ -129,11 +135,7 @@ class TestCircuitBreaker:
         """Circuit allows all requests when disabled."""
         from yahoofinance.utils.network.circuit_breaker import CircuitBreaker
 
-        cb = CircuitBreaker(
-            name="test_disabled",
-            enabled=False,
-            failure_threshold=2
-        )
+        cb = CircuitBreaker(name="test_disabled", enabled=False, failure_threshold=2)
 
         # Trip the circuit
         cb.record_failure()
@@ -155,10 +157,7 @@ class TestCircuitBreaker:
         """Reset resets circuit to closed state."""
         from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
 
-        cb = CircuitBreaker(
-            name="test_reset",
-            failure_threshold=2
-        )
+        cb = CircuitBreaker(name="test_reset", failure_threshold=2)
 
         # Trip the circuit
         cb.record_failure()
@@ -191,8 +190,9 @@ class TestCircuitBreaker:
 
     def test_execute_success(self):
         """Execute returns function result on success."""
-        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker
         import uuid
+
+        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(name=f"test_execute_{uuid.uuid4().hex[:8]}", state_file=None)
         initial_successes = cb.total_successes
@@ -206,9 +206,10 @@ class TestCircuitBreaker:
 
     def test_execute_failure(self):
         """Execute records failure on exception."""
-        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker
-        from yahoofinance.core.errors import YFinanceError
         import uuid
+
+        from yahoofinance.core.errors import YFinanceError
+        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker
 
         cb = CircuitBreaker(name=f"test_execute_fail_{uuid.uuid4().hex[:8]}", state_file=None)
         initial_failures = cb.total_failures
@@ -228,7 +229,7 @@ class TestCircuitBreaker:
         cb = CircuitBreaker(
             name="test_half_open",
             failure_threshold=2,
-            recovery_timeout=0  # Immediate recovery for testing
+            recovery_timeout=0,  # Immediate recovery for testing
         )
 
         # Trip the circuit
@@ -246,10 +247,7 @@ class TestCircuitBreaker:
         from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
 
         cb = CircuitBreaker(
-            name="test_close",
-            failure_threshold=2,
-            recovery_timeout=0,
-            success_threshold=2
+            name="test_close", failure_threshold=2, recovery_timeout=0, success_threshold=2
         )
 
         # Trip and recover
@@ -267,10 +265,7 @@ class TestCircuitBreaker:
         """Circuit reopens on failure in half-open state."""
         from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
 
-        cb = CircuitBreaker(
-            name="test_reopen",
-            failure_threshold=2
-        )
+        cb = CircuitBreaker(name="test_reopen", failure_threshold=2)
 
         # Set to half-open
         cb.state = CircuitState.HALF_OPEN
@@ -284,10 +279,7 @@ class TestCircuitBreaker:
         """Clean old failures removes failures outside window."""
         from yahoofinance.utils.network.circuit_breaker import CircuitBreaker
 
-        cb = CircuitBreaker(
-            name="test_clean",
-            failure_window=1
-        )
+        cb = CircuitBreaker(name="test_clean", failure_window=1)
 
         # Add old failure
         cb.failure_timestamps = [time.time() - 2]
@@ -299,6 +291,7 @@ class TestCircuitBreaker:
         assert cb.failure_count == 0
         assert len(cb.failure_timestamps) == 0
 
+
 class TestCircuitBreakerErrors:
     """Test circuit breaker error classes."""
 
@@ -306,11 +299,7 @@ class TestCircuitBreakerErrors:
         """Test CircuitBreakerError."""
         from yahoofinance.utils.network.circuit_breaker import CircuitBreakerError
 
-        error = CircuitBreakerError(
-            "Test error",
-            circuit_name="test",
-            details={"key": "value"}
-        )
+        error = CircuitBreakerError("Test error", circuit_name="test", details={"key": "value"})
 
         assert str(error) == "Test error"
         assert error.circuit_name == "test"
@@ -324,7 +313,7 @@ class TestCircuitBreakerErrors:
             "Circuit open",
             circuit_name="test",
             circuit_state="OPEN",
-            metrics={"time_until_reset": 60}
+            metrics={"time_until_reset": 60},
         )
 
         assert str(error) == "Circuit open"
@@ -332,14 +321,13 @@ class TestCircuitBreakerErrors:
         assert error.circuit_state == "OPEN"
         assert error.retry_after == 60
 
+
 class TestAsyncCircuitBreaker:
     """Test AsyncCircuitBreaker class."""
 
     def test_async_circuit_breaker_init(self):
         """Initialize async circuit breaker."""
-        from yahoofinance.utils.network.circuit_breaker import (
-            AsyncCircuitBreaker, CircuitState
-        )
+        from yahoofinance.utils.network.circuit_breaker import AsyncCircuitBreaker, CircuitState
 
         cb = AsyncCircuitBreaker(name="test_async")
 
@@ -349,8 +337,9 @@ class TestAsyncCircuitBreaker:
     @pytest.mark.asyncio
     async def test_execute_async_success(self):
         """Execute async returns result on success."""
-        from yahoofinance.utils.network.circuit_breaker import AsyncCircuitBreaker
         import uuid
+
+        from yahoofinance.utils.network.circuit_breaker import AsyncCircuitBreaker
 
         cb = AsyncCircuitBreaker(name=f"test_async_exec_{uuid.uuid4().hex[:8]}", state_file=None)
         initial_successes = cb.total_successes
@@ -365,9 +354,10 @@ class TestAsyncCircuitBreaker:
     @pytest.mark.asyncio
     async def test_execute_async_failure(self):
         """Execute async records failure on exception."""
-        from yahoofinance.utils.network.circuit_breaker import AsyncCircuitBreaker
-        from yahoofinance.core.errors import YFinanceError
         import uuid
+
+        from yahoofinance.core.errors import YFinanceError
+        from yahoofinance.utils.network.circuit_breaker import AsyncCircuitBreaker
 
         cb = AsyncCircuitBreaker(name=f"test_async_fail_{uuid.uuid4().hex[:8]}", state_file=None)
         initial_failures = cb.total_failures
@@ -383,14 +373,15 @@ class TestAsyncCircuitBreaker:
     @pytest.mark.asyncio
     async def test_execute_async_rejects_when_open(self):
         """Execute async rejects when circuit is open."""
-        from yahoofinance.utils.network.circuit_breaker import AsyncCircuitBreaker, CircuitOpenError
         import uuid
+
+        from yahoofinance.utils.network.circuit_breaker import AsyncCircuitBreaker, CircuitOpenError
 
         cb = AsyncCircuitBreaker(
             name=f"test_async_reject_{uuid.uuid4().hex[:8]}",
             failure_threshold=2,
             recovery_timeout=300,
-            state_file=None
+            state_file=None,
         )
 
         # Trip the circuit
@@ -402,6 +393,7 @@ class TestAsyncCircuitBreaker:
 
         with pytest.raises(CircuitOpenError):
             await cb.execute_async(dummy_func)
+
 
 class TestCircuitBreakerRegistry:
     """Test CircuitBreakerRegistry class."""
@@ -418,7 +410,8 @@ class TestCircuitBreakerRegistry:
     def test_get_circuit_breaker_creates_new(self):
         """Get circuit breaker creates new instance."""
         from yahoofinance.utils.network.circuit_breaker import (
-            CircuitBreakerRegistry, CircuitBreaker
+            CircuitBreaker,
+            CircuitBreakerRegistry,
         )
 
         registry = CircuitBreakerRegistry()
@@ -473,14 +466,13 @@ class TestCircuitBreakerRegistry:
 
         assert len(registry._circuit_breakers) == 0
 
+
 class TestGlobalFunctions:
     """Test global helper functions."""
 
     def test_get_circuit_breaker(self):
         """Get circuit breaker returns instance."""
-        from yahoofinance.utils.network.circuit_breaker import (
-            get_circuit_breaker, CircuitBreaker
-        )
+        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, get_circuit_breaker
 
         cb = get_circuit_breaker("global_test")
 
@@ -489,8 +481,9 @@ class TestGlobalFunctions:
     def test_get_async_circuit_breaker(self):
         """Get async circuit breaker returns instance."""
         from yahoofinance.utils.network.circuit_breaker import (
-            get_async_circuit_breaker, AsyncCircuitBreaker,
-            _circuit_breakers
+            AsyncCircuitBreaker,
+            _circuit_breakers,
+            get_async_circuit_breaker,
         )
 
         # Clear any existing entry first
@@ -503,14 +496,13 @@ class TestGlobalFunctions:
 
     def test_get_all_circuits(self):
         """Get all circuits returns metrics."""
-        from yahoofinance.utils.network.circuit_breaker import (
-            get_all_circuits, get_circuit_breaker
-        )
+        from yahoofinance.utils.network.circuit_breaker import get_all_circuits, get_circuit_breaker
 
         get_circuit_breaker("metrics_test")
         circuits = get_all_circuits()
 
         assert isinstance(circuits, dict)
+
 
 class TestCircuitProtectedDecorator:
     """Test circuit_protected decorator."""
@@ -528,10 +520,11 @@ class TestCircuitProtectedDecorator:
 
     def test_circuit_protected_failure(self):
         """Decorator records failure on exception."""
-        from yahoofinance.utils.network.circuit_breaker import (
-            circuit_protected, get_circuit_breaker
-        )
         from yahoofinance.core.errors import YFinanceError
+        from yahoofinance.utils.network.circuit_breaker import (
+            circuit_protected,
+            get_circuit_breaker,
+        )
 
         @circuit_protected("decorator_fail_test")
         def failing_func():
@@ -542,6 +535,7 @@ class TestCircuitProtectedDecorator:
 
         cb = get_circuit_breaker("decorator_fail_test")
         assert cb.total_failures >= 1
+
 
 class TestAsyncCircuitProtectedDecorator:
     """Test async_circuit_protected decorator."""
@@ -561,11 +555,12 @@ class TestAsyncCircuitProtectedDecorator:
     @pytest.mark.asyncio
     async def test_async_circuit_protected_failure(self):
         """Async decorator records failure on exception."""
-        from yahoofinance.utils.network.circuit_breaker import (
-            async_circuit_protected, get_async_circuit_breaker,
-            _circuit_breakers
-        )
         from yahoofinance.core.errors import YFinanceError
+        from yahoofinance.utils.network.circuit_breaker import (
+            _circuit_breakers,
+            async_circuit_protected,
+            get_async_circuit_breaker,
+        )
 
         # Clear any existing entry first
         if "async_decorator_fail_test" in _circuit_breakers:
@@ -581,6 +576,7 @@ class TestAsyncCircuitProtectedDecorator:
         cb = get_async_circuit_breaker("async_decorator_fail_test")
         assert cb.total_failures >= 1
 
+
 class TestCircuitBreakerStatePersistence:
     """Test circuit breaker state persistence."""
 
@@ -591,10 +587,7 @@ class TestCircuitBreakerStatePersistence:
         with tempfile.TemporaryDirectory() as tmpdir:
             state_file = os.path.join(tmpdir, "state.json")
 
-            cb = CircuitBreaker(
-                name="persist_test",
-                state_file=state_file
-            )
+            cb = CircuitBreaker(name="persist_test", state_file=state_file)
 
             cb.record_success()
 
@@ -602,8 +595,9 @@ class TestCircuitBreakerStatePersistence:
 
     def test_load_state_restores(self):
         """Load state restores from file."""
-        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
         import json
+
+        from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
 
         with tempfile.TemporaryDirectory() as tmpdir:
             state_file = os.path.join(tmpdir, "state.json")
@@ -621,16 +615,13 @@ class TestCircuitBreakerStatePersistence:
                     "total_successes": 5,
                     "total_requests": 15,
                     "failure_timestamps": [],
-                    "consecutive_failures": 5
+                    "consecutive_failures": 5,
                 }
             }
             with open(state_file, "w") as f:
                 json.dump(state_data, f)
 
-            cb = CircuitBreaker(
-                name="load_test",
-                state_file=state_file
-            )
+            cb = CircuitBreaker(name="load_test", state_file=state_file)
 
             assert cb.state == CircuitState.OPEN
             assert cb.total_failures == 10
@@ -642,10 +633,7 @@ class TestCircuitBreakerStatePersistence:
         with tempfile.TemporaryDirectory() as tmpdir:
             state_file = os.path.join(tmpdir, "nonexistent", "state.json")
 
-            cb = CircuitBreaker(
-                name="missing_test",
-                state_file=state_file
-            )
+            cb = CircuitBreaker(name="missing_test", state_file=state_file)
 
             assert cb.state == CircuitState.CLOSED
 
@@ -660,12 +648,10 @@ class TestCircuitBreakerStatePersistence:
             with open(state_file, "w") as f:
                 f.write("not valid json")
 
-            cb = CircuitBreaker(
-                name="invalid_json_test",
-                state_file=state_file
-            )
+            cb = CircuitBreaker(name="invalid_json_test", state_file=state_file)
 
             assert cb.state == CircuitState.CLOSED
+
 
 class TestCircuitBreakerEdgeCases:
     """Test edge cases and boundary conditions."""
@@ -677,7 +663,7 @@ class TestCircuitBreakerEdgeCases:
         cb = CircuitBreaker(
             name="max_timeout_test",
             failure_threshold=2,
-            max_open_timeout=0  # Immediate timeout
+            max_open_timeout=0,  # Immediate timeout
         )
 
         # Trip the circuit
@@ -696,10 +682,7 @@ class TestCircuitBreakerEdgeCases:
         """Half-open state allows percentage of requests."""
         from yahoofinance.utils.network.circuit_breaker import CircuitBreaker, CircuitState
 
-        cb = CircuitBreaker(
-            name="percentage_test",
-            half_open_allow_percentage=50
-        )
+        cb = CircuitBreaker(name="percentage_test", half_open_allow_percentage=50)
 
         cb.state = CircuitState.HALF_OPEN
         cb.total_requests = 0

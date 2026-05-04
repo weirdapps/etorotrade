@@ -93,7 +93,7 @@ class TestMemoryLeaks(unittest.TestCase):
             # Perform operations
             df["D"] = df["A"] + df["B"]
             df["E"] = df["C"] * 2
-            result = df.sum()
+            df.sum()
             del df
 
         gc.collect()

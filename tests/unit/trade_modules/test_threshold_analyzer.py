@@ -4,9 +4,9 @@ Tests for threshold_analyzer module.
 Basic coverage tests for the threshold optimization functionality.
 """
 
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
 
 
 class TestThresholdAnalyzerImports:
@@ -15,6 +15,7 @@ class TestThresholdAnalyzerImports:
     def test_module_import(self):
         """Test that threshold_analyzer module imports successfully."""
         from trade_modules import threshold_analyzer
+
         assert threshold_analyzer is not None
 
     def test_threshold_analysis_dataclass(self):
@@ -26,7 +27,7 @@ class TestThresholdAnalyzerImports:
             test_values=[8.0, 10.0, 12.0],
             signal_counts={8.0: {"buy": 50}, 10.0: {"buy": 40}, 12.0: {"buy": 30}},
             recommendation=10.0,
-            reasoning="Optimal balance"
+            reasoning="Optimal balance",
         )
         assert analysis.current_value == pytest.approx(10.0)
         assert analysis.recommendation == pytest.approx(10.0)
@@ -50,43 +51,49 @@ class TestThresholdAnalyzerFunctions:
         from trade_modules.threshold_analyzer import analyze_upside_distribution
 
         # Create sample data with UP% column
-        data = pd.DataFrame({
-            'ticker': ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'META'],
-            'UP%': ['15%', '20%', '25%', '30%', '18%'],
-        })
+        data = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL", "NVDA", "META"],
+                "UP%": ["15%", "20%", "25%", "30%", "18%"],
+            }
+        )
 
         result = analyze_upside_distribution(data)
-        assert 'count' in result
-        assert 'mean' in result
-        assert result['count'] == 5
+        assert "count" in result
+        assert "mean" in result
+        assert result["count"] == 5
 
     def test_analyze_buy_percentage_distribution(self):
         """Test buy percentage distribution analysis."""
         from trade_modules.threshold_analyzer import analyze_buy_percentage_distribution
 
         # Create sample data with %B column
-        data = pd.DataFrame({
-            'ticker': ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'META'],
-            '%B': ['85%', '90%', '80%', '95%', '75%'],
-        })
+        data = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL", "NVDA", "META"],
+                "%B": ["85%", "90%", "80%", "95%", "75%"],
+            }
+        )
 
         result = analyze_buy_percentage_distribution(data)
-        assert 'count' in result
-        assert 'mean' in result
+        assert "count" in result
+        assert "mean" in result
 
     def test_threshold_sensitivity_analysis(self):
         """Test threshold sensitivity analysis."""
         from trade_modules.threshold_analyzer import threshold_sensitivity_analysis
 
         # Create sample data with UP% column
-        data = pd.DataFrame({
-            'ticker': ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'META'],
-            'UP%': ['15%', '20%', '25%', '30%', '18%'],
-            '%B': ['85%', '90%', '80%', '95%', '75%'],
-        })
+        data = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL", "NVDA", "META"],
+                "UP%": ["15%", "20%", "25%", "30%", "18%"],
+                "%B": ["85%", "90%", "80%", "95%", "75%"],
+            }
+        )
 
         # Correct signature: (df, metric_col, threshold_range, step, direction)
-        result = threshold_sensitivity_analysis(data, 'UP%', (10.0, 30.0), 5.0)
+        result = threshold_sensitivity_analysis(data, "UP%", (10.0, 30.0), 5.0)
         assert result is not None
         assert result.test_values is not None
 
@@ -94,29 +101,29 @@ class TestThresholdAnalyzerFunctions:
         """Test threshold sensitivity analysis with 'below' direction."""
         from trade_modules.threshold_analyzer import threshold_sensitivity_analysis
 
-        data = pd.DataFrame({
-            'ticker': ['AAPL', 'MSFT', 'GOOGL'],
-            'UP%': ['15%', '20%', '25%'],
-        })
+        data = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL"],
+                "UP%": ["15%", "20%", "25%"],
+            }
+        )
 
-        result = threshold_sensitivity_analysis(data, 'UP%', (10.0, 30.0), 5.0, direction='below')
+        result = threshold_sensitivity_analysis(data, "UP%", (10.0, 30.0), 5.0, direction="below")
         assert result is not None
         assert result.signal_counts is not None
 
     def test_generate_threshold_report(self):
         """Test threshold report generation."""
-        from trade_modules.threshold_analyzer import generate_threshold_report
         import tempfile
         from pathlib import Path
+
+        from trade_modules.threshold_analyzer import generate_threshold_report
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a mock market.csv file with all required columns
             market_path = Path(tmpdir) / "market.csv"
             market_path.write_text(
-                "ticker,UP%,%B,BS\n"
-                "AAPL,15%,85%,B\n"
-                "MSFT,20%,90%,B\n"
-                "TSLA,5%,40%,S\n"
+                "ticker,UP%,%B,BS\n" "AAPL,15%,85%,B\n" "MSFT,20%,90%,B\n" "TSLA,5%,40%,S\n"
             )
 
             report = generate_threshold_report(market_path)
@@ -134,7 +141,7 @@ class TestCryptoMomentumConfig:
         yaml_config = get_yaml_config()
         config = yaml_config.load_config()
 
-        crypto_config = config.get('crypto_momentum', {})
+        crypto_config = config.get("crypto_momentum", {})
         assert crypto_config is not None
 
     def test_bitcoin_proxy_config_loaded(self):
@@ -144,7 +151,7 @@ class TestCryptoMomentumConfig:
         yaml_config = get_yaml_config()
         config = yaml_config.load_config()
 
-        btc_config = config.get('bitcoin_proxy', {})
+        btc_config = config.get("bitcoin_proxy", {})
         assert btc_config is not None
 
 

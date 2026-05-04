@@ -12,6 +12,7 @@ import pytest
 from yahoofinance.api import get_provider
 from yahoofinance.core.errors import ValidationError
 
+
 @pytest.mark.integration
 @pytest.mark.network
 async def test_client_with_rate_limiting():
@@ -23,6 +24,7 @@ async def test_client_with_rate_limiting():
     assert data is not None
     assert "name" in data
     assert "symbol" in data
+
 
 @pytest.mark.integration
 @pytest.mark.network
@@ -41,6 +43,7 @@ async def test_rate_limited_retries():
     assert "name" in result
     assert "symbol" in result
 
+
 @pytest.mark.integration
 @pytest.mark.network
 async def test_batch_processing_with_rate_limiting():
@@ -56,6 +59,7 @@ async def test_batch_processing_with_rate_limiting():
     assert len(results) == 4
     assert all(r is not None for r in results)
     assert all("symbol" in r for r in results)
+
 
 @pytest.mark.integration
 @pytest.mark.network
@@ -73,6 +77,7 @@ async def test_error_recovery_integration():
         assert result2 is None or isinstance(result2, dict)
     except Exception:
         pass  # Exception is also acceptable behavior
+
 
 @pytest.mark.integration
 @pytest.mark.network
@@ -124,6 +129,7 @@ class TestProviderIntegration:
         """Test validation for invalid tickers"""
         with pytest.raises(ValidationError):
             await self.provider.get_ticker_info("INVALID_TICKER_123456789")
+
 
 @pytest.mark.integration
 @pytest.mark.network

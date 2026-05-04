@@ -21,6 +21,7 @@ from trade_modules.signal_tracker import (
     format_signal_changes,
 )
 
+
 class TestSignalChangeDetector:
     """Tests for SignalChangeDetector class."""
 
@@ -176,9 +177,7 @@ class TestSignalChangeDetector:
         changes = detector.detect_changes(today, yesterday)
 
         # CRITICAL should come first
-        critical_idx = next(
-            (i for i, c in enumerate(changes) if c["urgency"] == "CRITICAL"), None
-        )
+        critical_idx = next((i for i, c in enumerate(changes) if c["urgency"] == "CRITICAL"), None)
         opportunity_idx = next(
             (i for i, c in enumerate(changes) if c["urgency"] == "OPPORTUNITY"), None
         )
@@ -259,6 +258,7 @@ class TestSignalChangeDetector:
         for opp in opportunities:
             assert opp["urgency"] == "OPPORTUNITY"
 
+
 class TestConvenienceFunctions:
     """Tests for module-level convenience functions."""
 
@@ -302,6 +302,7 @@ class TestConvenienceFunctions:
         formatted = format_signal_changes(changes)
         assert len(formatted) == 1
         assert "AAPL" in formatted[0]
+
 
 class TestSignalChangeEdgeCases:
     """Tests for edge cases in signal change detection."""
@@ -409,6 +410,7 @@ class TestSignalChangeEdgeCases:
         assert len(changes) == 1
         # Price went from 100 to 90 = -10%
         assert changes[0]["price_change_pct"] == pytest.approx(-10.0, rel=0.01)
+
 
 class TestInconclusiveSignals:
     """Tests for handling INCONCLUSIVE signals."""

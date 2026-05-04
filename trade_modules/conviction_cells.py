@@ -21,24 +21,23 @@ import json
 import logging
 import math
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CELLS_PATH = (
-    Path.home() / ".weirdapps-trading" / "committee" / "conviction_cells.json"
-)
+DEFAULT_CELLS_PATH = Path.home() / ".weirdapps-trading" / "committee" / "conviction_cells.json"
 
 
-def _spearman_rho(xs: List[float], ys: List[float]) -> Optional[float]:
+def _spearman_rho(xs: list[float], ys: list[float]) -> float | None:
     """Spearman rank correlation. Returns None for n<3 or zero variance."""
     n = len(xs)
     if n < 3 or len(ys) != n:
         return None
 
-    def _rank(values: List[float]) -> List[float]:
+    def _rank(values: list[float]) -> list[float]:
         order = sorted(range(n), key=lambda i: values[i])
         ranks = [0.0] * n
         i = 0
@@ -64,7 +63,8 @@ def _spearman_rho(xs: List[float], ys: List[float]) -> Optional[float]:
 
 # ── Cell axes ───────────────────────────────────────────────────────────
 
-def _cap_tier(market_cap_billions: Optional[float]) -> str:
+
+def _cap_tier(market_cap_billions: float | None) -> str:
     if not market_cap_billions or market_cap_billions <= 0:
         return "UNKNOWN"
     if market_cap_billions >= 500:
@@ -78,11 +78,11 @@ def _cap_tier(market_cap_billions: Optional[float]) -> str:
     return "MICRO"
 
 
-def _consensus_band(buy_pct: Optional[float]) -> str:
+def _consensus_band(buy_pct: float | None) -> str:
     if buy_pct is None:
         return "UNKNOWN"
     if buy_pct >= 90:
-        return "EXTREME"     # crowded
+        return "EXTREME"  # crowded
     if buy_pct >= 75:
         return "HIGH"
     if buy_pct >= 60:
@@ -90,7 +90,7 @@ def _consensus_band(buy_pct: Optional[float]) -> str:
     return "LOW"
 
 
-def _conv_band(conviction: Optional[float]) -> str:
+def _conv_band(conviction: float | None) -> str:
     if conviction is None:
         return "UNKNOWN"
     if conviction >= 70:
@@ -104,14 +104,14 @@ def _conv_band(conviction: Optional[float]) -> str:
     return "<45"
 
 
-def _safe_int(v) -> Optional[int]:
+def _safe_int(v) -> int | None:
     try:
         return int(v)
     except (TypeError, ValueError):
         return None
 
 
-def _safe_float(v) -> Optional[float]:
+def _safe_float(v) -> float | None:
     try:
         return float(v)
     except (TypeError, ValueError):
@@ -120,12 +120,13 @@ def _safe_float(v) -> Optional[float]:
 
 # ── Cell aggregation ────────────────────────────────────────────────────
 
+
 def compute_cells(
-    history: Iterable[Dict[str, Any]],
-    forward_returns: Dict[str, Dict[str, float]],
+    history: Iterable[dict[str, Any]],
+    forward_returns: dict[str, dict[str, float]],
     horizon: str = "T+30",
     min_cell_n: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Compute Spearman ρ(conviction, α) per cell.
 
@@ -155,10 +156,8 @@ def compute_cells(
     """
     alpha_key = f"{horizon}_alpha"
     # cell_key → list of (conviction, alpha)
-    cell_pairs: Dict[Tuple[str, str, str, str], List[Tuple[float, float]]] = (
-        defaultdict(list)
-    )
-    all_pairs: List[Tuple[float, float]] = []
+    cell_pairs: dict[tuple[str, str, str, str], list[tuple[float, float]]] = defaultdict(list)
+    all_pairs: list[tuple[float, float]] = []
 
     for entry in history:
         date_str = entry.get("date", "")
@@ -191,17 +190,21 @@ def compute_cells(
             all_pairs.append((conv, float(alpha)))
 
     # Compute per-cell
-    cells_out: Dict[str, Dict[str, Any]] = {}
-    high_ic: List[str] = []
-    low_ic: List[str] = []
+    cells_out: dict[str, dict[str, Any]] = {}
+    high_ic: list[str] = []
+    low_ic: list[str] = []
     for (sig, tier, regime, consensus), pairs in cell_pairs.items():
         n = len(pairs)
         cell_key = f"{sig}|{tier}|{regime}|{consensus}"
         if n < 3:
-            cells_out[cell_key] = {"n": n, "spearman": None,
-                                    "mean_alpha": None, "verdict": "INSUFFICIENT"}
+            cells_out[cell_key] = {
+                "n": n,
+                "spearman": None,
+                "mean_alpha": None,
+                "verdict": "INSUFFICIENT",
+            }
             continue
-        convs, alphas = zip(*pairs)
+        convs, alphas = zip(*pairs, strict=False)
         sp = _spearman_rho(list(convs), list(alphas))
         mean_alpha = round(sum(alphas) / n, 2)
         verdict = "EVIDENCE" if n >= min_cell_n else "LOW_N"
@@ -220,7 +223,7 @@ def compute_cells(
     agg_sp = None
     agg_alpha = None
     if all_pairs:
-        ac, aa = zip(*all_pairs)
+        ac, aa = zip(*all_pairs, strict=False)
         agg_sp = _spearman_rho(list(ac), list(aa))
         agg_alpha = round(sum(aa) / len(aa), 2)
 
@@ -242,7 +245,7 @@ def compute_cells(
     return output
 
 
-def _market_cap_to_billions(s: str) -> Optional[float]:
+def _market_cap_to_billions(s: str) -> float | None:
     if not s:
         return None
     s = s.strip().upper()
@@ -256,15 +259,17 @@ def _market_cap_to_billions(s: str) -> Optional[float]:
 
 
 def _summarise_recommendation(
-    high_ic: List[str], low_ic: List[str], agg: Optional[float], n: int,
+    high_ic: list[str],
+    low_ic: list[str],
+    agg: float | None,
+    n: int,
 ) -> str:
     if n < 50:
         return f"Insufficient evidence yet (n={n}). Re-run weekly until n≥200."
     parts = []
     if high_ic:
         parts.append(
-            f"{len(high_ic)} high-IC cells (|ρ|≥0.3) — boost conviction "
-            f"weight in these cells."
+            f"{len(high_ic)} high-IC cells (|ρ|≥0.3) — boost conviction " f"weight in these cells."
         )
     if low_ic:
         parts.append(
@@ -280,10 +285,10 @@ def _summarise_recommendation(
 
 def cell_confidence_multiplier(
     signal: str,
-    market_cap_billions: Optional[float],
+    market_cap_billions: float | None,
     regime: str,
-    buy_pct: Optional[float],
-    cells_data: Dict[str, Any],
+    buy_pct: float | None,
+    cells_data: dict[str, Any],
 ) -> float:
     """
     Resolve the cell containing this stock and return a multiplier in
@@ -315,8 +320,8 @@ def cell_confidence_multiplier(
 
 
 def persist_cells(
-    cells_output: Dict[str, Any],
-    path: Optional[Path] = None,
+    cells_output: dict[str, Any],
+    path: Path | None = None,
 ) -> Path:
     out = path or DEFAULT_CELLS_PATH
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -324,7 +329,7 @@ def persist_cells(
     return out
 
 
-def load_cells(path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def load_cells(path: Path | None = None) -> dict[str, Any] | None:
     p = path or DEFAULT_CELLS_PATH
     if not p.exists():
         return None

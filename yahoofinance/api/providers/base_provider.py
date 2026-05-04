@@ -6,13 +6,14 @@ ensuring a consistent interface regardless of the underlying data source.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
 from ...core.logging import get_logger
 
 logger = get_logger(__name__)
+
 
 class FinanceDataProvider(ABC):
     """
@@ -23,7 +24,7 @@ class FinanceDataProvider(ABC):
     """
 
     @abstractmethod
-    def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
+    def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> dict[str, Any]:
         """
         Get comprehensive information for a ticker.
 
@@ -40,7 +41,7 @@ class FinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    def get_price_data(self, ticker: str) -> Dict[str, Any]:
+    def get_price_data(self, ticker: str) -> dict[str, Any]:
         """
         Get current price data for a ticker.
 
@@ -76,7 +77,7 @@ class FinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
+    def get_earnings_dates(self, ticker: str) -> tuple[str | None, str | None]:
         """
         Get the last two earnings dates for a stock.
 
@@ -95,7 +96,7 @@ class FinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
+    def get_analyst_ratings(self, ticker: str) -> dict[str, Any]:
         """
         Get analyst ratings for a ticker.
 
@@ -111,7 +112,7 @@ class FinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
+    def get_insider_transactions(self, ticker: str) -> list[dict[str, Any]]:
         """
         Get insider transactions for a ticker.
 
@@ -127,7 +128,7 @@ class FinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_tickers(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Search for tickers matching a query.
 
@@ -145,8 +146,8 @@ class FinanceDataProvider(ABC):
 
     @abstractmethod
     def batch_get_ticker_info(
-        self, tickers: List[str], skip_insider_metrics: bool = False
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tickers: list[str], skip_insider_metrics: bool = False
+    ) -> dict[str, dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch.
 
@@ -168,7 +169,7 @@ class FinanceDataProvider(ABC):
         """
         pass
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> dict[str, Any]:
         """
         Get information about the current cache state.
 
@@ -176,6 +177,7 @@ class FinanceDataProvider(ABC):
             Dict containing cache information
         """
         return {}
+
 
 class AsyncFinanceDataProvider(ABC):
     """
@@ -188,7 +190,7 @@ class AsyncFinanceDataProvider(ABC):
     @abstractmethod
     async def get_ticker_info(
         self, ticker: str, skip_insider_metrics: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive information for a ticker asynchronously.
 
@@ -205,7 +207,7 @@ class AsyncFinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+    async def get_price_data(self, ticker: str) -> dict[str, Any]:
         """
         Get current price data for a ticker asynchronously.
 
@@ -241,7 +243,7 @@ class AsyncFinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_earnings_dates(self, ticker: str) -> tuple[str | None, str | None]:
         """
         Get the last two earnings dates for a stock.
 
@@ -260,7 +262,7 @@ class AsyncFinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
+    async def get_analyst_ratings(self, ticker: str) -> dict[str, Any]:
         """
         Get analyst ratings for a ticker.
 
@@ -276,7 +278,7 @@ class AsyncFinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
+    async def get_insider_transactions(self, ticker: str) -> list[dict[str, Any]]:
         """
         Get insider transactions for a ticker.
 
@@ -292,7 +294,7 @@ class AsyncFinanceDataProvider(ABC):
         pass
 
     @abstractmethod
-    async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def search_tickers(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Search for tickers matching a query.
 
@@ -310,8 +312,8 @@ class AsyncFinanceDataProvider(ABC):
 
     @abstractmethod
     async def batch_get_ticker_info(
-        self, tickers: List[str], skip_insider_metrics: bool = False
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tickers: list[str], skip_insider_metrics: bool = False
+    ) -> dict[str, dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch.
 
@@ -333,7 +335,7 @@ class AsyncFinanceDataProvider(ABC):
         """
         pass
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> dict[str, Any]:
         """
         Get information about the current cache state.
 

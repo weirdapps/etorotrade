@@ -8,9 +8,8 @@ This module contains utility functions for:
 """
 
 import logging
+
 import pandas as pd
-import numpy as np
-from typing import Dict
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -44,14 +43,16 @@ def calculate_exret(df: pd.DataFrame) -> pd.DataFrame:
             buy_pct_col = pd.Series([0] * len(working_df), index=working_df.index)
 
         # Parse percentage values - handle strings like "18.1%" or numeric values
-        upside_numeric = pd.to_numeric(upside_col.str.rstrip('%') if hasattr(upside_col, 'str') else upside_col, errors="coerce").fillna(0)
-        buy_pct_numeric = pd.to_numeric(buy_pct_col.str.rstrip('%') if hasattr(buy_pct_col, 'str') else buy_pct_col, errors="coerce").fillna(0)
+        upside_numeric = pd.to_numeric(
+            upside_col.str.rstrip("%") if hasattr(upside_col, "str") else upside_col,
+            errors="coerce",
+        ).fillna(0)
+        buy_pct_numeric = pd.to_numeric(
+            buy_pct_col.str.rstrip("%") if hasattr(buy_pct_col, "str") else buy_pct_col,
+            errors="coerce",
+        ).fillna(0)
 
-        working_df["EXRET"] = (
-            upside_numeric
-            * buy_pct_numeric
-            / 100.0
-        )
+        working_df["EXRET"] = upside_numeric * buy_pct_numeric / 100.0
 
         # Round to 1 decimal place for consistency
         working_df["EXRET"] = working_df["EXRET"].round(1)
@@ -119,7 +120,7 @@ def _parse_percentage(pct_str) -> float:
 
     try:
         # Remove % sign and convert to float
-        if pct_str.endswith('%'):
+        if pct_str.endswith("%"):
             return float(pct_str[:-1])
         else:
             return float(pct_str)
@@ -156,12 +157,12 @@ def _parse_market_cap(cap_str) -> float:
 
     try:
         # Extract numeric part and suffix
-        if cap_str.endswith('T'):
+        if cap_str.endswith("T"):
             return float(cap_str[:-1]) * 1_000_000_000_000  # Trillion
-        elif cap_str.endswith('B'):
-            return float(cap_str[:-1]) * 1_000_000_000      # Billion
-        elif cap_str.endswith('M'):
-            return float(cap_str[:-1]) * 1_000_000           # Million
+        elif cap_str.endswith("B"):
+            return float(cap_str[:-1]) * 1_000_000_000  # Billion
+        elif cap_str.endswith("M"):
+            return float(cap_str[:-1]) * 1_000_000  # Million
         else:
             # Try to parse as direct number
             return float(cap_str)

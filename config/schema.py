@@ -4,15 +4,17 @@ Centralized configuration schema with Pydantic validation.
 This replaces scattered config across multiple files with a single
 validated source of truth.
 """
+
+import warnings
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Union
-from pydantic import BaseModel, Field, field_validator, ConfigDict
-import warnings
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Region(str, Enum):
     """Trading regions"""
+
     US = "US"
     EU = "EU"
     HK = "HK"
@@ -20,68 +22,86 @@ class Region(str, Enum):
 
 class AssetTier(str, Enum):
     """Market cap tiers"""
-    MEGA = "MEGA"    # ≥$500B
+
+    MEGA = "MEGA"  # ≥$500B
     LARGE = "LARGE"  # $100-500B
-    MID = "MID"      # $10-100B
+    MID = "MID"  # $10-100B
     SMALL = "SMALL"  # $2-10B
     MICRO = "MICRO"  # <$2B
 
 
 class BuyCriteria(BaseModel):
     """Buy signal criteria"""
+
     model_config = ConfigDict(frozen=True)  # Immutable after creation
 
     min_upside: float = Field(ge=0, le=100, description="Minimum upside %")
     min_buy_percentage: float = Field(ge=0, le=100, description="Minimum buy %")
 
     # Beta constraints
-    min_beta: Optional[float] = Field(ge=0, default=None, description="Minimum beta")
-    max_beta: Optional[float] = Field(ge=0, default=None, description="Maximum beta")
+    min_beta: float | None = Field(ge=0, default=None, description="Minimum beta")
+    max_beta: float | None = Field(ge=0, default=None, description="Maximum beta")
 
     # PE ratio constraints
-    min_forward_pe: Optional[float] = Field(ge=0, default=None, description="Minimum forward P/E")
-    max_forward_pe: Optional[float] = Field(ge=0, default=None, description="Maximum forward P/E")
-    min_trailing_pe: Optional[float] = Field(ge=0, default=None, description="Minimum trailing P/E")
-    max_trailing_pe: Optional[float] = Field(ge=0, default=None, description="Maximum trailing P/E")
+    min_forward_pe: float | None = Field(ge=0, default=None, description="Minimum forward P/E")
+    max_forward_pe: float | None = Field(ge=0, default=None, description="Maximum forward P/E")
+    min_trailing_pe: float | None = Field(ge=0, default=None, description="Minimum trailing P/E")
+    max_trailing_pe: float | None = Field(ge=0, default=None, description="Maximum trailing P/E")
 
     # Other constraints
-    max_peg: Optional[float] = Field(ge=0, default=None, description="Maximum PEG ratio")
-    max_short_interest: Optional[float] = Field(ge=0, default=None, description="Maximum short interest %")
+    max_peg: float | None = Field(ge=0, default=None, description="Maximum PEG ratio")
+    max_short_interest: float | None = Field(
+        ge=0, default=None, description="Maximum short interest %"
+    )
 
     # Analyst requirements
-    min_analysts: Optional[int] = Field(ge=1, default=None, description="Minimum analyst count")
-    min_price_targets: Optional[int] = Field(ge=1, default=None, description="Minimum price targets")
+    min_analysts: int | None = Field(ge=1, default=None, description="Minimum analyst count")
+    min_price_targets: int | None = Field(ge=1, default=None, description="Minimum price targets")
 
     # Financial health
-    min_roe: Optional[float] = Field(default=None, description="Minimum ROE %")
-    max_debt_equity: Optional[float] = Field(ge=0, default=None, description="Maximum debt/equity ratio")
+    min_roe: float | None = Field(default=None, description="Minimum ROE %")
+    max_debt_equity: float | None = Field(
+        ge=0, default=None, description="Maximum debt/equity ratio"
+    )
 
 
 class SellCriteria(BaseModel):
     """Sell signal criteria"""
+
     model_config = ConfigDict(frozen=True)  # Immutable after creation
 
     max_upside: float = Field(le=100, description="Maximum upside % (can be negative)")
-    min_buy_percentage: Optional[float] = Field(ge=0, le=100, default=None, description="Minimum buy % for sell")
+    min_buy_percentage: float | None = Field(
+        ge=0, le=100, default=None, description="Minimum buy % for sell"
+    )
 
     # Beta constraints
-    min_beta: Optional[float] = Field(ge=0, default=None, description="Minimum beta for sell")
+    min_beta: float | None = Field(ge=0, default=None, description="Minimum beta for sell")
 
     # PE ratio constraints
-    min_forward_pe: Optional[float] = Field(ge=0, default=None, description="Minimum forward P/E for sell")
-    min_trailing_pe: Optional[float] = Field(ge=0, default=None, description="Minimum trailing P/E for sell")
+    min_forward_pe: float | None = Field(
+        ge=0, default=None, description="Minimum forward P/E for sell"
+    )
+    min_trailing_pe: float | None = Field(
+        ge=0, default=None, description="Minimum trailing P/E for sell"
+    )
 
     # Other constraints
-    min_peg: Optional[float] = Field(ge=0, default=None, description="Minimum PEG ratio for sell")
-    min_short_interest: Optional[float] = Field(ge=0, default=None, description="Minimum short interest % for sell")
+    min_peg: float | None = Field(ge=0, default=None, description="Minimum PEG ratio for sell")
+    min_short_interest: float | None = Field(
+        ge=0, default=None, description="Minimum short interest % for sell"
+    )
 
     # Financial health
-    min_roe: Optional[float] = Field(default=None, description="Minimum ROE % for sell")
-    max_debt_equity: Optional[float] = Field(ge=0, default=None, description="Maximum debt/equity for sell")
+    min_roe: float | None = Field(default=None, description="Minimum ROE % for sell")
+    max_debt_equity: float | None = Field(
+        ge=0, default=None, description="Maximum debt/equity for sell"
+    )
 
 
 class TierCriteria(BaseModel):
     """Trading criteria for a specific tier and region"""
+
     model_config = ConfigDict(frozen=True)  # Immutable after creation
 
     buy: BuyCriteria
@@ -90,26 +110,23 @@ class TierCriteria(BaseModel):
 
 class SellScoringConfig(BaseModel):
     """Enhanced SELL signal scoring configuration"""
+
     model_config = ConfigDict(frozen=True)
 
     # Score threshold (0-100) for SELL signal
     score_threshold: int = Field(
-        default=65,
-        ge=0,
-        le=100,
-        description="Score threshold for SELL signal (0-100)"
+        default=65, ge=0, le=100, description="Score threshold for SELL signal (0-100)"
     )
 
     # Hard triggers (bypass scoring - immediate SELL)
     hard_trigger_upside: float = Field(
-        default=-5.0,
-        description="Hard trigger: upside below this triggers immediate SELL"
+        default=-5.0, description="Hard trigger: upside below this triggers immediate SELL"
     )
     hard_trigger_buy_pct: float = Field(
         default=35.0,
         ge=0,
         le=100,
-        description="Hard trigger: buy% below this triggers immediate SELL"
+        description="Hard trigger: buy% below this triggers immediate SELL",
     )
 
     # Quality override (bypass SELL - protect strong stocks)
@@ -117,208 +134,142 @@ class SellScoringConfig(BaseModel):
         default=85.0,
         ge=0,
         le=100,
-        description="Quality override: buy% above this protects from SELL"
+        description="Quality override: buy% above this protects from SELL",
     )
     quality_override_upside: float = Field(
-        default=20.0,
-        description="Quality override: upside above this protects from SELL"
+        default=20.0, description="Quality override: upside above this protects from SELL"
     )
 
     # Component weights (must sum to 1.0)
     weight_analyst: float = Field(
-        default=0.20,
-        ge=0,
-        le=1,
-        description="Weight for analyst sentiment component"
+        default=0.20, ge=0, le=1, description="Weight for analyst sentiment component"
     )
     weight_momentum: float = Field(
-        default=0.25,
-        ge=0,
-        le=1,
-        description="Weight for momentum component"
+        default=0.25, ge=0, le=1, description="Weight for momentum component"
     )
     weight_valuation: float = Field(
-        default=0.20,
-        ge=0,
-        le=1,
-        description="Weight for valuation component"
+        default=0.20, ge=0, le=1, description="Weight for valuation component"
     )
     weight_fundamental: float = Field(
-        default=0.25,
-        ge=0,
-        le=1,
-        description="Weight for fundamental component"
+        default=0.25, ge=0, le=1, description="Weight for fundamental component"
     )
     weight_analyst_momentum: float = Field(
-        default=0.10,
-        ge=0,
-        le=1,
-        description="Weight for analyst momentum component"
+        default=0.10, ge=0, le=1, description="Weight for analyst momentum component"
     )
 
 
 class BuyScoringConfig(BaseModel):
     """BUY conviction scoring configuration"""
+
     model_config = ConfigDict(frozen=True)
 
-    enabled: bool = Field(
-        default=True,
-        description="Enable BUY conviction scoring"
-    )
+    enabled: bool = Field(default=True, description="Enable BUY conviction scoring")
 
     # Component weights (must sum to 1.0)
     weight_upside: float = Field(
-        default=0.22,
-        ge=0,
-        le=1,
-        description="Weight for upside component"
+        default=0.22, ge=0, le=1, description="Weight for upside component"
     )
     weight_consensus: float = Field(
-        default=0.13,
-        ge=0,
-        le=1,
-        description="Weight for analyst consensus component"
+        default=0.13, ge=0, le=1, description="Weight for analyst consensus component"
     )
     weight_momentum: float = Field(
-        default=0.20,
-        ge=0,
-        le=1,
-        description="Weight for momentum component"
+        default=0.20, ge=0, le=1, description="Weight for momentum component"
     )
     weight_valuation: float = Field(
-        default=0.18,
-        ge=0,
-        le=1,
-        description="Weight for valuation component"
+        default=0.18, ge=0, le=1, description="Weight for valuation component"
     )
     weight_fundamental: float = Field(
-        default=0.17,
-        ge=0,
-        le=1,
-        description="Weight for fundamental component"
+        default=0.17, ge=0, le=1, description="Weight for fundamental component"
     )
     weight_analyst_momentum: float = Field(
-        default=0.10,
-        ge=0,
-        le=1,
-        description="Weight for analyst momentum component"
+        default=0.10, ge=0, le=1, description="Weight for analyst momentum component"
     )
 
 
 class CryptoMomentumMajorConfig(BaseModel):
     """Momentum thresholds for major cryptocurrencies (BTC, ETH)"""
+
     model_config = ConfigDict(frozen=True)
 
     buy_threshold: float = Field(
-        default=85.0,
-        ge=0,
-        le=100,
-        description="% of 52-week high required for BUY"
+        default=85.0, ge=0, le=100, description="% of 52-week high required for BUY"
     )
     hold_threshold: float = Field(
-        default=60.0,
-        ge=0,
-        le=100,
-        description="% of 52-week high - below this triggers SELL"
+        default=60.0, ge=0, le=100, description="% of 52-week high - below this triggers SELL"
     )
-    tickers: List[str] = Field(
-        default_factory=lambda: ['BTC-USD', 'ETH-USD'],
-        description="List of major crypto tickers"
+    tickers: list[str] = Field(
+        default_factory=lambda: ["BTC-USD", "ETH-USD"], description="List of major crypto tickers"
     )
 
 
 class CryptoMomentumAltcoinConfig(BaseModel):
     """Momentum thresholds for altcoins"""
+
     model_config = ConfigDict(frozen=True)
 
     buy_threshold: float = Field(
-        default=85.0,
-        ge=0,
-        le=100,
-        description="% of 52-week high required for BUY"
+        default=85.0, ge=0, le=100, description="% of 52-week high required for BUY"
     )
     hold_threshold: float = Field(
-        default=55.0,
-        ge=0,
-        le=100,
-        description="% of 52-week high - below this triggers SELL"
+        default=55.0, ge=0, le=100, description="% of 52-week high - below this triggers SELL"
     )
 
 
 class CryptoMomentumConfig(BaseModel):
     """Crypto momentum configuration"""
+
     model_config = ConfigDict(frozen=True)
 
     major: CryptoMomentumMajorConfig = Field(
-        default_factory=CryptoMomentumMajorConfig,
-        description="Config for major cryptos (BTC, ETH)"
+        default_factory=CryptoMomentumMajorConfig, description="Config for major cryptos (BTC, ETH)"
     )
     altcoins: CryptoMomentumAltcoinConfig = Field(
-        default_factory=CryptoMomentumAltcoinConfig,
-        description="Config for altcoins"
+        default_factory=CryptoMomentumAltcoinConfig, description="Config for altcoins"
     )
 
 
 class BitcoinProxyConfig(BaseModel):
     """Bitcoin proxy stock configuration"""
+
     model_config = ConfigDict(frozen=True)
 
     momentum_buy_threshold: float = Field(
-        default=70.0,
-        ge=0,
-        le=100,
-        description="% of 52-week high required for BUY consideration"
+        default=70.0, ge=0, le=100, description="% of 52-week high required for BUY consideration"
     )
     momentum_sell_threshold: float = Field(
-        default=35.0,
-        ge=0,
-        le=100,
-        description="% of 52-week high - below this triggers SELL"
+        default=35.0, ge=0, le=100, description="% of 52-week high - below this triggers SELL"
     )
     min_buy_pct_override: float = Field(
-        default=60.0,
-        ge=0,
-        le=100,
-        description="Relaxed analyst buy% threshold"
+        default=60.0, ge=0, le=100, description="Relaxed analyst buy% threshold"
     )
     require_above_200dma: bool = Field(
-        default=True,
-        description="Require above 200DMA for BUY signal"
+        default=True, description="Require above 200DMA for BUY signal"
     )
 
 
 class IPOGracePeriodConfig(BaseModel):
     """IPO grace period configuration"""
+
     model_config = ConfigDict(frozen=True)
 
-    enabled: bool = Field(
-        default=True,
-        description="Enable IPO grace period"
-    )
+    enabled: bool = Field(default=True, description="Enable IPO grace period")
     grace_period_months: int = Field(
-        default=12,
-        ge=1,
-        le=36,
-        description="Months after IPO to apply relaxed criteria"
+        default=12, ge=1, le=36, description="Months after IPO to apply relaxed criteria"
     )
     relaxed_momentum_threshold: float = Field(
-        default=40.0,
-        ge=0,
-        le=100,
-        description="More lenient 52W% threshold for recent IPOs"
+        default=40.0, ge=0, le=100, description="More lenient 52W% threshold for recent IPOs"
     )
     ignore_analyst_momentum: bool = Field(
-        default=True,
-        description="Ignore analyst momentum for recent IPOs"
+        default=True, description="Ignore analyst momentum for recent IPOs"
     )
-    known_ipos: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Known IPOs: ticker -> YYYY-MM-DD"
+    known_ipos: dict[str, str] = Field(
+        default_factory=dict, description="Known IPOs: ticker -> YYYY-MM-DD"
     )
 
 
 class ConvictionSizingMultiplier(BaseModel):
     """Single conviction sizing band"""
+
     model_config = ConfigDict(frozen=True)
 
     min_score: int = Field(ge=0, le=100)
@@ -328,15 +279,17 @@ class ConvictionSizingMultiplier(BaseModel):
 
 class ConvictionSizingConfig(BaseModel):
     """Conviction-modulated position sizing (CIO E1)"""
+
     model_config = ConfigDict(frozen=True)
 
     enabled: bool = Field(default=True)
-    multipliers: List[ConvictionSizingMultiplier] = Field(default_factory=list)
+    multipliers: list[ConvictionSizingMultiplier] = Field(default_factory=list)
     min_cost_adjusted_return: float = Field(default=1.0, ge=0)
 
 
 class DataFreshnessConfig(BaseModel):
     """Data freshness thresholds (CIO M5)"""
+
     model_config = ConfigDict(frozen=True)
 
     fresh_days: int = Field(default=30, ge=1, le=365)
@@ -346,6 +299,7 @@ class DataFreshnessConfig(BaseModel):
 
 class EarningsProximityConfig(BaseModel):
     """Earnings proximity configuration (CIO M4)"""
+
     model_config = ConfigDict(frozen=True)
 
     enabled: bool = Field(default=True)
@@ -356,16 +310,18 @@ class EarningsProximityConfig(BaseModel):
 
 class LiquidityConfig(BaseModel):
     """Liquidity filter and cost model (CIO S5)"""
+
     model_config = ConfigDict(frozen=True)
 
     enabled: bool = Field(default=True)
-    min_adv: Dict[str, float] = Field(default_factory=dict)
-    spread_bps: Dict[str, float] = Field(default_factory=dict)
+    min_adv: dict[str, float] = Field(default_factory=dict)
+    spread_bps: dict[str, float] = Field(default_factory=dict)
     etoro_overnight_annual_rate: float = Field(default=0.064, ge=0)
 
 
 class SectorRotationConfig(BaseModel):
     """Sector rotation detection (CIO M6)"""
+
     model_config = ConfigDict(frozen=True)
 
     enabled: bool = Field(default=True)
@@ -376,120 +332,109 @@ class SectorRotationConfig(BaseModel):
 
 class RegionalAdjustmentConfig(BaseModel):
     """Regional adjustment for a specific market"""
+
     model_config = ConfigDict(frozen=True)
 
-    buy_pct_discount: Optional[float] = Field(
-        default=None,
-        description="Buy percentage discount (negative = more lenient)"
+    buy_pct_discount: float | None = Field(
+        default=None, description="Buy percentage discount (negative = more lenient)"
     )
-    dividend_bonus: Optional[bool] = Field(
-        default=None,
-        description="Count dividend yield as return supplement"
+    dividend_bonus: bool | None = Field(
+        default=None, description="Count dividend yield as return supplement"
     )
-    suffixes: Optional[List[str]] = Field(
-        default=None,
-        description="Ticker suffixes for this region"
-    )
-    adjustments: Optional[str] = Field(
-        default=None,
-        description="Special adjustment flag (e.g., 'none' for baseline)"
+    suffixes: list[str] | None = Field(default=None, description="Ticker suffixes for this region")
+    adjustments: str | None = Field(
+        default=None, description="Special adjustment flag (e.g., 'none' for baseline)"
     )
 
 
 class RegionalAdjustmentsConfig(BaseModel):
     """Regional adjustments for different markets"""
+
     model_config = ConfigDict(frozen=True)
 
-    europe: Optional[RegionalAdjustmentConfig] = None
-    hong_kong: Optional[RegionalAdjustmentConfig] = None
-    japan: Optional[RegionalAdjustmentConfig] = None
-    us: Optional[RegionalAdjustmentConfig] = None
+    europe: RegionalAdjustmentConfig | None = None
+    hong_kong: RegionalAdjustmentConfig | None = None
+    japan: RegionalAdjustmentConfig | None = None
+    us: RegionalAdjustmentConfig | None = None
 
 
 class TierThresholds(BaseModel):
     """Market cap thresholds for tier classification"""
+
     model_config = ConfigDict(frozen=True)
 
     mega_tier_min: float = Field(
         default=500_000_000_000,  # $500B
         ge=100_000_000_000,
-        description="Minimum market cap for MEGA tier ($)"
+        description="Minimum market cap for MEGA tier ($)",
     )
     large_tier_min: float = Field(
         default=100_000_000_000,  # $100B
         ge=10_000_000_000,
-        description="Minimum market cap for LARGE tier ($)"
+        description="Minimum market cap for LARGE tier ($)",
     )
     mid_tier_min: float = Field(
         default=10_000_000_000,  # $10B
         ge=1_000_000_000,
-        description="Minimum market cap for MID tier ($)"
+        description="Minimum market cap for MID tier ($)",
     )
     small_tier_min: float = Field(
         default=2_000_000_000,  # $2B
         ge=100_000_000,
-        description="Minimum market cap for SMALL tier ($)"
+        description="Minimum market cap for SMALL tier ($)",
     )
 
-    @field_validator('mega_tier_min')
+    @field_validator("mega_tier_min")
     @classmethod
     def validate_mega(cls, v, info):
         """Ensure mega tier threshold is largest"""
-        if 'large_tier_min' in info.data and v <= info.data['large_tier_min']:
+        if "large_tier_min" in info.data and v <= info.data["large_tier_min"]:
             raise ValueError("mega_tier_min must be > large_tier_min")
         return v
 
 
 class UniversalThresholds(BaseModel):
     """Universal thresholds applied to all tiers"""
+
     min_analyst_count: int = Field(
-        default=4,
-        ge=1,
-        le=50,
-        description="Minimum analysts required for signal generation"
+        default=4, ge=1, le=50, description="Minimum analysts required for signal generation"
     )
     min_price_targets: int = Field(
-        default=4,
-        ge=1,
-        le=50,
-        description="Minimum price targets required"
+        default=4, ge=1, le=50, description="Minimum price targets required"
     )
     min_market_cap: float = Field(
         default=2_000_000_000,  # $2B hard floor
         ge=100_000_000,  # $100M
-        description="Minimum market cap for trading ($) - hard floor"
+        description="Minimum market cap for trading ($) - hard floor",
     )
     small_cap_threshold: float = Field(
         default=5_000_000_000,  # $5B
         ge=1_000_000_000,
-        description="Market cap below which small_cap_min_analysts applies"
+        description="Market cap below which small_cap_min_analysts applies",
     )
     small_cap_min_analysts: int = Field(
         default=6,
         ge=1,
         le=50,
-        description="Minimum analysts for $2-5B stocks (institutional interest signal)"
+        description="Minimum analysts for $2-5B stocks (institutional interest signal)",
     )
 
 
 class DataConfig(BaseModel):
     """Data and file configuration"""
+
     portfolio_csv: Path = Field(
-        default=Path("yahoofinance/input/portfolio.csv"),
-        description="Portfolio CSV file path"
+        default=Path("yahoofinance/input/portfolio.csv"), description="Portfolio CSV file path"
     )
-    cache_enabled: bool = Field(
-        default=True,
-        description="Enable data caching"
-    )
+    cache_enabled: bool = Field(default=True, description="Enable data caching")
     cache_ttl_hours: int = Field(
         default=24,
         ge=1,
         le=168,  # 7 days
-        description="Cache TTL in hours"
+        description="Cache TTL in hours",
     )
 
-    @field_validator('portfolio_csv')
+    @field_validator("portfolio_csv")
     @classmethod
     def validate_portfolio_path(cls, v):
         """Ensure portfolio path is valid"""
@@ -501,55 +446,31 @@ class DataConfig(BaseModel):
 
 class APIConfig(BaseModel):
     """API and data provider configuration"""
+
     max_concurrent_requests: int = Field(
-        default=15,
-        ge=1,
-        le=50,
-        description="Maximum concurrent API requests"
+        default=15, ge=1, le=50, description="Maximum concurrent API requests"
     )
-    request_timeout: int = Field(
-        default=30,
-        ge=5,
-        le=300,
-        description="Request timeout in seconds"
-    )
-    max_retries: int = Field(
-        default=3,
-        ge=0,
-        le=10,
-        description="Maximum retry attempts"
-    )
+    request_timeout: int = Field(default=30, ge=5, le=300, description="Request timeout in seconds")
+    max_retries: int = Field(default=3, ge=0, le=10, description="Maximum retry attempts")
     cache_ttl: int = Field(
         default=172800,  # 48 hours
         ge=3600,  # 1 hour
         le=604800,  # 7 days
-        description="API cache TTL in seconds"
+        description="API cache TTL in seconds",
     )
-    enable_circuit_breaker: bool = Field(
-        default=True,
-        description="Enable circuit breaker pattern"
-    )
+    enable_circuit_breaker: bool = Field(default=True, description="Enable circuit breaker pattern")
 
 
 class PositionSizingConfig(BaseModel):
     """Position sizing configuration"""
-    base_position_size: float = Field(
-        default=2500,
-        ge=100,
-        description="Base position size in USD"
-    )
-    tier_multipliers: Dict[str, int] = Field(
-        default_factory=lambda: {
-            "mega": 5,
-            "large": 4,
-            "mid": 3,
-            "small": 2,
-            "micro": 1
-        },
-        description="Position size multipliers per tier"
+
+    base_position_size: float = Field(default=2500, ge=100, description="Base position size in USD")
+    tier_multipliers: dict[str, int] = Field(
+        default_factory=lambda: {"mega": 5, "large": 4, "mid": 3, "small": 2, "micro": 1},
+        description="Position size multipliers per tier",
     )
 
-    @field_validator('tier_multipliers')
+    @field_validator("tier_multipliers")
     @classmethod
     def validate_tier_multipliers(cls, v):
         """Ensure all tiers have multipliers"""
@@ -561,48 +482,25 @@ class PositionSizingConfig(BaseModel):
 
 class PerformanceConfig(BaseModel):
     """Performance and execution configuration"""
+
     max_concurrent_requests: int = Field(
-        default=20,
-        ge=1,
-        le=50,
-        description="Maximum concurrent API requests"
+        default=20, ge=1, le=50, description="Maximum concurrent API requests"
     )
     request_timeout_seconds: int = Field(
-        default=30,
-        ge=5,
-        le=300,
-        description="Request timeout in seconds"
+        default=30, ge=5, le=300, description="Request timeout in seconds"
     )
-    retry_attempts: int = Field(
-        default=3,
-        ge=0,
-        le=10,
-        description="Number of retry attempts"
-    )
-    batch_size: int = Field(
-        default=25,
-        ge=5,
-        le=100,
-        description="Number of tickers per batch"
-    )
+    retry_attempts: int = Field(default=3, ge=0, le=10, description="Number of retry attempts")
+    batch_size: int = Field(default=25, ge=5, le=100, description="Number of tickers per batch")
 
 
 class LoggingConfig(BaseModel):
     """Logging configuration"""
-    level: str = Field(
-        default="INFO",
-        description="Logging level (DEBUG, INFO, WARNING, ERROR)"
-    )
-    file: Path = Field(
-        default=Path("logs/trading_analysis.log"),
-        description="Log file path"
-    )
-    console: bool = Field(
-        default=True,
-        description="Enable console logging"
-    )
 
-    @field_validator('level')
+    level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR)")
+    file: Path = Field(default=Path("logs/trading_analysis.log"), description="Log file path")
+    console: bool = Field(default=True, description="Enable console logging")
+
+    @field_validator("level")
     @classmethod
     def validate_level(cls, v):
         """Validate logging level"""
@@ -614,20 +512,14 @@ class LoggingConfig(BaseModel):
 
 class OutputConfig(BaseModel):
     """Output file configuration"""
-    save_to_csv: bool = Field(
-        default=True,
-        description="Save reports to CSV"
-    )
-    save_to_html: bool = Field(
-        default=True,
-        description="Save reports to HTML"
-    )
+
+    save_to_csv: bool = Field(default=True, description="Save reports to CSV")
+    save_to_html: bool = Field(default=True, description="Save reports to HTML")
     output_dir: Path = Field(
-        default=Path("yahoofinance/output"),
-        description="Output directory for reports"
+        default=Path("yahoofinance/output"), description="Output directory for reports"
     )
 
-    @field_validator('output_dir')
+    @field_validator("output_dir")
     @classmethod
     def validate_output_dir(cls, v):
         """Ensure directory exists or can be created"""
@@ -639,29 +531,22 @@ class OutputConfig(BaseModel):
 
 class CacheConfig(BaseModel):
     """Cache configuration for performance optimization"""
-    enabled: bool = Field(
-        default=True,
-        description="Enable caching"
-    )
+
+    enabled: bool = Field(default=True, description="Enable caching")
     enable_disk: bool = Field(
-        default=True,
-        description="Enable disk cache for persistence across runs"
+        default=True, description="Enable disk cache for persistence across runs"
     )
     default_ttl: int = Field(
         default=14400,  # 4 hours
         ge=60,
         le=86400,  # 24 hours
-        description="Default cache TTL in seconds (4 hours for non-price data)"
+        description="Default cache TTL in seconds (4 hours for non-price data)",
     )
     max_items: int = Field(
-        default=15000,
-        ge=1000,
-        le=100000,
-        description="Maximum items in memory cache"
+        default=15000, ge=1000, le=100000, description="Maximum items in memory cache"
     )
     disk_cache_dir: Path = Field(
-        default=Path("yahoofinance/data/cache"),
-        description="Disk cache directory"
+        default=Path("yahoofinance/data/cache"), description="Disk cache directory"
     )
 
 
@@ -685,9 +570,10 @@ class TradingConfig(BaseModel):
         us_mega = config.get_tier_criteria("US", "MEGA")
         ```
     """
+
     model_config = ConfigDict(
         validate_assignment=True,  # Validate on changes
-        extra='forbid',  # Reject unknown fields (catches typos)
+        extra="forbid",  # Reject unknown fields (catches typos)
         frozen=False,  # Allow runtime changes
     )
 
@@ -699,112 +585,101 @@ class TradingConfig(BaseModel):
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     output: OutputConfig = Field(default_factory=OutputConfig)
-    api: Optional[APIConfig] = Field(default_factory=APIConfig)
-    cache: Optional[CacheConfig] = Field(default_factory=CacheConfig)
+    api: APIConfig | None = Field(default_factory=APIConfig)
+    cache: CacheConfig | None = Field(default_factory=CacheConfig)
 
     # Region-tier specific criteria
     # US criteria
-    us_mega: Optional[TierCriteria] = None
-    us_large: Optional[TierCriteria] = None
-    us_mid: Optional[TierCriteria] = None
-    us_small: Optional[TierCriteria] = None
-    us_micro: Optional[TierCriteria] = None
+    us_mega: TierCriteria | None = None
+    us_large: TierCriteria | None = None
+    us_mid: TierCriteria | None = None
+    us_small: TierCriteria | None = None
+    us_micro: TierCriteria | None = None
 
     # EU criteria
-    eu_mega: Optional[TierCriteria] = None
-    eu_large: Optional[TierCriteria] = None
-    eu_mid: Optional[TierCriteria] = None
-    eu_small: Optional[TierCriteria] = None
-    eu_micro: Optional[TierCriteria] = None
+    eu_mega: TierCriteria | None = None
+    eu_large: TierCriteria | None = None
+    eu_mid: TierCriteria | None = None
+    eu_small: TierCriteria | None = None
+    eu_micro: TierCriteria | None = None
 
     # HK criteria
-    hk_mega: Optional[TierCriteria] = None
-    hk_large: Optional[TierCriteria] = None
-    hk_mid: Optional[TierCriteria] = None
-    hk_small: Optional[TierCriteria] = None
-    hk_micro: Optional[TierCriteria] = None
+    hk_mega: TierCriteria | None = None
+    hk_large: TierCriteria | None = None
+    hk_mid: TierCriteria | None = None
+    hk_small: TierCriteria | None = None
+    hk_micro: TierCriteria | None = None
 
     # Regional adjustments
-    regional_adjustments: Optional[RegionalAdjustmentsConfig] = Field(
-        default=None,
-        description="Regional market adjustments for different exchanges"
+    regional_adjustments: RegionalAdjustmentsConfig | None = Field(
+        default=None, description="Regional market adjustments for different exchanges"
     )
 
     # Ticker mappings
-    dual_listed_mappings: Optional[Dict[str, str]] = Field(
-        default_factory=dict,
-        description="Dual-listed ticker mappings"
+    dual_listed_mappings: dict[str, str] | None = Field(
+        default_factory=dict, description="Dual-listed ticker mappings"
     )
 
     # Feature flag for signal scoring
     use_signal_scoring: bool = Field(
-        default=False,
-        description="Enable enhanced signal scoring system"
+        default=False, description="Enable enhanced signal scoring system"
     )
 
     # Default scoring configs
-    default_sell_scoring: Optional[SellScoringConfig] = None
-    default_buy_scoring: Optional[BuyScoringConfig] = None
+    default_sell_scoring: SellScoringConfig | None = None
+    default_buy_scoring: BuyScoringConfig | None = None
 
     # US sell scoring per tier
-    us_mega_sell_scoring: Optional[SellScoringConfig] = None
-    us_large_sell_scoring: Optional[SellScoringConfig] = None
-    us_mid_sell_scoring: Optional[SellScoringConfig] = None
-    us_small_sell_scoring: Optional[SellScoringConfig] = None
-    us_micro_sell_scoring: Optional[SellScoringConfig] = None
+    us_mega_sell_scoring: SellScoringConfig | None = None
+    us_large_sell_scoring: SellScoringConfig | None = None
+    us_mid_sell_scoring: SellScoringConfig | None = None
+    us_small_sell_scoring: SellScoringConfig | None = None
+    us_micro_sell_scoring: SellScoringConfig | None = None
 
     # EU sell scoring per tier
-    eu_mega_sell_scoring: Optional[SellScoringConfig] = None
-    eu_large_sell_scoring: Optional[SellScoringConfig] = None
-    eu_mid_sell_scoring: Optional[SellScoringConfig] = None
-    eu_small_sell_scoring: Optional[SellScoringConfig] = None
-    eu_micro_sell_scoring: Optional[SellScoringConfig] = None
+    eu_mega_sell_scoring: SellScoringConfig | None = None
+    eu_large_sell_scoring: SellScoringConfig | None = None
+    eu_mid_sell_scoring: SellScoringConfig | None = None
+    eu_small_sell_scoring: SellScoringConfig | None = None
+    eu_micro_sell_scoring: SellScoringConfig | None = None
 
     # HK sell scoring per tier
-    hk_mega_sell_scoring: Optional[SellScoringConfig] = None
-    hk_large_sell_scoring: Optional[SellScoringConfig] = None
-    hk_mid_sell_scoring: Optional[SellScoringConfig] = None
-    hk_small_sell_scoring: Optional[SellScoringConfig] = None
-    hk_micro_sell_scoring: Optional[SellScoringConfig] = None
+    hk_mega_sell_scoring: SellScoringConfig | None = None
+    hk_large_sell_scoring: SellScoringConfig | None = None
+    hk_mid_sell_scoring: SellScoringConfig | None = None
+    hk_small_sell_scoring: SellScoringConfig | None = None
+    hk_micro_sell_scoring: SellScoringConfig | None = None
 
     # Crypto and non-equity asset configuration
-    crypto_momentum: Optional[CryptoMomentumConfig] = Field(
-        default_factory=CryptoMomentumConfig,
-        description="Crypto momentum thresholds"
+    crypto_momentum: CryptoMomentumConfig | None = Field(
+        default_factory=CryptoMomentumConfig, description="Crypto momentum thresholds"
     )
-    bitcoin_proxy: Optional[BitcoinProxyConfig] = Field(
-        default_factory=BitcoinProxyConfig,
-        description="Bitcoin proxy stock configuration"
+    bitcoin_proxy: BitcoinProxyConfig | None = Field(
+        default_factory=BitcoinProxyConfig, description="Bitcoin proxy stock configuration"
     )
-    ipo_grace_period: Optional[IPOGracePeriodConfig] = Field(
-        default_factory=IPOGracePeriodConfig,
-        description="IPO grace period configuration"
+    ipo_grace_period: IPOGracePeriodConfig | None = Field(
+        default_factory=IPOGracePeriodConfig, description="IPO grace period configuration"
     )
 
     # CIO review finding configs
-    conviction_sizing: Optional[ConvictionSizingConfig] = Field(
-        default=None,
-        description="Conviction-modulated position sizing (CIO E1)"
+    conviction_sizing: ConvictionSizingConfig | None = Field(
+        default=None, description="Conviction-modulated position sizing (CIO E1)"
     )
-    data_freshness: Optional[DataFreshnessConfig] = Field(
-        default=None,
-        description="Data freshness thresholds (CIO M5)"
+    data_freshness: DataFreshnessConfig | None = Field(
+        default=None, description="Data freshness thresholds (CIO M5)"
     )
-    earnings_proximity: Optional[EarningsProximityConfig] = Field(
-        default=None,
-        description="Earnings proximity configuration (CIO M4)"
+    earnings_proximity: EarningsProximityConfig | None = Field(
+        default=None, description="Earnings proximity configuration (CIO M4)"
     )
-    liquidity: Optional[LiquidityConfig] = Field(
-        default=None,
-        description="Liquidity filter and cost model (CIO S5)"
+    liquidity: LiquidityConfig | None = Field(
+        default=None, description="Liquidity filter and cost model (CIO S5)"
     )
-    sector_rotation: Optional[SectorRotationConfig] = Field(
-        default=None,
-        description="Sector rotation detection (CIO M6)"
+    sector_rotation: SectorRotationConfig | None = Field(
+        default=None, description="Sector rotation detection (CIO M6)"
     )
 
     @classmethod
-    def from_yaml(cls, yaml_path: Union[str, Path]) -> "TradingConfig":
+    def from_yaml(cls, yaml_path: str | Path) -> "TradingConfig":
         """Load configuration from YAML file with validation"""
         import yaml
 
@@ -812,21 +687,21 @@ class TradingConfig(BaseModel):
             data = yaml.safe_load(f)
 
         # Strip underscore-prefixed keys (metadata like _calibration)
-        data = {k: v for k, v in data.items() if not k.startswith('_')}
+        data = {k: v for k, v in data.items() if not k.startswith("_")}
 
         return cls(**data)
 
-    def to_yaml(self, yaml_path: Union[str, Path]) -> None:
+    def to_yaml(self, yaml_path: str | Path) -> None:
         """Export configuration to YAML file"""
         import yaml
 
         # Convert to dict, handling Path objects
-        data = self.model_dump(mode='json', exclude_none=True)
+        data = self.model_dump(mode="json", exclude_none=True)
 
-        with open(yaml_path, 'w') as f:
+        with open(yaml_path, "w") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
-    def get_tier_criteria(self, region: Union[str, Region], tier: Union[str, AssetTier]) -> TierCriteria:
+    def get_tier_criteria(self, region: str | Region, tier: str | AssetTier) -> TierCriteria:
         """Get trading criteria for specific region and tier"""
         region_str = region.value if isinstance(region, Region) else region
         tier_str = tier.value if isinstance(tier, AssetTier) else tier
@@ -840,7 +715,7 @@ class TradingConfig(BaseModel):
 
         return criteria
 
-    def validate_complete(self) -> List[str]:
+    def validate_complete(self) -> list[str]:
         """
         Run comprehensive validation and return list of warnings/errors.
 
@@ -873,7 +748,11 @@ class TradingConfig(BaseModel):
 
         # Check that required criteria exist
         required_combinations = [
-            ("US", "MEGA"), ("US", "LARGE"), ("US", "MID"), ("US", "SMALL"), ("US", "MICRO")
+            ("US", "MEGA"),
+            ("US", "LARGE"),
+            ("US", "MID"),
+            ("US", "SMALL"),
+            ("US", "MICRO"),
         ]
 
         for region, tier in required_combinations:
@@ -886,7 +765,7 @@ class TradingConfig(BaseModel):
 
 
 # Global singleton (loaded once on startup)
-_config: Optional[TradingConfig] = None
+_config: TradingConfig | None = None
 
 
 def get_config() -> TradingConfig:
@@ -898,17 +777,16 @@ def get_config() -> TradingConfig:
     global _config
 
     if _config is None:
-        _config = TradingConfig.from_yaml('config.yaml')
+        _config = TradingConfig.from_yaml("config.yaml")
 
         # Validate and warn about issues
         issues = _config.validate_complete()
         if issues:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(
-                "Configuration validation found %d issues:\n%s",
-                len(issues),
-                "\n".join(issues)
+                "Configuration validation found %d issues:\n%s", len(issues), "\n".join(issues)
             )
 
     return _config

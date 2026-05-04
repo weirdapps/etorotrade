@@ -4,7 +4,8 @@ Test fixtures for async testing.
 This module provides fixtures and helpers for testing asynchronous functionality.
 """
 
-from typing import Any, Callable, Dict, List, Tuple
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from yahoofinance.core.errors import APIError, RateLimitError, YFinanceError
@@ -53,7 +54,7 @@ def create_async_processor_mock(error_item: int = 3) -> AsyncMock:
     return mock_processor
 
 
-def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[Dict[str, Any]]:
+def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> list[dict[str, Any]]:
     """
     Create mock paginated data for testing.
 
@@ -82,7 +83,7 @@ def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> List[D
     return pages
 
 
-def create_mock_fetcher(pages: List[Dict[str, Any]]) -> MagicMock:
+def create_mock_fetcher(pages: list[dict[str, Any]]) -> MagicMock:
     """
     Create a mock fetcher function for paginated data.
 
@@ -98,7 +99,7 @@ def create_mock_fetcher(pages: List[Dict[str, Any]]) -> MagicMock:
     return mock
 
 
-def create_bulk_fetch_mocks() -> Tuple[List[int], AsyncMock, Callable[[Dict[str, Any]], Any]]:
+def create_bulk_fetch_mocks() -> tuple[list[int], AsyncMock, Callable[[dict[str, Any]], Any]]:
     """
     Create mocks for bulk fetch testing.
 

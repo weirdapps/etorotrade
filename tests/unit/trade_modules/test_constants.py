@@ -5,6 +5,7 @@ Target: Test all trading analysis constants are defined and have expected values
 """
 
 import pytest
+
 from trade_modules import constants
 
 
@@ -89,10 +90,10 @@ class TestActionClassifications:
 
     def test_action_codes(self):
         """Verify action code constants."""
-        assert constants.ACTION_BUY == 'B'
-        assert constants.ACTION_SELL == 'S'
-        assert constants.ACTION_HOLD == 'H'
-        assert constants.ACTION_IDEA == 'I'
+        assert constants.ACTION_BUY == "B"
+        assert constants.ACTION_SELL == "S"
+        assert constants.ACTION_HOLD == "H"
+        assert constants.ACTION_IDEA == "I"
 
 
 class TestColumnNames:
@@ -100,10 +101,10 @@ class TestColumnNames:
 
     def test_standard_columns(self):
         """Verify standard column name constants."""
-        assert constants.TICKER_COLUMN == 'ticker'
-        assert constants.MARKET_CAP_COLUMN == 'market_cap'
-        assert constants.ACTION_COLUMN == 'action'
-        assert constants.BS_COLUMN == 'BS'
+        assert constants.TICKER_COLUMN == "ticker"
+        assert constants.MARKET_CAP_COLUMN == "market_cap"
+        assert constants.ACTION_COLUMN == "action"
+        assert constants.BS_COLUMN == "BS"
 
 
 class TestFileExtensions:
@@ -111,8 +112,8 @@ class TestFileExtensions:
 
     def test_extensions(self):
         """Verify file extension constants."""
-        assert constants.CSV_EXTENSION == '.csv'
-        assert constants.HTML_EXTENSION == '.html'
+        assert constants.CSV_EXTENSION == ".csv"
+        assert constants.HTML_EXTENSION == ".html"
 
 
 class TestCacheConstants:
@@ -184,10 +185,10 @@ class TestTradingSignalWeights:
 
         # Verify weights sum to 1.0
         total_weight = (
-            constants.UPSIDE_WEIGHT +
-            constants.BUY_PERCENTAGE_WEIGHT +
-            constants.PE_RATIO_WEIGHT +
-            constants.PEG_RATIO_WEIGHT
+            constants.UPSIDE_WEIGHT
+            + constants.BUY_PERCENTAGE_WEIGHT
+            + constants.PE_RATIO_WEIGHT
+            + constants.PEG_RATIO_WEIGHT
         )
         assert total_weight == pytest.approx(1.0)
 

@@ -4,9 +4,11 @@ Tests for signal_performance module.
 Basic coverage tests for the signal performance tracking functionality.
 """
 
-import pytest
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
+import pytest
+
 
 class TestSignalPerformanceImports:
     """Test that the module can be imported correctly."""
@@ -14,6 +16,7 @@ class TestSignalPerformanceImports:
     def test_module_import(self):
         """Test that signal_performance module imports successfully."""
         from trade_modules import signal_performance
+
         assert signal_performance is not None
 
     def test_signal_performance_dataclass(self):
@@ -25,7 +28,7 @@ class TestSignalPerformanceImports:
             signal="B",
             signal_date="2025-01-01",
             signal_price=150.0,
-            spy_at_signal=500.0
+            spy_at_signal=500.0,
         )
         assert perf.ticker == "AAPL"
         assert perf.signal == "B"
@@ -34,9 +37,11 @@ class TestSignalPerformanceImports:
 
     def test_default_paths(self):
         """Test default path constants exist."""
-        from trade_modules.signal_performance import DEFAULT_SIGNAL_LOG, DEFAULT_PERFORMANCE_LOG
+        from trade_modules.signal_performance import DEFAULT_PERFORMANCE_LOG, DEFAULT_SIGNAL_LOG
+
         assert DEFAULT_SIGNAL_LOG is not None
         assert DEFAULT_PERFORMANCE_LOG is not None
+
 
 class TestSignalPerformanceFunctions:
     """Test signal performance functions."""
@@ -64,8 +69,9 @@ class TestSignalPerformanceFunctions:
 
     def test_calculate_signal_stats_with_data(self):
         """Test stats calculation with actual data."""
-        from trade_modules.signal_performance import calculate_signal_stats
         import json
+
+        from trade_modules.signal_performance import calculate_signal_stats
 
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = Path(tmpdir) / "perf.jsonl"
@@ -111,6 +117,7 @@ class TestSignalPerformanceFunctions:
         # Just test that function exists and is callable
         assert callable(get_current_price)
 
+
 class TestAssetTypeUtils:
     """Test bitcoin proxy and IPO grace period utilities."""
 
@@ -151,6 +158,7 @@ class TestAssetTypeUtils:
 
         assert classify_asset_type("SPY") == "etf"
         assert classify_asset_type("QQQ") == "etf"
+
 
 class TestIPOGracePeriod:
     """Test IPO grace period functionality."""

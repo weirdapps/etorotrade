@@ -9,36 +9,21 @@ New code should import from trade_modules.analysis directly.
 """
 
 import logging
-import pandas as pd
-from typing import Dict, Any
+from typing import Any
 
-# Import everything from the new analysis submodules for backward compatibility
-from .analysis import (
-    # Tier utilities
-    calculate_exret,
-    _safe_calc_exret,
-    _parse_percentage,
-    _parse_market_cap,
-    _determine_market_cap_tier,
-    # Signal generation
-    calculate_action_vectorized,
-    calculate_action,
-    filter_buy_opportunities_wrapper,
-    filter_sell_candidates_wrapper,
-    filter_hold_candidates_wrapper,
-    # Criteria evaluation
-    _check_confidence_criteria,
-    _check_sell_criteria,
-    _check_buy_criteria,
-    _process_color_based_on_criteria,
-    _apply_color_coding,
-    _filter_notrade_tickers,
-    process_buy_opportunities,
-)
+import pandas as pd
+
+from yahoofinance.core.config import TRADING_CRITERIA
 
 # Import errors for the class
 from yahoofinance.core.errors import YFinanceError
-from yahoofinance.core.config import TRADING_CRITERIA
+
+# Import everything from the new analysis submodules for backward compatibility
+from .analysis import (
+    filter_buy_opportunities_wrapper,
+    filter_hold_candidates_wrapper,
+    filter_sell_candidates_wrapper,
+)
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -55,7 +40,7 @@ logger = logging.getLogger(__name__)
 class AnalysisEngine:
     """Main analysis engine for trading decisions."""
 
-    def __init__(self, trading_criteria: Dict[str, Any] = None):
+    def __init__(self, trading_criteria: dict[str, Any] = None):
         """
         Initialize the analysis engine.
 
@@ -65,7 +50,7 @@ class AnalysisEngine:
         self.logger = logging.getLogger(f"{__name__}.AnalysisEngine")
         self.trading_criteria = trading_criteria or TRADING_CRITERIA
 
-    def analyze_portfolio(self, portfolio_df: pd.DataFrame) -> Dict[str, Any]:
+    def analyze_portfolio(self, portfolio_df: pd.DataFrame) -> dict[str, Any]:
         """
         Perform comprehensive portfolio analysis.
 
@@ -90,7 +75,7 @@ class AnalysisEngine:
             self.logger.error(error_msg)
             raise YFinanceError(error_msg) from e
 
-    def analyze_market(self, market_df: pd.DataFrame) -> Dict[str, Any]:
+    def analyze_market(self, market_df: pd.DataFrame) -> dict[str, Any]:
         """
         Perform comprehensive market analysis.
 
@@ -127,7 +112,7 @@ class AnalysisEngine:
         """Identify hold candidates from data."""
         return filter_hold_candidates_wrapper(data_df)
 
-    def generate_portfolio_summary(self, portfolio_df: pd.DataFrame) -> Dict[str, Any]:
+    def generate_portfolio_summary(self, portfolio_df: pd.DataFrame) -> dict[str, Any]:
         """Generate summary statistics for portfolio."""
         try:
             summary = {
@@ -143,7 +128,7 @@ class AnalysisEngine:
             self.logger.error(f"Error generating portfolio summary: {str(e)}")
             return {}
 
-    def generate_market_summary(self, market_df: pd.DataFrame) -> Dict[str, Any]:
+    def generate_market_summary(self, market_df: pd.DataFrame) -> dict[str, Any]:
         """Generate summary statistics for market analysis."""
         try:
             summary = {

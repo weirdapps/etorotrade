@@ -8,10 +8,11 @@ with appropriate error handling and configuration.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from .config import RATE_LIMIT
 from .errors import ValidationError
+
 
 @dataclass
 class StockData:
@@ -23,30 +24,32 @@ class StockData:
     """
 
     ticker: str
-    name: Optional[str] = None
-    price: Optional[float] = None
-    price_change: Optional[float] = None
-    price_change_percentage: Optional[float] = None
-    market_cap: Optional[float] = None
-    analyst_count: Optional[int] = None
-    target_price: Optional[float] = None
-    pe_trailing: Optional[float] = None
-    pe_forward: Optional[float] = None
-    peg_ratio: Optional[float] = None
-    dividend_yield: Optional[float] = None
-    beta: Optional[float] = None
-    short_float_pct: Optional[float] = None
-    last_earnings: Optional[str] = None
-    insider_buy_pct: Optional[float] = None
-    insider_transactions: Optional[int] = None
-    total_ratings: Optional[int] = None
-    hold_pct: Optional[float] = None
-    buy_pct: Optional[float] = None
-    sector: Optional[str] = None
-    recommendation: Optional[str] = None
+    name: str | None = None
+    price: float | None = None
+    price_change: float | None = None
+    price_change_percentage: float | None = None
+    market_cap: float | None = None
+    analyst_count: int | None = None
+    target_price: float | None = None
+    pe_trailing: float | None = None
+    pe_forward: float | None = None
+    peg_ratio: float | None = None
+    dividend_yield: float | None = None
+    beta: float | None = None
+    short_float_pct: float | None = None
+    last_earnings: str | None = None
+    insider_buy_pct: float | None = None
+    insider_transactions: int | None = None
+    total_ratings: int | None = None
+    hold_pct: float | None = None
+    buy_pct: float | None = None
+    sector: str | None = None
+    recommendation: str | None = None
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
 
 class YFinanceClient:
     """
@@ -92,7 +95,8 @@ class YFinanceClient:
                 "received": type(ticker).__name__,
             }
             raise ValidationError(
-                f"Invalid ticker: must be a non-empty string, got {type(ticker).__name__}", error_details
+                f"Invalid ticker: must be a non-empty string, got {type(ticker).__name__}",
+                error_details,
             )
 
         # Basic validation - more complex validation happens in providers
@@ -104,7 +108,8 @@ class YFinanceClient:
                 "actual_length": len(ticker),
             }
             raise ValidationError(
-                f"Invalid ticker '{ticker}': exceeds maximum length of 20 characters", length_details
+                f"Invalid ticker '{ticker}': exceeds maximum length of 20 characters",
+                length_details,
             )
 
         return True

@@ -1,12 +1,12 @@
 """Tests for centralized PriceService."""
 
-import pandas as pd
-import numpy as np
-import pytest
-from unittest.mock import patch, MagicMock
-from datetime import date, timedelta
+from unittest.mock import patch
 
-from trade_modules.price_service import PriceService, REGION_BENCHMARKS
+import numpy as np
+import pandas as pd
+import pytest
+
+from trade_modules.price_service import PriceService
 
 
 class TestGetPrices:
@@ -62,9 +62,9 @@ class TestTradingDayReturn:
         return pd.DataFrame(
             {
                 "AAPL": np.linspace(100, 110, 20),  # +10% over 20 days
-                "BADCO": np.linspace(100, 90, 20),   # -10% over 20 days
-                "SPY": np.linspace(500, 510, 20),     # +2% over 20 days
-                "ISF.L": np.linspace(800, 816, 20),   # +2% over 20 days
+                "BADCO": np.linspace(100, 90, 20),  # -10% over 20 days
+                "SPY": np.linspace(500, 510, 20),  # +2% over 20 days
+                "ISF.L": np.linspace(800, 816, 20),  # +2% over 20 days
             },
             index=dates,
         )
@@ -110,8 +110,8 @@ class TestTradingDayAlpha:
         return pd.DataFrame(
             {
                 "AAPL": np.linspace(100, 120, 20),  # +20%
-                "SPY": np.linspace(500, 510, 20),     # +2%
-                "ISF.L": np.linspace(800, 816, 20),   # +2%
+                "SPY": np.linspace(500, 510, 20),  # +2%
+                "ISF.L": np.linspace(800, 816, 20),  # +2%
             },
             index=dates,
         )
@@ -125,21 +125,15 @@ class TestTradingDayAlpha:
     def test_uses_regional_benchmark(self, prices):
         """UK stocks should use ISF.L, not SPY."""
         svc = PriceService(cache_dir=None)
-        alpha_us = svc.trading_day_alpha(
-            prices, "AAPL", "2026-01-02", horizon=19, region="us"
-        )
-        alpha_uk = svc.trading_day_alpha(
-            prices, "AAPL", "2026-01-02", horizon=19, region="uk"
-        )
+        alpha_us = svc.trading_day_alpha(prices, "AAPL", "2026-01-02", horizon=19, region="us")
+        alpha_uk = svc.trading_day_alpha(prices, "AAPL", "2026-01-02", horizon=19, region="uk")
         # Both benchmarks have same return in this fixture, so alpha should be equal
         assert alpha_us == pytest.approx(alpha_uk, abs=0.01)
 
     def test_none_when_benchmark_missing(self, prices):
         """Alpha is None if benchmark has no data."""
         svc = PriceService(cache_dir=None)
-        alpha = svc.trading_day_alpha(
-            prices, "AAPL", "2026-01-02", horizon=19, region="hk"
-        )
+        alpha = svc.trading_day_alpha(prices, "AAPL", "2026-01-02", horizon=19, region="hk")
         # 2800.HK not in fixture, fallback to SPY which IS there
         assert alpha is not None  # Falls back to SPY
 

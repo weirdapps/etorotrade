@@ -5,19 +5,16 @@ test that exercises the public API and verifies the documented behavior.
 """
 
 import json
-import math
 from pathlib import Path
 
 import pytest
 
 from trade_modules.agent_sign_calibrator import (
-    AGENT_POLARITY,
     calibrate_agent_signs,
     load_applied_signs,
     persist_calibration,
 )
 from trade_modules.committee_backtester import (
-    DEFAULT_SPREAD_BPS_BY_TIER,
     _information_ratio,
     _pearson_r,
     _round_trip_cost_pct,
@@ -50,11 +47,9 @@ from trade_modules.factor_attribution import (
     generate_attribution_summary,
 )
 from trade_modules.waterfall_categories import (
-    CATEGORY_ORDER,
     categorize_waterfall,
     render_category_summary,
 )
-
 
 # ── H4.a — Spearman / Pearson / Information Ratio ──────────────────────
 
@@ -127,45 +122,69 @@ class TestTrimRegimeGate:
 
     def test_trim_demoted_in_risk_on_improving(self):
         action, label = apply_trim_regime_gate(
-            "TRIM", regime="RISK_ON", regime_momentum="IMPROVING",
-            tech_signal="HOLD", rsi=50, position_pct=2.0,
+            "TRIM",
+            regime="RISK_ON",
+            regime_momentum="IMPROVING",
+            tech_signal="HOLD",
+            rsi=50,
+            position_pct=2.0,
         )
         assert action == "HOLD"
         assert label == "trim_regime_gate"
 
     def test_kill_thesis_passthrough(self):
         action, _ = apply_trim_regime_gate(
-            "TRIM", regime="RISK_ON", regime_momentum="IMPROVING",
-            tech_signal="HOLD", rsi=50, position_pct=2.0,
+            "TRIM",
+            regime="RISK_ON",
+            regime_momentum="IMPROVING",
+            tech_signal="HOLD",
+            rsi=50,
+            position_pct=2.0,
             kill_thesis_triggered=True,
         )
         assert action == "TRIM"
 
     def test_high_rsi_passthrough(self):
         action, _ = apply_trim_regime_gate(
-            "TRIM", regime="RISK_ON", regime_momentum="IMPROVING",
-            tech_signal="HOLD", rsi=82, position_pct=2.0,
+            "TRIM",
+            regime="RISK_ON",
+            regime_momentum="IMPROVING",
+            tech_signal="HOLD",
+            rsi=82,
+            position_pct=2.0,
         )
         assert action == "TRIM"
 
     def test_oversize_passthrough(self):
         action, _ = apply_trim_regime_gate(
-            "TRIM", regime="RISK_ON", regime_momentum="IMPROVING",
-            tech_signal="HOLD", rsi=50, position_pct=7.0,
+            "TRIM",
+            regime="RISK_ON",
+            regime_momentum="IMPROVING",
+            tech_signal="HOLD",
+            rsi=50,
+            position_pct=7.0,
         )
         assert action == "TRIM"
 
     def test_tech_exit_passthrough(self):
         action, _ = apply_trim_regime_gate(
-            "TRIM", regime="RISK_ON", regime_momentum="IMPROVING",
-            tech_signal="EXIT_SOON", rsi=50, position_pct=2.0,
+            "TRIM",
+            regime="RISK_ON",
+            regime_momentum="IMPROVING",
+            tech_signal="EXIT_SOON",
+            rsi=50,
+            position_pct=2.0,
         )
         assert action == "TRIM"
 
     def test_risk_off_no_demotion(self):
         action, _ = apply_trim_regime_gate(
-            "TRIM", regime="RISK_OFF", regime_momentum="STABLE",
-            tech_signal="HOLD", rsi=50, position_pct=2.0,
+            "TRIM",
+            regime="RISK_OFF",
+            regime_momentum="STABLE",
+            tech_signal="HOLD",
+            rsi=50,
+            position_pct=2.0,
         )
         assert action == "TRIM"
 
@@ -181,9 +200,17 @@ class TestFundamentalComposite:
         # Stock with all 4 fundamental positives → raw +13 → capped to +8.
         # Use minimal but legal inputs to exercise compute_adjustments.
         sig_data = {
-            "signal": "B", "exret": 25, "buy_pct": 80, "beta": 1.0,
-            "pet": 20, "pef": 16, "price": 100, "num_targets": 8,
-            "am": 0.5, "analyst_type": "A", "short_interest": 1,
+            "signal": "B",
+            "exret": 25,
+            "buy_pct": 80,
+            "beta": 1.0,
+            "pet": 20,
+            "pef": 16,
+            "price": 100,
+            "num_targets": 8,
+            "am": 0.5,
+            "analyst_type": "A",
+            "short_interest": 1,
         }
         fund_data = {
             "fundamental_score": 75,
@@ -196,24 +223,36 @@ class TestFundamentalComposite:
             "cap_tier": "LARGE",
         }
         tech_data = {
-            "momentum_score": 30, "timing_signal": "ENTER_NOW",
-            "rsi": 60, "macd_signal": "BULLISH",
+            "momentum_score": 30,
+            "timing_signal": "ENTER_NOW",
+            "rsi": 60,
+            "macd_signal": "BULLISH",
         }
         out = synthesize_stock(
-            ticker="TEST", sig_data=sig_data, fund_data=fund_data,
-            tech_data=tech_data, macro_fit="NEUTRAL",
-            census_alignment="NEUTRAL", div_score=0,
-            census_ts_trend="stable", news_impact="NEUTRAL",
-            risk_warning=False, sector="Technology",
-            sector_median_exret=10.0, sector_rankings={},
+            ticker="TEST",
+            sig_data=sig_data,
+            fund_data=fund_data,
+            tech_data=tech_data,
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=10.0,
+            sector_rankings={},
             position_limit=5.0,
         )
         wf = out.get("conviction_waterfall", {}) or {}
         # Fundamental sub-keys still present, but their sum is ≤8.
         sub_sum = sum(
-            wf.get(k, 0) for k in (
-                "piotroski_quality", "revenue_growth",
-                "eps_revisions_up", "fcf_quality_strong",
+            wf.get(k, 0)
+            for k in (
+                "piotroski_quality",
+                "revenue_growth",
+                "eps_revisions_up",
+                "fcf_quality_strong",
             )
         )
         assert sub_sum <= 8, f"fund composite uncapped (sum={sub_sum})"
@@ -242,7 +281,15 @@ class TestKellyFraction:
         assert isinstance(out["kelly_f_full"], float)
         assert out["horizon_days"] == 30
 
-    def test_quarter_kelly_low_conviction(self):
+    def test_quarter_kelly_low_conviction(self, monkeypatch):
+        """Legacy: low conviction → zero expected α → zero size.
+
+        CIO v36 / M2: clamp ON → all conviction get equal μ. Disable clamp
+        for this legacy test to preserve regression coverage of the bucket curve.
+        """
+        from trade_modules import conviction_sizer
+
+        monkeypatch.setattr(conviction_sizer, "CONVICTION_CLAMP_TO_UNITY", False)
         out = quarter_kelly_size_pct(40, atr_pct_daily=1.5)
         # Conv <45 → expected return 0 → size 0
         assert out["size_pct"] == 0.0
@@ -252,49 +299,105 @@ class TestKellyFraction:
 
 
 class TestCensusBand:
+    """CIO v36 / M5: census_alignment moved to shadow (~ prefix). Tests
+    look up the shadow-prefixed key since the modifier value computation
+    is unchanged — only its inclusion in the active bonuses/penalties is.
+
+    CIO v36 N3: V36 modifier set is opt-in via CIO_V36_NEW_MODIFIERS=1
+    env var. Each test enables it via the autouse fixture so census_alignment
+    is shadowed (default v35 set has it ACTIVE without ~ prefix).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _enable_v36_modifiers(self, monkeypatch):
+        import importlib
+
+        monkeypatch.setenv("CIO_V36_NEW_MODIFIERS", "1")
+        import trade_modules.committee_synthesis as mod
+
+        importlib.reload(mod)
+        yield
+        monkeypatch.delenv("CIO_V36_NEW_MODIFIERS", raising=False)
+        importlib.reload(mod)
+
     def test_tight_band_full_bonus(self):
         # Direct test: invoke compute_adjustments with div_score in [-10,10].
         from trade_modules.committee_synthesis import compute_adjustments
 
         bonuses, penalties, wf = compute_adjustments(
-            signal="B", fund_score=70, tech_signal="ENTER_NOW",
-            tech_momentum=20, rsi=55, macro_fit="NEUTRAL",
-            census_alignment="ALIGNED", div_score=5,
-            census_ts="stable", news_impact="NEUTRAL", risk_warning=False,
-            buy_pct=70, excess_exret=0, beta=1.0,
-            quality_trap=False, sector="Technology",
-            sector_rankings={}, bull_count=4,
+            signal="B",
+            fund_score=70,
+            tech_signal="ENTER_NOW",
+            tech_momentum=20,
+            rsi=55,
+            macro_fit="NEUTRAL",
+            census_alignment="ALIGNED",
+            div_score=5,
+            census_ts="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            buy_pct=70,
+            excess_exret=0,
+            beta=1.0,
+            quality_trap=False,
+            sector="Technology",
+            sector_rankings={},
+            bull_count=4,
         )
-        assert wf.get("census_alignment") == 3  # CIO v35.0: reduced from 5 to 3
+        # v36: census_alignment is shadowed; raw value still 3
+        assert wf.get("~census_alignment") == 3
 
     def test_loose_band_partial_bonus(self):
         from trade_modules.committee_synthesis import compute_adjustments
 
         bonuses, penalties, wf = compute_adjustments(
-            signal="B", fund_score=70, tech_signal="ENTER_NOW",
-            tech_momentum=20, rsi=55, macro_fit="NEUTRAL",
-            census_alignment="ALIGNED", div_score=15,
-            census_ts="stable", news_impact="NEUTRAL", risk_warning=False,
-            buy_pct=70, excess_exret=0, beta=1.0,
-            quality_trap=False, sector="Technology",
-            sector_rankings={}, bull_count=4,
+            signal="B",
+            fund_score=70,
+            tech_signal="ENTER_NOW",
+            tech_momentum=20,
+            rsi=55,
+            macro_fit="NEUTRAL",
+            census_alignment="ALIGNED",
+            div_score=15,
+            census_ts="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            buy_pct=70,
+            excess_exret=0,
+            beta=1.0,
+            quality_trap=False,
+            sector="Technology",
+            sector_rankings={},
+            bull_count=4,
         )
-        # In [10, 20] → +2, not +5
-        assert wf.get("census_alignment") == 2
+        # v36: shadowed; raw still 2
+        assert wf.get("~census_alignment") == 2
 
     def test_strong_contrarian_eight(self):
         from trade_modules.committee_synthesis import compute_adjustments
 
         bonuses, penalties, wf = compute_adjustments(
-            signal="B", fund_score=70, tech_signal="ENTER_NOW",
-            tech_momentum=20, rsi=55, macro_fit="NEUTRAL",
-            census_alignment="DIVERGENT", div_score=-30,
-            census_ts="stable", news_impact="NEUTRAL", risk_warning=False,
-            buy_pct=70, excess_exret=0, beta=1.0,
-            quality_trap=False, sector="Technology",
-            sector_rankings={}, bull_count=4,
+            signal="B",
+            fund_score=70,
+            tech_signal="ENTER_NOW",
+            tech_momentum=20,
+            rsi=55,
+            macro_fit="NEUTRAL",
+            census_alignment="DIVERGENT",
+            div_score=-30,
+            census_ts="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            buy_pct=70,
+            excess_exret=0,
+            beta=1.0,
+            quality_trap=False,
+            sector="Technology",
+            sector_rankings={},
+            bull_count=4,
         )
-        assert wf.get("census_alignment") == 5  # CIO v35.0: reduced from 8 to 5
+        # v36: shadowed; raw still 5
+        assert wf.get("~census_alignment") == 5
 
 
 # ── H4.b — Rolling percentile thresholds ───────────────────────────────
@@ -307,8 +410,7 @@ class TestConvictionThresholds:
         assert thr["source"] == "legacy"
 
     def test_rolling_overrides_when_present(self):
-        rolling = {"B": {"add_pct": 62, "trim_pct": 0,
-                          "n": 50, "source": "rolling"}}
+        rolling = {"B": {"add_pct": 62, "trim_pct": 0, "n": 50, "source": "rolling"}}
         thr = get_action_thresholds("B", rolling=rolling)
         assert thr["add_pct"] == 62
         assert thr["source"] == "rolling"
@@ -316,9 +418,10 @@ class TestConvictionThresholds:
     def test_compute_rolling_with_data(self):
         # 22 BUY-signal observations spanning 50-80 conviction.
         history = [
-            {"date": "2026-04-01", "concordance": [
-                {"signal": "B", "conviction": 50 + i} for i in range(22)
-            ]},
+            {
+                "date": "2026-04-01",
+                "concordance": [{"signal": "B", "conviction": 50 + i} for i in range(22)],
+            },
         ]
         thr = compute_rolling_thresholds(history, lookback_snapshots=8, min_per_signal=10)
         assert thr["B"]["source"] == "rolling"
@@ -327,9 +430,7 @@ class TestConvictionThresholds:
         assert 58 <= thr["B"]["add_pct"] <= 64
 
     def test_compute_rolling_below_min_uses_legacy(self):
-        history = [{"date": "2026-04-01", "concordance": [
-            {"signal": "B", "conviction": 50}
-        ]}]
+        history = [{"date": "2026-04-01", "concordance": [{"signal": "B", "conviction": 50}]}]
         thr = compute_rolling_thresholds(history, min_per_signal=10)
         assert thr["B"]["source"] == "legacy"
 
@@ -344,10 +445,14 @@ class TestConvictionThresholds:
     def test_load_stale_returns_none(self, tmp_path):
         # Write a file with an old timestamp.
         path = tmp_path / "thresholds.json"
-        path.write_text(json.dumps({
-            "generated_at": "2020-01-01T00:00:00",
-            "thresholds": {"B": {"add_pct": 60.0}},
-        }))
+        path.write_text(
+            json.dumps(
+                {
+                    "generated_at": "2020-01-01T00:00:00",
+                    "thresholds": {"B": {"add_pct": 60.0}},
+                }
+            )
+        )
         assert load_thresholds(path=path, max_age_days=7) is None
 
     def test_determine_action_uses_rolling(self):
@@ -380,8 +485,9 @@ class TestSmallCapCap:
             {"ticker": "Z", "cap_tier": "MEGA", "position_size": 5.0},
         ]
         # Large book: cap 8%, no current exposure, total small/micro = 20 → scale = 8/20 = 0.4
-        out = apply_small_cap_cap(positions, current_small_cap_pct=0.0,
-                                  portfolio_value_eur=1_000_000)
+        out = apply_small_cap_cap(
+            positions, current_small_cap_pct=0.0, portfolio_value_eur=1_000_000
+        )
         small = next(p for p in out if p["ticker"] == "X")
         mega = next(p for p in out if p["ticker"] == "Z")
         assert small["small_cap_cap_applied"] is True
@@ -390,8 +496,9 @@ class TestSmallCapCap:
 
     def test_apply_no_scaling_when_within_cap(self):
         positions = [{"ticker": "X", "cap_tier": "SMALL", "position_size": 5.0}]
-        out = apply_small_cap_cap(positions, current_small_cap_pct=0.0,
-                                  portfolio_value_eur=1_000_000)
+        out = apply_small_cap_cap(
+            positions, current_small_cap_pct=0.0, portfolio_value_eur=1_000_000
+        )
         assert out[0]["small_cap_cap_applied"] is False
         assert out[0]["position_size"] == 5.0
 
@@ -441,8 +548,7 @@ class TestWaterfallCategories:
     def test_string_values_are_coerced(self):
         # Regression: values can arrive as strings after JSON round-trip
         # via concordance.json. Must not crash; must coerce or skip.
-        wf = {"piotroski_quality": "3", "rsi_overbought": "-8",
-              "garbage": "not_a_number"}
+        wf = {"piotroski_quality": "3", "rsi_overbought": "-8", "garbage": "not_a_number"}
         cats = categorize_waterfall(wf)
         assert cats["Quality"]["total"] == 3
         assert cats["Momentum"]["total"] == -8
@@ -463,8 +569,10 @@ class TestWaterfallCategories:
 class TestAgentSignCalibrator:
     def test_no_history_returns_no_history(self, tmp_path):
         out = calibrate_agent_signs(
-            forward_returns={}, history_dir=tmp_path,
-            horizon="T+30", lookback_days=60,
+            forward_returns={},
+            history_dir=tmp_path,
+            horizon="T+30",
+            lookback_days=60,
         )
         assert out["status"] == "no_history"
 
@@ -472,18 +580,28 @@ class TestAgentSignCalibrator:
         # Build a tiny synthetic history where macro_fit=FAVORABLE
         # consistently has α<0 across two views.
         from datetime import datetime, timedelta
+
         today = datetime.now()
         for i in range(3):
             d = (today - timedelta(days=i * 7)).strftime("%Y-%m-%d")
-            (tmp_path / f"concordance-{d}.json").write_text(json.dumps({
-                "date": d,
-                "concordance": [
-                    {"ticker": f"T{j}", "macro_fit": "FAVORABLE",
-                     "tech_signal": "ENTER_NOW", "fund_view": "BUY",
-                     "census": "ALIGNED", "news_impact": "NEUTRAL"}
-                    for j in range(8)
-                ],
-            }))
+            (tmp_path / f"concordance-{d}.json").write_text(
+                json.dumps(
+                    {
+                        "date": d,
+                        "concordance": [
+                            {
+                                "ticker": f"T{j}",
+                                "macro_fit": "FAVORABLE",
+                                "tech_signal": "ENTER_NOW",
+                                "fund_view": "BUY",
+                                "census": "ALIGNED",
+                                "news_impact": "NEUTRAL",
+                            }
+                            for j in range(8)
+                        ],
+                    }
+                )
+            )
         # Forward returns: macro=FAVORABLE → all -2% alpha.
         forward = {}
         for i in range(3):
@@ -491,8 +609,10 @@ class TestAgentSignCalibrator:
             for j in range(8):
                 forward[f"T{j}:{d}"] = {"T+30_alpha": -2.0}
         out = calibrate_agent_signs(
-            forward_returns=forward, history_dir=tmp_path,
-            horizon="T+30", lookback_days=60,
+            forward_returns=forward,
+            history_dir=tmp_path,
+            horizon="T+30",
+            lookback_days=60,
         )
         assert out["status"] == "ok"
         macro = out["agents"].get("macro", {})
@@ -506,8 +626,12 @@ class TestAgentSignCalibrator:
         cal = {
             "status": "ok",
             "agents": {
-                "macro": {"verdict": "INVERTED", "recommended_sign": -1,
-                          "evidence_total": 50, "flip_signal_count": 2},
+                "macro": {
+                    "verdict": "INVERTED",
+                    "recommended_sign": -1,
+                    "evidence_total": 50,
+                    "flip_signal_count": 2,
+                },
             },
         }
         path = tmp_path / "calibration.json"
@@ -520,8 +644,12 @@ class TestAgentSignCalibrator:
         cal = {
             "status": "ok",
             "agents": {
-                "macro": {"verdict": "INVERTED", "recommended_sign": -1,
-                          "evidence_total": 50, "flip_signal_count": 2},
+                "macro": {
+                    "verdict": "INVERTED",
+                    "recommended_sign": -1,
+                    "evidence_total": 50,
+                    "flip_signal_count": 2,
+                },
             },
         }
         path = tmp_path / "calibration.json"
@@ -539,12 +667,15 @@ class TestAgentSignCalibrator:
 class TestActionLogWaterfall:
     def test_log_enriches_from_concordance(self, tmp_path):
         log = tmp_path / "actions.jsonl"
-        actions = [{"ticker": "AAA", "action": "ADD", "conviction": 60,
-                    "signal": "B", "price": 100}]
-        concordance = [{"ticker": "AAA",
-                        "conviction_waterfall": {"piotroski_quality": 3}}]
+        actions = [
+            {"ticker": "AAA", "action": "ADD", "conviction": 60, "signal": "B", "price": 100}
+        ]
+        concordance = [{"ticker": "AAA", "conviction_waterfall": {"piotroski_quality": 3}}]
         log_committee_actions(
-            "2026-04-20", actions, log_path=log, concordance=concordance,
+            "2026-04-20",
+            actions,
+            log_path=log,
+            concordance=concordance,
         )
         line = log.read_text().strip()
         entry = json.loads(line)
@@ -553,15 +684,15 @@ class TestActionLogWaterfall:
     def test_log_assertion_fires_when_threshold_breached(self, tmp_path):
         log = tmp_path / "actions.jsonl"
         actions = [
-            {"ticker": "AAA", "action": "ADD", "conviction": 60,
-             "signal": "B", "price": 100},
-            {"ticker": "BBB", "action": "ADD", "conviction": 60,
-             "signal": "B", "price": 100},
+            {"ticker": "AAA", "action": "ADD", "conviction": 60, "signal": "B", "price": 100},
+            {"ticker": "BBB", "action": "ADD", "conviction": 60, "signal": "B", "price": 100},
         ]
         # No concordance, no waterfall → 100% missing → above 10% threshold.
         with pytest.raises(AssertionError):
             log_committee_actions(
-                "2026-04-20", actions, log_path=log,
+                "2026-04-20",
+                actions,
+                log_path=log,
                 require_waterfall=True,
             )
 
@@ -570,16 +701,32 @@ class TestActionLogWaterfall:
         history.mkdir()
         log = tmp_path / "action_log.jsonl"
         # One archived concordance with two stocks, both with waterfalls.
-        (history / "concordance-2026-04-19.json").write_text(json.dumps([
-            {"ticker": "AAA", "action": "ADD", "conviction": 60,
-             "signal": "B", "price": 100,
-             "conviction_waterfall": {"piotroski_quality": 3}},
-            {"ticker": "BBB", "action": "HOLD", "conviction": 50,
-             "signal": "H", "price": 200,
-             "conviction_waterfall": {"census_alignment": 5}},
-        ]))
+        (history / "concordance-2026-04-19.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "ticker": "AAA",
+                        "action": "ADD",
+                        "conviction": 60,
+                        "signal": "B",
+                        "price": 100,
+                        "conviction_waterfall": {"piotroski_quality": 3},
+                    },
+                    {
+                        "ticker": "BBB",
+                        "action": "HOLD",
+                        "conviction": 50,
+                        "signal": "H",
+                        "price": 200,
+                        "conviction_waterfall": {"census_alignment": 5},
+                    },
+                ]
+            )
+        )
         n = backfill_action_log_from_concordance(
-            history_dir=history, log_path=log, overwrite=True,
+            history_dir=history,
+            log_path=log,
+            overwrite=True,
         )
         assert n == 2
         rows = [json.loads(line) for line in log.read_text().splitlines()]
@@ -605,12 +752,20 @@ class TestFactorAttributionT30:
                     "category": "test",
                     "by_action": {
                         "ADD": {
-                            "T+7": {"evaluated": 30, "hits": 20,
-                                    "hit_rate": 66.7, "avg_alpha": 1.5,
-                                    "avg_return": 1.5},
-                            "T+30": {"evaluated": 25, "hits": 18,
-                                     "hit_rate": 72.0, "avg_alpha": 3.0,
-                                     "avg_return": 3.5},
+                            "T+7": {
+                                "evaluated": 30,
+                                "hits": 20,
+                                "hit_rate": 66.7,
+                                "avg_alpha": 1.5,
+                                "avg_return": 1.5,
+                            },
+                            "T+30": {
+                                "evaluated": 25,
+                                "hits": 18,
+                                "hit_rate": 72.0,
+                                "avg_alpha": 3.0,
+                                "avg_return": 3.5,
+                            },
                         },
                     },
                 },
@@ -633,9 +788,13 @@ class TestFactorAttributionT30:
                     "category": "test",
                     "by_action": {
                         "ADD": {
-                            "T+7": {"evaluated": 5, "hits": 4,
-                                    "hit_rate": 80.0, "avg_alpha": 2.0,
-                                    "avg_return": 2.0},
+                            "T+7": {
+                                "evaluated": 5,
+                                "hits": 4,
+                                "hit_rate": 80.0,
+                                "avg_alpha": 2.0,
+                                "avg_return": 2.0,
+                            },
                         },
                     },
                 },
@@ -656,48 +815,61 @@ class TestWeeklyBacktestHelpers:
         # Simulate a tiny history dir.
         hist = tmp_path / "history"
         hist.mkdir()
-        (hist / "concordance-2026-04-15.json").write_text(json.dumps({
-            "concordance": [
-                {"signal": "B", "conviction": 50 + i, "ticker": f"T{i}"}
-                for i in range(25)
-            ],
-        }))
+        (hist / "concordance-2026-04-15.json").write_text(
+            json.dumps(
+                {
+                    "concordance": [
+                        {"signal": "B", "conviction": 50 + i, "ticker": f"T{i}"} for i in range(25)
+                    ],
+                }
+            )
+        )
         # Patch the default threshold path so the test doesn't pollute the
         # user's real cache.
         from trade_modules import conviction_thresholds as ct
-        monkeypatch.setattr(ct, "DEFAULT_THRESHOLDS_PATH",
-                            tmp_path / "thresholds.json")
+
+        monkeypatch.setattr(ct, "DEFAULT_THRESHOLDS_PATH", tmp_path / "thresholds.json")
         # Patch CommitteeBacktester to use our tmp dir.
         from trade_modules.committee_backtester import CommitteeBacktester
+
         monkeypatch.setattr(
-            CommitteeBacktester, "__init__",
+            CommitteeBacktester,
+            "__init__",
             lambda self, log_dir=None: setattr(self, "log_dir", tmp_path)
-            or setattr(self, "history", []) or setattr(self, "forward_returns", {})
+            or setattr(self, "history", [])
+            or setattr(self, "forward_returns", {})
             or None,
         )
 
         import sys
+
         sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
         from run_weekly_backtest import refresh_rolling_thresholds  # type: ignore
+
         thresholds = refresh_rolling_thresholds()
         # Either rolling (sufficient evidence) or empty (no history) — both legal.
         assert isinstance(thresholds, dict)
 
     def test_refresh_agent_sign_calibrator_shadow(self, tmp_path, monkeypatch):
         from trade_modules import agent_sign_calibrator as asc
-        monkeypatch.setattr(asc, "DEFAULT_CALIBRATOR_PATH",
-                            tmp_path / "calibration.json")
+
+        monkeypatch.setattr(asc, "DEFAULT_CALIBRATOR_PATH", tmp_path / "calibration.json")
         from trade_modules.committee_backtester import CommitteeBacktester
+
         monkeypatch.setattr(
-            CommitteeBacktester, "__init__",
+            CommitteeBacktester,
+            "__init__",
             lambda self, log_dir=None: setattr(self, "log_dir", tmp_path)
-            or setattr(self, "history", []) or setattr(self, "forward_returns", {})
+            or setattr(self, "history", [])
+            or setattr(self, "forward_returns", {})
             or None,
         )
 
         import sys
+
         sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
         from run_weekly_backtest import refresh_agent_sign_calibrator  # type: ignore
+
         cal = refresh_agent_sign_calibrator(shadow_mode=True)
         # No history → returns {} per docstring.
         assert cal == {}
@@ -714,22 +886,41 @@ class TestSignCalibratorHTMLPanel:
             "mode": "SHADOW",
             "horizon": "T+30",
             "agents": {
-                "macro": {"verdict": "INVERTED", "evidence_total": 50,
-                          "consecutive_inverted": 2, "applied": False},
-                "fundamental": {"verdict": "OK", "evidence_total": 50,
-                                "consecutive_inverted": 0, "applied": False},
+                "macro": {
+                    "verdict": "INVERTED",
+                    "evidence_total": 50,
+                    "consecutive_inverted": 2,
+                    "applied": False,
+                },
+                "fundamental": {
+                    "verdict": "OK",
+                    "evidence_total": 50,
+                    "consecutive_inverted": 0,
+                    "applied": False,
+                },
             },
         }
         synth = {
-            "version": "v17", "regime": "RISK_ON",
-            "macro_score": 25, "rotation_phase": "EARLY_CYCLE",
-            "verdict": "OK", "narrative": "Test",
+            "version": "v17",
+            "regime": "RISK_ON",
+            "macro_score": 25,
+            "rotation_phase": "EARLY_CYCLE",
+            "verdict": "OK",
+            "narrative": "Test",
             "concordance": [],
             "agent_sign_calibration": sign_cal_block,
         }
         html = generate_report_html(
-            synth=synth, fund={}, tech={}, macro={}, census={}, news={},
-            opps={}, risk={}, date_str="2026-04-20", mode="full",
+            synth=synth,
+            fund={},
+            tech={},
+            macro={},
+            census={},
+            news={},
+            opps={},
+            risk={},
+            date_str="2026-04-20",
+            mode="full",
         )
         assert "Agent Sign Calibrator" in html
         assert "INVERTED" in html
@@ -737,45 +928,76 @@ class TestSignCalibratorHTMLPanel:
 
     def test_panel_hidden_when_no_evidence(self):
         from trade_modules.committee_html import generate_report_html
+
         synth = {
-            "version": "v17", "regime": "RISK_ON",
-            "macro_score": 25, "rotation_phase": "EARLY_CYCLE",
-            "verdict": "OK", "narrative": "Test",
+            "version": "v17",
+            "regime": "RISK_ON",
+            "macro_score": 25,
+            "rotation_phase": "EARLY_CYCLE",
+            "verdict": "OK",
+            "narrative": "Test",
             "concordance": [],
             "agent_sign_calibration": {
                 "mode": "SHADOW",
                 "agents": {
-                    "macro": {"verdict": "INSUFFICIENT_DATA",
-                              "evidence_total": 0,
-                              "consecutive_inverted": 0, "applied": False},
+                    "macro": {
+                        "verdict": "INSUFFICIENT_DATA",
+                        "evidence_total": 0,
+                        "consecutive_inverted": 0,
+                        "applied": False,
+                    },
                 },
             },
         }
         html = generate_report_html(
-            synth=synth, fund={}, tech={}, macro={}, census={}, news={},
-            opps={}, risk={}, date_str="2026-04-20", mode="full",
+            synth=synth,
+            fund={},
+            tech={},
+            macro={},
+            census={},
+            news={},
+            opps={},
+            risk={},
+            date_str="2026-04-20",
+            mode="full",
         )
         # Panel should NOT render when nothing has any evidence.
         assert "Agent Sign Calibrator" not in html
 
     def test_panel_hidden_in_daily_mode(self):
         from trade_modules.committee_html import generate_report_html
+
         synth = {
-            "version": "v17", "regime": "RISK_ON",
-            "macro_score": 25, "rotation_phase": "EARLY_CYCLE",
-            "verdict": "OK", "narrative": "Test",
+            "version": "v17",
+            "regime": "RISK_ON",
+            "macro_score": 25,
+            "rotation_phase": "EARLY_CYCLE",
+            "verdict": "OK",
+            "narrative": "Test",
             "concordance": [],
             "agent_sign_calibration": {
                 "mode": "SHADOW",
                 "agents": {
-                    "macro": {"verdict": "INVERTED", "evidence_total": 50,
-                              "consecutive_inverted": 2, "applied": False},
+                    "macro": {
+                        "verdict": "INVERTED",
+                        "evidence_total": 50,
+                        "consecutive_inverted": 2,
+                        "applied": False,
+                    },
                 },
             },
         }
         html = generate_report_html(
-            synth=synth, fund={}, tech={}, macro={}, census={}, news={},
-            opps={}, risk={}, date_str="2026-04-20", mode="daily",
+            synth=synth,
+            fund={},
+            tech={},
+            macro={},
+            census={},
+            news={},
+            opps={},
+            risk={},
+            date_str="2026-04-20",
+            mode="daily",
         )
         # Daily/digest mode skips the panel to keep email lightweight.
         assert "Agent Sign Calibrator" not in html
@@ -785,30 +1007,51 @@ class TestSignCalibratorHTMLPanel:
         # waterfall values can be strings. The renderer must not crash on
         # `abs(str)` or `int + str`.
         from trade_modules.committee_html import generate_report_html
+
         synth = {
-            "version": "v17", "regime": "RISK_ON",
-            "macro_score": 25, "rotation_phase": "EARLY_CYCLE",
-            "verdict": "OK", "narrative": "Test",
+            "version": "v17",
+            "regime": "RISK_ON",
+            "macro_score": 25,
+            "rotation_phase": "EARLY_CYCLE",
+            "verdict": "OK",
+            "narrative": "Test",
             "concordance": [
                 {
-                    "ticker": "TEST", "action": "ADD", "conviction": 60,
-                    "signal": "B", "fund_view": "BUY", "tech_signal": "ENTER_NOW",
-                    "macro_fit": "FAVORABLE", "census": "ALIGNED",
-                    "news_impact": "NEUTRAL", "rsi": 55, "sector": "Technology",
-                    "exret": 20.0, "buy_pct": 80, "beta": 1.0,
+                    "ticker": "TEST",
+                    "action": "ADD",
+                    "conviction": 60,
+                    "signal": "B",
+                    "fund_view": "BUY",
+                    "tech_signal": "ENTER_NOW",
+                    "macro_fit": "FAVORABLE",
+                    "census": "ALIGNED",
+                    "news_impact": "NEUTRAL",
+                    "rsi": 55,
+                    "sector": "Technology",
+                    "exret": 20.0,
+                    "buy_pct": 80,
+                    "beta": 1.0,
                     "conviction_waterfall": {
-                        "piotroski_quality": "3",   # string!
-                        "rsi_overbought": "-8",      # string!
-                        "kill_thesis": "-15",        # string!
-                        "garbage_modifier": "n/a",   # non-numeric
+                        "piotroski_quality": "3",  # string!
+                        "rsi_overbought": "-8",  # string!
+                        "kill_thesis": "-15",  # string!
+                        "garbage_modifier": "n/a",  # non-numeric
                     },
                 },
             ],
         }
         # Must not raise.
         html = generate_report_html(
-            synth=synth, fund={}, tech={}, macro={}, census={}, news={},
-            opps={}, risk={}, date_str="2026-04-20", mode="full",
+            synth=synth,
+            fund={},
+            tech={},
+            macro={},
+            census={},
+            news={},
+            opps={},
+            risk={},
+            date_str="2026-04-20",
+            mode="full",
         )
         assert "TEST" in html
 
@@ -822,25 +1065,40 @@ class TestSignCalibratorLegacyNormalization:
         # The calibrator must normalize to a list of dicts before iterating;
         # otherwise it crashes with "str has no attribute 'get'".
         from datetime import datetime, timedelta
+
         d = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
-        (tmp_path / f"concordance-{d}.json").write_text(json.dumps({
-            "date": d,
-            "stocks": {
-                "AAA": {"macro_fit": "FAVORABLE", "tech_signal": "ENTER_NOW",
-                        "fund_view": "BUY", "census": "ALIGNED",
-                        "news_impact": "POSITIVE"},
-                "BBB": {"macro_fit": "UNFAVORABLE", "tech_signal": "AVOID",
-                        "fund_view": "SELL", "census": "DIVERGENT",
-                        "news_impact": "NEGATIVE"},
-            },
-        }))
+        (tmp_path / f"concordance-{d}.json").write_text(
+            json.dumps(
+                {
+                    "date": d,
+                    "stocks": {
+                        "AAA": {
+                            "macro_fit": "FAVORABLE",
+                            "tech_signal": "ENTER_NOW",
+                            "fund_view": "BUY",
+                            "census": "ALIGNED",
+                            "news_impact": "POSITIVE",
+                        },
+                        "BBB": {
+                            "macro_fit": "UNFAVORABLE",
+                            "tech_signal": "AVOID",
+                            "fund_view": "SELL",
+                            "census": "DIVERGENT",
+                            "news_impact": "NEGATIVE",
+                        },
+                    },
+                }
+            )
+        )
         forward = {
             f"AAA:{d}": {"T+30_alpha": +1.5},
             f"BBB:{d}": {"T+30_alpha": -2.0},
         }
         out = calibrate_agent_signs(
-            forward_returns=forward, history_dir=tmp_path,
-            horizon="T+30", lookback_days=60,
+            forward_returns=forward,
+            history_dir=tmp_path,
+            horizon="T+30",
+            lookback_days=60,
         )
         # Critical: must NOT raise. Status should be 'ok' (history loaded).
         assert out["status"] == "ok"

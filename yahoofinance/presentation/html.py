@@ -10,10 +10,10 @@ New code should import from yahoofinance.presentation.html_modules directly.
 
 # Import everything from the new split modules for backward compatibility
 from .html_modules import (
-    FormatUtils,
-    HTMLGenerator,
     DEFAULT_CSS,
     DEFAULT_JS,
+    FormatUtils,
+    HTMLGenerator,
 )
 
 # Re-export all for backward compatibility

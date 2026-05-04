@@ -10,20 +10,19 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import numpy as np
 import pandas as pd
 
-from trade_modules.backtest_engine import BacktestEngine, SIGNAL_LOG_PATH, OUTPUT_DIR
+from trade_modules.backtest_engine import OUTPUT_DIR, BacktestEngine
 
 logger = logging.getLogger(__name__)
 
 # Trading days per horizon
 HORIZON_DAYS = {
-    '1m': 21,
-    '3m': 63,
-    '6m': 126,
+    "1m": 21,
+    "3m": 63,
+    "6m": 126,
 }
 
 SCORECARD_OUTPUT_PATH = OUTPUT_DIR / "signal_scorecard.json"
@@ -39,8 +38,8 @@ class SignalScorecard:
 
     def __init__(
         self,
-        signal_log_path: Optional[Path] = None,
-        output_dir: Optional[Path] = None,
+        signal_log_path: Path | None = None,
+        output_dir: Path | None = None,
     ):
         self.output_dir = output_dir or OUTPUT_DIR
         self.engine = BacktestEngine(
@@ -49,7 +48,7 @@ class SignalScorecard:
             horizons=list(HORIZON_DAYS.values()),
         )
 
-    def generate_scorecard(self, months_back: int = 3) -> Dict[str, Any]:
+    def generate_scorecard(self, months_back: int = 3) -> dict[str, Any]:
         """
         Generate a signal scorecard for signals from the last N months.
 
@@ -67,18 +66,16 @@ class SignalScorecard:
         # Filter to date range
         cutoff = datetime.now() - timedelta(days=months_back * 30)
         cutoff_date = cutoff.date()
-        signals_df = all_signals[all_signals['date'] >= cutoff_date].copy()
+        signals_df = all_signals[all_signals["date"] >= cutoff_date].copy()
 
         if signals_df.empty:
             return self._empty_scorecard(months_back)
 
         # Fetch price data
-        tickers = signals_df['ticker'].unique().tolist()
-        min_date = signals_df['date'].min() - timedelta(days=5)
+        tickers = signals_df["ticker"].unique().tolist()
+        min_date = signals_df["date"].min() - timedelta(days=5)
         max_date = datetime.now().date()
-        price_data, spy_data = self.engine.fetch_price_history(
-            tickers, min_date, max_date
-        )
+        price_data, spy_data = self.engine.fetch_price_history(tickers, min_date, max_date)
 
         # Backfill missing signal prices
         signals_df = self.engine.backfill_signal_prices(signals_df, price_data)
@@ -86,26 +83,24 @@ class SignalScorecard:
         # Calculate returns at each horizon
         horizon_results = {}
         for label, trading_days in HORIZON_DAYS.items():
-            results = self.engine.calculate_returns(
-                signals_df, price_data, spy_data, trading_days
-            )
+            results = self.engine.calculate_returns(signals_df, price_data, spy_data, trading_days)
             if not results.empty:
                 # Merge tier/region from signals
                 results = self._merge_tier_region(results, signals_df)
                 horizon_results[label] = results
 
         # Build scorecard structure
-        period_start = signals_df['date'].min()
-        period_end = signals_df['date'].max()
+        period_start = signals_df["date"].min()
+        period_end = signals_df["date"].max()
 
-        scorecard: Dict[str, Any] = {
-            'generated_at': datetime.now().strftime('%Y-%m-%d'),
-            'period': f"{period_start} to {period_end}",
-            'overall': self._compute_overall(horizon_results),
-            'by_tier': self._compute_breakdown(horizon_results, 'tier'),
-            'by_region': self._compute_breakdown(horizon_results, 'region'),
-            'calibration_alerts': self._generate_alerts(horizon_results),
-            'consensus_calibration': self._compute_consensus_calibration(
+        scorecard: dict[str, Any] = {
+            "generated_at": datetime.now().strftime("%Y-%m-%d"),
+            "period": f"{period_start} to {period_end}",
+            "overall": self._compute_overall(horizon_results),
+            "by_tier": self._compute_breakdown(horizon_results, "tier"),
+            "by_region": self._compute_breakdown(horizon_results, "region"),
+            "calibration_alerts": self._generate_alerts(horizon_results),
+            "consensus_calibration": self._compute_consensus_calibration(
                 horizon_results, signals_df
             ),
         }
@@ -115,12 +110,12 @@ class SignalScorecard:
 
         return scorecard
 
-    def print_scorecard(self, scorecard: Optional[Dict[str, Any]] = None) -> None:
+    def print_scorecard(self, scorecard: dict[str, Any] | None = None) -> None:
         """Print scorecard to console in a readable format."""
         if scorecard is None:
             # Try to load from file
             if SCORECARD_OUTPUT_PATH.exists():
-                with open(SCORECARD_OUTPUT_PATH, 'r') as f:
+                with open(SCORECARD_OUTPUT_PATH) as f:
                     scorecard = json.load(f)
             else:
                 print("No scorecard found. Run generate_scorecard() first.")
@@ -135,14 +130,14 @@ class SignalScorecard:
         # Overall stats
         print("\nOVERALL PERFORMANCE:")
         print("-" * 70)
-        for signal_type in ['buy', 'sell', 'hold']:
-            stats = scorecard['overall'].get(signal_type, {})
-            if not stats or stats.get('count', 0) == 0:
+        for signal_type in ["buy", "sell", "hold"]:
+            stats = scorecard["overall"].get(signal_type, {})
+            if not stats or stats.get("count", 0) == 0:
                 continue
             print(f"\n  {signal_type.upper()} signals (n={stats['count']}):")
-            for horizon in ['1m', '3m', '6m']:
-                hr = stats.get(f'hit_rate_{horizon}')
-                outperf = stats.get(f'outperformance_rate_{horizon}')
+            for horizon in ["1m", "3m", "6m"]:
+                hr = stats.get(f"hit_rate_{horizon}")
+                outperf = stats.get(f"outperformance_rate_{horizon}")
                 if hr is not None:
                     outperf_str = f", outperf={outperf:.1f}%" if outperf is not None else ""
                     print(f"    {horizon.upper()}: hit_rate={hr:.1f}%{outperf_str}")
@@ -152,39 +147,41 @@ class SignalScorecard:
         print("-" * 70)
         print(f"  {'Tier':<8} {'Count':>6} {'HR 1M':>8} {'HR 3M':>8} {'HR 6M':>8} {'OP 1M':>8}")
         print("  " + "-" * 48)
-        for tier in ['mega', 'large', 'mid', 'small', 'micro']:
-            tier_data = scorecard['by_tier'].get(tier, {}).get('buy', {})
-            if not tier_data or tier_data.get('count', 0) == 0:
+        for tier in ["mega", "large", "mid", "small", "micro"]:
+            tier_data = scorecard["by_tier"].get(tier, {}).get("buy", {})
+            if not tier_data or tier_data.get("count", 0) == 0:
                 continue
-            hr1 = tier_data.get('hit_rate_1m', '-')
-            hr3 = tier_data.get('hit_rate_3m', '-')
-            hr6 = tier_data.get('hit_rate_6m', '-')
-            op1 = tier_data.get('outperformance_rate_1m', '-')
+            hr1 = tier_data.get("hit_rate_1m", "-")
+            hr3 = tier_data.get("hit_rate_3m", "-")
+            hr6 = tier_data.get("hit_rate_6m", "-")
+            op1 = tier_data.get("outperformance_rate_1m", "-")
             hr1_s = f"{hr1:.1f}%" if isinstance(hr1, (int, float)) else hr1
             hr3_s = f"{hr3:.1f}%" if isinstance(hr3, (int, float)) else hr3
             hr6_s = f"{hr6:.1f}%" if isinstance(hr6, (int, float)) else hr6
             op1_s = f"{op1:.1f}%" if isinstance(op1, (int, float)) else op1
-            print(f"  {tier:<8} {tier_data['count']:>6} {hr1_s:>8} {hr3_s:>8} {hr6_s:>8} {op1_s:>8}")
+            print(
+                f"  {tier:<8} {tier_data['count']:>6} {hr1_s:>8} {hr3_s:>8} {hr6_s:>8} {op1_s:>8}"
+            )
 
         # By region
         print("\nBY REGION (BUY signals):")
         print("-" * 70)
         print(f"  {'Region':<8} {'Count':>6} {'HR 1M':>8} {'HR 3M':>8} {'HR 6M':>8}")
         print("  " + "-" * 38)
-        for region in ['us', 'eu', 'hk']:
-            region_data = scorecard['by_region'].get(region, {}).get('buy', {})
-            if not region_data or region_data.get('count', 0) == 0:
+        for region in ["us", "eu", "hk"]:
+            region_data = scorecard["by_region"].get(region, {}).get("buy", {})
+            if not region_data or region_data.get("count", 0) == 0:
                 continue
-            hr1 = region_data.get('hit_rate_1m', '-')
-            hr3 = region_data.get('hit_rate_3m', '-')
-            hr6 = region_data.get('hit_rate_6m', '-')
+            hr1 = region_data.get("hit_rate_1m", "-")
+            hr3 = region_data.get("hit_rate_3m", "-")
+            hr6 = region_data.get("hit_rate_6m", "-")
             hr1_s = f"{hr1:.1f}%" if isinstance(hr1, (int, float)) else hr1
             hr3_s = f"{hr3:.1f}%" if isinstance(hr3, (int, float)) else hr3
             hr6_s = f"{hr6:.1f}%" if isinstance(hr6, (int, float)) else hr6
             print(f"  {region:<8} {region_data['count']:>6} {hr1_s:>8} {hr3_s:>8} {hr6_s:>8}")
 
         # Calibration alerts
-        alerts = scorecard.get('calibration_alerts', [])
+        alerts = scorecard.get("calibration_alerts", [])
         if alerts:
             print("\nCALIBRATION ALERTS:")
             print("-" * 70)
@@ -193,63 +190,59 @@ class SignalScorecard:
 
         print()
 
-    def _compute_overall(
-        self, horizon_results: Dict[str, pd.DataFrame]
-    ) -> Dict[str, Any]:
+    def _compute_overall(self, horizon_results: dict[str, pd.DataFrame]) -> dict[str, Any]:
         """Compute overall hit rates by signal type across horizons."""
-        overall: Dict[str, Any] = {}
-        signal_map = {'B': 'buy', 'S': 'sell', 'H': 'hold'}
+        overall: dict[str, Any] = {}
+        signal_map = {"B": "buy", "S": "sell", "H": "hold"}
 
         for signal_code, signal_name in signal_map.items():
-            stats: Dict[str, Any] = {'count': 0}
+            stats: dict[str, Any] = {"count": 0}
 
             for label, results in horizon_results.items():
-                sig_df = results[results['signal'] == signal_code]
+                sig_df = results[results["signal"] == signal_code]
                 if sig_df.empty:
                     continue
 
-                if stats['count'] == 0:
-                    stats['count'] = len(sig_df)
+                if stats["count"] == 0:
+                    stats["count"] = len(sig_df)
 
-                returns = sig_df['stock_return'].dropna()
-                spy_returns = sig_df['spy_return'].dropna()
-                alphas = sig_df['alpha'].dropna()
+                returns = sig_df["stock_return"].dropna()
+                sig_df["spy_return"].dropna()
+                alphas = sig_df["alpha"].dropna()
                 n = len(returns)
 
                 if n == 0:
                     continue
 
-                stats[f'hit_rate_{label}'] = round(
-                    self._hit_rate(returns, signal_code), 1
-                )
-                stats[f'false_positive_rate_{label}'] = round(
+                stats[f"hit_rate_{label}"] = round(self._hit_rate(returns, signal_code), 1)
+                stats[f"false_positive_rate_{label}"] = round(
                     self._false_positive_rate(returns, signal_code), 1
                 )
 
                 # Outperformance vs SPY
                 valid_alpha = alphas[alphas.notna()]
-                if len(valid_alpha) > 0 and signal_code == 'B':
+                if len(valid_alpha) > 0 and signal_code == "B":
                     outperf = float((valid_alpha > 0).mean() * 100)
-                    stats[f'outperformance_rate_{label}'] = round(outperf, 1)
+                    stats[f"outperformance_rate_{label}"] = round(outperf, 1)
 
                 # False negative rate (for SELL/HOLD: stocks that gained >20%)
-                if signal_code in ('S', 'H'):
+                if signal_code in ("S", "H"):
                     fn_rate = float((returns > 20).mean() * 100) if n > 0 else 0.0
-                    stats[f'false_negative_rate_{label}'] = round(fn_rate, 1)
+                    stats[f"false_negative_rate_{label}"] = round(fn_rate, 1)
 
-            if stats['count'] > 0:
+            if stats["count"] > 0:
                 overall[signal_name] = stats
 
         return overall
 
     def _compute_breakdown(
         self,
-        horizon_results: Dict[str, pd.DataFrame],
+        horizon_results: dict[str, pd.DataFrame],
         group_col: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compute hit rates broken down by a grouping column (tier or region)."""
-        breakdown: Dict[str, Any] = {}
-        signal_map = {'B': 'buy', 'S': 'sell', 'H': 'hold'}
+        breakdown: dict[str, Any] = {}
+        signal_map = {"B": "buy", "S": "sell", "H": "hold"}
 
         # Collect all group values across horizons
         all_groups = set()
@@ -258,44 +251,42 @@ class SignalScorecard:
                 all_groups.update(results[group_col].dropna().unique())
 
         for group_val in sorted(all_groups):
-            group_data: Dict[str, Any] = {}
+            group_data: dict[str, Any] = {}
 
             for signal_code, signal_name in signal_map.items():
-                stats: Dict[str, Any] = {'count': 0}
+                stats: dict[str, Any] = {"count": 0}
 
                 for label, results in horizon_results.items():
                     if group_col not in results.columns:
                         continue
-                    mask = (results[group_col] == group_val) & (results['signal'] == signal_code)
+                    mask = (results[group_col] == group_val) & (results["signal"] == signal_code)
                     sig_df = results[mask]
                     if sig_df.empty:
                         continue
 
-                    if stats['count'] == 0:
-                        stats['count'] = len(sig_df)
+                    if stats["count"] == 0:
+                        stats["count"] = len(sig_df)
 
-                    returns = sig_df['stock_return'].dropna()
-                    alphas = sig_df['alpha'].dropna()
+                    returns = sig_df["stock_return"].dropna()
+                    alphas = sig_df["alpha"].dropna()
                     n = len(returns)
                     if n == 0:
                         continue
 
-                    stats[f'hit_rate_{label}'] = round(
-                        self._hit_rate(returns, signal_code), 1
-                    )
-                    stats[f'false_positive_rate_{label}'] = round(
+                    stats[f"hit_rate_{label}"] = round(self._hit_rate(returns, signal_code), 1)
+                    stats[f"false_positive_rate_{label}"] = round(
                         self._false_positive_rate(returns, signal_code), 1
                     )
 
-                    if signal_code == 'B' and len(alphas) > 0:
+                    if signal_code == "B" and len(alphas) > 0:
                         outperf = float((alphas > 0).mean() * 100)
-                        stats[f'outperformance_rate_{label}'] = round(outperf, 1)
+                        stats[f"outperformance_rate_{label}"] = round(outperf, 1)
 
-                    if signal_code in ('S', 'H') and n > 0:
+                    if signal_code in ("S", "H") and n > 0:
                         fn_rate = float((returns > 20).mean() * 100)
-                        stats[f'false_negative_rate_{label}'] = round(fn_rate, 1)
+                        stats[f"false_negative_rate_{label}"] = round(fn_rate, 1)
 
-                if stats['count'] > 0:
+                if stats["count"] > 0:
                     group_data[signal_name] = stats
 
             if group_data:
@@ -305,9 +296,9 @@ class SignalScorecard:
 
     def _compute_consensus_calibration(
         self,
-        horizon_results: Dict[str, pd.DataFrame],
+        horizon_results: dict[str, pd.DataFrame],
         signals_df: pd.DataFrame,
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """
         Compute BUY signal accuracy grouped by analyst consensus (%BUY) buckets.
 
@@ -326,63 +317,63 @@ class SignalScorecard:
             Returns empty dict if buy_percentage data is unavailable.
         """
         # Need 1M horizon results
-        results_1m = horizon_results.get('1m', pd.DataFrame())
+        results_1m = horizon_results.get("1m", pd.DataFrame())
         if results_1m.empty:
             return {}
 
         # Check that signals_df has buy_percentage
-        if 'buy_percentage' not in signals_df.columns:
+        if "buy_percentage" not in signals_df.columns:
             logger.info("buy_percentage not in signal data; skipping consensus calibration")
             return {}
 
         # Filter to BUY signals only
-        buy_results = results_1m[results_1m['signal'] == 'B'].copy()
+        buy_results = results_1m[results_1m["signal"] == "B"].copy()
         if buy_results.empty:
             return {}
 
         # Merge buy_percentage from signals_df into buy_results
         # Join on ticker + signal_date matching signals_df ticker + date
-        bp_lookup = signals_df[['ticker', 'date', 'buy_percentage']].copy()
-        bp_lookup = bp_lookup.dropna(subset=['buy_percentage'])
+        bp_lookup = signals_df[["ticker", "date", "buy_percentage"]].copy()
+        bp_lookup = bp_lookup.dropna(subset=["buy_percentage"])
         if bp_lookup.empty:
             return {}
 
-        bp_lookup['_date_str'] = bp_lookup['date'].astype(str)
-        buy_results['_date_str'] = buy_results['signal_date'].astype(str)
+        bp_lookup["_date_str"] = bp_lookup["date"].astype(str)
+        buy_results["_date_str"] = buy_results["signal_date"].astype(str)
 
         merged = buy_results.merge(
-            bp_lookup[['ticker', '_date_str', 'buy_percentage']],
-            on=['ticker', '_date_str'],
-            how='left',
+            bp_lookup[["ticker", "_date_str", "buy_percentage"]],
+            on=["ticker", "_date_str"],
+            how="left",
         )
-        merged = merged.drop(columns=['_date_str'], errors='ignore')
+        merged = merged.drop(columns=["_date_str"], errors="ignore")
 
         # Drop rows where buy_percentage could not be matched
-        merged = merged.dropna(subset=['buy_percentage'])
+        merged = merged.dropna(subset=["buy_percentage"])
         if merged.empty:
             return {}
 
         # Define consensus buckets
         bucket_edges = [50, 60, 70, 80, 90, 101]
-        bucket_labels = ['50-60%', '60-70%', '70-80%', '80-90%', '90%+']
+        bucket_labels = ["50-60%", "60-70%", "70-80%", "80-90%", "90%+"]
 
-        merged['consensus_bucket'] = pd.cut(
-            merged['buy_percentage'],
+        merged["consensus_bucket"] = pd.cut(
+            merged["buy_percentage"],
             bins=bucket_edges,
             labels=bucket_labels,
             right=False,
         )
 
-        calibration: Dict[str, Dict[str, float]] = {}
+        calibration: dict[str, dict[str, float]] = {}
 
         for label in bucket_labels:
-            bucket_df = merged[merged['consensus_bucket'] == label]
+            bucket_df = merged[merged["consensus_bucket"] == label]
             n = len(bucket_df)
             if n == 0:
                 continue
 
-            returns = bucket_df['stock_return'].dropna()
-            alphas = bucket_df['alpha'].dropna()
+            returns = bucket_df["stock_return"].dropna()
+            alphas = bucket_df["alpha"].dropna()
             n_returns = len(returns)
 
             if n_returns == 0:
@@ -390,38 +381,34 @@ class SignalScorecard:
 
             hit_rate = float((returns > 0).mean() * 100)
             avg_return = float(returns.mean())
-            outperformance_rate = (
-                float((alphas > 0).mean() * 100) if len(alphas) > 0 else 0.0
-            )
+            outperformance_rate = float((alphas > 0).mean() * 100) if len(alphas) > 0 else 0.0
 
             calibration[label] = {
-                'count': n,
-                'hit_rate': round(hit_rate, 1),
-                'avg_return': round(avg_return, 2),
-                'outperformance_rate': round(outperformance_rate, 1),
+                "count": n,
+                "hit_rate": round(hit_rate, 1),
+                "avg_return": round(avg_return, 2),
+                "outperformance_rate": round(outperformance_rate, 1),
             }
 
         return calibration
 
-    def _generate_alerts(
-        self, horizon_results: Dict[str, pd.DataFrame]
-    ) -> List[str]:
+    def _generate_alerts(self, horizon_results: dict[str, pd.DataFrame]) -> list[str]:
         """Generate calibration alerts for underperforming tier/region combos."""
         alerts = []
 
         # Check 1M horizon for tier+region combos with low hit rates
-        results_1m = horizon_results.get('1m', pd.DataFrame())
+        results_1m = horizon_results.get("1m", pd.DataFrame())
         if results_1m.empty:
             return alerts
 
-        buy_1m = results_1m[results_1m['signal'] == 'B']
+        buy_1m = results_1m[results_1m["signal"] == "B"]
         if buy_1m.empty:
             return alerts
 
-        for (tier, region), gdf in buy_1m.groupby(['tier', 'region']):
+        for (tier, region), gdf in buy_1m.groupby(["tier", "region"]):
             if pd.isna(tier) or pd.isna(region):
                 continue
-            returns = gdf['stock_return'].dropna()
+            returns = gdf["stock_return"].dropna()
             n = len(returns)
             if n < 10:
                 continue
@@ -433,12 +420,12 @@ class SignalScorecard:
                 )
 
         # Check SELL signals - alert if hit rate is low
-        sell_1m = results_1m[results_1m['signal'] == 'S']
+        sell_1m = results_1m[results_1m["signal"] == "S"]
         if not sell_1m.empty:
-            for (tier, region), gdf in sell_1m.groupby(['tier', 'region']):
+            for (tier, region), gdf in sell_1m.groupby(["tier", "region"]):
                 if pd.isna(tier) or pd.isna(region):
                     continue
-                returns = gdf['stock_return'].dropna()
+                returns = gdf["stock_return"].dropna()
                 n = len(returns)
                 if n < 10:
                     continue
@@ -457,9 +444,9 @@ class SignalScorecard:
         n = len(returns)
         if n == 0:
             return 0.0
-        if signal == 'B':
+        if signal == "B":
             return float((returns > 0).mean() * 100)
-        elif signal == 'S':
+        elif signal == "S":
             return float((returns < 0).mean() * 100)
         else:  # H
             return float((returns.abs() < 5).mean() * 100)
@@ -470,65 +457,63 @@ class SignalScorecard:
         n = len(returns)
         if n == 0:
             return 0.0
-        if signal == 'B':
+        if signal == "B":
             # BUY signals that lost money
             return float((returns < 0).mean() * 100)
-        elif signal == 'S':
+        elif signal == "S":
             # SELL signals where stock went up
             return float((returns > 0).mean() * 100)
         else:
             return 0.0
 
     @staticmethod
-    def _merge_tier_region(
-        results: pd.DataFrame, signals_df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def _merge_tier_region(results: pd.DataFrame, signals_df: pd.DataFrame) -> pd.DataFrame:
         """Ensure tier and region columns exist in results from signal data."""
-        if 'tier' in results.columns and 'region' in results.columns:
+        if "tier" in results.columns and "region" in results.columns:
             return results
 
         # Merge from signals on ticker + signal_date
-        signals_lookup = signals_df[['ticker', 'date', 'tier', 'region']].copy()
-        signals_lookup['date'] = signals_lookup['date'].astype(str)
+        signals_lookup = signals_df[["ticker", "date", "tier", "region"]].copy()
+        signals_lookup["date"] = signals_lookup["date"].astype(str)
         results = results.copy()
-        results['_date_str'] = results['signal_date'].astype(str)
+        results["_date_str"] = results["signal_date"].astype(str)
 
         merged = results.merge(
-            signals_lookup.rename(columns={'date': '_date_str'}),
-            on=['ticker', '_date_str'],
-            how='left',
-            suffixes=('', '_sig'),
+            signals_lookup.rename(columns={"date": "_date_str"}),
+            on=["ticker", "_date_str"],
+            how="left",
+            suffixes=("", "_sig"),
         )
 
         # Use signal tier/region if missing from results
-        if 'tier_sig' in merged.columns:
-            merged['tier'] = merged['tier'].fillna(merged['tier_sig'])
-            merged['region'] = merged['region'].fillna(merged['region_sig'])
-            merged = merged.drop(columns=['tier_sig', 'region_sig'], errors='ignore')
+        if "tier_sig" in merged.columns:
+            merged["tier"] = merged["tier"].fillna(merged["tier_sig"])
+            merged["region"] = merged["region"].fillna(merged["region_sig"])
+            merged = merged.drop(columns=["tier_sig", "region_sig"], errors="ignore")
 
-        merged = merged.drop(columns=['_date_str'], errors='ignore')
+        merged = merged.drop(columns=["_date_str"], errors="ignore")
         return merged
 
-    def _save_scorecard(self, scorecard: Dict[str, Any]) -> None:
+    def _save_scorecard(self, scorecard: dict[str, Any]) -> None:
         """Save scorecard to JSON file."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
         output_path = self.output_dir / "signal_scorecard.json"
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(scorecard, f, indent=2, default=str)
         print(f"\nScorecard saved to: {output_path}")
 
     @staticmethod
-    def _empty_scorecard(months_back: int) -> Dict[str, Any]:
+    def _empty_scorecard(months_back: int) -> dict[str, Any]:
         """Return an empty scorecard structure."""
         now = datetime.now()
         return {
-            'generated_at': now.strftime('%Y-%m-%d'),
-            'period': f"{(now - timedelta(days=months_back * 30)).strftime('%Y-%m-%d')} to {now.strftime('%Y-%m-%d')}",
-            'overall': {},
-            'by_tier': {},
-            'by_region': {},
-            'calibration_alerts': [],
-            'consensus_calibration': {},
+            "generated_at": now.strftime("%Y-%m-%d"),
+            "period": f"{(now - timedelta(days=months_back * 30)).strftime('%Y-%m-%d')} to {now.strftime('%Y-%m-%d')}",
+            "overall": {},
+            "by_tier": {},
+            "by_region": {},
+            "calibration_alerts": [],
+            "consensus_calibration": {},
         }
 
 

@@ -6,15 +6,16 @@ values with appropriate scale indicators (T, B, M) and precision based on
 the magnitude of the value.
 """
 
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from ...core.logging import get_logger
 from ..error_handling import with_retry
 
 logger = get_logger(__name__)
 
+
 @with_retry
-def _get_scale_info(value: float, config: Dict[str, Any]) -> Dict[str, Any]:
+def _get_scale_info(value: float, config: dict[str, Any]) -> dict[str, Any]:
     """
     Determine the appropriate scale, divisor, suffix, and precision for a market cap value.
 
@@ -69,8 +70,9 @@ def _get_scale_info(value: float, config: Dict[str, Any]) -> Dict[str, Any]:
 
     return {"scale": scale, "divisor": divisor, "suffix": suffix, "precision": precision}
 
+
 @with_retry
-def _format_with_scale(value: float, scale_info: Dict[str, Any]) -> str:
+def _format_with_scale(value: float, scale_info: dict[str, Any]) -> str:
     """
     Format a value using the provided scale information.
 
@@ -91,10 +93,11 @@ def _format_with_scale(value: float, scale_info: Dict[str, Any]) -> str:
     else:
         return f"{value / divisor:.{precision}f}{suffix}"
 
+
 @with_retry
 def format_market_cap_advanced(
-    value: Optional[Union[int, float]], config: Optional[Dict[str, Any]] = None
-) -> Optional[str]:
+    value: int | float | None, config: dict[str, Any] | None = None
+) -> str | None:
     """
     Format market cap with advanced options.
 

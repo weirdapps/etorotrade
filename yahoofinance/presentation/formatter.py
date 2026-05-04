@@ -8,9 +8,10 @@ percentage formatting, and coloring of financial metrics.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from ..utils.data.format_utils import format_market_cap as utils_format_market_cap
+
 
 class Color(Enum):
     """Color constants for terminal output."""
@@ -26,6 +27,7 @@ class Color(Enum):
     BOLD = "\033[1m"  # Bold text
     UNDERLINE = "\033[4m"  # Underlined text
 
+
 @dataclass
 class DisplayConfig:
     """Configuration for display formatting."""
@@ -35,17 +37,18 @@ class DisplayConfig:
     max_name_length: int = 14
     date_format: str = "%Y-%m-%d"
     show_headers: bool = True
-    max_columns: Optional[int] = None
-    sort_column: Optional[str] = None
+    max_columns: int | None = None
+    sort_column: str | None = None
     reverse_sort: bool = False
     # Standard column order that should be used for all displays
-    reorder_columns: List[str] = None
+    reorder_columns: list[str] = None
 
     def __post_init__(self):
         # Import here to avoid circular import
         from ..core.config import STANDARD_DISPLAY_COLUMNS
 
         self.reorder_columns = STANDARD_DISPLAY_COLUMNS
+
 
 class DisplayFormatter:
     """
@@ -66,7 +69,7 @@ class DisplayFormatter:
         self.compact_mode = compact_mode
         self.config = DisplayConfig()
 
-    def format_market_cap(self, value: Optional[float]) -> Optional[str]:
+    def format_market_cap(self, value: float | None) -> str | None:
         """
         Format market cap value with appropriate suffix (T, B, M).
 
@@ -81,7 +84,7 @@ class DisplayFormatter:
         # Use the canonical format_market_cap function from format_utils
         return utils_format_market_cap(value)
 
-    def format_price(self, value: Optional[float], decimals: int = 2) -> str:
+    def format_price(self, value: float | None, decimals: int = 2) -> str:
         """
         Format a price value with conditional decimal places.
 
@@ -103,7 +106,7 @@ class DisplayFormatter:
         else:
             return f"${value:,.2f}"
 
-    def format_percentage(self, value: Optional[float], decimals: int = 1) -> str:
+    def format_percentage(self, value: float | None, decimals: int = 1) -> str:
         """
         Format a percentage value with extreme value handling.
 
@@ -125,7 +128,7 @@ class DisplayFormatter:
         else:
             return f"{value:,.1f}%"
 
-    def format_ratio(self, value: Optional[float], decimals: int = 2) -> str:
+    def format_ratio(self, value: float | None, decimals: int = 2) -> str:
         """
         Format a ratio value with zero handling.
 
@@ -288,7 +291,7 @@ class DisplayFormatter:
                 return f"{Color.PURPLE.value}{value}{Color.RESET.value}"
             return value
 
-    def format_52w_percent(self, value: Optional[float]) -> str:
+    def format_52w_percent(self, value: float | None) -> str:
         """
         Format percent from 52-week high.
 
@@ -302,7 +305,7 @@ class DisplayFormatter:
             return "--"
         return f"{value:.0f}%"
 
-    def format_above_200dma(self, value: Optional[bool]) -> str:
+    def format_above_200dma(self, value: bool | None) -> str:
         """
         Format above 200DMA indicator.
 
@@ -316,7 +319,7 @@ class DisplayFormatter:
             return "--"
         return "Y" if value else "N"
 
-    def format_analyst_momentum(self, value: Optional[float]) -> str:
+    def format_analyst_momentum(self, value: float | None) -> str:
         """
         Format analyst momentum with sign.
 
@@ -331,7 +334,7 @@ class DisplayFormatter:
         sign = "+" if value > 0 else ""
         return f"{sign}{value:.0f}%"
 
-    def format_pe_vs_sector(self, value: Optional[float]) -> str:
+    def format_pe_vs_sector(self, value: float | None) -> str:
         """
         Format PE vs sector ratio.
 
@@ -345,7 +348,7 @@ class DisplayFormatter:
             return "--"
         return f"{value:.1f}x"
 
-    def _calculate_signal(self, ticker_data: Dict[str, Any]) -> str:
+    def _calculate_signal(self, ticker_data: dict[str, Any]) -> str:
         """
         Calculate the trading signal (BUY, SELL, HOLD, NEUTRAL) based on financial metrics.
 
@@ -479,8 +482,7 @@ class DisplayFormatter:
         try:
             beta_val = float(beta)
             if not (
-                beta_val >= buy_criteria.BUY_MIN_BETA
-                and beta_val <= buy_criteria.BUY_MAX_BETA
+                beta_val >= buy_criteria.BUY_MIN_BETA and beta_val <= buy_criteria.BUY_MAX_BETA
             ):
                 return "HOLD"  # Beta outside acceptable range
         except (ValueError, TypeError):
@@ -509,7 +511,7 @@ class DisplayFormatter:
         # If we got here, all criteria are met
         return "BUY"
 
-    def color_by_signal(self, ticker_data: Dict[str, Any]) -> Dict[str, str]:
+    def color_by_signal(self, ticker_data: dict[str, Any]) -> dict[str, str]:
         """
         Determine the overall buy/sell/hold signal color based on analysis.
 
@@ -546,7 +548,7 @@ class DisplayFormatter:
         # Return colored data
         return colored_data
 
-    def get_signal(self, ticker_data: Dict[str, Any]) -> str:
+    def get_signal(self, ticker_data: dict[str, Any]) -> str:
         """
         Determine the overall buy/sell/hold signal based on analysis.
 
@@ -559,9 +561,10 @@ class DisplayFormatter:
         # Use the shared signal calculation method
         return self._calculate_signal(ticker_data)
 
+
 def create_formatter(
     output_format: str = "console", compact_mode: bool = False, show_colors: bool = True, **kwargs
-) -> Union[DisplayFormatter, Any]:
+) -> DisplayFormatter | Any:
     """
     Factory function to create an appropriate formatter based on output format.
 

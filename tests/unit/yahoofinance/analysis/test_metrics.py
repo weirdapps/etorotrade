@@ -12,6 +12,7 @@ from yahoofinance.analysis.metrics import (
     PricingAnalyzer,
 )
 
+
 class TestPriceData:
     """Tests for PriceData dataclass."""
 
@@ -63,6 +64,7 @@ class TestPriceData:
         assert data.volume == 50000000
         assert data.change is None
 
+
 class TestPriceTarget:
     """Tests for PriceTarget dataclass."""
 
@@ -102,6 +104,7 @@ class TestPriceTarget:
         assert target.upside == pytest.approx(14.0)
         assert target.median is None
 
+
 class MockSyncProvider:
     """Mock synchronous provider."""
 
@@ -123,6 +126,7 @@ class MockSyncProvider:
             "analyst_count": 25,
         }
 
+
 class MockAsyncProvider:
     """Mock asynchronous provider that satisfies __await__ check."""
 
@@ -131,19 +135,24 @@ class MockAsyncProvider:
 
         def __await__(self):
             """Make this awaitable."""
+
             async def inner():
                 return {"price": 175.0, "change": 2.50, "target_price": 200.0}
+
             return inner().__await__()
 
         def __call__(self, ticker: str):
             """Make this callable, returns coroutine."""
+
             async def inner():
                 return {"price": 175.0, "change": 2.50, "target_price": 200.0}
+
             return inner()
 
     def __init__(self):
         """Initialize with awaitable method."""
         self.get_ticker_info = self.AwaitableMethod()
+
 
 class TestPricingAnalyzerInit:
     """Tests for PricingAnalyzer initialization."""
@@ -170,6 +179,7 @@ class TestPricingAnalyzerInit:
 
         assert analyzer.provider is not None
 
+
 class TestPricingAnalyzerGetPriceData:
     """Tests for PricingAnalyzer.get_price_data method."""
 
@@ -182,6 +192,7 @@ class TestPricingAnalyzerGetPriceData:
 
         assert isinstance(result, PriceData)
         assert result.price == pytest.approx(175.0)
+
 
 class TestDataclassEquality:
     """Tests for dataclass equality."""

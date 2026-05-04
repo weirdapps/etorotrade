@@ -386,7 +386,7 @@ class TestErrorHandling:
         # Test with None
         if hasattr(formatter, "format_dataframe"):
             try:
-                result = formatter.format_dataframe(None)
+                formatter.format_dataframe(None)
                 # Should handle gracefully or raise appropriate error
                 assert True
             except (TypeError, ValueError, AttributeError):

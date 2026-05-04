@@ -13,11 +13,11 @@ collapsed for display. A modifier may belong to exactly one category.
 Unrecognised keys fall through to the "Other" bucket so nothing is lost.
 """
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 # Modifier key → human category. Keep this list in sync with the keys
 # emitted by committee_synthesis.compute_adjustments + synthesize_stock.
-MODIFIER_CATEGORY: Dict[str, str] = {
+MODIFIER_CATEGORY: dict[str, str] = {
     # ── Quality (fundamentals, balance sheet, earnings quality) ──────
     "piotroski_quality": "Quality",
     "piotroski_weak": "Quality",
@@ -30,7 +30,6 @@ MODIFIER_CATEGORY: Dict[str, str] = {
     "debt_high_risk": "Quality",
     "dividend_yield_trap": "Quality",
     "quality_trap": "Quality",
-
     # ── Momentum (technical indicators, price action, trend) ────────
     "rsi_overbought": "Momentum",
     "rsi_oversold": "Momentum",
@@ -49,7 +48,6 @@ MODIFIER_CATEGORY: Dict[str, str] = {
     "iv_low_entry": "Momentum",
     "iv_x_earnings": "Momentum",
     "signal_velocity": "Momentum",
-
     # ── Consensus (analyst, target, census) ──────────────────────────
     "consensus_crowded": "Consensus",
     "consensus_crowded_tier_waived": "Consensus",
@@ -61,7 +59,6 @@ MODIFIER_CATEGORY: Dict[str, str] = {
     "census_alignment": "Consensus",
     "census_distribution": "Consensus",
     "census_accumulation": "Consensus",
-
     # ── Macro (regime, sector, FX, currency) ─────────────────────────
     "macro_sector": "Macro",
     "macro_regime_risk_off": "Macro",
@@ -78,7 +75,6 @@ MODIFIER_CATEGORY: Dict[str, str] = {
     "news_catalyst_pos": "Macro",
     "news_catalyst_neg": "Macro",
     "earnings_surprise": "Macro",
-
     # ── Risk (kill thesis, risk warnings, sizing/floor caps) ─────────
     "kill_thesis": "Risk",
     "high_beta": "Risk",
@@ -89,7 +85,6 @@ MODIFIER_CATEGORY: Dict[str, str] = {
     "sell_macro_disagree": "Risk",
     "sell_census_disagree": "Risk",
     "risk_off_cap": "Risk",
-
     # ── Regime / Cap-management (debate, structural overrides) ──────
     "debate_strengthen_bull": "Regime",
     "debate_weaken_bull": "Regime",
@@ -104,21 +99,27 @@ MODIFIER_CATEGORY: Dict[str, str] = {
 }
 
 # Category display order for the HTML report.
-CATEGORY_ORDER: Tuple[str, ...] = (
-    "Quality", "Momentum", "Consensus", "Macro", "Risk", "Regime", "Other",
+CATEGORY_ORDER: tuple[str, ...] = (
+    "Quality",
+    "Momentum",
+    "Consensus",
+    "Macro",
+    "Risk",
+    "Regime",
+    "Other",
 )
 
 
 def categorize_waterfall(
-    waterfall: Dict[str, int],
-) -> Dict[str, Dict[str, int]]:
+    waterfall: dict[str, int],
+) -> dict[str, dict[str, int]]:
     """
     Group a waterfall dict {modifier: int} into category buckets.
 
     Returns {category: {"total": int, "modifiers": {key: int, ...}}}
     in CATEGORY_ORDER. Empty categories are omitted.
     """
-    out: Dict[str, Dict[str, Any]] = {}
+    out: dict[str, dict[str, Any]] = {}
     for key, val in (waterfall or {}).items():
         if key.startswith("_") or key.startswith("~"):
             continue
@@ -131,7 +132,7 @@ def categorize_waterfall(
         bucket["total"] += v_int
         bucket["modifiers"][key] = v_int
     # Re-emit in the canonical order.
-    ordered: Dict[str, Dict[str, int]] = {}
+    ordered: dict[str, dict[str, int]] = {}
     for cat in CATEGORY_ORDER:
         if cat in out and out[cat]["modifiers"]:
             ordered[cat] = out[cat]
@@ -139,7 +140,7 @@ def categorize_waterfall(
 
 
 def render_category_summary(
-    waterfall: Dict[str, int],
+    waterfall: dict[str, int],
     *,
     text_only: bool = False,
 ) -> str:
@@ -156,21 +157,16 @@ def render_category_summary(
 
     if text_only:
         return " · ".join(
-            f"{cat} {('+' if v['total'] > 0 else '')}{v['total']}"
-            for cat, v in cats.items()
+            f"{cat} {('+' if v['total'] > 0 else '')}{v['total']}" for cat, v in cats.items()
         )
 
-    parts: List[str] = []
+    parts: list[str] = []
     for cat, v in cats.items():
         total = v["total"]
         color = "#2e7d32" if total > 0 else "#c62828" if total < 0 else "#666"
         sign = "+" if total > 0 else ""
-        parts.append(
-            f'<span style="color:{color};font-weight:600;">'
-            f'{cat} {sign}{total}</span>'
-        )
+        parts.append(f'<span style="color:{color};font-weight:600;">' f"{cat} {sign}{total}</span>")
     return (
         '<div style="font-size:10px;color:#666;margin-top:4px;'
-        'font-family:Menlo,Consolas,monospace;">'
-        + " · ".join(parts) + "</div>"
+        'font-family:Menlo,Consolas,monospace;">' + " · ".join(parts) + "</div>"
     )

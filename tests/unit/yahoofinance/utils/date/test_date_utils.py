@@ -5,9 +5,10 @@ Target: Test date utilities and formatting functions
 File: yahoofinance/utils/date/date_utils.py (64 statements, 48% coverage)
 """
 
-import pytest
 import datetime
+
 import pandas as pd
+import pytest
 
 
 class TestValidateDateFormat:
@@ -78,10 +79,7 @@ class TestGetDateRange:
         """Get range with string dates."""
         from yahoofinance.utils.date.date_utils import get_date_range
 
-        start, end = get_date_range(
-            start_date="2024-01-01",
-            end_date="2024-12-31"
-        )
+        start, end = get_date_range(start_date="2024-01-01", end_date="2024-12-31")
 
         assert start == datetime.date(2024, 1, 1)
         assert end == datetime.date(2024, 12, 31)
@@ -93,10 +91,7 @@ class TestGetDateRange:
         start_date = datetime.date(2024, 1, 1)
         end_date = datetime.date(2024, 12, 31)
 
-        start, end = get_date_range(
-            start_date=start_date,
-            end_date=end_date
-        )
+        start, end = get_date_range(start_date=start_date, end_date=end_date)
 
         assert start == start_date
         assert end == end_date
@@ -108,10 +103,7 @@ class TestGetDateRange:
         start_ts = pd.Timestamp("2024-01-01")
         end_ts = pd.Timestamp("2024-12-31")
 
-        start, end = get_date_range(
-            start_date=start_ts,
-            end_date=end_ts
-        )
+        start, end = get_date_range(start_date=start_ts, end_date=end_ts)
 
         assert start == datetime.date(2024, 1, 1)
         assert end == datetime.date(2024, 12, 31)
@@ -146,10 +138,7 @@ class TestGetDateRange:
         from yahoofinance.utils.date.date_utils import get_date_range
 
         with pytest.raises(ValueError, match="Start date .* is after end date"):
-            get_date_range(
-                start_date="2024-12-31",
-                end_date="2024-01-01"
-            )
+            get_date_range(start_date="2024-12-31", end_date="2024-01-01")
 
 
 class TestFormatDateForApi:
@@ -234,7 +223,7 @@ class TestGetTradingDays:
         from yahoofinance.utils.date.date_utils import get_trading_days
 
         start = datetime.date(2024, 1, 1)  # Monday
-        end = datetime.date(2024, 1, 7)    # Sunday
+        end = datetime.date(2024, 1, 7)  # Sunday
 
         days = get_trading_days(start, end)
 
@@ -283,7 +272,7 @@ class TestModuleStructure:
         """Module has logger."""
         from yahoofinance.utils.date import date_utils
 
-        assert hasattr(date_utils, 'logger')
+        assert hasattr(date_utils, "logger")
 
     def test_module_docstring(self):
         """Module has docstring."""

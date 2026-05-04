@@ -10,6 +10,7 @@ Tests cover:
 
 from trade_modules.trade_config import TradeConfig
 
+
 class TestYfinanceSectorMap:
     """Tests for YFINANCE_SECTOR_MAP constant."""
 
@@ -30,6 +31,7 @@ class TestYfinanceSectorMap:
     def test_sector_map_utilities(self):
         """Test Utilities mapping."""
         assert TradeConfig.YFINANCE_SECTOR_MAP.get("Utilities") == "UTILITY"
+
 
 class TestYfinanceIndustryMap:
     """Tests for YFINANCE_INDUSTRY_MAP constant."""
@@ -68,12 +70,18 @@ class TestYfinanceIndustryMap:
     def test_industry_map_telecom(self):
         """Test telecom industry mappings."""
         assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Telecom Services") == "TELECOM"
-        assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Wireless Telecommunications Services") == "TELECOM"
+        assert (
+            TradeConfig.YFINANCE_INDUSTRY_MAP.get("Wireless Telecommunications Services")
+            == "TELECOM"
+        )
 
     def test_industry_map_semiconductors(self):
         """Test semiconductor industry mappings."""
         assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Semiconductors") == "TECHNOLOGY_HARDWARE"
-        assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Semiconductor Equipment & Materials") == "TECHNOLOGY_HARDWARE"
+        assert (
+            TradeConfig.YFINANCE_INDUSTRY_MAP.get("Semiconductor Equipment & Materials")
+            == "TECHNOLOGY_HARDWARE"
+        )
 
     def test_industry_map_payment_processors(self):
         """Test payment processor industry mappings."""
@@ -81,13 +89,20 @@ class TestYfinanceIndustryMap:
 
     def test_industry_map_pharma(self):
         """Test pharma industry mappings."""
-        assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Drug Manufacturers—General") == "PHARMA_HIGH_LEVERAGE"
-        assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Drug Manufacturers—Specialty & Generic") == "PHARMA_HIGH_LEVERAGE"
+        assert (
+            TradeConfig.YFINANCE_INDUSTRY_MAP.get("Drug Manufacturers—General")
+            == "PHARMA_HIGH_LEVERAGE"
+        )
+        assert (
+            TradeConfig.YFINANCE_INDUSTRY_MAP.get("Drug Manufacturers—Specialty & Generic")
+            == "PHARMA_HIGH_LEVERAGE"
+        )
 
     def test_industry_map_mlp(self):
         """Test MLP industry mappings."""
         assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Oil & Gas Midstream") == "MLP"
         assert TradeConfig.YFINANCE_INDUSTRY_MAP.get("Oil & Gas Pipelines") == "MLP"
+
 
 class TestGetSectorFromTickerDynamic:
     """Tests for get_sector_from_ticker_dynamic() method."""
@@ -154,6 +169,7 @@ class TestGetSectorFromTickerDynamic:
         # Should still detect via industry
         assert result == "FINANCIAL"
 
+
 class TestDynamicSectorIntegration:
     """Integration tests for dynamic sector with threshold adjustment."""
 
@@ -169,7 +185,7 @@ class TestDynamicSectorIntegration:
 
         # Get adjusted thresholds
         base_criteria = {"min_roe": 8.0, "max_debt_equity": 200.0}
-        adjusted = TradeConfig.get_sector_adjusted_thresholds(
+        TradeConfig.get_sector_adjusted_thresholds(
             ticker="NEW_BANK",
             action="buy",
             base_criteria=base_criteria,
@@ -197,6 +213,7 @@ class TestDynamicSectorIntegration:
             industry="Utilities—Regulated Electric",
         )
         assert sector == "UTILITY"
+
 
 class TestGetAllSectorCategories:
     """Tests for get_all_sector_categories() method."""
@@ -227,6 +244,7 @@ class TestGetAllSectorCategories:
         ]
         for cat in expected:
             assert cat in categories, f"Missing category: {cat}"
+
 
 class TestRealWorldScenarios:
     """Real-world scenario tests for dynamic sector detection."""
@@ -269,6 +287,7 @@ class TestRealWorldScenarios:
         # Should return None because Technology sector and Software industry
         # are not mapped to any special category
         assert sector is None
+
 
 class TestEdgeCases:
     """Edge case tests."""

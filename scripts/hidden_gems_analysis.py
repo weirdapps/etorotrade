@@ -12,16 +12,16 @@ Cross-references with etorotrade signals for fundamental validation.
 
 import json
 import os
-from pathlib import Path
 from collections import defaultdict
-from typing import Dict, List, Tuple, Optional
+from pathlib import Path
+
 import pandas as pd
 
 
 def load_latest_census(census_dir: str) -> dict:
     """Load the most recent census data file."""
     data_path = Path(census_dir) / "public" / "data"
-    files = sorted([f for f in data_path.glob("etoro-data-*.json")], reverse=True)
+    files = sorted(data_path.glob("etoro-data-*.json"), reverse=True)
 
     if not files:
         raise FileNotFoundError(f"No census data files found in {data_path}")
@@ -29,7 +29,7 @@ def load_latest_census(census_dir: str) -> dict:
     latest_file = files[0]
     print(f"Loading census data from: {latest_file.name}")
 
-    with open(latest_file, 'r') as f:
+    with open(latest_file) as f:
         return json.load(f)
 
 
@@ -37,30 +37,30 @@ def load_portfolio(portfolio_path: str) -> set:
     """Load user's current portfolio tickers."""
     df = pd.read_csv(portfolio_path)
     # Handle various column names
-    ticker_col = 'symbol' if 'symbol' in df.columns else 'TKR'
+    ticker_col = "symbol" if "symbol" in df.columns else "TKR"
     return set(df[ticker_col].str.upper().tolist())
 
 
-def load_market_signals(market_path: str) -> Dict[str, dict]:
+def load_market_signals(market_path: str) -> dict[str, dict]:
     """Load market signals from etorotrade."""
     df = pd.read_csv(market_path)
     signals = {}
 
     for _, row in df.iterrows():
-        ticker = str(row.get('TKR', '')).upper()
+        ticker = str(row.get("TKR", "")).upper()
         if ticker:
             signals[ticker] = {
-                'name': row.get('NAME', ''),
-                'cap': row.get('CAP', ''),
-                'price': row.get('PRC', ''),
-                'target': row.get('TGT', ''),
-                'upside': row.get('UP%', ''),
-                'buy_pct': row.get('%B', ''),
-                'analysts': row.get('#A', ''),
-                'signal': row.get('BS', 'I'),  # Buy/Sell/Hold signal
-                'exret': row.get('EXR', ''),
-                'pef': row.get('PEF', ''),
-                'roe': row.get('ROE', ''),
+                "name": row.get("NAME", ""),
+                "cap": row.get("CAP", ""),
+                "price": row.get("PRC", ""),
+                "target": row.get("TGT", ""),
+                "upside": row.get("UP%", ""),
+                "buy_pct": row.get("%B", ""),
+                "analysts": row.get("#A", ""),
+                "signal": row.get("BS", "I"),  # Buy/Sell/Hold signal
+                "exret": row.get("EXR", ""),
+                "pef": row.get("PEF", ""),
+                "roe": row.get("ROE", ""),
             }
 
     return signals
@@ -69,24 +69,24 @@ def load_market_signals(market_path: str) -> Dict[str, dict]:
 def extract_top_performers(investors: list, top_n: int = 100) -> list:
     """Extract top N performers by YTD gain."""
     # Sort by gain (YTD performance) descending
-    sorted_investors = sorted(investors, key=lambda x: x.get('gain', 0), reverse=True)
+    sorted_investors = sorted(investors, key=lambda x: x.get("gain", 0), reverse=True)
     return sorted_investors[:top_n]
 
 
-def extract_holdings_from_investor(investor: dict) -> List[Tuple[int, str, float]]:
+def extract_holdings_from_investor(investor: dict) -> list[tuple[int, str, float]]:
     """Extract holdings from an investor's portfolio.
 
     Returns list of (instrumentId, symbol, allocation_pct)
     """
     holdings = []
-    portfolio = investor.get('portfolio', {})
-    positions = portfolio.get('positions', [])
+    portfolio = investor.get("portfolio", {})
+    positions = portfolio.get("positions", [])
 
     for pos in positions:
-        instrument_id = pos.get('instrumentId')
+        instrument_id = pos.get("instrumentId")
         # Try to get symbol from instrument name
-        symbol = pos.get('instrumentName', '')
-        allocation = pos.get('investmentPct', 0)
+        symbol = pos.get("instrumentName", "")
+        allocation = pos.get("investmentPct", 0)
 
         if instrument_id and allocation > 0:
             holdings.append((instrument_id, symbol, allocation))
@@ -94,28 +94,28 @@ def extract_holdings_from_investor(investor: dict) -> List[Tuple[int, str, float
     return holdings
 
 
-def build_instrument_lookup(instruments_data: dict) -> Dict[int, dict]:
+def build_instrument_lookup(instruments_data: dict) -> dict[int, dict]:
     """Build instrument ID to symbol/name lookup."""
     lookup = {}
-    details = instruments_data.get('details', {})
+    details = instruments_data.get("details", {})
 
     if isinstance(details, dict):
         for key, inst in details.items():
-            inst_id = inst.get('instrumentId', int(key) if key.isdigit() else None)
+            inst_id = inst.get("instrumentId", int(key) if key.isdigit() else None)
             if inst_id:
                 lookup[inst_id] = {
-                    'symbol': inst.get('symbolFull', inst.get('symbol', f'ID{inst_id}')),
-                    'name': inst.get('instrumentDisplayName', inst.get('name', 'Unknown')),
-                    'type': inst.get('instrumentTypeID', inst.get('instrumentTypeId', 0))
+                    "symbol": inst.get("symbolFull", inst.get("symbol", f"ID{inst_id}")),
+                    "name": inst.get("instrumentDisplayName", inst.get("name", "Unknown")),
+                    "type": inst.get("instrumentTypeID", inst.get("instrumentTypeId", 0)),
                 }
     elif isinstance(details, list):
         for inst in details:
-            inst_id = inst.get('instrumentId')
+            inst_id = inst.get("instrumentId")
             if inst_id:
                 lookup[inst_id] = {
-                    'symbol': inst.get('symbolFull', inst.get('symbol', f'ID{inst_id}')),
-                    'name': inst.get('instrumentDisplayName', inst.get('name', 'Unknown')),
-                    'type': inst.get('instrumentTypeID', inst.get('instrumentTypeId', 0))
+                    "symbol": inst.get("symbolFull", inst.get("symbol", f"ID{inst_id}")),
+                    "name": inst.get("instrumentDisplayName", inst.get("name", "Unknown")),
+                    "type": inst.get("instrumentTypeID", inst.get("instrumentTypeId", 0)),
                 }
 
     return lookup
@@ -132,55 +132,59 @@ def analyze_hidden_gems(census_data: dict, my_portfolio: set, market_signals: di
     4. Find stocks with HIGH top-performer popularity but LOW broad popularity
     """
 
-    investors = census_data.get('investors', [])
-    instruments = build_instrument_lookup(census_data.get('instruments', {}))
-    analyses = census_data.get('analyses', [])
+    investors = census_data.get("investors", [])
+    instruments = build_instrument_lookup(census_data.get("instruments", {}))
+    analyses = census_data.get("analyses", [])
 
     # Get broad group holdings (typically analyses[3] = 1500 investors)
     broad_holdings = {}
     if len(analyses) > 3:
-        for holding in analyses[3].get('topHoldings', []):
-            symbol = holding.get('symbol', '').upper()
+        for holding in analyses[3].get("topHoldings", []):
+            symbol = holding.get("symbol", "").upper()
             broad_holdings[symbol] = {
-                'holders_count': holding.get('holdersCount', 0),
-                'avg_allocation': holding.get('avgAllocation', holding.get('averageAllocation', 0))
+                "holders_count": holding.get("holdersCount", 0),
+                "avg_allocation": holding.get("avgAllocation", holding.get("averageAllocation", 0)),
             }
 
     # Get Top 100 holdings for comparison
     top100_holdings = {}
     if len(analyses) > 0:
-        for holding in analyses[0].get('topHoldings', []):
-            symbol = holding.get('symbol', '').upper()
+        for holding in analyses[0].get("topHoldings", []):
+            symbol = holding.get("symbol", "").upper()
             top100_holdings[symbol] = {
-                'holders_count': holding.get('holdersCount', 0),
-                'avg_allocation': holding.get('avgAllocation', holding.get('averageAllocation', 0))
+                "holders_count": holding.get("holdersCount", 0),
+                "avg_allocation": holding.get("avgAllocation", holding.get("averageAllocation", 0)),
             }
 
     # Extract Top 100 performers by gain
     top_performers = extract_top_performers(investors, 100)
     print(f"\nAnalyzing {len(top_performers)} top performers by YTD gain")
-    top3_names = [f"{inv.get('userName')} ({inv.get('gain', 0):.1f}%)" for inv in top_performers[:3]]
+    top3_names = [
+        f"{inv.get('userName')} ({inv.get('gain', 0):.1f}%)" for inv in top_performers[:3]
+    ]
     print(f"Top 3 performers: {top3_names}")
 
     # Build aggregated holdings from top performers' portfolios
-    performer_holdings = defaultdict(lambda: {'count': 0, 'total_alloc': 0, 'holders': set()})
+    performer_holdings = defaultdict(lambda: {"count": 0, "total_alloc": 0, "holders": set()})
 
     for inv in top_performers:
         holdings = extract_holdings_from_investor(inv)
-        username = inv.get('userName', '')
-        investor_gain = inv.get('gain', 0)
+        username = inv.get("userName", "")
+        investor_gain = inv.get("gain", 0)
 
         for inst_id, _, alloc in holdings:
             if inst_id in instruments:
-                symbol = instruments[inst_id]['symbol'].upper()
+                symbol = instruments[inst_id]["symbol"].upper()
                 # Only count each holder once per stock
-                if username not in performer_holdings[symbol]['holders']:
-                    performer_holdings[symbol]['count'] += 1
-                    performer_holdings[symbol]['holders'].add(username)
-                    performer_holdings[symbol]['total_alloc'] += alloc
-                    performer_holdings[symbol]['name'] = instruments[inst_id]['name']
-                    performer_holdings[symbol]['type'] = instruments[inst_id]['type']
-                    performer_holdings[symbol]['avg_holder_gain'] = performer_holdings[symbol].get('avg_holder_gain', 0) + investor_gain
+                if username not in performer_holdings[symbol]["holders"]:
+                    performer_holdings[symbol]["count"] += 1
+                    performer_holdings[symbol]["holders"].add(username)
+                    performer_holdings[symbol]["total_alloc"] += alloc
+                    performer_holdings[symbol]["name"] = instruments[inst_id]["name"]
+                    performer_holdings[symbol]["type"] = instruments[inst_id]["type"]
+                    performer_holdings[symbol]["avg_holder_gain"] = (
+                        performer_holdings[symbol].get("avg_holder_gain", 0) + investor_gain
+                    )
 
     # Find hidden gems:
     # - Held by multiple top performers (count >= 3)
@@ -191,25 +195,25 @@ def analyze_hidden_gems(census_data: dict, my_portfolio: set, market_signals: di
 
     for symbol, data in performer_holdings.items():
         # Skip if in my portfolio
-        clean_symbol = symbol.split('.')[0] if '.' in symbol else symbol
+        clean_symbol = symbol.split(".")[0] if "." in symbol else symbol
         if clean_symbol in my_portfolio or symbol in my_portfolio:
             continue
 
         # Skip crypto and other non-stock instruments (type 10 = crypto)
-        if data.get('type') == 10:
+        if data.get("type") == 10:
             continue
 
         # Get broad group popularity
         broad_info = broad_holdings.get(symbol, {})
-        broad_holders = broad_info.get('holders_count', 0)
+        broad_holders = broad_info.get("holders_count", 0)
 
         # Get Top 100 popularity
         top100_info = top100_holdings.get(symbol, {})
-        top100_holders = top100_info.get('holders_count', 0)
+        top100_holders = top100_info.get("holders_count", 0)
 
         # Calculate metrics
-        performer_count = data['count']
-        avg_alloc_performers = data['total_alloc'] / performer_count if performer_count > 0 else 0
+        performer_count = data["count"]
+        avg_alloc_performers = data["total_alloc"] / performer_count if performer_count > 0 else 0
 
         # Hidden gem criteria:
         # 1. At least 3 top performers hold it
@@ -225,31 +229,36 @@ def analyze_hidden_gems(census_data: dict, my_portfolio: set, market_signals: di
                 popularity_ratio = 100  # Not even tracked = very hidden
 
             # Calculate average gain of holders
-            avg_holder_gain = data.get('avg_holder_gain', 0) / performer_count if performer_count > 0 else 0
+            avg_holder_gain = (
+                data.get("avg_holder_gain", 0) / performer_count if performer_count > 0 else 0
+            )
 
             # Get signal data
             signal_data = market_signals.get(clean_symbol, {})
 
-            holders_list = list(data['holders'])
-            hidden_gems.append({
-                'Symbol': symbol,
-                'Name': data['name'][:30] if data['name'] else '',
-                'Top Performers': performer_count,
-                'Avg Alloc %': round(avg_alloc_performers, 2),
-                'Holder Avg Gain': round(avg_holder_gain, 1),
-                'Broad Holders': broad_holders if broad_holders > 0 else 'N/A',
-                'Top100 Holders': top100_holders if top100_holders > 0 else 'N/A',
-                'Hidden Score': round(popularity_ratio, 1),
-                'Signal': signal_data.get('signal', 'N/A'),
-                'Upside': signal_data.get('upside', 'N/A'),
-                'Buy %': signal_data.get('buy_pct', 'N/A'),
-                'Holders': ', '.join(holders_list[:5]) + ('...' if len(holders_list) > 5 else '')
-            })
+            holders_list = list(data["holders"])
+            hidden_gems.append(
+                {
+                    "Symbol": symbol,
+                    "Name": data["name"][:30] if data["name"] else "",
+                    "Top Performers": performer_count,
+                    "Avg Alloc %": round(avg_alloc_performers, 2),
+                    "Holder Avg Gain": round(avg_holder_gain, 1),
+                    "Broad Holders": broad_holders if broad_holders > 0 else "N/A",
+                    "Top100 Holders": top100_holders if top100_holders > 0 else "N/A",
+                    "Hidden Score": round(popularity_ratio, 1),
+                    "Signal": signal_data.get("signal", "N/A"),
+                    "Upside": signal_data.get("upside", "N/A"),
+                    "Buy %": signal_data.get("buy_pct", "N/A"),
+                    "Holders": ", ".join(holders_list[:5])
+                    + ("..." if len(holders_list) > 5 else ""),
+                }
+            )
 
     # Sort by hidden score (high performer count + low broad popularity)
     df = pd.DataFrame(hidden_gems)
     if len(df) > 0:
-        df = df.sort_values(['Top Performers', 'Hidden Score'], ascending=[False, False])
+        df = df.sort_values(["Top Performers", "Hidden Score"], ascending=[False, False])
 
     return df
 
@@ -296,21 +305,49 @@ def main():
     print("=" * 70)
 
     # Split by signal
-    buy_gems = hidden_gems_df[hidden_gems_df['Signal'] == 'B']
-    hold_gems = hidden_gems_df[hidden_gems_df['Signal'] == 'H']
-    other_gems = hidden_gems_df[~hidden_gems_df['Signal'].isin(['B', 'H', 'S'])]
+    buy_gems = hidden_gems_df[hidden_gems_df["Signal"] == "B"]
+    hold_gems = hidden_gems_df[hidden_gems_df["Signal"] == "H"]
+    other_gems = hidden_gems_df[~hidden_gems_df["Signal"].isin(["B", "H", "S"])]
 
     print(f"\n### STRONG CONVICTION (BUY Signal) - {len(buy_gems)} stocks")
     if len(buy_gems) > 0:
-        print(buy_gems[['Symbol', 'Name', 'Top Performers', 'Avg Alloc %', 'Broad Holders', 'Upside', 'Buy %']].to_string(index=False))
+        print(
+            buy_gems[
+                [
+                    "Symbol",
+                    "Name",
+                    "Top Performers",
+                    "Avg Alloc %",
+                    "Broad Holders",
+                    "Upside",
+                    "Buy %",
+                ]
+            ].to_string(index=False)
+        )
 
     print(f"\n### MODERATE CONVICTION (HOLD Signal) - {len(hold_gems)} stocks")
     if len(hold_gems) > 0:
-        print(hold_gems.head(15)[['Symbol', 'Name', 'Top Performers', 'Avg Alloc %', 'Broad Holders', 'Upside', 'Buy %']].to_string(index=False))
+        print(
+            hold_gems.head(15)[
+                [
+                    "Symbol",
+                    "Name",
+                    "Top Performers",
+                    "Avg Alloc %",
+                    "Broad Holders",
+                    "Upside",
+                    "Buy %",
+                ]
+            ].to_string(index=False)
+        )
 
     print(f"\n### NEEDS RESEARCH (No Signal Data) - {len(other_gems)} stocks")
     if len(other_gems) > 0:
-        print(other_gems.head(10)[['Symbol', 'Name', 'Top Performers', 'Avg Alloc %', 'Broad Holders', 'Holders']].to_string(index=False))
+        print(
+            other_gems.head(10)[
+                ["Symbol", "Name", "Top Performers", "Avg Alloc %", "Broad Holders", "Holders"]
+            ].to_string(index=False)
+        )
 
     # Save results
     output_file = os.path.join(output_dir, "hidden-gems-latest.csv")
@@ -330,7 +367,9 @@ def main():
     if len(buy_gems) > 0:
         print("\nTOP RECOMMENDATIONS (BUY signals held by most top performers):")
         for _, row in buy_gems.head(5).iterrows():
-            print(f"  - {row['Symbol']}: Held by {row['Top Performers']} top performers, {row['Upside']} upside")
+            print(
+                f"  - {row['Symbol']}: Held by {row['Top Performers']} top performers, {row['Upside']} upside"
+            )
 
 
 if __name__ == "__main__":

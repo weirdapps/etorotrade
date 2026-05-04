@@ -13,7 +13,6 @@ import pytest
 from yahoofinance.core.client import YFinanceClient
 from yahoofinance.presentation.console import MarketDisplay
 
-
 # Import common fixtures to make them available globally
 # This allows us to use fixtures defined in the fixture modules throughout the test suite
 # without needing to import them directly in each test file
@@ -79,8 +78,9 @@ def mock_display(mock_client):
     Returns:
         MarketDisplay: A MarketDisplay instance for testing.
     """
-    with patch("yahoofinance.analysis.metrics.PricingAnalyzer"), patch(
-        "yahoofinance.analysis.analyst.AnalystData"
+    with (
+        patch("yahoofinance.analysis.metrics.PricingAnalyzer"),
+        patch("yahoofinance.analysis.analyst.AnalystData"),
     ):
         display = MarketDisplay(client=mock_client)
         return display
@@ -137,12 +137,17 @@ def _mock_signal_tracker(request):
         return
     # Check if the test module explicitly tests the signal tracker
     module = request.node.module.__name__ if request.node.module else ""
-    if "test_signal_change_detector" in module or "test_signal_scorecard" in module \
-            or "test_signal_velocity" in module:
+    if (
+        "test_signal_change_detector" in module
+        or "test_signal_scorecard" in module
+        or "test_signal_velocity" in module
+    ):
         yield
         return
-    with patch("trade_modules.signal_tracker.SignalTracker.log_signal", return_value=True), \
-         patch("trade_modules.signal_tracker.SignalTracker.log_signals_batch", return_value=0):
+    with (
+        patch("trade_modules.signal_tracker.SignalTracker.log_signal", return_value=True),
+        patch("trade_modules.signal_tracker.SignalTracker.log_signals_batch", return_value=0),
+    ):
         yield
 
 

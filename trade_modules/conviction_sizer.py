@@ -26,17 +26,17 @@ CIO Review Findings:
 
 import logging
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # VIX regime → position size multiplier
 # In high volatility, reduce position sizes
 REGIME_POSITION_MULTIPLIERS = {
-    "low": 1.00,       # Low VIX: normal sizing
-    "normal": 1.00,    # Normal VIX: normal sizing
+    "low": 1.00,  # Low VIX: normal sizing
+    "normal": 1.00,  # Normal VIX: normal sizing
     "elevated": 0.75,  # Elevated VIX: reduce 25%
-    "high": 0.50,      # High VIX: reduce 50%
+    "high": 0.50,  # High VIX: reduce 50%
 }
 
 
@@ -115,13 +115,13 @@ def quarter_kelly_size_pct(
     conviction: float,
     atr_pct_daily: float,
     *,
-    expected_return_table: Optional[Dict[int, float]] = None,
+    expected_return_table: dict[int, float] | None = None,
     horizon_days: int = 30,
     risk_free_apr: float = 0.04,
     fraction: float = 0.25,
     cap_pct: float = 5.0,
     floor_pct: float = 0.0,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     CIO v17 R3: Convert (conviction, daily ATR%) into a Kelly-sized %.
 
@@ -153,11 +153,11 @@ def quarter_kelly_size_pct(
         mu = CLAMPED_EXPECTED_ALPHA_HORIZON_PCT
     else:
         table = expected_return_table or {
-            70: 4.74,   # ≥70 conviction
-            60: 2.14,   # 60-69
-            55: 1.51,   # 55-59
-            45: 0.04,   # 45-54
-            0: 0.0,     # <45
+            70: 4.74,  # ≥70 conviction
+            60: 2.14,  # 60-69
+            55: 1.51,  # 55-59
+            45: 0.04,  # 45-54
+            0: 0.0,  # <45
         }
 
         # Look up expected α from the table (largest threshold ≤ conviction).
@@ -200,7 +200,7 @@ SMALL_CAP_ALLOCATION_TIERS = (
 )
 
 
-def get_small_cap_cap(portfolio_value_eur: Optional[float]) -> float:
+def get_small_cap_cap(portfolio_value_eur: float | None) -> float:
     """
     CIO v17 N1: Portfolio-size-aware cap on combined SMALL+MICRO allocation.
 
@@ -217,10 +217,10 @@ def get_small_cap_cap(portfolio_value_eur: Optional[float]) -> float:
 
 
 def apply_small_cap_cap(
-    new_positions: List[Dict[str, Any]],
+    new_positions: list[dict[str, Any]],
     current_small_cap_pct: float,
-    portfolio_value_eur: Optional[float],
-) -> List[Dict[str, Any]]:
+    portfolio_value_eur: float | None,
+) -> list[dict[str, Any]]:
     """
     CIO v17 N1: Constrain new positions in SMALL/MICRO tiers to the
     portfolio-size-aware cap.
@@ -233,10 +233,7 @@ def apply_small_cap_cap(
     boolean flag per position.
     """
     cap_pct = get_small_cap_cap(portfolio_value_eur)
-    pending = [
-        p for p in new_positions
-        if str(p.get("cap_tier", "")).upper() in ("SMALL", "MICRO")
-    ]
+    pending = [p for p in new_positions if str(p.get("cap_tier", "")).upper() in ("SMALL", "MICRO")]
     pending_total = sum(p.get("position_size", 0.0) for p in pending)
     if pending_total <= 0:
         return new_positions  # NOSONAR S3516: in-place mutation pattern, return preserves caller chaining
@@ -255,7 +252,9 @@ def apply_small_cap_cap(
             p["small_cap_cap_applied"] = True
             p["small_cap_cap_pct"] = cap_pct
             p["small_cap_cap_scale"] = round(scale, 3)
-    return new_positions  # NOSONAR S3516: in-place mutation pattern, return preserves caller chaining
+    return (
+        new_positions  # NOSONAR S3516: in-place mutation pattern, return preserves caller chaining
+    )
 
 
 def get_regime_multiplier(regime: str = "normal") -> float:
@@ -272,7 +271,7 @@ def get_regime_multiplier(regime: str = "normal") -> float:
 
 
 def get_portfolio_var_scaling(
-    portfolio_var_95: Optional[float] = None,
+    portfolio_var_95: float | None = None,
     var_trigger: float = 2.5,
     var_max: float = 5.0,
 ) -> float:
@@ -316,7 +315,7 @@ def get_portfolio_var_scaling(
 
 def get_cluster_size_adjustment(
     ticker: str,
-    clusters: List[Dict[str, Any]],
+    clusters: list[dict[str, Any]],
     conviction: float = 50,
 ) -> float:
     """
@@ -361,8 +360,8 @@ def get_cluster_size_adjustment(
 
 def get_sector_rotation_adjustment(
     sector: str,
-    rotation_context: Dict[str, Any],
-) -> Dict[str, Any]:
+    rotation_context: dict[str, Any],
+) -> dict[str, Any]:
     """
     Calculate conviction adjustment and blocking flag based on sector rotation.
 
@@ -430,10 +429,10 @@ def get_freshness_multiplier(staleness: str) -> float:
         Multiplier: 1.0 for fresh, 0.75 for aging, 0.50 for stale, 0.0 for dead
     """
     multipliers = {
-        "fresh": 1.0,   # <30 days: no penalty
+        "fresh": 1.0,  # <30 days: no penalty
         "aging": 0.75,  # 30-60 days: 25% reduction
         "stale": 0.50,  # 60-90 days: 50% reduction
-        "dead": 0.0,    # 90+ days: INCONCLUSIVE
+        "dead": 0.0,  # 90+ days: INCONCLUSIVE
     }
     return multipliers.get(staleness.lower(), 1.0)
 
@@ -442,7 +441,7 @@ def calculate_market_impact(
     position_usd: float,
     average_daily_volume_usd: float,
     tier: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Calculate market impact costs for position sizing.
 
@@ -508,7 +507,7 @@ def calculate_market_impact(
 ETORO_OVERNIGHT_ANNUAL_RATE = 0.064
 
 # Estimated spread costs by tier (basis points) — round-trip (entry + exit)
-HOLDING_SPREAD_BPS: Dict[str, float] = {
+HOLDING_SPREAD_BPS: dict[str, float] = {
     "MEGA": 2.0,
     "LARGE": 5.0,
     "MID": 10.0,
@@ -520,7 +519,7 @@ HOLDING_SPREAD_BPS: Dict[str, float] = {
 def estimate_holding_cost_pct(
     holding_period_days: int = 90,
     tier: str = "MID",
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Estimate total holding cost as a percentage of position value.
 
@@ -574,11 +573,11 @@ def calculate_conviction_size(
     tier_multiplier: float,
     conviction_score: float,
     regime: str = "normal",
-    cost_adjusted_return: Optional[float] = None,
+    cost_adjusted_return: float | None = None,
     min_cost_adjusted_return: float = 1.0,
     max_position_usd: float = 22500,
     max_position_pct: float = 5.0,
-    portfolio_value: Optional[float] = None,
+    portfolio_value: float | None = None,
     cluster_adjustment: float = 1.0,
     sector_adjustment: int = 0,
     sector_rotation_blocked: bool = False,
@@ -587,7 +586,7 @@ def calculate_conviction_size(
     portfolio_var_scaling: float = 1.0,
     holding_period_days: int = 90,
     tier: str = "MID",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Calculate final position size with conviction and regime adjustments.
 
@@ -770,13 +769,13 @@ def _describe_adjustments(
 
 
 def apply_portfolio_constraints(
-    new_positions: List[Dict[str, Any]],
-    current_sector_exposures: Dict[str, float],
+    new_positions: list[dict[str, Any]],
+    current_sector_exposures: dict[str, float],
     max_sector_pct: float = 40.0,
     max_single_stock_pct: float = 10.0,
-    current_stock_exposures: Optional[Dict[str, float]] = None,
-    portfolio_value: Optional[float] = None,
-) -> List[Dict[str, Any]]:
+    current_stock_exposures: dict[str, float] | None = None,
+    portfolio_value: float | None = None,
+) -> list[dict[str, Any]]:
     """
     Apply portfolio-level sector and single-stock concentration constraints.
 
@@ -815,7 +814,7 @@ def apply_portfolio_constraints(
 
     # Layer 1: Single-stock cap. Cap each position so current + new ≤ max_single_stock_pct.
     # Track per-stock pre-clip and post-clip sizes for clear reasoning later.
-    stock_clip_reasons: Dict[str, str] = {}
+    stock_clip_reasons: dict[str, str] = {}
     for pos in new_positions:
         tkr = pos.get("ticker", "")
         size = pos.get("position_size", 0.0)
@@ -837,14 +836,14 @@ def apply_portfolio_constraints(
             )
 
     # Layer 2: Group (already-clipped) positions by sector
-    sector_new_totals: Dict[str, float] = {}
+    sector_new_totals: dict[str, float] = {}
     for pos in new_positions:
         sector = pos.get("sector", "Unknown")
         size = pos.get("position_size", 0.0)
         sector_new_totals[sector] = sector_new_totals.get(sector, 0.0) + size
 
     # Calculate scaling factor per sector
-    sector_scale: Dict[str, float] = {}
+    sector_scale: dict[str, float] = {}
     for sector, new_total in sector_new_totals.items():
         current_pct = current_sector_exposures.get(sector, 0.0)
 
@@ -880,8 +879,8 @@ def apply_portfolio_constraints(
     # NOTE: original_size here reflects the post-stock-clip size, not the
     # pre-clip request. We track the true pre-clip size separately so the
     # caller can show "X requested, Y after stock cap, Z after sector cap".
-    results: List[Dict[str, Any]] = []
-    for pos, original_input_size in zip(new_positions, _orig_inputs):
+    results: list[dict[str, Any]] = []
+    for pos, original_input_size in zip(new_positions, _orig_inputs, strict=False):
         ticker = pos.get("ticker", "")
         sector = pos.get("sector", "Unknown")
         post_stock_clip_size = pos.get("position_size", 0.0)
@@ -903,14 +902,16 @@ def apply_portfolio_constraints(
             )
         constraint_reason = "; ".join(reasons)
 
-        results.append({
-            "ticker": ticker,
-            "sector": sector,
-            "original_size": original_input_size,
-            "constrained_size": constrained_size,
-            "was_constrained": was_constrained,
-            "constraint_reason": constraint_reason,
-        })
+        results.append(
+            {
+                "ticker": ticker,
+                "sector": sector,
+                "original_size": original_input_size,
+                "constrained_size": constrained_size,
+                "was_constrained": was_constrained,
+                "constraint_reason": constraint_reason,
+            }
+        )
 
     constrained_count = sum(1 for r in results if r["was_constrained"])
     if constrained_count > 0:
@@ -923,11 +924,11 @@ def apply_portfolio_constraints(
 
 
 def adjust_sizes_for_opportunity_cost(
-    positions: List[Dict[str, Any]],
+    positions: list[dict[str, Any]],
     conviction_key: str = "conviction",
     size_key: str = "position_size",
     max_pct: float = 5.0,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Redistribute position sizes from low-conviction to high-conviction stocks
     (CIO Legacy C3).

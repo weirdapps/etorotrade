@@ -5,8 +5,6 @@ This module provides a registry for all available finance data providers,
 ensuring consistent access and configuration across the application.
 """
 
-from typing import Dict, Union
-
 from ..core.errors import ValidationError
 from ..core.logging import get_logger
 from ..utils.dependency_injection import registry
@@ -37,6 +35,7 @@ PROVIDER_TYPES = {
 DEFAULT_PROVIDER_TYPE = "hybrid"
 DEFAULT_ASYNC_MODE = True
 DEFAULT_ENHANCED = False
+
 
 # Initialize the registry with provider factories
 def initialize_registry():
@@ -83,9 +82,11 @@ def initialize_registry():
             # Log the registration
             logger.debug(f"Registered provider factory for {provider_type}.{mode}: {provider_path}")
 
+
 # Create a cache for provider instances to prevent repeated creation
 # This helps reduce memory leaks from creating/destroying providers
-_provider_cache: dict[str, Union[FinanceDataProvider, AsyncFinanceDataProvider]] = {}
+_provider_cache: dict[str, FinanceDataProvider | AsyncFinanceDataProvider] = {}
+
 
 # Register factory for the get_provider function
 @registry.register("get_provider")  # type: ignore[arg-type]
@@ -95,7 +96,7 @@ def get_provider(
     enhanced: bool = None,
     use_cache: bool = True,  # Allow option to bypass cache for testing
     **kwargs,
-) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
+) -> FinanceDataProvider | AsyncFinanceDataProvider:
     """
     Get a provider instance for accessing financial data.
 
@@ -179,11 +180,12 @@ def get_provider(
         logger.error(f"Failed to create provider {provider_key}: {str(e)}")
         raise ValidationError(f"Failed to create provider {provider_key}") from e
 
+
 # Register factory for getting all provider types
 @registry.register("get_all_providers")  # type: ignore[arg-type]
 def get_all_providers(
     async_mode: bool = None, **kwargs
-) -> Dict[str, Union[FinanceDataProvider, AsyncFinanceDataProvider]]:
+) -> dict[str, FinanceDataProvider | AsyncFinanceDataProvider]:
     """
     Get all available provider instances.
 
@@ -200,7 +202,7 @@ def get_all_providers(
     async_mode = async_mode if async_mode is not None else DEFAULT_ASYNC_MODE
 
     # Create a provider instance for each type
-    providers: Dict[str, Union[FinanceDataProvider, AsyncFinanceDataProvider]] = {}
+    providers: dict[str, FinanceDataProvider | AsyncFinanceDataProvider] = {}
     for provider_type in PROVIDER_TYPES:
         try:
             providers[provider_type] = get_provider(provider_type, async_mode, **kwargs)
@@ -210,9 +212,10 @@ def get_all_providers(
 
     return providers
 
+
 # Register factory for the default provider
 @registry.register("default_provider")  # type: ignore[arg-type]
-def get_default_provider(**kwargs) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
+def get_default_provider(**kwargs) -> FinanceDataProvider | AsyncFinanceDataProvider:
     """
     Get the default provider instance.
 
@@ -225,6 +228,7 @@ def get_default_provider(**kwargs) -> Union[FinanceDataProvider, AsyncFinanceDat
         Default provider instance
     """
     return get_provider(DEFAULT_PROVIDER_TYPE, **kwargs)
+
 
 # Function to clear the provider cache
 def clear_provider_cache():
@@ -244,7 +248,7 @@ def clear_provider_cache():
             provider = _provider_cache[key]
 
             # Close async providers if possible
-            if hasattr(provider, "close") and callable(getattr(provider, "close")):
+            if hasattr(provider, "close") and callable(provider.close):
                 import asyncio
 
                 try:
@@ -253,7 +257,7 @@ def clear_provider_cache():
                         loop.create_task(provider.close())
                     else:
                         loop.run_until_complete(provider.close())
-                except (RuntimeError, asyncio.CancelledError, asyncio.TimeoutError, OSError) as e:
+                except (TimeoutError, RuntimeError, asyncio.CancelledError, OSError) as e:
                     logger.warning(f"Error closing provider {key}: {str(e)}")
 
             # Clear provider caches
@@ -286,6 +290,7 @@ def clear_provider_cache():
         gc.collect()
 
     logger.info("Provider cache cleared and memory cleaned")
+
 
 # Initialize the registry
 initialize_registry()

@@ -18,7 +18,6 @@ from .circuit_breaker import (
 )
 from .rate_limiter import RateLimiter, global_rate_limiter, rate_limited
 
-
 __all__ = [
     # Circuit breaker
     "CircuitBreaker",

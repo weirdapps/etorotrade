@@ -4,10 +4,12 @@ Tests for yahoofinance/analysis/base_analysis.py
 This module tests the BaseAnalysisService class.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from yahoofinance.analysis.base_analysis import BaseAnalysisService
+
 
 class MockSyncProvider:
     """Mock synchronous provider."""
@@ -15,6 +17,7 @@ class MockSyncProvider:
     def get_ticker_info(self, ticker: str):
         """Synchronous get_ticker_info."""
         return {"price": 175.0}
+
 
 class MockAsyncProvider:
     """Mock asynchronous provider that satisfies __await__ check."""
@@ -24,19 +27,24 @@ class MockAsyncProvider:
 
         def __await__(self):
             """Make this awaitable."""
+
             async def inner():
                 return {"price": 175.0}
+
             return inner().__await__()
 
         def __call__(self, ticker: str):
             """Make this callable, returns coroutine."""
+
             async def inner():
                 return {"price": 175.0}
+
             return inner()
 
     def __init__(self):
         """Initialize with awaitable method."""
         self.get_ticker_info = self.AwaitableMethod()
+
 
 class TestBaseAnalysisServiceInit:
     """Tests for BaseAnalysisService initialization."""
@@ -64,6 +72,7 @@ class TestBaseAnalysisServiceInit:
         # Should have created a provider
         assert service.provider is not None
 
+
 class TestCheckProviderAsync:
     """Tests for _check_provider_async method."""
 
@@ -88,6 +97,7 @@ class TestCheckProviderAsync:
 
         assert service.is_async is False
 
+
 class TestVerifySyncProvider:
     """Tests for _verify_sync_provider method."""
 
@@ -110,6 +120,7 @@ class TestVerifySyncProvider:
         assert "async_method" in str(excinfo.value)
         assert "sync method" in str(excinfo.value).lower()
 
+
 class TestVerifyAsyncProvider:
     """Tests for _verify_async_provider method."""
 
@@ -131,6 +142,7 @@ class TestVerifyAsyncProvider:
 
         assert "sync_method" in str(excinfo.value)
         assert "async method" in str(excinfo.value).lower()
+
 
 class TestBaseAnalysisServiceIntegration:
     """Integration tests for BaseAnalysisService."""

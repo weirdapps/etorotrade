@@ -5,13 +5,12 @@ This module provides utilities for formatting values in HTML output.
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 
 from ...core.errors import YFinanceError
 from ...core.logging import get_logger
-
 
 logger = get_logger(__name__)
 logger.setLevel(logging.WARNING)
@@ -80,7 +79,7 @@ class FormatUtils:
         return "normal"
 
     @staticmethod
-    def format_market_metrics(metrics: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def format_market_metrics(metrics: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Format market metrics for HTML display.
 
@@ -130,7 +129,7 @@ class FormatUtils:
         return formatted
 
     @staticmethod
-    def format_for_csv(metrics: Dict[str, Any]) -> Dict[str, Any]:
+    def format_for_csv(metrics: dict[str, Any]) -> dict[str, Any]:
         """
         Format metrics for CSV output.
 

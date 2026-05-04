@@ -220,7 +220,7 @@ class TestCreateEmptyTickerDataFrame:
 
         # Should have expected columns
         expected_columns = ["symbol", "ticker", "TICKER"]
-        has_ticker_col = any(col in empty_df.columns for col in expected_columns)
+        any(col in empty_df.columns for col in expected_columns)
 
         # Function might return different column structures
         assert isinstance(empty_df.columns, pd.Index)
@@ -309,12 +309,6 @@ class TestGetColumnMapping:
         mapping = get_column_mapping()
 
         # Should include mappings for common column variations
-        common_mappings = [
-            ("symbol", "Symbol"),
-            ("ticker", "Ticker"),
-            ("price", "Price"),
-            ("company", "Company"),
-        ]
 
         # Check if mapping contains reasonable entries
         assert len(mapping) > 0
@@ -559,9 +553,7 @@ class TestGetDisplayColumns:
         common_columns = ["symbol", "ticker", "price", "company", "upside"]
 
         # Check if any common columns are present
-        has_common = any(
-            any(common.lower() in col.lower() for col in columns) for common in common_columns
-        )
+        any(any(common.lower() in col.lower() for col in columns) for common in common_columns)
 
         # Should have some relevant columns
         assert len(columns) > 0

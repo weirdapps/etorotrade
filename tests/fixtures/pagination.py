@@ -11,5 +11,4 @@ from ..utils.test_fixtures import (
     create_paginated_data,
 )
 
-
 __all__ = ["create_paginated_data", "create_mock_fetcher", "create_bulk_fetch_mocks"]

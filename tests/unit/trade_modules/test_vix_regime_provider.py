@@ -4,12 +4,14 @@ CIO Review v2: Threshold adjustments neutralized. Signal criteria held constant;
 risk is managed through position sizing only. All multipliers are 1.0, all offsets are 0.
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from trade_modules.vix_regime_provider import (
-    VixRegime,
     REGIME_ADJUSTMENTS,
     REGIME_POSITION_MULTIPLIERS,
+    VixRegime,
     adjust_buy_criteria,
     adjust_sell_criteria,
     get_adjusted_thresholds,
@@ -53,12 +55,22 @@ class TestRegimeAdjustments:
         """CIO v2: All regimes should be neutral (no threshold adjustments)."""
         for regime in VixRegime:
             adj = REGIME_ADJUSTMENTS[regime]
-            assert adj["min_upside_multiplier"] == pytest.approx(1.0), f"{regime.value} upside not neutral"
-            assert adj["min_buy_pct_multiplier"] == pytest.approx(1.0), f"{regime.value} buy_pct not neutral"
-            assert adj["min_exret_multiplier"] == pytest.approx(1.0), f"{regime.value} exret not neutral"
+            assert adj["min_upside_multiplier"] == pytest.approx(
+                1.0
+            ), f"{regime.value} upside not neutral"
+            assert adj["min_buy_pct_multiplier"] == pytest.approx(
+                1.0
+            ), f"{regime.value} buy_pct not neutral"
+            assert adj["min_exret_multiplier"] == pytest.approx(
+                1.0
+            ), f"{regime.value} exret not neutral"
             assert adj["min_analysts_offset"] == 0, f"{regime.value} analysts not neutral"
-            assert adj["max_upside_sell_offset"] == pytest.approx(0.0), f"{regime.value} sell offset not neutral"
-            assert adj["max_pct_52w_buy_multiplier"] == pytest.approx(1.0), f"{regime.value} 52w not neutral"
+            assert adj["max_upside_sell_offset"] == pytest.approx(
+                0.0
+            ), f"{regime.value} sell offset not neutral"
+            assert adj["max_pct_52w_buy_multiplier"] == pytest.approx(
+                1.0
+            ), f"{regime.value} 52w not neutral"
             assert adj["max_pe_multiplier"] == pytest.approx(1.0), f"{regime.value} PE not neutral"
 
     def test_position_sizing_still_varies_by_regime(self):

@@ -5,10 +5,11 @@ Target: Test HTML template generation functions
 """
 
 from yahoofinance.presentation.html_templates import (
-    get_template,
-    Templates,
     TemplateEngine,
+    Templates,
+    get_template,
 )
+
 
 class TestGetTemplate:
     """Test template retrieval."""
@@ -23,6 +24,7 @@ class TestGetTemplate:
         result = get_template("nonexistent", default="default_value")
         assert isinstance(result, str)
 
+
 class TestTemplatesClass:
     """Test Templates class."""
 
@@ -33,7 +35,8 @@ class TestTemplatesClass:
     def test_templates_has_attributes(self):
         """Templates class has expected attributes."""
         # May have class attributes for template storage
-        assert hasattr(Templates, '__dict__')
+        assert hasattr(Templates, "__dict__")
+
 
 class TestTemplateEngine:
     """Test TemplateEngine class."""
@@ -47,6 +50,6 @@ class TestTemplateEngine:
         """Render template with data."""
         engine = TemplateEngine()
         # Test basic rendering if method exists
-        if hasattr(engine, 'render'):
+        if hasattr(engine, "render"):
             result = engine.render("test")
             assert isinstance(result, str)

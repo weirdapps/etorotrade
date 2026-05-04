@@ -691,7 +691,7 @@ class TestErrorHandling:
 
         if hasattr(portfolio_filter, "exclude_existing_holdings"):
             try:
-                result = portfolio_filter.exclude_existing_holdings(invalid_data)
+                portfolio_filter.exclude_existing_holdings(invalid_data)
             except (KeyError, ValueError, TradingFilterError):
                 assert True
 
@@ -702,7 +702,7 @@ class TestErrorHandling:
         # Test with None
         if hasattr(quality_filter, "check_data_completeness"):
             try:
-                result = quality_filter.check_data_completeness(None)
+                quality_filter.check_data_completeness(None)
             except (TypeError, ValueError, TradingFilterError):
                 assert True
 

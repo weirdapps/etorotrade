@@ -5,14 +5,16 @@ This module provides functions for formatting and calculating financial data
 from Yahoo Finance API responses.
 """
 
+from typing import Any
+
 import pandas as pd
-from typing import Any, Optional
+
 from yahoofinance.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def format_market_cap(value: Optional[float]) -> Optional[str]:
+def format_market_cap(value: float | None) -> str | None:
     """
     Format market cap value to human-readable string.
 
@@ -49,8 +51,8 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
 
 
 def calculate_upside_potential(
-    current_price: Optional[float], target_price: Optional[float]
-) -> Optional[float]:
+    current_price: float | None, target_price: float | None
+) -> float | None:
     """
     Calculate upside potential percentage.
 
@@ -69,7 +71,7 @@ def calculate_upside_potential(
     return None
 
 
-def format_date(date: Any) -> Optional[str]:
+def format_date(date: Any) -> str | None:
     """
     Format date object to YYYY-MM-DD string.
 
@@ -104,13 +106,14 @@ def format_date(date: Any) -> Optional[str]:
         return result
     except (ValueError, TypeError, AttributeError) as e:
         from yahoofinance.utils.error_handling import translate_error
+
         # Translate standard exception to our error hierarchy
         custom_error = translate_error(e, context={"location": __name__})
         raise custom_error
     return None
 
 
-def calculate_earnings_growth(ticker: str) -> Optional[float]:
+def calculate_earnings_growth(ticker: str) -> float | None:
     """
     Calculate earnings growth by comparing recent quarters.
 
@@ -137,11 +140,11 @@ def calculate_earnings_growth(ticker: str) -> Optional[float]:
         # Look for net income fields in order of preference
         earnings_row = None
         potential_keys = [
-            'Net Income From Continuing Operation Net Minority Interest',
-            'Net Income Common Stockholders',
-            'Net Income',
-            'Net Income Including Noncontrolling Interests',
-            'Net Income Continuous Operations'
+            "Net Income From Continuing Operation Net Minority Interest",
+            "Net Income Common Stockholders",
+            "Net Income",
+            "Net Income Including Noncontrolling Interests",
+            "Net Income Continuous Operations",
         ]
 
         for potential_key in potential_keys:
@@ -158,11 +161,13 @@ def calculate_earnings_growth(ticker: str) -> Optional[float]:
         earnings_data = earnings_row.dropna().sort_index(ascending=False)
 
         if len(earnings_data) < 2:
-            logger.debug(f"Insufficient income statement data for {ticker} (only {len(earnings_data)} quarters)")
+            logger.debug(
+                f"Insufficient income statement data for {ticker} (only {len(earnings_data)} quarters)"
+            )
             return None
 
         # Convert to numeric and handle any string/object types
-        earnings_data = pd.to_numeric(earnings_data, errors='coerce').dropna()
+        earnings_data = pd.to_numeric(earnings_data, errors="coerce").dropna()
 
         if len(earnings_data) < 2:
             logger.debug(f"Insufficient numeric earnings data for {ticker}")
@@ -173,23 +178,33 @@ def calculate_earnings_growth(ticker: str) -> Optional[float]:
             current_quarter = float(earnings_data.iloc[0])  # Most recent
             year_ago_quarter = float(earnings_data.iloc[3])  # 4 quarters ago
 
-            if year_ago_quarter != 0 and abs(year_ago_quarter) > 1000:  # Avoid division by small numbers
+            if (
+                year_ago_quarter != 0 and abs(year_ago_quarter) > 1000
+            ):  # Avoid division by small numbers
                 # Year-over-year growth
                 yoy_growth = ((current_quarter - year_ago_quarter) / abs(year_ago_quarter)) * 100
-                logger.debug(f"Calculated YoY earnings growth for {ticker}: {yoy_growth:.1f}% (current: {current_quarter:,.0f}, year ago: {year_ago_quarter:,.0f})")
+                logger.debug(
+                    f"Calculated YoY earnings growth for {ticker}: {yoy_growth:.1f}% (current: {current_quarter:,.0f}, year ago: {year_ago_quarter:,.0f})"
+                )
                 return round(yoy_growth, 1)
 
         # Fall back to quarter-over-quarter calculation
         current_quarter = float(earnings_data.iloc[0])  # Most recent
         previous_quarter = float(earnings_data.iloc[1])  # Previous quarter
 
-        if previous_quarter != 0 and abs(previous_quarter) > 1000:  # Avoid division by small numbers
+        if (
+            previous_quarter != 0 and abs(previous_quarter) > 1000
+        ):  # Avoid division by small numbers
             # Quarter-over-quarter growth (not annualized for display)
             qoq_growth = ((current_quarter - previous_quarter) / abs(previous_quarter)) * 100
-            logger.debug(f"Calculated QoQ earnings growth for {ticker}: {qoq_growth:.1f}% (current: {current_quarter:,.0f}, previous: {previous_quarter:,.0f})")
+            logger.debug(
+                f"Calculated QoQ earnings growth for {ticker}: {qoq_growth:.1f}% (current: {current_quarter:,.0f}, previous: {previous_quarter:,.0f})"
+            )
             return round(qoq_growth, 1)
 
-        logger.debug(f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings")
+        logger.debug(
+            f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings"
+        )
         return None
 
     except (KeyError, ValueError, TypeError, AttributeError, IndexError, ZeroDivisionError) as e:
@@ -209,6 +224,7 @@ def is_us_ticker(ticker: str) -> bool:
     """
     try:
         from yahoofinance.utils.market.ticker_utils import is_us_ticker as util_is_us_ticker
+
         return util_is_us_ticker(ticker)
     except ImportError:
         logger.warning("Could not import is_us_ticker utility, using inline logic.")
@@ -246,7 +262,9 @@ SECTOR_MEDIAN_PE = {
 DEFAULT_MEDIAN_PE = 20.0
 
 
-def calculate_pe_vs_sector(pe_forward: Optional[float], sector: Optional[str], use_dynamic: bool = True) -> Optional[float]:
+def calculate_pe_vs_sector(
+    pe_forward: float | None, sector: str | None, use_dynamic: bool = True
+) -> float | None:
     """
     Calculate PE relative to sector median.
 
@@ -273,12 +291,17 @@ def calculate_pe_vs_sector(pe_forward: Optional[float], sector: Optional[str], u
     if use_dynamic:
         try:
             from trade_modules.sector_pe_provider import get_dynamic_sector_pe
+
             sector_median = get_dynamic_sector_pe(sector) if sector else DEFAULT_MEDIAN_PE
         except ImportError:
             # Fall back to static if provider not available
-            sector_median = SECTOR_MEDIAN_PE.get(sector, DEFAULT_MEDIAN_PE) if sector else DEFAULT_MEDIAN_PE
+            sector_median = (
+                SECTOR_MEDIAN_PE.get(sector, DEFAULT_MEDIAN_PE) if sector else DEFAULT_MEDIAN_PE
+            )
     else:
-        sector_median = SECTOR_MEDIAN_PE.get(sector, DEFAULT_MEDIAN_PE) if sector else DEFAULT_MEDIAN_PE
+        sector_median = (
+            SECTOR_MEDIAN_PE.get(sector, DEFAULT_MEDIAN_PE) if sector else DEFAULT_MEDIAN_PE
+        )
 
     if sector_median <= 0:
         return None

@@ -14,12 +14,10 @@ import logging
 import sys
 from pprint import pprint
 
-
 # Import core provider components
 from yahoofinance import get_provider
 from yahoofinance.core.logging import setup_logging
 from yahoofinance.utils.market.ticker_utils import is_us_ticker
-
 
 # Configure logging
 setup_logging(log_level=logging.INFO)

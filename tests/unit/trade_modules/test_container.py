@@ -4,9 +4,10 @@ Tests for trade_modules/container.py
 This module tests the dependency injection container.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
 import logging
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from trade_modules.container import (
     Container,
@@ -98,13 +99,15 @@ class TestGetProvider:
 
     @patch("yahoofinance.api.providers.async_hybrid_provider.AsyncHybridProvider")
     @patch("yahoofinance.core.config.get_max_concurrent_requests")
-    def test_get_provider_creates_instance(self, mock_get_max, mock_provider_class, fresh_container):
+    def test_get_provider_creates_instance(
+        self, mock_get_max, mock_provider_class, fresh_container
+    ):
         """Test get_provider creates AsyncHybridProvider."""
         mock_get_max.return_value = 15
         mock_provider = MagicMock()
         mock_provider_class.return_value = mock_provider
 
-        result = fresh_container.get_provider()
+        fresh_container.get_provider()
 
         # Verify provider was created and cached
         assert "provider" in fresh_container._instances
@@ -360,7 +363,7 @@ class TestResetContainerFunction:
 
     def test_reset_container_creates_new_singleton(self):
         """Test reset_container creates a new singleton."""
-        container1 = get_container()
+        get_container()
         container2 = reset_container()
         container3 = get_container()
 
@@ -429,13 +432,7 @@ class TestContainerEdgeCases:
 
     def test_nested_config_preserved(self):
         """Test nested configuration is preserved."""
-        config = {
-            "level1": {
-                "level2": {
-                    "level3": "deep_value"
-                }
-            }
-        }
+        config = {"level1": {"level2": {"level3": "deep_value"}}}
         container = Container(config)
         assert container.config["level1"]["level2"]["level3"] == "deep_value"
 

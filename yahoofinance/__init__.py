@@ -17,9 +17,6 @@ import logging
 import os
 import sys
 
-# Backward compatibility for existing code
-from .core.logging import setup_logging as old_setup_logging
-
 # Import our new standardized logging configuration
 from .core.logging import (
     configure_logging,
@@ -29,6 +26,8 @@ from .core.logging import (
     set_log_level,
 )
 
+# Backward compatibility for existing code
+from .core.logging import setup_logging as old_setup_logging
 
 # Set up default logging if not already configured
 if not logging.root.handlers:
@@ -80,7 +79,6 @@ from .core.types import StockData
 
 # Import and re-export key utility functions
 from .utils.market import is_us_ticker, normalize_hk_ticker
-
 
 # The provider_registry already defaults to hybrid provider
 

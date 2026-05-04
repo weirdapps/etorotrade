@@ -5,9 +5,11 @@ Target: Test trade criteria evaluation utilities
 File: yahoofinance/utils/trade_criteria.py (75 statements, 53% coverage)
 """
 
-import pytest
-import pandas as pd
 from unittest.mock import patch
+
+import pandas as pd
+import pytest
+
 
 class TestConstants:
     """Test module constants."""
@@ -15,7 +17,11 @@ class TestConstants:
     def test_action_constants(self):
         """Verify action constants."""
         from yahoofinance.utils.trade_criteria import (
-            BUY_ACTION, SELL_ACTION, HOLD_ACTION, INCONCLUSIVE_ACTION, NO_ACTION
+            BUY_ACTION,
+            HOLD_ACTION,
+            INCONCLUSIVE_ACTION,
+            NO_ACTION,
+            SELL_ACTION,
         )
 
         assert BUY_ACTION == "B"
@@ -27,13 +33,17 @@ class TestConstants:
     def test_column_constants(self):
         """Verify column name constants."""
         from yahoofinance.utils.trade_criteria import (
-            UPSIDE, BUY_PERCENTAGE_COL, PE_FORWARD, PE_TRAILING
+            BUY_PERCENTAGE_COL,
+            PE_FORWARD,
+            PE_TRAILING,
+            UPSIDE,
         )
 
         assert UPSIDE == "upside"
         assert BUY_PERCENTAGE_COL == "buy_percentage"
         assert PE_FORWARD == "pe_forward"
         assert PE_TRAILING == "pe_trailing"
+
 
 class TestCheckConfidenceCriteria:
     """Test check_confidence_criteria function."""
@@ -42,10 +52,7 @@ class TestCheckConfidenceCriteria:
         """Accept row with sufficient analyst coverage."""
         from yahoofinance.utils.trade_criteria import check_confidence_criteria
 
-        row = {
-            "analyst_count": 10,
-            "total_ratings": 10
-        }
+        row = {"analyst_count": 10, "total_ratings": 10}
 
         result = check_confidence_criteria(row, {})
 
@@ -55,10 +62,7 @@ class TestCheckConfidenceCriteria:
         """Reject row with insufficient analyst count."""
         from yahoofinance.utils.trade_criteria import check_confidence_criteria
 
-        row = {
-            "analyst_count": 3,
-            "total_ratings": 10
-        }
+        row = {"analyst_count": 3, "total_ratings": 10}
 
         result = check_confidence_criteria(row, {})
 
@@ -68,10 +72,7 @@ class TestCheckConfidenceCriteria:
         """Reject row with insufficient total ratings."""
         from yahoofinance.utils.trade_criteria import check_confidence_criteria
 
-        row = {
-            "analyst_count": 10,
-            "total_ratings": 3
-        }
+        row = {"analyst_count": 10, "total_ratings": 3}
 
         result = check_confidence_criteria(row, {})
 
@@ -81,10 +82,7 @@ class TestCheckConfidenceCriteria:
         """Handle legacy column names."""
         from yahoofinance.utils.trade_criteria import check_confidence_criteria
 
-        row = {
-            "# A": 10,
-            "# T": 10
-        }
+        row = {"# A": 10, "# T": 10}
 
         result = check_confidence_criteria(row, {})
 
@@ -94,10 +92,7 @@ class TestCheckConfidenceCriteria:
         """Handle None values gracefully."""
         from yahoofinance.utils.trade_criteria import check_confidence_criteria
 
-        row = {
-            "analyst_count": None,
-            "total_ratings": None
-        }
+        row = {"analyst_count": None, "total_ratings": None}
 
         result = check_confidence_criteria(row, {})
 
@@ -107,14 +102,12 @@ class TestCheckConfidenceCriteria:
         """Convert string numbers to numeric."""
         from yahoofinance.utils.trade_criteria import check_confidence_criteria
 
-        row = {
-            "analyst_count": "10",
-            "total_ratings": "10"
-        }
+        row = {"analyst_count": "10", "total_ratings": "10"}
 
         result = check_confidence_criteria(row, {})
 
         assert result is True
+
 
 class TestNormalizeRowForCriteria:
     """Test normalize_row_for_criteria function."""
@@ -143,10 +136,7 @@ class TestNormalizeRowForCriteria:
         """Normalize P/E ratio fields."""
         from yahoofinance.utils.trade_criteria import normalize_row_for_criteria
 
-        row = {
-            "PEF": 20.5,
-            "PET": 22.0
-        }
+        row = {"PEF": 20.5, "PET": 22.0}
 
         result = normalize_row_for_criteria(row)
 
@@ -157,11 +147,7 @@ class TestNormalizeRowForCriteria:
         """Preserve fields not explicitly normalized."""
         from yahoofinance.utils.trade_criteria import normalize_row_for_criteria
 
-        row = {
-            "UPSIDE": 15.0,
-            "custom_field": "value",
-            "another_field": 42
-        }
+        row = {"UPSIDE": 15.0, "custom_field": "value", "another_field": 42}
 
         result = normalize_row_for_criteria(row)
 
@@ -180,7 +166,7 @@ class TestNormalizeRowForCriteria:
             "PEG": 1.5,
             "BETA": 1.2,
             "# A": 10,
-            "# T": 10
+            "# T": 10,
         }
 
         result = normalize_row_for_criteria(row)
@@ -193,6 +179,7 @@ class TestNormalizeRowForCriteria:
         assert result["beta"] == pytest.approx(1.2)
         assert result["analyst_count"] == 10
         assert result["total_ratings"] == 10
+
 
 class TestNormalizeRowColumns:
     """Test normalize_row_columns function."""
@@ -230,10 +217,11 @@ class TestNormalizeRowColumns:
 
         assert result["upside"] == pytest.approx(15.0)
 
+
 class TestCalculateAction:
     """Test calculate_action function."""
 
-    @patch('yahoofinance.utils.trade_criteria.calculate_action_for_row')
+    @patch("yahoofinance.utils.trade_criteria.calculate_action_for_row")
     def test_calculate_action_calls_delegate(self, mock_calc):
         """Calculate action delegates to calculate_action_for_row."""
         from yahoofinance.utils.trade_criteria import calculate_action
@@ -246,10 +234,11 @@ class TestCalculateAction:
         assert result == "B"
         mock_calc.assert_called_once()
 
+
 class TestEvaluateTradeCriteria:
     """Test evaluate_trade_criteria function."""
 
-    @patch('yahoofinance.utils.trade_criteria.calculate_action')
+    @patch("yahoofinance.utils.trade_criteria.calculate_action")
     def test_evaluate_delegates_to_calculate_action(self, mock_calc):
         """Evaluate criteria delegates to calculate_action."""
         from yahoofinance.utils.trade_criteria import evaluate_trade_criteria
@@ -262,6 +251,7 @@ class TestEvaluateTradeCriteria:
         assert result == "S"
         mock_calc.assert_called_once_with(ticker_data)
 
+
 class TestFormatNumericValues:
     """Test format_numeric_values function."""
 
@@ -269,9 +259,7 @@ class TestFormatNumericValues:
         """Format percentage strings to floats."""
         from yahoofinance.utils.trade_criteria import format_numeric_values
 
-        df = pd.DataFrame({
-            "value": ["10%", "20%", "30%"]
-        })
+        df = pd.DataFrame({"value": ["10%", "20%", "30%"]})
 
         result = format_numeric_values(df, ["value"])
 
@@ -283,9 +271,7 @@ class TestFormatNumericValues:
         """Format numeric strings to floats."""
         from yahoofinance.utils.trade_criteria import format_numeric_values
 
-        df = pd.DataFrame({
-            "value": ["10", "20", "30"]
-        })
+        df = pd.DataFrame({"value": ["10", "20", "30"]})
 
         result = format_numeric_values(df, ["value"])
 
@@ -297,9 +283,7 @@ class TestFormatNumericValues:
         """Handle missing values as NaN."""
         from yahoofinance.utils.trade_criteria import format_numeric_values
 
-        df = pd.DataFrame({
-            "value": [10, None, 30]
-        })
+        df = pd.DataFrame({"value": [10, None, 30]})
 
         result = format_numeric_values(df, ["value"])
 
@@ -311,9 +295,7 @@ class TestFormatNumericValues:
         """Coerce invalid values to NaN."""
         from yahoofinance.utils.trade_criteria import format_numeric_values
 
-        df = pd.DataFrame({
-            "value": ["10", "invalid", "30"]
-        })
+        df = pd.DataFrame({"value": ["10", "invalid", "30"]})
 
         result = format_numeric_values(df, ["value"])
 
@@ -325,10 +307,7 @@ class TestFormatNumericValues:
         """Preserve columns not in numeric_columns list."""
         from yahoofinance.utils.trade_criteria import format_numeric_values
 
-        df = pd.DataFrame({
-            "numeric": ["10", "20"],
-            "text": ["A", "B"]
-        })
+        df = pd.DataFrame({"numeric": ["10", "20"], "text": ["A", "B"]})
 
         result = format_numeric_values(df, ["numeric"])
 
@@ -339,25 +318,24 @@ class TestFormatNumericValues:
         """Handle already numeric values."""
         from yahoofinance.utils.trade_criteria import format_numeric_values
 
-        df = pd.DataFrame({
-            "value": [10.0, 20.0, 30.0]
-        })
+        df = pd.DataFrame({"value": [10.0, 20.0, 30.0]})
 
         result = format_numeric_values(df, ["value"])
 
         assert result["value"].iloc[0] == pytest.approx(10.0)
         assert result["value"].iloc[1] == pytest.approx(20.0)
 
+
 class TestCalculateActionForRow:
     """Test calculate_action_for_row function."""
 
-    @patch('yahoofinance.utils.trade_criteria.calculate_action')
+    @patch("yahoofinance.utils.trade_criteria.calculate_action")
     def test_calculate_action_for_dict_row(self, mock_calc_action):
         """Calculate action for dictionary row."""
         from yahoofinance.utils.trade_criteria import calculate_action_for_row
 
         # Mock the calculate_action function from analysis_engine
-        with patch('trade_modules.analysis_engine.calculate_action') as mock_engine:
+        with patch("trade_modules.analysis_engine.calculate_action") as mock_engine:
             result_df = pd.DataFrame([{"BS": "B"}])
             mock_engine.return_value = result_df
 
@@ -367,12 +345,12 @@ class TestCalculateActionForRow:
             assert action == "B"
             assert "centralized TradeConfig" in reason
 
-    @patch('yahoofinance.utils.trade_criteria.calculate_action')
+    @patch("yahoofinance.utils.trade_criteria.calculate_action")
     def test_calculate_action_for_series_row(self, mock_calc_action):
         """Calculate action for pandas Series row."""
         from yahoofinance.utils.trade_criteria import calculate_action_for_row
 
-        with patch('trade_modules.analysis_engine.calculate_action') as mock_engine:
+        with patch("trade_modules.analysis_engine.calculate_action") as mock_engine:
             result_df = pd.DataFrame([{"BS": "S"}])
             mock_engine.return_value = result_df
 
@@ -381,6 +359,7 @@ class TestCalculateActionForRow:
 
             assert action == "S"
 
+
 class TestModuleStructure:
     """Test module structure."""
 
@@ -388,7 +367,7 @@ class TestModuleStructure:
         """Module has logger."""
         from yahoofinance.utils import trade_criteria
 
-        assert hasattr(trade_criteria, 'logger')
+        assert hasattr(trade_criteria, "logger")
 
     def test_module_docstring(self):
         """Module has docstring."""

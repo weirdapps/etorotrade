@@ -23,7 +23,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
-
 # eToro public API base (the private api.etoro.com endpoints return 404)
 ETORO_PUBLIC_API = "https://www.etoro.com/api/public/v1"
 ETORO_USERNAME = "plessas"
@@ -49,15 +48,27 @@ def _get_etoro_credentials() -> tuple[str, str]:
     """Get eToro API credentials from macOS Keychain."""
     try:
         public_key = subprocess.run(
-            ["security", "find-generic-password", "-a", "etoro-api",
-             "-s", "etoro-public-key", "-w"],
-            capture_output=True, text=True, check=True, timeout=5
+            [
+                "security",
+                "find-generic-password",
+                "-a",
+                "etoro-api",
+                "-s",
+                "etoro-public-key",
+                "-w",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
         ).stdout.strip()
 
         user_key = subprocess.run(
-            ["security", "find-generic-password", "-a", "etoro-api",
-             "-s", "etoro-user-key", "-w"],
-            capture_output=True, text=True, check=True, timeout=5
+            ["security", "find-generic-password", "-a", "etoro-api", "-s", "etoro-user-key", "-w"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
         ).stdout.strip()
 
         return public_key, user_key
@@ -71,20 +82,28 @@ def _curl_json(url: str, api_key: str, user_key: str) -> dict:
 
     result = subprocess.run(
         [
-            "curl", "-s", "--fail", "--max-time", "30",
-            "-H", f"X-API-KEY: {api_key}",
-            "-H", f"X-USER-KEY: {user_key}",
-            "-H", f"X-REQUEST-ID: {request_id}",
-            "-H", "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            "curl",
+            "-s",
+            "--fail",
+            "--max-time",
+            "30",
+            "-H",
+            f"X-API-KEY: {api_key}",
+            "-H",
+            f"X-USER-KEY: {user_key}",
+            "-H",
+            f"X-REQUEST-ID: {request_id}",
+            "-H",
+            "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
             url,
         ],
-        capture_output=True, text=True, timeout=35,
+        capture_output=True,
+        text=True,
+        timeout=35,
     )
 
     if result.returncode != 0:
-        raise RuntimeError(
-            f"eToro API request failed (code {result.returncode}): {result.stderr}"
-        )
+        raise RuntimeError(f"eToro API request failed (code {result.returncode}): {result.stderr}")
 
     return json.loads(result.stdout)
 
@@ -131,6 +150,7 @@ def _normalize_etoro_symbol(symbol: str) -> str:
     # Try using the etorotrade normalize_ticker if available
     try:
         from yahoofinance.utils.data.ticker_utils import normalize_ticker
+
         return normalize_ticker(s)
     except ImportError:
         pass
@@ -175,10 +195,10 @@ def _aggregate_positions(
         # Weighted average open rate
         avg_open = 0.0
         if total_invest_pct > 0:
-            avg_open = sum(
-                p.get("openRate", 0) * p.get("investmentPct", 0)
-                for p, _ in pos_meta_list
-            ) / total_invest_pct
+            avg_open = (
+                sum(p.get("openRate", 0) * p.get("investmentPct", 0) for p, _ in pos_meta_list)
+                / total_invest_pct
+            )
 
         first_meta = pos_meta_list[0][1]
         result[symbol] = {
@@ -223,9 +243,7 @@ def reconcile_portfolio(
     api_key, user_key = _get_etoro_credentials()
     raw_positions = _fetch_live_portfolio(api_key, user_key)
 
-    instrument_ids = [
-        p.get("instrumentId") for p in raw_positions if p.get("instrumentId")
-    ]
+    instrument_ids = [p.get("instrumentId") for p in raw_positions if p.get("instrumentId")]
     metadata = _fetch_instrument_metadata(instrument_ids, api_key, user_key)
 
     live_holdings = _aggregate_positions(raw_positions, metadata)
@@ -239,25 +257,29 @@ def reconcile_portfolio(
     new_positions = []
     for tkr in sorted(new_tickers):
         info = live_holdings[tkr]
-        new_positions.append({
-            "symbol": tkr,
-            "name": info["name"],
-            "raw_etoro_symbol": info["raw_etoro_symbol"],
-            "invest_pct": info["invest_pct"],
-            "num_positions": info["num_positions"],
-            "total_profit": info["total_profit"],
-        })
+        new_positions.append(
+            {
+                "symbol": tkr,
+                "name": info["name"],
+                "raw_etoro_symbol": info["raw_etoro_symbol"],
+                "invest_pct": info["invest_pct"],
+                "num_positions": info["num_positions"],
+                "total_profit": info["total_profit"],
+            }
+        )
 
     closed_positions = []
     for tkr in sorted(closed_tickers):
         row = csv_holdings[tkr]
-        closed_positions.append({
-            "symbol": tkr,
-            "name": row.get("NAME", ""),
-            "signal": row.get("BS", ""),
-            "last_price": row.get("PRC", ""),
-            "upside": row.get("UP%", ""),
-        })
+        closed_positions.append(
+            {
+                "symbol": tkr,
+                "name": row.get("NAME", ""),
+                "signal": row.get("BS", ""),
+                "last_price": row.get("PRC", ""),
+                "upside": row.get("UP%", ""),
+            }
+        )
 
     has_drift = len(new_positions) > 0 or len(closed_positions) > 0
 

@@ -7,7 +7,8 @@ Provides:
 - Benjamini-Hochberg FDR correction for multiple testing
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -17,8 +18,8 @@ def bootstrap_ci(
     stat_fn: Callable = np.mean,
     n_boot: int = 2000,
     ci: float = 0.90,
-    seed: Optional[int] = None,
-) -> Tuple[float, float]:
+    seed: int | None = None,
+) -> tuple[float, float]:
     """
     Compute bootstrap confidence interval for a statistic.
 
@@ -36,10 +37,9 @@ def bootstrap_ci(
         return (np.nan, np.nan)
 
     rng = np.random.default_rng(seed)
-    boot_stats = np.array([
-        stat_fn(rng.choice(data, size=len(data), replace=True))
-        for _ in range(n_boot)
-    ])
+    boot_stats = np.array(
+        [stat_fn(rng.choice(data, size=len(data), replace=True)) for _ in range(n_boot)]
+    )
 
     alpha = (1 - ci) / 2
     lo = float(np.percentile(boot_stats, alpha * 100))
@@ -51,7 +51,7 @@ def hit_rate_ci(
     hits: np.ndarray,
     n_boot: int = 2000,
     ci: float = 0.90,
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """
     Compute hit rate with bootstrap confidence interval.
 
@@ -72,11 +72,11 @@ def hit_rate_ci(
 
 
 def walk_forward_split(
-    entries: List[Dict[str, Any]],
+    entries: list[dict[str, Any]],
     train_ratio: float = 0.7,
     date_key: str = "date",
     min_test: int = 2,
-) -> Tuple[List[Dict], List[Dict]]:
+) -> tuple[list[dict], list[dict]]:
     """
     Split time-ordered entries into train and test sets.
 
@@ -95,18 +95,21 @@ def walk_forward_split(
         return (list(entries), [])
 
     sorted_entries = sorted(entries, key=lambda e: e.get(date_key, ""))
-    split_idx = max(1, min(
-        int(len(sorted_entries) * train_ratio),
-        len(sorted_entries) - min_test,
-    ))
+    split_idx = max(
+        1,
+        min(
+            int(len(sorted_entries) * train_ratio),
+            len(sorted_entries) - min_test,
+        ),
+    )
 
     return (sorted_entries[:split_idx], sorted_entries[split_idx:])
 
 
 def fdr_correction(
-    p_values: Dict[str, float],
+    p_values: dict[str, float],
     alpha: float = 0.05,
-) -> List[str]:
+) -> list[str]:
     """
     Benjamini-Hochberg FDR correction for multiple testing.
 

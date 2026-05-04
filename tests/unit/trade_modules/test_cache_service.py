@@ -4,11 +4,13 @@ Tests for trade_modules/cache_service.py
 This module tests the unified cache service functionality.
 """
 
-import pytest
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from trade_modules.cache_service import CacheService
+
 
 @pytest.fixture
 def cache_service():
@@ -20,6 +22,7 @@ def cache_service():
     yield service
     CacheService._instance = None
 
+
 @pytest.fixture
 def cache_with_disk(tmp_path):
     """Create a cache service with disk caching enabled."""
@@ -27,18 +30,15 @@ def cache_with_disk(tmp_path):
 
     # Create a mock config with disk caching enabled
     mock_config = MagicMock()
-    mock_config.cache = {
-        'enable_disk': True,
-        'default_ttl': 300,
-        'max_items': 100
-    }
-    mock_config.paths = {'DATA_DIR': str(tmp_path)}
+    mock_config.cache = {"enable_disk": True, "default_ttl": 300, "max_items": 100}
+    mock_config.paths = {"DATA_DIR": str(tmp_path)}
 
-    with patch('trade_modules.cache_service._get_config', return_value=mock_config):
+    with patch("trade_modules.cache_service._get_config", return_value=mock_config):
         CacheService._instance = None
         service = CacheService()
         yield service
         CacheService._instance = None
+
 
 class TestCacheServiceBasics:
     """Basic cache service tests."""
@@ -105,6 +105,7 @@ class TestCacheServiceBasics:
         assert cache_service.get("key2") is None
         assert cache_service.get("key3") is None
 
+
 class TestCacheServiceDataTypes:
     """Test caching different data types."""
 
@@ -149,6 +150,7 @@ class TestCacheServiceDataTypes:
         assert cache_service.get("true_key") == True
         assert cache_service.get("false_key") == False
 
+
 class TestCacheServiceTTL:
     """Test TTL (time-to-live) functionality."""
 
@@ -170,8 +172,9 @@ class TestCacheServiceTTL:
         cache_service.set("zero_ttl_key", "value", ttl=0)
         # Should be None as it's already expired
         # Note: behavior depends on implementation
-        result = cache_service.get("zero_ttl_key")
+        cache_service.get("zero_ttl_key")
         # Either None or the value depending on how the cache handles 0 TTL
+
 
 class TestCacheServiceStats:
     """Test cache statistics functionality."""
@@ -179,7 +182,7 @@ class TestCacheServiceStats:
     def test_stats_tracking(self, cache_service):
         """Test that stats are tracked."""
         # Get initial stats
-        initial_stats = cache_service.get_stats()
+        cache_service.get_stats()
 
         # Cause some hits and misses
         cache_service.set("hit_key", "value")
@@ -187,7 +190,7 @@ class TestCacheServiceStats:
         cache_service.get("miss_key")  # Miss
 
         stats = cache_service.get_stats()
-        assert 'hits' in stats or 'misses' in stats  # Stats should exist
+        assert "hits" in stats or "misses" in stats  # Stats should exist
 
     def test_hit_ratio(self, cache_service):
         """Test hit ratio calculation."""
@@ -205,40 +208,43 @@ class TestCacheServiceStats:
         # Hit ratio should be around 0.5
         assert isinstance(stats, dict)
 
+
 class TestCacheServiceContains:
     """Test contains/has functionality."""
 
     def test_contains_existing_key(self, cache_service):
         """Test contains for existing key."""
         cache_service.set("existing", "value")
-        if hasattr(cache_service, 'contains'):
+        if hasattr(cache_service, "contains"):
             assert cache_service.contains("existing") == True
-        elif hasattr(cache_service, 'has'):
+        elif hasattr(cache_service, "has"):
             assert cache_service.has("existing") == True
 
     def test_contains_missing_key(self, cache_service):
         """Test contains for missing key."""
-        if hasattr(cache_service, 'contains'):
+        if hasattr(cache_service, "contains"):
             assert cache_service.contains("missing") == False
-        elif hasattr(cache_service, 'has'):
+        elif hasattr(cache_service, "has"):
             assert cache_service.has("missing") == False
+
 
 class TestCacheServiceKeyGeneration:
     """Test cache key generation utilities."""
 
     def test_generate_key_simple(self, cache_service):
         """Test simple key generation."""
-        if hasattr(cache_service, 'generate_key'):
+        if hasattr(cache_service, "generate_key"):
             key = cache_service.generate_key("ticker", "AAPL")
             assert "ticker" in key
             assert "AAPL" in key
 
     def test_generate_key_with_prefix(self, cache_service):
         """Test key generation with prefix."""
-        if hasattr(cache_service, 'generate_key'):
+        if hasattr(cache_service, "generate_key"):
             key = cache_service.generate_key("prefix", "suffix")
             assert isinstance(key, str)
             assert len(key) > 0
+
 
 class TestCacheServiceMemoryManagement:
     """Test memory management and eviction."""
@@ -258,12 +264,13 @@ class TestCacheServiceMemoryManagement:
         finally:
             cache_service.max_memory_items = original_max
 
+
 class TestCacheServiceDecorator:
     """Test cache decorator functionality if available."""
 
     def test_cached_decorator(self, cache_service):
         """Test the cached decorator if available."""
-        if hasattr(cache_service, 'cached'):
+        if hasattr(cache_service, "cached"):
             call_count = 0
 
             @cache_service.cached(ttl=10)
@@ -280,6 +287,7 @@ class TestCacheServiceDecorator:
             # Should only be called once due to caching
             # Note: This depends on implementation
 
+
 class TestCacheServiceSize:
     """Test cache size operations."""
 
@@ -291,10 +299,11 @@ class TestCacheServiceSize:
         cache_service.set("key2", "value2")
         cache_service.set("key3", "value3")
 
-        if hasattr(cache_service, 'size'):
+        if hasattr(cache_service, "size"):
             assert cache_service.size() >= 3
-        elif hasattr(cache_service, '__len__'):
+        elif hasattr(cache_service, "__len__"):
             assert len(cache_service) >= 3
+
 
 class TestCacheServiceConcurrency:
     """Test thread safety."""
@@ -302,6 +311,7 @@ class TestCacheServiceConcurrency:
     def test_concurrent_access(self, cache_service):
         """Test concurrent read/write operations."""
         import threading
+
         errors = []
 
         def writer():
@@ -331,6 +341,7 @@ class TestCacheServiceConcurrency:
 
         assert len(errors) == 0, f"Concurrent access errors: {errors}"
 
+
 class TestCacheServiceGetOrSet:
     """Test get_or_set functionality."""
 
@@ -338,17 +349,18 @@ class TestCacheServiceGetOrSet:
         """Test get_or_set with existing key."""
         cache_service.set("existing_key", "existing_value")
 
-        if hasattr(cache_service, 'get_or_set'):
+        if hasattr(cache_service, "get_or_set"):
             result = cache_service.get_or_set("existing_key", lambda: "new_value")
             assert result == "existing_value"
 
     def test_get_or_set_missing(self, cache_service):
         """Test get_or_set with missing key."""
-        if hasattr(cache_service, 'get_or_set'):
+        if hasattr(cache_service, "get_or_set"):
             result = cache_service.get_or_set("new_key", lambda: "computed_value")
             assert result == "computed_value"
             # Verify it was cached
             assert cache_service.get("new_key") == "computed_value"
+
 
 class TestCacheServiceKeys:
     """Test key listing functionality."""
@@ -360,10 +372,11 @@ class TestCacheServiceKeys:
         cache_service.set("key1", "value1")
         cache_service.set("key2", "value2")
 
-        if hasattr(cache_service, 'keys'):
+        if hasattr(cache_service, "keys"):
             keys = cache_service.keys()
             assert "key1" in keys
             assert "key2" in keys
+
 
 class TestCacheServiceResetInstance:
     """Test singleton reset for testing."""
@@ -371,10 +384,10 @@ class TestCacheServiceResetInstance:
     def test_reset_singleton(self):
         """Test that singleton can be reset."""
         CacheService._instance = None
-        service1 = CacheService()
+        CacheService()
 
         CacheService._instance = None
-        service2 = CacheService()
+        CacheService()
 
         # After reset, should be a new instance
         # (Note: this tests the test infrastructure)

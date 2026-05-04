@@ -4,35 +4,42 @@ Tests for trade_modules/filter_service.py
 This module tests the FilterService class for filtering trading opportunities.
 """
 
-import pytest
-import pandas as pd
 import logging
 from unittest.mock import MagicMock
 
+import pandas as pd
+import pytest
+
 from trade_modules.filter_service import FilterService
+
 
 @pytest.fixture
 def logger():
     """Create a mock logger."""
     return MagicMock(spec=logging.Logger)
 
+
 @pytest.fixture
 def filter_service(logger):
     """Create a FilterService instance."""
     return FilterService(logger)
 
+
 @pytest.fixture
 def sample_market_df():
     """Create a sample market DataFrame with BS column."""
-    df = pd.DataFrame({
-        "ticker": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
-        "price": [175.0, 380.0, 140.0, 180.0, 250.0],
-        "BS": ["B", "S", "H", "B", "S"],
-        "upside": [15.0, -5.0, 2.0, 12.0, -8.0],
-        "buy_percentage": [80.0, 40.0, 55.0, 75.0, 35.0],
-    })
+    df = pd.DataFrame(
+        {
+            "ticker": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
+            "price": [175.0, 380.0, 140.0, 180.0, 250.0],
+            "BS": ["B", "S", "H", "B", "S"],
+            "upside": [15.0, -5.0, 2.0, 12.0, -8.0],
+            "buy_percentage": [80.0, 40.0, 55.0, 75.0, 35.0],
+        }
+    )
     df = df.set_index("ticker")
     return df
+
 
 class TestFilterServiceInit:
     """Tests for FilterService initialization."""
@@ -41,6 +48,7 @@ class TestFilterServiceInit:
         """Test FilterService initializes with logger."""
         service = FilterService(logger)
         assert service.logger is logger
+
 
 class TestFilterBuyOpportunities:
     """Tests for filter_buy_opportunities method."""
@@ -56,11 +64,13 @@ class TestFilterBuyOpportunities:
 
     def test_filter_buy_empty_when_no_buys(self, filter_service):
         """Test filter_buy_opportunities returns empty when no BUY signals."""
-        df = pd.DataFrame({
-            "ticker": ["MSFT", "TSLA"],
-            "price": [380.0, 250.0],
-            "BS": ["S", "H"],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["MSFT", "TSLA"],
+                "price": [380.0, 250.0],
+                "BS": ["S", "H"],
+            }
+        )
         df = df.set_index("ticker")
 
         result = filter_service.filter_buy_opportunities(df)
@@ -69,16 +79,19 @@ class TestFilterBuyOpportunities:
 
     def test_filter_buy_missing_bs_column(self, filter_service):
         """Test filter_buy_opportunities when BS column is missing."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"],
-            "price": [175.0, 380.0],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT"],
+                "price": [175.0, 380.0],
+            }
+        )
         df = df.set_index("ticker")
 
         result = filter_service.filter_buy_opportunities(df)
 
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 0
+
 
 class TestFilterSellOpportunities:
     """Tests for filter_sell_opportunities method."""
@@ -92,11 +105,13 @@ class TestFilterSellOpportunities:
 
     def test_filter_sell_empty_when_no_sells(self, filter_service):
         """Test filter_sell_opportunities returns empty when no SELL signals."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "AMZN"],
-            "price": [175.0, 180.0],
-            "BS": ["B", "H"],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "AMZN"],
+                "price": [175.0, 180.0],
+                "BS": ["B", "H"],
+            }
+        )
         df = df.set_index("ticker")
 
         result = filter_service.filter_sell_opportunities(df)
@@ -105,10 +120,12 @@ class TestFilterSellOpportunities:
 
     def test_filter_sell_missing_bs_column(self, filter_service):
         """Test filter_sell_opportunities when BS column is missing."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"],
-            "price": [175.0, 380.0],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT"],
+                "price": [175.0, 380.0],
+            }
+        )
         df = df.set_index("ticker")
 
         result = filter_service.filter_sell_opportunities(df)
@@ -118,12 +135,14 @@ class TestFilterSellOpportunities:
 
     def test_filter_sell_with_confidence_score(self, filter_service):
         """Test filter_sell_opportunities filters by confidence score."""
-        df = pd.DataFrame({
-            "ticker": ["MSFT", "TSLA", "META"],
-            "price": [380.0, 250.0, 350.0],
-            "BS": ["S", "S", "S"],
-            "confidence_score": [0.8, 0.5, 0.7],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["MSFT", "TSLA", "META"],
+                "price": [380.0, 250.0, 350.0],
+                "BS": ["S", "S", "S"],
+                "confidence_score": [0.8, 0.5, 0.7],
+            }
+        )
         df = df.set_index("ticker")
 
         result = filter_service.filter_sell_opportunities(df)
@@ -131,6 +150,7 @@ class TestFilterSellOpportunities:
         # Should filter by confidence > 0.6
         assert len(result) == 2
         assert "TSLA" not in result.index
+
 
 class TestFilterHoldOpportunities:
     """Tests for filter_hold_opportunities method."""
@@ -145,11 +165,13 @@ class TestFilterHoldOpportunities:
 
     def test_filter_hold_empty_when_no_holds(self, filter_service):
         """Test filter_hold_opportunities returns empty when no HOLD signals."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"],
-            "price": [175.0, 380.0],
-            "BS": ["B", "S"],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT"],
+                "price": [175.0, 380.0],
+                "BS": ["B", "S"],
+            }
+        )
         df = df.set_index("ticker")
 
         result = filter_service.filter_hold_opportunities(df)
@@ -158,10 +180,12 @@ class TestFilterHoldOpportunities:
 
     def test_filter_hold_missing_bs_column(self, filter_service):
         """Test filter_hold_opportunities when BS column is missing."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"],
-            "price": [175.0, 380.0],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT"],
+                "price": [175.0, 380.0],
+            }
+        )
         df = df.set_index("ticker")
 
         result = filter_service.filter_hold_opportunities(df)
@@ -169,10 +193,13 @@ class TestFilterHoldOpportunities:
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 0
 
+
 class TestFilterNotradeTickers:
     """Tests for filter_notrade_tickers method."""
 
-    def test_filter_notrade_removes_listed_tickers(self, filter_service, sample_market_df, tmp_path):
+    def test_filter_notrade_removes_listed_tickers(
+        self, filter_service, sample_market_df, tmp_path
+    ):
         """Test that filter_notrade_tickers removes tickers from notrade list."""
         notrade_file = tmp_path / "notrade.csv"
         notrade_file.write_text("Ticker\nAAPL\nMSFT")
@@ -201,7 +228,9 @@ class TestFilterNotradeTickers:
         # Should return original DataFrame unchanged
         assert len(result) == len(sample_market_df)
 
-    def test_filter_notrade_different_column_names(self, filter_service, sample_market_df, tmp_path):
+    def test_filter_notrade_different_column_names(
+        self, filter_service, sample_market_df, tmp_path
+    ):
         """Test filter_notrade_tickers with different column names."""
         # Test with 'ticker' column
         notrade_file = tmp_path / "notrade.csv"
@@ -230,6 +259,7 @@ class TestFilterNotradeTickers:
         assert "AAPL" not in result.index
         assert "MSFT" not in result.index
 
+
 class TestFilterServiceEdgeCases:
     """Edge case tests for FilterService."""
 
@@ -248,11 +278,13 @@ class TestFilterServiceEdgeCases:
 
     def test_dataframe_with_invalid_bs_values(self, filter_service):
         """Test filtering DataFrame with invalid BS values."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT", "GOOGL"],
-            "price": [175.0, 380.0, 140.0],
-            "BS": ["X", "Y", "Z"],  # Invalid values
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL"],
+                "price": [175.0, 380.0, 140.0],
+                "BS": ["X", "Y", "Z"],  # Invalid values
+            }
+        )
         df = df.set_index("ticker")
 
         buy_result = filter_service.filter_buy_opportunities(df)
@@ -265,11 +297,13 @@ class TestFilterServiceEdgeCases:
 
     def test_mixed_case_bs_values(self, filter_service):
         """Test filtering with mixed case BS values (should not match)."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT", "GOOGL"],
-            "price": [175.0, 380.0, 140.0],
-            "BS": ["b", "s", "h"],  # Lowercase - won't match
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL"],
+                "price": [175.0, 380.0, 140.0],
+                "BS": ["b", "s", "h"],  # Lowercase - won't match
+            }
+        )
         df = df.set_index("ticker")
 
         buy_result = filter_service.filter_buy_opportunities(df)
@@ -281,18 +315,21 @@ class TestFilterServiceEdgeCases:
         assert len(sell_result) == 0
         assert len(hold_result) == 0
 
+
 class TestFilterServiceIntegration:
     """Integration tests for FilterService."""
 
     def test_full_filter_workflow(self, filter_service, tmp_path):
         """Test complete filtering workflow."""
         # Create market data
-        market_df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META"],
-            "price": [175.0, 380.0, 140.0, 180.0, 250.0, 350.0],
-            "BS": ["B", "S", "H", "B", "S", "H"],
-            "upside": [15.0, -5.0, 2.0, 12.0, -8.0, 3.0],
-        })
+        market_df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META"],
+                "price": [175.0, 380.0, 140.0, 180.0, 250.0, 350.0],
+                "BS": ["B", "S", "H", "B", "S", "H"],
+                "upside": [15.0, -5.0, 2.0, 12.0, -8.0, 3.0],
+            }
+        )
         market_df = market_df.set_index("ticker")
 
         # Create notrade file

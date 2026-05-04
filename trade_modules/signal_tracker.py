@@ -13,35 +13,37 @@ this system enables forward validation of signal quality.
 import json
 import logging
 import re
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-import threading
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Pattern to reject obviously fake/test tickers from being logged
 _INVALID_TICKER_PATTERN = re.compile(
-    r'^(TICK\d+|TICKER\d+|EDGE\d+|STOCK\d+|TEST\.|SMALLCAP|MICRO|SMALL|LARGE|'
-    r'SELL|BUY|STRONG|HOLD|NEG|ZERO_UPSIDE|NEG_UPSIDE|POS_UPSIDE|'
-    r'NEG_LOW_CONSENSUS|NEG_HIGH_CONSENSUS|HIGH_RISK|QUALITY_BUY|'
-    r'GOOD_BUY|FULLY_VALUED|SELL_TRIGGER|BADPE|SICPQ)$',
-    re.IGNORECASE
+    r"^(TICK\d+|TICKER\d+|EDGE\d+|STOCK\d+|TEST\.|SMALLCAP|MICRO|SMALL|LARGE|"
+    r"SELL|BUY|STRONG|HOLD|NEG|ZERO_UPSIDE|NEG_UPSIDE|POS_UPSIDE|"
+    r"NEG_LOW_CONSENSUS|NEG_HIGH_CONSENSUS|HIGH_RISK|QUALITY_BUY|"
+    r"GOOD_BUY|FULLY_VALUED|SELL_TRIGGER|BADPE|SICPQ)$",
+    re.IGNORECASE,
 )
-_VALID_SIGNALS = {'B', 'S', 'H', 'I'}
+_VALID_SIGNALS = {"B", "S", "H", "I"}
 
 # Default storage location
-DEFAULT_SIGNAL_LOG_PATH = Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_log.jsonl"
+DEFAULT_SIGNAL_LOG_PATH = (
+    Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_log.jsonl"
+)
 
 # Lock for thread-safe file operations
 _file_lock = threading.Lock()
 
 # SPY price cache (refreshed periodically)
-_spy_cache: Dict[str, Any] = {"price": None, "timestamp": None}
+_spy_cache: dict[str, Any] = {"price": None, "timestamp": None}
 _SPY_CACHE_TTL_SECONDS = 300  # 5 minute cache
 
 
-def _get_spy_price() -> Optional[float]:
+def _get_spy_price() -> float | None:
     """
     Get current SPY price for benchmark comparison.
 
@@ -56,6 +58,7 @@ def _get_spy_price() -> Optional[float]:
 
     try:
         import yfinance as yf
+
         spy = yf.Ticker("SPY")
         # Use fast_info for quick price lookup
         price = spy.fast_info.get("lastPrice") or spy.fast_info.get("regularMarketPrice")
@@ -76,33 +79,33 @@ class SignalRecord:
         self,
         ticker: str,
         signal: str,
-        timestamp: Optional[datetime] = None,
-        price_at_signal: Optional[float] = None,
-        target_price: Optional[float] = None,
-        upside: Optional[float] = None,
-        buy_percentage: Optional[float] = None,
-        exret: Optional[float] = None,
-        market_cap: Optional[float] = None,
-        tier: Optional[str] = None,
-        region: Optional[str] = None,
-        vix_level: Optional[float] = None,
-        sector: Optional[str] = None,
+        timestamp: datetime | None = None,
+        price_at_signal: float | None = None,
+        target_price: float | None = None,
+        upside: float | None = None,
+        buy_percentage: float | None = None,
+        exret: float | None = None,
+        market_cap: float | None = None,
+        tier: str | None = None,
+        region: str | None = None,
+        vix_level: float | None = None,
+        sector: str | None = None,
         # Additional metrics for comprehensive tracking
-        pe_forward: Optional[float] = None,
-        pe_trailing: Optional[float] = None,
-        peg: Optional[float] = None,
-        short_interest: Optional[float] = None,
-        roe: Optional[float] = None,
-        debt_equity: Optional[float] = None,
-        pct_52w_high: Optional[float] = None,
+        pe_forward: float | None = None,
+        pe_trailing: float | None = None,
+        peg: float | None = None,
+        short_interest: float | None = None,
+        roe: float | None = None,
+        debt_equity: float | None = None,
+        pct_52w_high: float | None = None,
         # Benchmark tracking
-        spy_price: Optional[float] = None,
+        spy_price: float | None = None,
         # Sell trigger details
-        sell_triggers: Optional[List[str]] = None,
+        sell_triggers: list[str] | None = None,
         # Sentiment and regime (enrichment)
-        sentiment_score: Optional[float] = None,
-        regime: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        sentiment_score: float | None = None,
+        regime: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.ticker = ticker
         self.signal = signal
@@ -133,7 +136,7 @@ class SignalRecord:
         self.regime = regime
         self.metadata = metadata or {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert record to dictionary for JSON serialization."""
         return {
             "ticker": self.ticker,
@@ -167,7 +170,7 @@ class SignalRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SignalRecord":
+    def from_dict(cls, data: dict[str, Any]) -> "SignalRecord":
         """Create SignalRecord from dictionary."""
         return cls(
             ticker=data["ticker"],
@@ -209,7 +212,7 @@ class SignalTracker:
     and analysis.
     """
 
-    def __init__(self, log_path: Optional[Path] = None):
+    def __init__(self, log_path: Path | None = None):
         """
         Initialize signal tracker.
 
@@ -235,8 +238,11 @@ class SignalTracker:
         Returns:
             True if logged successfully, False otherwise
         """
-        if not record.ticker or _INVALID_TICKER_PATTERN.match(record.ticker) \
-                or record.signal not in _VALID_SIGNALS:
+        if (
+            not record.ticker
+            or _INVALID_TICKER_PATTERN.match(record.ticker)
+            or record.signal not in _VALID_SIGNALS
+        ):
             logger.debug(f"Skipping test/invalid ticker: {record.ticker}")
             return False
         try:
@@ -249,7 +255,7 @@ class SignalTracker:
             logger.warning(f"Failed to log signal for {record.ticker}: {e}")
             return False
 
-    def log_signals_batch(self, records: List[SignalRecord]) -> int:
+    def log_signals_batch(self, records: list[SignalRecord]) -> int:
         """
         Log multiple signals in a batch.
 
@@ -262,8 +268,7 @@ class SignalTracker:
         logged = 0
         try:
             valid_records = [
-                r for r in records
-                if r.ticker and not _INVALID_TICKER_PATTERN.match(r.ticker)
+                r for r in records if r.ticker and not _INVALID_TICKER_PATTERN.match(r.ticker)
             ]
             with _file_lock:
                 with open(self.log_path, "a") as f:
@@ -277,12 +282,12 @@ class SignalTracker:
 
     def get_signals(
         self,
-        ticker: Optional[str] = None,
-        signal_type: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        ticker: str | None = None,
+        signal_type: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         limit: int = 1000,
-    ) -> List[SignalRecord]:
+    ) -> list[SignalRecord]:
         """
         Retrieve signals with optional filtering.
 
@@ -299,7 +304,7 @@ class SignalTracker:
         records = []
         try:
             with _file_lock:
-                with open(self.log_path, "r") as f:
+                with open(self.log_path) as f:
                     for line in f:
                         if not line.strip():
                             continue
@@ -330,7 +335,7 @@ class SignalTracker:
 
         return records
 
-    def get_signal_stats(self) -> Dict[str, Any]:
+    def get_signal_stats(self) -> dict[str, Any]:
         """
         Get summary statistics of logged signals.
 
@@ -342,9 +347,9 @@ class SignalTracker:
         if not records:
             return {"total": 0, "by_signal": {}, "by_tier": {}, "by_region": {}}
 
-        by_signal: Dict[str, int] = {}
-        by_tier: Dict[str, int] = {}
-        by_region: Dict[str, int] = {}
+        by_signal: dict[str, int] = {}
+        by_tier: dict[str, int] = {}
+        by_region: dict[str, int] = {}
 
         for record in records:
             # Count by signal type
@@ -356,7 +361,7 @@ class SignalTracker:
             if record.region:
                 by_region[record.region] = by_region.get(record.region, 0) + 1
 
-        stats: Dict[str, Any] = {
+        stats: dict[str, Any] = {
             "total": len(records),
             "by_signal": by_signal,
             "by_tier": by_tier,
@@ -401,7 +406,7 @@ class SignalTracker:
 
 
 # Global tracker instance
-_tracker: Optional[SignalTracker] = None
+_tracker: SignalTracker | None = None
 
 
 def get_tracker() -> SignalTracker:
@@ -415,24 +420,24 @@ def get_tracker() -> SignalTracker:
 def log_signal(
     ticker: str,
     signal: str,
-    price: Optional[float] = None,
-    target: Optional[float] = None,
-    upside: Optional[float] = None,
-    buy_pct: Optional[float] = None,
-    exret: Optional[float] = None,
-    market_cap: Optional[float] = None,
-    tier: Optional[str] = None,
-    region: Optional[str] = None,
-    sector: Optional[str] = None,
+    price: float | None = None,
+    target: float | None = None,
+    upside: float | None = None,
+    buy_pct: float | None = None,
+    exret: float | None = None,
+    market_cap: float | None = None,
+    tier: str | None = None,
+    region: str | None = None,
+    sector: str | None = None,
     # Additional metrics for comprehensive tracking
-    pe_forward: Optional[float] = None,
-    pe_trailing: Optional[float] = None,
-    peg: Optional[float] = None,
-    short_interest: Optional[float] = None,
-    roe: Optional[float] = None,
-    debt_equity: Optional[float] = None,
-    pct_52w_high: Optional[float] = None,
-    sell_triggers: Optional[List[str]] = None,
+    pe_forward: float | None = None,
+    pe_trailing: float | None = None,
+    peg: float | None = None,
+    short_interest: float | None = None,
+    roe: float | None = None,
+    debt_equity: float | None = None,
+    pct_52w_high: float | None = None,
+    sell_triggers: list[str] | None = None,
     **kwargs,
 ) -> bool:
     """
@@ -467,6 +472,7 @@ def log_signal(
     vix_level = None
     try:
         from trade_modules.vix_regime_provider import get_current_vix
+
         vix_level = get_current_vix()
     except ImportError:
         pass
@@ -480,9 +486,10 @@ def log_signal(
 
     # Get sentiment score (finBERT) — only for actionable signals (B/S)
     sentiment_score = None
-    if signal in ('B', 'S'):
+    if signal in ("B", "S"):
         try:
             from trade_modules.sentiment_analyzer import get_ticker_sentiment
+
             sentiment_score = get_ticker_sentiment(ticker)
         except (ImportError, Exception):
             pass
@@ -491,6 +498,7 @@ def log_signal(
     regime = None
     try:
         from trade_modules.regime_detector import get_current_regime
+
         regime = get_current_regime()
     except (ImportError, Exception):
         pass
@@ -528,7 +536,7 @@ def log_signal(
     return get_tracker().log_signal(record)
 
 
-def get_signal_summary() -> Dict[str, Any]:
+def get_signal_summary() -> dict[str, Any]:
     """Get summary of logged signals."""
     return get_tracker().get_signal_stats()
 
@@ -565,7 +573,7 @@ class SignalChangeDetector:
         ("H", "I"): "LOW",  # HOLD -> INCONCLUSIVE: Lost coverage
     }
 
-    def __init__(self, tracker: Optional[SignalTracker] = None):
+    def __init__(self, tracker: SignalTracker | None = None):
         """
         Initialize signal change detector.
 
@@ -574,9 +582,7 @@ class SignalChangeDetector:
         """
         self.tracker = tracker or get_tracker()
 
-    def get_latest_signals_by_date(
-        self, date_str: Optional[str] = None
-    ) -> Dict[str, SignalRecord]:
+    def get_latest_signals_by_date(self, date_str: str | None = None) -> dict[str, SignalRecord]:
         """
         Get the most recent signal for each ticker on a given date.
 
@@ -597,12 +603,9 @@ class SignalChangeDetector:
         records = self.tracker.get_signals(start_date=start, end_date=end, limit=10000)
 
         # Keep latest record per ticker
-        latest: Dict[str, SignalRecord] = {}
+        latest: dict[str, SignalRecord] = {}
         for record in records:
-            if (
-                record.ticker not in latest
-                or record.timestamp > latest[record.ticker].timestamp
-            ):
+            if record.ticker not in latest or record.timestamp > latest[record.ticker].timestamp:
                 latest[record.ticker] = record
 
         return latest
@@ -611,7 +614,7 @@ class SignalChangeDetector:
         self,
         current_date: str,
         previous_date: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Compare signals between two dates and identify changes.
 
@@ -625,7 +628,7 @@ class SignalChangeDetector:
         current = self.get_latest_signals_by_date(current_date)
         previous = self.get_latest_signals_by_date(previous_date)
 
-        changes: List[Dict[str, Any]] = []
+        changes: list[dict[str, Any]] = []
 
         # Check all tickers in both sets
         all_tickers = set(current.keys()) | set(previous.keys())
@@ -672,9 +675,7 @@ class SignalChangeDetector:
 
             # Both exist - check for signal change
             if curr_signal.signal != prev_signal.signal:
-                urgency = self.CHANGE_URGENCY.get(
-                    (prev_signal.signal, curr_signal.signal), "INFO"
-                )
+                urgency = self.CHANGE_URGENCY.get((prev_signal.signal, curr_signal.signal), "INFO")
 
                 price_change = None
                 if (
@@ -716,7 +717,7 @@ class SignalChangeDetector:
 
         return changes
 
-    def format_change_alert(self, change: Dict[str, Any]) -> str:
+    def format_change_alert(self, change: dict[str, Any]) -> str:
         """
         Format a change as a human-readable alert.
 
@@ -727,35 +728,27 @@ class SignalChangeDetector:
             Formatted alert string
         """
         urgency_emoji = {
-            "CRITICAL": "\U0001F6A8",  # Police car light
-            "HIGH": "\u26A0\uFE0F",  # Warning sign
-            "OPPORTUNITY": "\U0001F7E2",  # Green circle
-            "MEDIUM": "\U0001F7E1",  # Yellow circle
-            "LOW": "\U0001F535",  # Blue circle
-            "INFO": "\u2139\uFE0F",  # Information
+            "CRITICAL": "\U0001f6a8",  # Police car light
+            "HIGH": "\u26a0\ufe0f",  # Warning sign
+            "OPPORTUNITY": "\U0001f7e2",  # Green circle
+            "MEDIUM": "\U0001f7e1",  # Yellow circle
+            "LOW": "\U0001f535",  # Blue circle
+            "INFO": "\u2139\ufe0f",  # Information
         }
-        emoji = urgency_emoji.get(change["urgency"], "\U0001F4CA")
+        emoji = urgency_emoji.get(change["urgency"], "\U0001f4ca")
 
         signal_names = {"B": "BUY", "S": "SELL", "H": "HOLD", "I": "INCONCLUSIVE"}
 
         if change["change_type"] == "NEW":
-            curr_name = signal_names.get(
-                change["current_signal"], change["current_signal"]
-            )
+            curr_name = signal_names.get(change["current_signal"], change["current_signal"])
             return f"{emoji} {change['ticker']}: NEW ({curr_name})"
 
         if change["change_type"] == "REMOVED":
-            prev_name = signal_names.get(
-                change["previous_signal"], change["previous_signal"]
-            )
+            prev_name = signal_names.get(change["previous_signal"], change["previous_signal"])
             return f"{emoji} {change['ticker']}: REMOVED (was {prev_name})"
 
-        prev_name = signal_names.get(
-            change["previous_signal"], change["previous_signal"]
-        )
-        curr_name = signal_names.get(
-            change["current_signal"], change["current_signal"]
-        )
+        prev_name = signal_names.get(change["previous_signal"], change["previous_signal"])
+        curr_name = signal_names.get(change["current_signal"], change["current_signal"])
 
         price_info = ""
         if change.get("price_change_pct") is not None:
@@ -767,7 +760,7 @@ class SignalChangeDetector:
         self,
         current_date: str,
         previous_date: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get only CRITICAL and HIGH urgency changes.
 
@@ -785,7 +778,7 @@ class SignalChangeDetector:
         self,
         current_date: str,
         previous_date: str,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get only OPPORTUNITY urgency changes (new buy signals).
 
@@ -800,7 +793,7 @@ class SignalChangeDetector:
         return [c for c in all_changes if c["urgency"] == "OPPORTUNITY"]
 
 
-def get_signal_changes(current_date: str, previous_date: str) -> List[Dict[str, Any]]:
+def get_signal_changes(current_date: str, previous_date: str) -> list[dict[str, Any]]:
     """
     Convenience function to get signal changes between two dates.
 
@@ -815,7 +808,7 @@ def get_signal_changes(current_date: str, previous_date: str) -> List[Dict[str, 
     return detector.detect_changes(current_date, previous_date)
 
 
-def format_signal_changes(changes: List[Dict[str, Any]]) -> List[str]:
+def format_signal_changes(changes: list[dict[str, Any]]) -> list[str]:
     """
     Format a list of signal changes as human-readable alerts.
 
@@ -829,9 +822,7 @@ def format_signal_changes(changes: List[Dict[str, Any]]) -> List[str]:
     return [detector.format_change_alert(c) for c in changes]
 
 
-def get_signal_change_summary(
-    current_date: str, previous_date: str
-) -> Dict[str, Any]:
+def get_signal_change_summary(current_date: str, previous_date: str) -> dict[str, Any]:
     """
     Get a summary of signal changes between two dates.
 
@@ -846,13 +837,13 @@ def get_signal_change_summary(
     changes = detector.detect_changes(current_date, previous_date)
 
     # Count by urgency
-    by_urgency: Dict[str, int] = {}
+    by_urgency: dict[str, int] = {}
     for c in changes:
         urgency = c["urgency"]
         by_urgency[urgency] = by_urgency.get(urgency, 0) + 1
 
     # Count by change type
-    by_type: Dict[str, int] = {}
+    by_type: dict[str, int] = {}
     for c in changes:
         change_type = c["change_type"]
         by_type[change_type] = by_type.get(change_type, 0) + 1
@@ -874,8 +865,8 @@ def get_signal_change_summary(
 
 
 def get_signal_velocity(
-    log_path: Optional[Path] = None,
-) -> Dict[str, Dict[str, Any]]:
+    log_path: Path | None = None,
+) -> dict[str, dict[str, Any]]:
     """
     Compute signal velocity metrics for each ticker from the signal log.
 
@@ -906,10 +897,10 @@ def get_signal_velocity(
     cutoff_30d = now - timedelta(days=30)
 
     # ticker -> list of (timestamp, signal) sorted by time
-    ticker_signals: Dict[str, List[tuple]] = {}
+    ticker_signals: dict[str, list[tuple]] = {}
 
     try:
-        with open(resolved_path, "r") as f:
+        with open(resolved_path) as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -950,7 +941,7 @@ def get_signal_velocity(
         logger.warning("Error reading signal log for velocity: %s", e)
         return {}
 
-    result: Dict[str, Dict[str, Any]] = {}
+    result: dict[str, dict[str, Any]] = {}
 
     for ticker, entries in ticker_signals.items():
         # Sort chronologically

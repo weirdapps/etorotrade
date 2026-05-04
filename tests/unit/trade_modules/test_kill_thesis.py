@@ -24,7 +24,6 @@ from trade_modules.committee_scorecard import (
     log_kill_theses,
 )
 
-
 # ============================================================
 # Fixtures
 # ============================================================
@@ -305,10 +304,13 @@ class TestLoadPortfolioSignals:
 
     def test_load_valid_csv(self, portfolio_csv_path):
         """Loads valid portfolio CSV into dict keyed by ticker."""
-        _write_portfolio_csv(portfolio_csv_path, [
-            "AAPL,Apple,2.5T,185.00,210.00,13.5%,30,88%,30,-2,A,12.0%,0.8,72,N,28.0,26.0,7.5,2.1,0.5%,1.2%,15.0,-3.0,150.0,120.0,5.2%,01/30,25k,B",
-            "NVDA,NVIDIA,2.0T,450.00,500.00,11.1%,35,92%,35,3,A,10.2%,0.9,85,N,55.0,45.0,20.0,1.5,0.0%,1.5%,25.0,-1.0,90.0,50.0,3.1%,02/20,20k,S",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "AAPL,Apple,2.5T,185.00,210.00,13.5%,30,88%,30,-2,A,12.0%,0.8,72,N,28.0,26.0,7.5,2.1,0.5%,1.2%,15.0,-3.0,150.0,120.0,5.2%,01/30,25k,B",
+                "NVDA,NVIDIA,2.0T,450.00,500.00,11.1%,35,92%,35,3,A,10.2%,0.9,85,N,55.0,45.0,20.0,1.5,0.0%,1.5%,25.0,-1.0,90.0,50.0,3.1%,02/20,20k,S",
+            ],
+        )
 
         signals = _load_portfolio_signals(portfolio_csv_path)
 
@@ -350,9 +352,7 @@ class TestCheckKillTheses:
         assert result["triggered_theses"] == []
         assert result["expired_theses"] == []
 
-    def test_signal_deterioration_trigger(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_signal_deterioration_trigger(self, kill_thesis_path, portfolio_csv_path):
         """Triggers when ticker signal is SELL."""
         log_kill_theses(
             "2026-03-16",
@@ -361,9 +361,12 @@ class TestCheckKillTheses:
         )
 
         # NVDA has BS=S (SELL signal)
-        _write_portfolio_csv(portfolio_csv_path, [
-            "NVDA,NVIDIA,2.0T,450.00,500.00,11.1%,35,92%,35,0,A,10.2%,0.9,85,N,55.0,45.0,20.0,1.5,0.0%,1.5%,25.0,-1.0,90.0,50.0,3.1%,02/20,20k,S",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "NVDA,NVIDIA,2.0T,450.00,500.00,11.1%,35,92%,35,0,A,10.2%,0.9,85,N,55.0,45.0,20.0,1.5,0.0%,1.5%,25.0,-1.0,90.0,50.0,3.1%,02/20,20k,S",
+            ],
+        )
 
         result = check_kill_theses(
             portfolio_signals_path=portfolio_csv_path,
@@ -374,9 +377,7 @@ class TestCheckKillTheses:
         assert result["triggered_theses"][0]["ticker"] == "NVDA"
         assert "signal_deteriorated" in result["triggered_theses"][0]["triggers"]
 
-    def test_price_collapsed_trigger(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_price_collapsed_trigger(self, kill_thesis_path, portfolio_csv_path):
         """Triggers when 52W performance drops below 40."""
         log_kill_theses(
             "2026-03-16",
@@ -385,9 +386,12 @@ class TestCheckKillTheses:
         )
 
         # BADCO has 52W=25 (below 40 threshold)
-        _write_portfolio_csv(portfolio_csv_path, [
-            "BADCO,Bad Company,1.0B,10.00,15.00,50.0%,5,60%,5,0,A,30.0%,0.5,25,N,10.0,8.0,1.0,0.5,0.0%,5.0%,10.0,0.0,5.0,80.0,1.0%,03/15,5k,H",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "BADCO,Bad Company,1.0B,10.00,15.00,50.0%,5,60%,5,0,A,30.0%,0.5,25,N,10.0,8.0,1.0,0.5,0.0%,5.0%,10.0,0.0,5.0,80.0,1.0%,03/15,5k,H",
+            ],
+        )
 
         result = check_kill_theses(
             portfolio_signals_path=portfolio_csv_path,
@@ -397,9 +401,7 @@ class TestCheckKillTheses:
         assert len(result["triggered_theses"]) == 1
         assert "price_collapsed" in result["triggered_theses"][0]["triggers"]
 
-    def test_analyst_downgrade_trigger(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_analyst_downgrade_trigger(self, kill_thesis_path, portfolio_csv_path):
         """Triggers when AM (analyst momentum) is strongly negative (<-5)."""
         log_kill_theses(
             "2026-03-16",
@@ -408,9 +410,12 @@ class TestCheckKillTheses:
         )
 
         # WARN has AM=-8 (strongly negative)
-        _write_portfolio_csv(portfolio_csv_path, [
-            "WARN,Warning Co,5.0B,30.00,35.00,16.7%,10,55%,10,-8,A,9.2%,0.6,60,N,15.0,14.0,2.0,1.0,1.0%,3.0%,8.0,-2.0,12.0,40.0,2.5%,04/20,8k,H",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "WARN,Warning Co,5.0B,30.00,35.00,16.7%,10,55%,10,-8,A,9.2%,0.6,60,N,15.0,14.0,2.0,1.0,1.0%,3.0%,8.0,-2.0,12.0,40.0,2.5%,04/20,8k,H",
+            ],
+        )
 
         result = check_kill_theses(
             portfolio_signals_path=portfolio_csv_path,
@@ -420,9 +425,7 @@ class TestCheckKillTheses:
         assert len(result["triggered_theses"]) == 1
         assert "analyst_downgrade" in result["triggered_theses"][0]["triggers"]
 
-    def test_multiple_triggers_on_same_thesis(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_multiple_triggers_on_same_thesis(self, kill_thesis_path, portfolio_csv_path):
         """Multiple triggers fire on the same thesis."""
         log_kill_theses(
             "2026-03-16",
@@ -431,9 +434,12 @@ class TestCheckKillTheses:
         )
 
         # DOOM has BS=S, 52W=20, AM=-10 (all three triggers)
-        _write_portfolio_csv(portfolio_csv_path, [
-            "DOOM,Doomed Inc,500M,5.00,10.00,100.0%,3,30%,3,-10,C,30.0%,0.3,20,N,--,--,0.5,--,0.0%,15.0%,5.0,0.0,--,--,--,--,2k,S",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "DOOM,Doomed Inc,500M,5.00,10.00,100.0%,3,30%,3,-10,C,30.0%,0.3,20,N,--,--,0.5,--,0.0%,15.0%,5.0,0.0,--,--,--,--,2k,S",
+            ],
+        )
 
         result = check_kill_theses(
             portfolio_signals_path=portfolio_csv_path,
@@ -446,9 +452,7 @@ class TestCheckKillTheses:
         assert "price_collapsed" in triggers
         assert "analyst_downgrade" in triggers
 
-    def test_no_trigger_for_healthy_stock(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_no_trigger_for_healthy_stock(self, kill_thesis_path, portfolio_csv_path):
         """No triggers fire for a healthy stock."""
         log_kill_theses(
             "2026-03-16",
@@ -457,9 +461,12 @@ class TestCheckKillTheses:
         )
 
         # AAPL is healthy: BS=B, 52W=72, AM=2
-        _write_portfolio_csv(portfolio_csv_path, [
-            "AAPL,Apple,2.5T,185.00,210.00,13.5%,30,88%,30,2,A,12.0%,0.8,72,N,28.0,26.0,7.5,2.1,0.5%,1.2%,15.0,-3.0,150.0,120.0,5.2%,01/30,25k,B",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "AAPL,Apple,2.5T,185.00,210.00,13.5%,30,88%,30,2,A,12.0%,0.8,72,N,28.0,26.0,7.5,2.1,0.5%,1.2%,15.0,-3.0,150.0,120.0,5.2%,01/30,25k,B",
+            ],
+        )
 
         result = check_kill_theses(
             portfolio_signals_path=portfolio_csv_path,
@@ -469,9 +476,7 @@ class TestCheckKillTheses:
         assert len(result["active_theses"]) == 1
         assert len(result["triggered_theses"]) == 0
 
-    def test_thesis_not_in_portfolio_stays_active(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_thesis_not_in_portfolio_stays_active(self, kill_thesis_path, portfolio_csv_path):
         """Thesis for ticker not in portfolio CSV stays active (no data)."""
         log_kill_theses(
             "2026-03-16",
@@ -480,9 +485,12 @@ class TestCheckKillTheses:
         )
 
         # Portfolio has other tickers, not ABSENT
-        _write_portfolio_csv(portfolio_csv_path, [
-            "AAPL,Apple,2.5T,185.00,210.00,13.5%,30,88%,30,2,A,12.0%,0.8,72,N,28.0,26.0,7.5,2.1,0.5%,1.2%,15.0,-3.0,150.0,120.0,5.2%,01/30,25k,B",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "AAPL,Apple,2.5T,185.00,210.00,13.5%,30,88%,30,2,A,12.0%,0.8,72,N,28.0,26.0,7.5,2.1,0.5%,1.2%,15.0,-3.0,150.0,120.0,5.2%,01/30,25k,B",
+            ],
+        )
 
         result = check_kill_theses(
             portfolio_signals_path=portfolio_csv_path,
@@ -492,13 +500,9 @@ class TestCheckKillTheses:
         assert len(result["active_theses"]) == 1
         assert result["active_theses"][0]["ticker"] == "ABSENT"
 
-    def test_expired_theses_by_age(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_expired_theses_by_age(self, kill_thesis_path, portfolio_csv_path):
         """Theses older than 90 days are expired."""
-        old_date = (
-            datetime.now() - timedelta(days=100)
-        ).strftime("%Y-%m-%d")
+        old_date = (datetime.now() - timedelta(days=100)).strftime("%Y-%m-%d")
 
         log_kill_theses(
             old_date,
@@ -515,13 +519,9 @@ class TestCheckKillTheses:
         assert result["expired_theses"][0]["ticker"] == "OLD"
         assert result["expired_theses"][0]["status"] == "expired"
 
-    def test_explicit_expiry_date(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_explicit_expiry_date(self, kill_thesis_path, portfolio_csv_path):
         """Thesis with explicit expiry_date in the past is expired."""
-        yesterday = (
-            datetime.now() - timedelta(days=1)
-        ).strftime("%Y-%m-%d")
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
         log_kill_theses(
             "2026-03-16",
@@ -537,9 +537,7 @@ class TestCheckKillTheses:
         assert len(result["expired_theses"]) == 1
         assert result["expired_theses"][0]["ticker"] == "EXPR"
 
-    def test_already_triggered_stays_triggered(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_already_triggered_stays_triggered(self, kill_thesis_path, portfolio_csv_path):
         """Previously triggered theses are returned in triggered list."""
         theses = [_make_thesis("PREV", status="triggered")]
         _save_kill_theses(theses, kill_thesis_path)
@@ -552,9 +550,7 @@ class TestCheckKillTheses:
         assert len(result["triggered_theses"]) == 1
         assert result["triggered_theses"][0]["ticker"] == "PREV"
 
-    def test_already_expired_stays_expired(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_already_expired_stays_expired(self, kill_thesis_path, portfolio_csv_path):
         """Previously expired theses are returned in expired list."""
         theses = [_make_thesis("OLDEXP", status="expired")]
         _save_kill_theses(theses, kill_thesis_path)
@@ -569,9 +565,7 @@ class TestCheckKillTheses:
 
     def test_mixed_theses(self, kill_thesis_path, portfolio_csv_path):
         """Mix of active, triggered, and expired theses."""
-        old_date = (
-            datetime.now() - timedelta(days=100)
-        ).strftime("%Y-%m-%d")
+        old_date = (datetime.now() - timedelta(days=100)).strftime("%Y-%m-%d")
 
         theses = [
             _make_thesis("HEALTHY", committee_date="2026-03-16"),
@@ -580,10 +574,13 @@ class TestCheckKillTheses:
         ]
         _save_kill_theses(theses, kill_thesis_path)
 
-        _write_portfolio_csv(portfolio_csv_path, [
-            "HEALTHY,Healthy Inc,10B,100.00,120.00,20.0%,15,80%,15,2,A,16.0%,0.7,70,N,20.0,18.0,5.0,1.5,1.0%,2.0%,12.0,-1.0,25.0,30.0,4.0%,04/15,12k,B",
-            "SELLING,Sell Corp,3B,25.00,20.00,-20.0%,8,30%,8,-3,C,-6.0%,0.4,45,N,12.0,15.0,1.5,--,0.0%,8.0%,5.0,0.0,8.0,60.0,1.5%,05/01,6k,S",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "HEALTHY,Healthy Inc,10B,100.00,120.00,20.0%,15,80%,15,2,A,16.0%,0.7,70,N,20.0,18.0,5.0,1.5,1.0%,2.0%,12.0,-1.0,25.0,30.0,4.0%,04/15,12k,B",
+                "SELLING,Sell Corp,3B,25.00,20.00,-20.0%,8,30%,8,-3,C,-6.0%,0.4,45,N,12.0,15.0,1.5,--,0.0%,8.0%,5.0,0.0,8.0,60.0,1.5%,05/01,6k,S",
+            ],
+        )
 
         result = check_kill_theses(
             portfolio_signals_path=portfolio_csv_path,
@@ -615,9 +612,7 @@ class TestCheckKillTheses:
         # No signal data => no triggers, thesis remains active
         assert len(result["active_theses"]) == 1
 
-    def test_statuses_persisted_after_check(
-        self, kill_thesis_path, portfolio_csv_path
-    ):
+    def test_statuses_persisted_after_check(self, kill_thesis_path, portfolio_csv_path):
         """Status changes are saved to disk after checking."""
         log_kill_theses(
             "2026-03-16",
@@ -625,9 +620,12 @@ class TestCheckKillTheses:
             log_path=kill_thesis_path,
         )
 
-        _write_portfolio_csv(portfolio_csv_path, [
-            "NVDA,NVIDIA,2.0T,450.00,500.00,11.1%,35,92%,35,0,A,10.2%,0.9,85,N,55.0,45.0,20.0,1.5,0.0%,1.5%,25.0,-1.0,90.0,50.0,3.1%,02/20,20k,S",
-        ])
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "NVDA,NVIDIA,2.0T,450.00,500.00,11.1%,35,92%,35,0,A,10.2%,0.9,85,N,55.0,45.0,20.0,1.5,0.0%,1.5%,25.0,-1.0,90.0,50.0,3.1%,02/20,20k,S",
+            ],
+        )
 
         check_kill_theses(
             portfolio_signals_path=portfolio_csv_path,
@@ -649,9 +647,7 @@ class TestExpireOldTheses:
 
     def test_expire_old_theses(self, kill_thesis_path):
         """Expires theses older than the specified days."""
-        old_date = (
-            datetime.now() - timedelta(days=100)
-        ).strftime("%Y-%m-%d")
+        old_date = (datetime.now() - timedelta(days=100)).strftime("%Y-%m-%d")
         recent_date = datetime.now().strftime("%Y-%m-%d")
 
         theses = [
@@ -672,9 +668,7 @@ class TestExpireOldTheses:
 
     def test_expire_with_custom_days(self, kill_thesis_path):
         """Expires theses with a custom day threshold."""
-        date_15_days_ago = (
-            datetime.now() - timedelta(days=15)
-        ).strftime("%Y-%m-%d")
+        date_15_days_ago = (datetime.now() - timedelta(days=15)).strftime("%Y-%m-%d")
 
         theses = [
             _make_thesis("RECENT", committee_date=date_15_days_ago),
@@ -696,9 +690,7 @@ class TestExpireOldTheses:
 
     def test_already_expired_not_counted(self, kill_thesis_path):
         """Already expired theses are not counted again."""
-        old_date = (
-            datetime.now() - timedelta(days=100)
-        ).strftime("%Y-%m-%d")
+        old_date = (datetime.now() - timedelta(days=100)).strftime("%Y-%m-%d")
 
         theses = [
             _make_thesis("OLD", committee_date=old_date, status="expired"),
@@ -710,9 +702,7 @@ class TestExpireOldTheses:
 
     def test_triggered_theses_not_expired(self, kill_thesis_path):
         """Triggered theses are not expired (they have a different status)."""
-        old_date = (
-            datetime.now() - timedelta(days=100)
-        ).strftime("%Y-%m-%d")
+        old_date = (datetime.now() - timedelta(days=100)).strftime("%Y-%m-%d")
 
         theses = [
             _make_thesis("TRIG", committee_date=old_date, status="triggered"),
@@ -737,9 +727,7 @@ class TestExpireOldTheses:
 
     def test_expiry_persisted(self, kill_thesis_path):
         """Expiry changes are persisted to disk."""
-        old_date = (
-            datetime.now() - timedelta(days=100)
-        ).strftime("%Y-%m-%d")
+        old_date = (datetime.now() - timedelta(days=100)).strftime("%Y-%m-%d")
 
         theses = [_make_thesis("OLD", committee_date=old_date)]
         _save_kill_theses(theses, kill_thesis_path)

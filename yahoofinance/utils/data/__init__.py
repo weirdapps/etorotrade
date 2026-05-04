@@ -15,7 +15,6 @@ from .format_utils import (
 )
 from .market_cap_formatter import format_market_cap_advanced
 
-
 __all__ = [
     # Basic formatting
     "format_number",

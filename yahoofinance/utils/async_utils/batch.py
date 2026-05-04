@@ -7,7 +7,8 @@ with concurrency control, progress reporting, and performance metrics.
 
 import asyncio
 import time
-from typing import Any, Callable, Coroutine, Dict, List, Optional, TypeVar
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 from yahoofinance.core.config import RATE_LIMIT
 from yahoofinance.core.logging import get_logger
@@ -22,7 +23,8 @@ logger = get_logger(__name__)
 # Global variable to store processing statistics for display after table
 _last_processing_stats = None
 
-async def gather_with_concurrency(coros: List[Coroutine[Any, Any, T]], limit: int = 5) -> List[T]:
+
+async def gather_with_concurrency(coros: list[Coroutine[Any, Any, T]], limit: int = 5) -> list[T]:
     """
     Run coroutines with a limit on concurrency.
 
@@ -40,7 +42,14 @@ async def gather_with_concurrency(coros: List[Coroutine[Any, Any, T]], limit: in
         async with semaphore:
             try:
                 return await coro, index, None
-            except (asyncio.CancelledError, asyncio.TimeoutError, ValueError, TypeError, KeyError, RuntimeError) as e:
+            except (
+                TimeoutError,
+                asyncio.CancelledError,
+                ValueError,
+                TypeError,
+                KeyError,
+                RuntimeError,
+            ) as e:
                 # Catch and return the exception instead of letting it propagate
                 logger.error(f"Task {index} failed with exception: {type(e).__name__}: {e}")
                 return None, index, e
@@ -60,17 +69,18 @@ async def gather_with_concurrency(coros: List[Coroutine[Any, Any, T]], limit: in
 
     return results  # type: ignore[return-value]
 
+
 async def process_batch_async(
-    items: List[T],
+    items: list[T],
     processor: Callable[[T], Coroutine[Any, Any, R]],
     batch_size: int = None,
     concurrency: int = None,
     delay_between_batches: float = None,
     description: str = "Processing items",
     show_progress: bool = True,
-    priority_items: Optional[List[T]] = None,
-    timeout_per_batch: Optional[float] = None,
-) -> Dict[T, R]:
+    priority_items: list[T] | None = None,
+    timeout_per_batch: float | None = None,
+) -> dict[T, R]:
     """
     Process a batch of items asynchronously with rate limiting, prioritization, and enhanced progress reporting.
 
@@ -105,7 +115,7 @@ async def process_batch_async(
                 processed_items.remove(item)
                 processed_items.insert(0, item)
 
-    results: Dict[T, R] = {}
+    results: dict[T, R] = {}
     total_items = len(processed_items)
     total_batches = (total_items + batch_size - 1) // batch_size
     start_time = time.time()
@@ -148,9 +158,7 @@ async def process_batch_async(
             progress_bar.set_description(f"Processing {item_str}")
 
             # Update postfix with cleaner rate display
-            progress_bar.set_postfix_str(
-                f"{items_per_second:.1f}/s"
-            )
+            progress_bar.set_postfix_str(f"{items_per_second:.1f}/s")
 
         logger.debug(f"Processing batch {batch_num}/{total_batches} ({len(batch)} items)")
 
@@ -164,7 +172,7 @@ async def process_batch_async(
                     timeout=timeout_per_batch,
                 )
                 # Map results back to original items
-                for item, result in zip(batch, batch_results):
+                for item, result in zip(batch, batch_results, strict=False):
                     if result is not None:
                         results[item] = result
                         success_count += 1
@@ -180,7 +188,7 @@ async def process_batch_async(
                         progress_bar.update(1)
                         progress_bar.refresh()  # Force immediate display update
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(f"Batch {batch_num} timed out after {timeout_per_batch}s")
                 # Update progress even for timed out batch
                 if show_progress:
@@ -189,12 +197,11 @@ async def process_batch_async(
             # SMOOTH PROGRESS: Process items as they complete for real-time updates
             # Use enumerate to track items instead of task mapping to avoid KeyError
             batch_results = await asyncio.gather(  # type: ignore[assignment]
-                *[processor(item) for item in batch],
-                return_exceptions=True
+                *[processor(item) for item in batch], return_exceptions=True
             )
 
             # Process results and update progress as we go
-            for i, (item, result) in enumerate(zip(batch, batch_results)):
+            for i, (item, result) in enumerate(zip(batch, batch_results, strict=False)):
                 try:
                     if isinstance(result, Exception):
                         logger.warning(f"Error processing {item}: {result}")
@@ -209,7 +216,14 @@ async def process_batch_async(
                     else:
                         error_count += 1
 
-                except (asyncio.CancelledError, asyncio.TimeoutError, ValueError, TypeError, KeyError, RuntimeError) as e:
+                except (
+                    TimeoutError,
+                    asyncio.CancelledError,
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    RuntimeError,
+                ) as e:
                     # Handle individual item errors
                     logger.warning(f"Error processing {item}: {e}")
                     error_count += 1
@@ -222,9 +236,11 @@ async def process_batch_async(
         # Delay between batches (except for the last batch) - OPTIMIZED: No delay for maximum performance
         if i + batch_size < total_items and delay_between_batches > 0:
             if show_progress:
-                progress_bar.set_description(f"Throttling...")
+                progress_bar.set_description("Throttling...")
 
-            logger.debug(f"Batch delay disabled for optimal performance (was {delay_between_batches}s)")
+            logger.debug(
+                f"Batch delay disabled for optimal performance (was {delay_between_batches}s)"
+            )
             # await asyncio.sleep(delay_between_batches)  # Disabled for performance optimization
 
     # Close progress bar if used
@@ -239,34 +255,40 @@ async def process_batch_async(
     # Store statistics globally for later display (after table output)
     global _last_processing_stats
     _last_processing_stats = {
-        'total_items': total_items,
-        'elapsed': elapsed,
-        'items_per_second': items_per_second,
-        'seconds_per_item': seconds_per_item,
-        'success_count': success_count,
-        'error_count': error_count,
-        'cache_hits': cache_hits,
-        'show_progress': show_progress
+        "total_items": total_items,
+        "elapsed": elapsed,
+        "items_per_second": items_per_second,
+        "seconds_per_item": seconds_per_item,
+        "success_count": success_count,
+        "error_count": error_count,
+        "cache_hits": cache_hits,
+        "show_progress": show_progress,
     }
 
     # Store statistics in results metadata as well
-    if hasattr(results, '__dict__'):
+    if hasattr(results, "__dict__"):
         results._processing_stats = _last_processing_stats  # type: ignore[attr-defined]
 
     return results
 
+
 def display_processing_stats():
     """Display the stored processing statistics after table output."""
     global _last_processing_stats
-    if _last_processing_stats and _last_processing_stats.get('show_progress'):
+    if _last_processing_stats and _last_processing_stats.get("show_progress"):
         stats = _last_processing_stats
-        total = stats['total_items']
+        total = stats["total_items"]
         if total > 0:
-            print(f"\n✅ Processing complete: {stats['success_count']}/{total} succeeded, "
-                  f"{stats['error_count']} failed | {stats['elapsed']:.1f}s total ({stats['seconds_per_item']:.1f}s/ticker)")
-            if stats['cache_hits'] > 0:
-                print(f"   Cache hits: {stats['cache_hits']} ({stats['cache_hits']*100//total}% from cache)")
+            print(
+                f"\n✅ Processing complete: {stats['success_count']}/{total} succeeded, "
+                f"{stats['error_count']} failed | {stats['elapsed']:.1f}s total ({stats['seconds_per_item']:.1f}s/ticker)"
+            )
+            if stats["cache_hits"] > 0:
+                print(
+                    f"   Cache hits: {stats['cache_hits']} ({stats['cache_hits']*100//total}% from cache)"
+                )
         _last_processing_stats = None  # Clear after displaying
+
 
 def get_processing_stats():
     """Get the stored processing statistics without clearing them."""

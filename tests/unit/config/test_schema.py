@@ -4,24 +4,27 @@ Test coverage for config/schema.py
 Target: 80%+ coverage
 Critical paths: config loading, validation, tier criteria access
 """
-import pytest
+
 import tempfile
 from pathlib import Path
+
+import pytest
 from pydantic import ValidationError
 
 from config.schema import (
-    TradingConfig,
-    Region,
     AssetTier,
     BuyCriteria,
+    LoggingConfig,
+    PerformanceConfig,
+    PositionSizingConfig,
+    Region,
     SellCriteria,
     TierThresholds,
-    PositionSizingConfig,
-    PerformanceConfig,
-    LoggingConfig,
+    TradingConfig,
     get_config,
     reload_config,
 )
+
 
 class TestEnums:
     """Test enumeration types"""
@@ -39,6 +42,7 @@ class TestEnums:
         assert AssetTier.MID.value == "MID"
         assert AssetTier.SMALL.value == "SMALL"
         assert AssetTier.MICRO.value == "MICRO"
+
 
 class TestBuyCriteria:
     """Test BuyCriteria validation"""
@@ -68,6 +72,7 @@ class TestBuyCriteria:
         with pytest.raises(ValidationError):
             criteria.min_upside = 20.0
 
+
 class TestSellCriteria:
     """Test SellCriteria validation"""
 
@@ -89,6 +94,7 @@ class TestSellCriteria:
         with pytest.raises(ValidationError):
             criteria.max_upside = 10.0
 
+
 class TestTierThresholds:
     """Test TierThresholds validation"""
 
@@ -105,6 +111,7 @@ class TestTierThresholds:
         thresholds = TierThresholds()
         with pytest.raises(ValidationError):
             thresholds.mega_tier_min = 600_000_000_000
+
 
 class TestPositionSizingConfig:
     """Test PositionSizingConfig validation"""
@@ -126,8 +133,9 @@ class TestPositionSizingConfig:
         with pytest.raises(ValidationError):
             PositionSizingConfig(
                 base_position_size=2500,
-                tier_multipliers={"mega": 5, "large": 4}  # Missing mid, small, micro
+                tier_multipliers={"mega": 5, "large": 4},  # Missing mid, small, micro
             )
+
 
 class TestPerformanceConfig:
     """Test PerformanceConfig validation"""
@@ -150,6 +158,7 @@ class TestPerformanceConfig:
         with pytest.raises(ValidationError):
             PerformanceConfig(request_timeout_seconds=500)
 
+
 class TestLoggingConfig:
     """Test LoggingConfig validation"""
 
@@ -169,12 +178,13 @@ class TestLoggingConfig:
         config = LoggingConfig(level="debug")
         assert config.level == "DEBUG"
 
+
 class TestTradingConfigLoading:
     """Test TradingConfig loading from YAML"""
 
     def test_load_from_yaml(self):
         """TradingConfig loads from config.yaml successfully"""
-        config = TradingConfig.from_yaml('config.yaml')
+        config = TradingConfig.from_yaml("config.yaml")
 
         # Verify basic structure
         assert config.data is not None
@@ -194,13 +204,13 @@ class TestTradingConfigLoading:
     def test_load_nonexistent_file(self):
         """TradingConfig raises error for nonexistent file"""
         with pytest.raises(FileNotFoundError):
-            TradingConfig.from_yaml('nonexistent.yaml')
+            TradingConfig.from_yaml("nonexistent.yaml")
 
     def test_export_to_yaml(self):
         """TradingConfig exports to YAML correctly"""
-        config = TradingConfig.from_yaml('config.yaml')
+        config = TradingConfig.from_yaml("config.yaml")
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             temp_path = f.name
 
         try:
@@ -208,17 +218,24 @@ class TestTradingConfigLoading:
 
             # Reload and verify
             reloaded = TradingConfig.from_yaml(temp_path)
-            assert reloaded.universal_thresholds.min_analyst_count == config.universal_thresholds.min_analyst_count
-            assert reloaded.position_sizing.base_position_size == config.position_sizing.base_position_size
+            assert (
+                reloaded.universal_thresholds.min_analyst_count
+                == config.universal_thresholds.min_analyst_count
+            )
+            assert (
+                reloaded.position_sizing.base_position_size
+                == config.position_sizing.base_position_size
+            )
         finally:
             Path(temp_path).unlink()
+
 
 class TestTierCriteriaAccess:
     """Test accessing tier-specific criteria"""
 
     def test_get_tier_criteria_us_mega(self):
         """get_tier_criteria retrieves US MEGA criteria"""
-        config = TradingConfig.from_yaml('config.yaml')
+        config = TradingConfig.from_yaml("config.yaml")
         criteria = config.get_tier_criteria("US", "MEGA")
 
         assert criteria is not None
@@ -228,7 +245,7 @@ class TestTierCriteriaAccess:
 
     def test_get_tier_criteria_with_enums(self):
         """get_tier_criteria works with enum values"""
-        config = TradingConfig.from_yaml('config.yaml')
+        config = TradingConfig.from_yaml("config.yaml")
         criteria = config.get_tier_criteria(Region.US, AssetTier.LARGE)
 
         assert criteria is not None
@@ -237,17 +254,18 @@ class TestTierCriteriaAccess:
 
     def test_get_tier_criteria_nonexistent(self):
         """get_tier_criteria raises error for nonexistent tier"""
-        config = TradingConfig.from_yaml('config.yaml')
+        config = TradingConfig.from_yaml("config.yaml")
 
         with pytest.raises(ValueError):
             config.get_tier_criteria("INVALID", "MEGA")
+
 
 class TestConfigValidation:
     """Test config validation warnings"""
 
     def test_validate_complete_no_issues(self):
         """validate_complete returns empty list for valid config"""
-        config = TradingConfig.from_yaml('config.yaml')
+        config = TradingConfig.from_yaml("config.yaml")
         issues = config.validate_complete()
 
         # Current config should be valid
@@ -255,7 +273,7 @@ class TestConfigValidation:
 
     def test_validate_complete_high_concurrency(self):
         """validate_complete warns about high concurrency"""
-        config = TradingConfig.from_yaml('config.yaml')
+        config = TradingConfig.from_yaml("config.yaml")
         config.performance.max_concurrent_requests = 30
 
         issues = config.validate_complete()
@@ -263,11 +281,12 @@ class TestConfigValidation:
 
     def test_validate_complete_low_analyst_count(self):
         """validate_complete warns about low analyst count"""
-        config = TradingConfig.from_yaml('config.yaml')
+        config = TradingConfig.from_yaml("config.yaml")
         config.universal_thresholds.min_analyst_count = 2
 
         issues = config.validate_complete()
         assert any("analyst" in issue.lower() for issue in issues)
+
 
 class TestGlobalConfig:
     """Test global config singleton"""
@@ -281,7 +300,7 @@ class TestGlobalConfig:
 
     def test_reload_config(self):
         """reload_config creates new instance"""
-        config1 = get_config()
+        get_config()
         config2 = reload_config()
 
         # Should be new instance
@@ -289,12 +308,13 @@ class TestGlobalConfig:
         assert config2 is not None
         assert isinstance(config2, TradingConfig)
 
+
 class TestInvalidConfig:
     """Test handling of invalid configurations"""
 
     def test_extra_fields_rejected(self):
         """Extra fields in config are rejected"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("""
 data:
   portfolio_csv: test.csv
@@ -338,7 +358,7 @@ invalid_field: "should fail"
 
     def test_missing_fields_use_defaults(self):
         """Missing fields use default values"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("""
 data:
   portfolio_csv: test.csv

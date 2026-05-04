@@ -21,7 +21,6 @@ from .async_yahoo_finance import AsyncYahooFinanceProvider
 from .async_yahooquery_provider import AsyncYahooQueryProvider
 from .base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 
-
 __all__ = [
     "get_provider",
     "FinanceDataProvider",
@@ -40,7 +39,7 @@ _PROVIDERS = {
 
 def get_provider(
     provider_name: str = "hybrid", async_api: bool = True, **kwargs
-) -> Union[FinanceDataProvider, AsyncFinanceDataProvider]:
+) -> FinanceDataProvider | AsyncFinanceDataProvider:
     """
     Get an instance of a finance data provider.
 
@@ -58,8 +57,6 @@ def get_provider(
     key = f"{provider_name}_async" if async_api else provider_name
 
     if key not in _PROVIDERS:
-        raise ValueError(
-            f"Provider '{key}' not found. Available: {list(_PROVIDERS.keys())}"
-        )
+        raise ValueError(f"Provider '{key}' not found. Available: {list(_PROVIDERS.keys())}")
 
     return _PROVIDERS[key](**kwargs)

@@ -31,18 +31,17 @@ import json
 import logging
 import math
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_LIKELIHOODS_PATH = (
     Path.home() / ".weirdapps-trading" / "committee" / "bayesian_likelihoods.json"
 )
-DEFAULT_SHADOW_PATH = (
-    Path.home() / ".weirdapps-trading" / "committee" / "bayesian_shadow.json"
-)
+DEFAULT_SHADOW_PATH = Path.home() / ".weirdapps-trading" / "committee" / "bayesian_shadow.json"
 
 # Beta shrinkage prior: 4 pseudo-observations evenly split.
 PRIOR_HITS = 2.0
@@ -84,7 +83,8 @@ def _prior_to_conviction(p: float) -> int:
 
 # ── Likelihood table builder ────────────────────────────────────────────
 
-def _agent_view(stock: Dict[str, Any], agent: str) -> str:
+
+def _agent_view(stock: dict[str, Any], agent: str) -> str:
     field_map = {
         "fundamental": "fund_view",
         "technical": "tech_signal",
@@ -107,10 +107,10 @@ def _agent_view(stock: Dict[str, Any], agent: str) -> str:
 
 
 def compute_likelihoods(
-    history: Iterable[Dict[str, Any]],
-    forward_returns: Dict[str, Dict[str, float]],
+    history: Iterable[dict[str, Any]],
+    forward_returns: dict[str, dict[str, float]],
     horizon: str = "T+30",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Build per-agent, per-view P(α30 > 0 | view) with Beta(2,2) shrinkage.
 
@@ -129,7 +129,7 @@ def compute_likelihoods(
       }
     """
     alpha_key = f"{horizon}_alpha"
-    counts: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(
+    counts: dict[str, dict[str, dict[str, int]]] = defaultdict(
         lambda: defaultdict(lambda: {"hits": 0, "misses": 0})
     )
     total = 0
@@ -179,11 +179,12 @@ def compute_likelihoods(
 
 # ── Posterior computation ───────────────────────────────────────────────
 
+
 def bayesian_posterior(
-    stock: Dict[str, Any],
-    likelihoods: Dict[str, Any],
+    stock: dict[str, Any],
+    likelihoods: dict[str, Any],
     use_independence_assumption: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Compute Bayesian posterior P(α30>0 | conviction, all agent views).
 
@@ -206,7 +207,7 @@ def bayesian_posterior(
 
     # In log-odds space: posterior_logit = prior_logit + Σ log(L_i / (1-L_i))
     log_post = _logit(p_prior)
-    contributions: Dict[str, float] = {}
+    contributions: dict[str, float] = {}
     agents_block = (likelihoods or {}).get("agents") or {}
     for agent, views in agents_block.items():
         view = _agent_view(stock, agent)
@@ -241,9 +242,9 @@ def _safe_float(v, default=0.0) -> float:
 
 
 def shadow_score_concordance(
-    concordance: Iterable[Dict[str, Any]],
-    likelihoods: Dict[str, Any],
-) -> Dict[str, Any]:
+    concordance: Iterable[dict[str, Any]],
+    likelihoods: dict[str, Any],
+) -> dict[str, Any]:
     """
     Run the Bayesian update over an entire concordance and persist a
     shadow file. The synthesis still uses the waterfall conviction;
@@ -271,7 +272,7 @@ def shadow_score_concordance(
     }
 
 
-def _summarise_shadow(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _summarise_shadow(rows: list[dict[str, Any]]) -> dict[str, Any]:
     if not rows:
         return {}
     deltas = [r["delta"] for r in rows]
@@ -295,8 +296,8 @@ def _summarise_shadow(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def persist_likelihoods(
-    likelihoods: Dict[str, Any],
-    path: Optional[Path] = None,
+    likelihoods: dict[str, Any],
+    path: Path | None = None,
 ) -> Path:
     p = path or DEFAULT_LIKELIHOODS_PATH
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -304,7 +305,7 @@ def persist_likelihoods(
     return p
 
 
-def load_likelihoods(path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def load_likelihoods(path: Path | None = None) -> dict[str, Any] | None:
     p = path or DEFAULT_LIKELIHOODS_PATH
     if not p.exists():
         return None
@@ -314,7 +315,7 @@ def load_likelihoods(path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
         return None
 
 
-def persist_shadow(shadow: Dict[str, Any], path: Optional[Path] = None) -> Path:
+def persist_shadow(shadow: dict[str, Any], path: Path | None = None) -> Path:
     p = path or DEFAULT_SHADOW_PATH
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(shadow, indent=2, default=str))

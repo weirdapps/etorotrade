@@ -307,7 +307,7 @@ class TestRealDataIntegration:
         hold_ops = result["hold_opportunities"]
 
         # Stocks in portfolio should be excluded from buy opportunities
-        portfolio_symbols = set(real_portfolio_csv_data["symbol"])
+        set(real_portfolio_csv_data["symbol"])
         buy_symbols = set(buy_ops.index)
 
         # NVDA, AMZN, MSFT, META are in portfolio and should be excluded from buy
@@ -530,7 +530,7 @@ class TestRealDataIntegration:
         # Verify international tickers are handled correctly
         buy_ops = result["buy_opportunities"]
         hold_ops = result["hold_opportunities"]
-        sell_ops = result["sell_opportunities"]
+        result["sell_opportunities"]
 
         # 0700.HK has 'B' signal but is in portfolio, should be excluded from buy
         assert "0700.HK" not in buy_ops.index

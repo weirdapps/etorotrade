@@ -22,12 +22,14 @@ from yahoofinance.utils.async_utils.enhanced import (
     retry_async_with_backoff,
 )
 
+
 @pytest.fixture
 def async_rate_limiter():
     """Create a test async rate limiter with controlled configuration"""
     return AsyncRateLimiter(
         window_size=5, max_calls=10, base_delay=0.01, min_delay=0.005, max_delay=0.1
     )
+
 
 @pytest.mark.asyncio
 async def test_async_rate_limiter_wait():
@@ -64,6 +66,7 @@ async def test_async_rate_limiter_wait():
         # Should have tried to sleep to wait for window
         mock_sleep.assert_called()
 
+
 @pytest.mark.asyncio
 async def test_async_rate_limiter_record_success():
     """Test AsyncRateLimiter record_success function."""
@@ -78,6 +81,7 @@ async def test_async_rate_limiter_record_success():
 
     # Delay should be reduced after 5 successes
     assert limiter.current_delay < 0.1 + 1e-10  # Use epsilon for floating point comparison
+
 
 @pytest.mark.asyncio
 async def test_async_rate_limiter_record_failure():
@@ -103,6 +107,7 @@ async def test_async_rate_limiter_record_failure():
     # immediately depending on internal state.
     # Test completes successfully regardless of delay change behavior
 
+
 @pytest.mark.asyncio
 async def test_retry_async_with_backoff_success():
     """Test retry_async_with_backoff with successful function."""
@@ -112,6 +117,7 @@ async def test_retry_async_with_backoff_success():
 
     assert result == "success"
     mock_func.assert_called_once_with("arg1", kwarg1="value1")
+
 
 @pytest.mark.asyncio
 async def test_retry_async_with_backoff_with_retries():
@@ -128,6 +134,7 @@ async def test_retry_async_with_backoff_with_retries():
     # Should sleep twice between retries
     assert mock_sleep.call_count == 2
 
+
 @pytest.mark.asyncio
 async def test_retry_async_with_backoff_max_retries_exceeded():
     """Test retry_async_with_backoff with max retries exceeded."""
@@ -138,6 +145,7 @@ async def test_retry_async_with_backoff_max_retries_exceeded():
 
     # Function called initial + 2 retries = 3 times
     assert mock_func.call_count == 3
+
 
 @pytest.mark.asyncio
 async def test_retry_async_with_backoff_with_circuit_breaker():
@@ -173,6 +181,7 @@ async def test_retry_async_with_backoff_with_circuit_breaker():
     # Verify circuit breaker methods were called
     mock_circuit.record_success.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_retry_async_with_backoff_never_retries_circuit_open():
     """Test retry_async_with_backoff never retries CircuitOpenError."""
@@ -203,6 +212,7 @@ async def test_retry_async_with_backoff_never_retries_circuit_open():
     # Function should not be called when circuit is open
     mock_func.assert_not_called()
 
+
 @pytest.mark.asyncio
 async def test_gather_with_concurrency():
     """Test gather_with_concurrency limits concurrency."""
@@ -225,6 +235,7 @@ async def test_gather_with_concurrency():
 
     assert results == [i * 2 for i in range(10)]
     assert max_concurrency <= 3  # Should never exceed concurrency limit
+
 
 @pytest.mark.asyncio
 async def test_process_batch_async():
@@ -262,6 +273,7 @@ async def test_process_batch_async():
     ]
     # Should have at least some processor delays (one per item processed)
     assert len(processor_delay_calls) > 0
+
 
 @pytest.mark.asyncio
 async def test_async_rate_limited_decorator():
@@ -319,6 +331,7 @@ async def test_async_rate_limited_decorator():
     # The rate limit flag should be True for rate limit errors
     assert limiter.record_failure.call_args[1]["is_rate_limit"] is True
 
+
 @pytest.mark.asyncio
 async def test_enhanced_async_rate_limited_decorator():
     """Test enhanced_async_rate_limited decorator combining rate limiting, circuit breaking, and retries."""
@@ -352,13 +365,16 @@ async def test_enhanced_async_rate_limited_decorator():
         return await func(*args, **kwargs)
 
     # Test with circuit breaker and retries
-    with patch(
-        "yahoofinance.utils.network.circuit_breaker.get_async_circuit_breaker",
-        return_value=mock_circuit,
-    ), patch(
-        "yahoofinance.utils.async_utils.enhanced.retry_async_with_backoff", side_effect=mock_retry
+    with (
+        patch(
+            "yahoofinance.utils.network.circuit_breaker.get_async_circuit_breaker",
+            return_value=mock_circuit,
+        ),
+        patch(
+            "yahoofinance.utils.async_utils.enhanced.retry_async_with_backoff",
+            side_effect=mock_retry,
+        ),
     ):
-
         # Add the decorator with retries
         decorated = enhanced_async_rate_limited(
             circuit_name="test_circuit", max_retries=2, rate_limiter=limiter
@@ -374,7 +390,6 @@ async def test_enhanced_async_rate_limited_decorator():
         "yahoofinance.utils.network.circuit_breaker.get_async_circuit_breaker",
         return_value=mock_circuit,
     ):
-
         # Add the decorator without retries
         decorated_no_retry = enhanced_async_rate_limited(
             circuit_name="test_circuit", max_retries=0, rate_limiter=limiter

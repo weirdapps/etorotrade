@@ -292,12 +292,12 @@ class TestAnalyzeMarketOpportunities:
         assert "TSLA" in buy_ops.index  # TSLA has buy signal and not in portfolio
 
         # Sell opportunities should include only portfolio holdings with sell signals
-        sell_ops = result["sell_opportunities"]
+        result["sell_opportunities"]
         # GOOGL has sell signal but not in portfolio, so should be empty
         # MSFT is in portfolio but has hold signal
 
         # Hold opportunities should include portfolio holdings with hold signals
-        hold_ops = result["hold_opportunities"]
+        result["hold_opportunities"]
         # MSFT is in portfolio and has hold signal, should be included
 
     @pytest.mark.asyncio
@@ -473,7 +473,7 @@ class TestPortfolioFiltering:
         }
 
         with patch.object(trading_engine.logger, "info") as mock_logger:
-            result = trading_engine.portfolio_service.apply_portfolio_filters(
+            trading_engine.portfolio_service.apply_portfolio_filters(
                 opportunities, sample_portfolio_with_bs
             )
 
@@ -728,7 +728,7 @@ class TestNotradeFiltering:
             temp_path = f.name
 
         try:
-            with patch.object(trading_engine.logger, "warning") as mock_logger:
+            with patch.object(trading_engine.logger, "warning"):
                 result = trading_engine.filter_service.filter_notrade_tickers(
                     sample_market_data_with_bs, temp_path
                 )
@@ -761,7 +761,7 @@ class TestTradingSignalCalculation:
             "calculate_confidence_score",
             return_value=pd.Series([0.8]),
         ):
-            result = trading_engine.analysis_service.calculate_trading_signals(df)
+            trading_engine.analysis_service.calculate_trading_signals(df)
 
         # Should call all calculation functions
         mock_expected.assert_called_once_with(df)

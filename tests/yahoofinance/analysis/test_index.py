@@ -1,9 +1,9 @@
-
 import pandas as pd
 import pytest
 
 from yahoofinance.analysis.market import MarketMetrics
 from yahoofinance.utils.error_handling import safe_operation, with_retry
+
 
 @pytest.fixture
 def sample_metrics():
@@ -20,6 +20,7 @@ def sample_metrics():
         median_peg_ratio=1.5,
     )
 
+
 @pytest.fixture
 def market_data():
     # Create a sample DataFrame that could represent market data
@@ -34,6 +35,7 @@ def market_data():
             "peg_ratio": [1.2, 1.5, 1.8, 2.0],
         }
     )
+
 
 @with_retry
 def test_market_metrics_initialization():
@@ -55,6 +57,7 @@ def test_market_metrics_initialization():
     metrics = MarketMetrics(avg_upside=10.0, median_upside=9.0)
     assert metrics.avg_upside == pytest.approx(10.0, abs=1e-9)
     assert metrics.median_upside == pytest.approx(9.0, abs=1e-9)
+
 
 @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
 def test_metrics_calculation(market_data):
@@ -78,6 +81,7 @@ def test_metrics_calculation(market_data):
     assert metrics.median_upside == pytest.approx(17.5)
     assert metrics.avg_buy_percentage == pytest.approx(82.5)
     assert metrics.median_buy_percentage == pytest.approx(82.5)
+
 
 @safe_operation(default_value=None)
 def test_metrics_properties(sample_metrics):

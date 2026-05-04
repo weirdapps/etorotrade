@@ -11,25 +11,28 @@ from pathlib import Path
 import pytest
 
 from trade_modules.data_freshness import (
-    DataFreshnessTracker,
     FRESH_THRESHOLD,
     PENALTIES,
+    DataFreshnessTracker,
 )
 
 # ============================================================
 # Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def tmp_dir(tmp_path):
     return tmp_path
 
+
 def _write_signal_log(path: Path, records: list) -> Path:
     """Write records to a JSONL file."""
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         for rec in records:
             f.write(json.dumps(rec) + "\n")
     return path
+
 
 def _make_records(
     ticker: str,
@@ -50,25 +53,28 @@ def _make_records(
         if buy_pct_change_day >= 0 and d >= buy_pct_change_day:
             buy_pct = buy_pct_new
 
-        records.append({
-            "ticker": ticker,
-            "signal": signal,
-            "timestamp": dt.isoformat(),
-            "price_at_signal": 100.0,
-            "upside": 15.0,
-            "buy_percentage": buy_pct,
-            "exret": 10.0,
-            "tier": tier,
-            "region": region,
-        })
+        records.append(
+            {
+                "ticker": ticker,
+                "signal": signal,
+                "timestamp": dt.isoformat(),
+                "price_at_signal": 100.0,
+                "upside": 15.0,
+                "buy_percentage": buy_pct,
+                "exret": 10.0,
+                "tier": tier,
+                "region": region,
+            }
+        )
     return records
+
 
 # ============================================================
 # Tests
 # ============================================================
 
-class TestDataFreshnessTracker:
 
+class TestDataFreshnessTracker:
     def test_empty_signal_log(self, tmp_dir):
         """Empty log returns empty dict."""
         log_path = tmp_dir / "empty.jsonl"
@@ -89,8 +95,13 @@ class TestDataFreshnessTracker:
         now = datetime.now()
         # Change buy_percentage 5 days ago
         records = _make_records(
-            "AAPL", "B", now - timedelta(days=20), num_days=20,
-            buy_pct_start=70.0, buy_pct_change_day=15, buy_pct_new=80.0,
+            "AAPL",
+            "B",
+            now - timedelta(days=20),
+            num_days=20,
+            buy_pct_start=70.0,
+            buy_pct_change_day=15,
+            buy_pct_new=80.0,
         )
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
@@ -107,8 +118,13 @@ class TestDataFreshnessTracker:
         now = datetime.now()
         # Change happened 45 days ago, no change since
         records = _make_records(
-            "MSFT", "B", now - timedelta(days=60), num_days=60,
-            buy_pct_start=70.0, buy_pct_change_day=15, buy_pct_new=80.0,
+            "MSFT",
+            "B",
+            now - timedelta(days=60),
+            num_days=60,
+            buy_pct_start=70.0,
+            buy_pct_change_day=15,
+            buy_pct_new=80.0,
         )
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
@@ -124,8 +140,13 @@ class TestDataFreshnessTracker:
         now = datetime.now()
         # Change happened 75 days ago, none since
         records = _make_records(
-            "OLDCO", "H", now - timedelta(days=80), num_days=80,
-            buy_pct_start=50.0, buy_pct_change_day=5, buy_pct_new=60.0,
+            "OLDCO",
+            "H",
+            now - timedelta(days=80),
+            num_days=80,
+            buy_pct_start=50.0,
+            buy_pct_change_day=5,
+            buy_pct_new=60.0,
         )
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
@@ -140,7 +161,10 @@ class TestDataFreshnessTracker:
         """Ticker with no metric changes for >90 days should be dead (CIO M5)."""
         now = datetime.now()
         records = _make_records(
-            "DEADCO", "H", now - timedelta(days=120), num_days=120,
+            "DEADCO",
+            "H",
+            now - timedelta(days=120),
+            num_days=120,
             buy_pct_start=50.0,
         )
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
@@ -158,17 +182,30 @@ class TestDataFreshnessTracker:
 
         # Fresh ticker
         fresh_records = _make_records(
-            "FRESH", "B", now - timedelta(days=10), num_days=10,
-            buy_pct_start=70.0, buy_pct_change_day=5, buy_pct_new=80.0,
+            "FRESH",
+            "B",
+            now - timedelta(days=10),
+            num_days=10,
+            buy_pct_start=70.0,
+            buy_pct_change_day=5,
+            buy_pct_new=80.0,
         )
         # Stale ticker (75 days since last change)
         stale_records = _make_records(
-            "STALE", "H", now - timedelta(days=80), num_days=80,
-            buy_pct_start=50.0, buy_pct_change_day=5, buy_pct_new=60.0,
+            "STALE",
+            "H",
+            now - timedelta(days=80),
+            num_days=80,
+            buy_pct_start=50.0,
+            buy_pct_change_day=5,
+            buy_pct_new=60.0,
         )
         # Dead ticker (120 days, no change)
         dead_records = _make_records(
-            "DEAD", "H", now - timedelta(days=120), num_days=120,
+            "DEAD",
+            "H",
+            now - timedelta(days=120),
+            num_days=120,
             buy_pct_start=50.0,
         )
 
@@ -204,17 +241,19 @@ class TestDataFreshnessTracker:
     def test_single_observation(self, tmp_dir):
         """Ticker with only one observation should be classified as stale."""
         now = datetime.now()
-        records = [{
-            "ticker": "SOLO",
-            "signal": "B",
-            "timestamp": (now - timedelta(days=100)).isoformat(),
-            "price_at_signal": 100.0,
-            "upside": 15.0,
-            "buy_percentage": 70.0,
-            "exret": 10.0,
-            "tier": "mega",
-            "region": "us",
-        }]
+        records = [
+            {
+                "ticker": "SOLO",
+                "signal": "B",
+                "timestamp": (now - timedelta(days=100)).isoformat(),
+                "price_at_signal": 100.0,
+                "upside": 15.0,
+                "buy_percentage": 70.0,
+                "exret": 10.0,
+                "tier": "mega",
+                "region": "us",
+            }
+        ]
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
         tracker = DataFreshnessTracker(signal_log_path=log_path)
@@ -255,14 +294,16 @@ class TestDataFreshnessTracker:
     def test_inconclusive_signals_excluded(self, tmp_dir):
         """Signals with type 'I' (inconclusive) should be excluded."""
         now = datetime.now()
-        records = [{
-            "ticker": "INCO",
-            "signal": "I",
-            "timestamp": now.isoformat(),
-            "buy_percentage": 50.0,
-            "upside": 5.0,
-            "exret": 2.5,
-        }]
+        records = [
+            {
+                "ticker": "INCO",
+                "signal": "I",
+                "timestamp": now.isoformat(),
+                "buy_percentage": 50.0,
+                "upside": 5.0,
+                "exret": 2.5,
+            }
+        ]
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
         tracker = DataFreshnessTracker(signal_log_path=log_path)
@@ -274,8 +315,13 @@ class TestDataFreshnessTracker:
         """Should report which metrics changed last."""
         now = datetime.now()
         records = _make_records(
-            "AAPL", "B", now - timedelta(days=10), num_days=10,
-            buy_pct_start=70.0, buy_pct_change_day=8, buy_pct_new=80.0,
+            "AAPL",
+            "B",
+            now - timedelta(days=10),
+            num_days=10,
+            buy_pct_start=70.0,
+            buy_pct_change_day=8,
+            buy_pct_new=80.0,
         )
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
@@ -290,8 +336,13 @@ class TestDataFreshnessTracker:
         now = datetime.now()
         # buy_percentage changes by only 0.5 (below 2.0 threshold)
         records = _make_records(
-            "TINY", "B", now - timedelta(days=100), num_days=100,
-            buy_pct_start=70.0, buy_pct_change_day=50, buy_pct_new=71.0,
+            "TINY",
+            "B",
+            now - timedelta(days=100),
+            num_days=100,
+            buy_pct_start=70.0,
+            buy_pct_change_day=50,
+            buy_pct_new=71.0,
         )
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
@@ -306,8 +357,13 @@ class TestDataFreshnessTracker:
         """Check all expected fields are present in result."""
         now = datetime.now()
         records = _make_records(
-            "AAPL", "B", now - timedelta(days=10), num_days=10,
-            buy_pct_start=70.0, buy_pct_change_day=5, buy_pct_new=80.0,
+            "AAPL",
+            "B",
+            now - timedelta(days=10),
+            num_days=10,
+            buy_pct_start=70.0,
+            buy_pct_change_day=5,
+            buy_pct_new=80.0,
         )
         log_path = _write_signal_log(tmp_dir / "signal_log.jsonl", records)
 
@@ -315,11 +371,11 @@ class TestDataFreshnessTracker:
         result = tracker.check_freshness(tickers=["AAPL"])
 
         info = result["AAPL"]
-        assert 'days_since_change' in info
-        assert 'staleness' in info
-        assert 'confidence_penalty' in info
-        assert 'last_change_date' in info
-        assert 'metrics_changed' in info
-        assert 'total_observations' in info
-        assert isinstance(info['days_since_change'], int)
-        assert isinstance(info['confidence_penalty'], float)
+        assert "days_since_change" in info
+        assert "staleness" in info
+        assert "confidence_penalty" in info
+        assert "last_change_date" in info
+        assert "metrics_changed" in info
+        assert "total_observations" in info
+        assert isinstance(info["days_since_change"], int)
+        assert isinstance(info["confidence_penalty"], float)

@@ -59,9 +59,7 @@ class TestEstimateHoldingCostPct:
     def test_all_tiers(self):
         """Costs should increase from MEGA to MICRO."""
         tiers = ["MEGA", "LARGE", "MID", "SMALL", "MICRO"]
-        costs = [
-            estimate_holding_cost_pct(tier=t)["total_pct"] for t in tiers
-        ]
+        costs = [estimate_holding_cost_pct(tier=t)["total_pct"] for t in tiers]
         for i in range(len(costs) - 1):
             assert costs[i] < costs[i + 1], (
                 f"{tiers[i]} cost {costs[i]} should be less than "
@@ -98,8 +96,9 @@ class TestEstimateHoldingCostPct:
 
     def test_consistency_with_liquidity_filter(self):
         """Cost model should use same 6.4% annual rate as liquidity_filter."""
-        from trade_modules.liquidity_filter import ETORO_OVERNIGHT_ANNUAL_RATE
         from trade_modules.conviction_sizer import ETORO_OVERNIGHT_ANNUAL_RATE as SIZER_RATE
+        from trade_modules.liquidity_filter import ETORO_OVERNIGHT_ANNUAL_RATE
+
         assert SIZER_RATE == ETORO_OVERNIGHT_ANNUAL_RATE
 
 
@@ -379,7 +378,7 @@ class TestApplyPortfolioConstraints:
         ]
         current_exposures = {
             "Technology": 20.0,  # 20 + 15 = 35 > 25
-            "Energy": 18.0,     # 18 + 12 = 30 > 25
+            "Energy": 18.0,  # 18 + 12 = 30 > 25
             "Healthcare": 5.0,  # 5 + 3 = 8 < 25
         }
         result = apply_portfolio_constraints(
@@ -535,13 +534,16 @@ class TestDampenedClusterSizing:
     def test_not_in_cluster_returns_1(self):
         """Ticker not in any cluster should get 1.0 (no adjustment)."""
         from trade_modules.conviction_sizer import get_cluster_size_adjustment
+
         clusters = [{"tickers": ["MSFT", "GOOG"]}]
         assert get_cluster_size_adjustment("AAPL", clusters) == pytest.approx(1.0)
 
     def test_in_cluster_of_2(self):
         """Cluster of 2: base = 1/sqrt(2) ≈ 0.707, dampened higher."""
-        from trade_modules.conviction_sizer import get_cluster_size_adjustment
         import math
+
+        from trade_modules.conviction_sizer import get_cluster_size_adjustment
+
         clusters = [{"tickers": ["AAPL", "MSFT"]}]
         adj = get_cluster_size_adjustment("AAPL", clusters, conviction=50)
         base = 1.0 / math.sqrt(2)
@@ -551,6 +553,7 @@ class TestDampenedClusterSizing:
     def test_high_conviction_less_penalty(self):
         """High conviction should reduce cluster penalty."""
         from trade_modules.conviction_sizer import get_cluster_size_adjustment
+
         clusters = [{"tickers": ["AAPL", "MSFT", "GOOG"]}]
         adj_low = get_cluster_size_adjustment("AAPL", clusters, conviction=30)
         adj_high = get_cluster_size_adjustment("AAPL", clusters, conviction=80)
@@ -558,8 +561,10 @@ class TestDampenedClusterSizing:
 
     def test_low_conviction_more_penalty(self):
         """Low conviction should keep cluster penalty closer to raw 1/sqrt(N)."""
-        from trade_modules.conviction_sizer import get_cluster_size_adjustment
         import math
+
+        from trade_modules.conviction_sizer import get_cluster_size_adjustment
+
         clusters = [{"tickers": ["AAPL", "MSFT", "GOOG", "AMZN"]}]
         adj = get_cluster_size_adjustment("AAPL", clusters, conviction=0)
         base = 1.0 / math.sqrt(4)
@@ -569,11 +574,13 @@ class TestDampenedClusterSizing:
     def test_empty_clusters(self):
         """Empty clusters list should return 1.0."""
         from trade_modules.conviction_sizer import get_cluster_size_adjustment
+
         assert get_cluster_size_adjustment("AAPL", []) == pytest.approx(1.0)
 
     def test_conviction_capped_at_80_pct(self):
         """Conviction factor should cap at 0.8 (80%)."""
         from trade_modules.conviction_sizer import get_cluster_size_adjustment
+
         clusters = [{"tickers": ["AAPL", "MSFT"]}]
         adj_90 = get_cluster_size_adjustment("AAPL", clusters, conviction=90)
         adj_100 = get_cluster_size_adjustment("AAPL", clusters, conviction=100)
@@ -592,6 +599,7 @@ class TestOpportunityCostSizing:
     def test_below_avg_reduced(self):
         """Positions with conviction > 10 below average should be reduced 10%."""
         from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+
         positions = [
             {"conviction": 40, "position_size": 3.0},
             {"conviction": 60, "position_size": 3.0},
@@ -605,6 +613,7 @@ class TestOpportunityCostSizing:
     def test_above_avg_increased(self):
         """Positions with conviction > 10 above average should be increased 10%."""
         from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+
         positions = [
             {"conviction": 40, "position_size": 3.0},
             {"conviction": 60, "position_size": 3.0},
@@ -618,6 +627,7 @@ class TestOpportunityCostSizing:
     def test_near_avg_unchanged(self):
         """Positions near average should not be adjusted."""
         from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+
         positions = [
             {"conviction": 55, "position_size": 3.0},
             {"conviction": 60, "position_size": 3.0},
@@ -632,6 +642,7 @@ class TestOpportunityCostSizing:
     def test_max_cap_enforced(self):
         """Position size should not exceed max_pct."""
         from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+
         positions = [
             {"conviction": 30, "position_size": 3.0},
             {"conviction": 90, "position_size": 4.8},
@@ -643,6 +654,7 @@ class TestOpportunityCostSizing:
     def test_single_position_unchanged(self):
         """Single position should be returned as-is."""
         from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+
         positions = [{"conviction": 80, "position_size": 3.0}]
         result = adjust_sizes_for_opportunity_cost(positions)
         assert result[0]["position_size"] == pytest.approx(3.0)
@@ -650,4 +662,5 @@ class TestOpportunityCostSizing:
     def test_empty_list(self):
         """Empty list should return empty list."""
         from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
+
         assert adjust_sizes_for_opportunity_cost([]) == []

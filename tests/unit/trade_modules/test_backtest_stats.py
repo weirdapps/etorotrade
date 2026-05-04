@@ -5,9 +5,9 @@ import pytest
 
 from trade_modules.backtest_stats import (
     bootstrap_ci,
+    fdr_correction,
     hit_rate_ci,
     walk_forward_split,
-    fdr_correction,
 )
 
 

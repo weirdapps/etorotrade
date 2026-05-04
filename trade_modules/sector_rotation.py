@@ -11,10 +11,9 @@ CIO Review Finding M6: No sector rotation detection.
 
 import json
 import logging
-from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -30,7 +29,7 @@ SIGNAL_LOG_PATH = Path.home() / ".weirdapps-trading" / "signals" / "signal_log.j
 
 
 def _load_sector_signals(
-    signal_log_path: Optional[Path] = None,
+    signal_log_path: Path | None = None,
     days_back: int = 60,
 ) -> pd.DataFrame:
     """
@@ -51,7 +50,7 @@ def _load_sector_signals(
     cutoff = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
     records = []
 
-    with open(log_path, "r") as f:
+    with open(log_path) as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -75,12 +74,14 @@ def _load_sector_signals(
             if ticker.startswith("TEST") or ticker.startswith("FAKE"):
                 continue
 
-            records.append({
-                "date": timestamp,
-                "ticker": ticker,
-                "signal": signal,
-                "sector": sector,
-            })
+            records.append(
+                {
+                    "date": timestamp,
+                    "ticker": ticker,
+                    "signal": signal,
+                    "sector": sector,
+                }
+            )
 
     if not records:
         return pd.DataFrame()
@@ -92,7 +93,7 @@ def _calculate_sector_buy_rates(
     df: pd.DataFrame,
     start_date: str,
     end_date: str,
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """
     Calculate BUY rate per sector for a date range.
 
@@ -131,10 +132,10 @@ def _calculate_sector_buy_rates(
 
 
 def detect_sector_rotation(
-    signal_log_path: Optional[Path] = None,
+    signal_log_path: Path | None = None,
     lookback_days: int = ROTATION_LOOKBACK_DAYS,
     threshold_pp: float = ROTATION_THRESHOLD_PP,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Detect sector rotation by comparing current vs prior signal distributions.
 
@@ -186,21 +187,25 @@ def detect_sector_rotation(
         delta = curr_buy - prior_buy
 
         if delta >= threshold_pp:
-            gaining.append({
-                "sector": sector,
-                "current_buy_rate": curr_buy,
-                "prior_buy_rate": prior_buy,
-                "delta_pp": round(delta, 1),
-                "stock_count": current_rates[sector]["count"],
-            })
+            gaining.append(
+                {
+                    "sector": sector,
+                    "current_buy_rate": curr_buy,
+                    "prior_buy_rate": prior_buy,
+                    "delta_pp": round(delta, 1),
+                    "stock_count": current_rates[sector]["count"],
+                }
+            )
         elif delta <= -threshold_pp:
-            losing.append({
-                "sector": sector,
-                "current_buy_rate": curr_buy,
-                "prior_buy_rate": prior_buy,
-                "delta_pp": round(delta, 1),
-                "stock_count": current_rates[sector]["count"],
-            })
+            losing.append(
+                {
+                    "sector": sector,
+                    "current_buy_rate": curr_buy,
+                    "prior_buy_rate": prior_buy,
+                    "delta_pp": round(delta, 1),
+                    "stock_count": current_rates[sector]["count"],
+                }
+            )
 
     # Sort by magnitude
     gaining.sort(key=lambda x: x["delta_pp"], reverse=True)
@@ -227,9 +232,9 @@ def detect_sector_rotation(
 
 
 def detect_price_based_rotation(
-    sector_returns: Dict[str, Dict[str, float]],
+    sector_returns: dict[str, dict[str, float]],
     threshold_pp: float = 5.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Detect sector rotation using price-based relative strength.
 
@@ -257,19 +262,23 @@ def detect_price_based_rotation(
         momentum_change = current - prior
 
         if momentum_change >= threshold_pp:
-            gaining.append({
-                "sector": sector,
-                "current_return": round(current, 1),
-                "prior_return": round(prior, 1),
-                "momentum_change_pp": round(momentum_change, 1),
-            })
+            gaining.append(
+                {
+                    "sector": sector,
+                    "current_return": round(current, 1),
+                    "prior_return": round(prior, 1),
+                    "momentum_change_pp": round(momentum_change, 1),
+                }
+            )
         elif momentum_change <= -threshold_pp:
-            losing.append({
-                "sector": sector,
-                "current_return": round(current, 1),
-                "prior_return": round(prior, 1),
-                "momentum_change_pp": round(momentum_change, 1),
-            })
+            losing.append(
+                {
+                    "sector": sector,
+                    "current_return": round(current, 1),
+                    "prior_return": round(prior, 1),
+                    "momentum_change_pp": round(momentum_change, 1),
+                }
+            )
 
     gaining.sort(key=lambda x: x["momentum_change_pp"], reverse=True)
     losing.sort(key=lambda x: x["momentum_change_pp"])
@@ -293,10 +302,10 @@ def detect_price_based_rotation(
 
 
 def detect_combined_rotation(
-    signal_log_path: Optional[Path] = None,
-    sector_returns: Optional[Dict[str, Dict[str, float]]] = None,
+    signal_log_path: Path | None = None,
+    sector_returns: dict[str, dict[str, float]] | None = None,
     lookback_days: int = ROTATION_LOOKBACK_DAYS,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Combine signal-based and price-based rotation detection.
 
@@ -348,7 +357,8 @@ def detect_combined_rotation(
         confidence = "NONE"
 
     return {
-        "rotation_detected": signal_result["rotation_detected"] or price_result["rotation_detected"],
+        "rotation_detected": signal_result["rotation_detected"]
+        or price_result["rotation_detected"],
         "confidence": confidence,
         "confirmed_gaining": sorted(confirmed_gaining),
         "confirmed_losing": sorted(confirmed_losing),
@@ -359,7 +369,7 @@ def detect_combined_rotation(
     }
 
 
-def get_rotation_context() -> Dict[str, Any]:
+def get_rotation_context() -> dict[str, Any]:
     """
     Get sector rotation context for inclusion in committee reports and briefings.
 

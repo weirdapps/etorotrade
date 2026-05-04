@@ -14,20 +14,20 @@ P1 Improvement - Implemented from HEDGE_FUND_REVIEW.md recommendations.
 """
 
 import logging
-from typing import Dict, Optional, Tuple
+import threading
 from datetime import datetime, timedelta
 from enum import Enum
-import threading
 
 logger = logging.getLogger(__name__)
 
 
 class VixRegime(Enum):
     """Market volatility regimes based on VIX levels."""
-    LOW = "low"            # VIX < 15: Complacent market
-    NORMAL = "normal"      # VIX 15-25: Normal volatility
+
+    LOW = "low"  # VIX < 15: Complacent market
+    NORMAL = "normal"  # VIX 15-25: Normal volatility
     ELEVATED = "elevated"  # VIX 25-35: Elevated concern
-    HIGH = "high"          # VIX > 35: High fear
+    HIGH = "high"  # VIX > 35: High fear
 
 
 # VIX threshold boundaries
@@ -46,15 +46,15 @@ VIX_THRESHOLDS = {
 # Historical context: Previously adjusted thresholds based on VIX regime, but this
 # contradicted position sizing adjustments (loosening BUY criteria while reducing size).
 # New philosophy: Consistent signal quality, variable bet sizing.
-REGIME_ADJUSTMENTS: Dict[VixRegime, Dict[str, float]] = {
+REGIME_ADJUSTMENTS: dict[VixRegime, dict[str, float]] = {
     VixRegime.LOW: {
-        "min_upside_multiplier": 1.0,      # No adjustment
-        "min_buy_pct_multiplier": 1.0,     # No adjustment
-        "min_exret_multiplier": 1.0,       # No adjustment
-        "min_analysts_offset": 0,          # No adjustment
-        "max_upside_sell_offset": 0.0,     # No adjustment
-        "max_pct_52w_buy_multiplier": 1.0, # No adjustment
-        "max_pe_multiplier": 1.0,          # No adjustment
+        "min_upside_multiplier": 1.0,  # No adjustment
+        "min_buy_pct_multiplier": 1.0,  # No adjustment
+        "min_exret_multiplier": 1.0,  # No adjustment
+        "min_analysts_offset": 0,  # No adjustment
+        "max_upside_sell_offset": 0.0,  # No adjustment
+        "max_pct_52w_buy_multiplier": 1.0,  # No adjustment
+        "max_pe_multiplier": 1.0,  # No adjustment
     },
     VixRegime.NORMAL: {
         "min_upside_multiplier": 1.0,
@@ -66,22 +66,22 @@ REGIME_ADJUSTMENTS: Dict[VixRegime, Dict[str, float]] = {
         "max_pe_multiplier": 1.0,
     },
     VixRegime.ELEVATED: {
-        "min_upside_multiplier": 1.0,      # No adjustment
-        "min_buy_pct_multiplier": 1.0,     # No adjustment
-        "min_exret_multiplier": 1.0,       # No adjustment
-        "min_analysts_offset": 0,          # No adjustment
-        "max_upside_sell_offset": 0.0,     # No adjustment
-        "max_pct_52w_buy_multiplier": 1.0, # No adjustment
-        "max_pe_multiplier": 1.0,          # No adjustment
+        "min_upside_multiplier": 1.0,  # No adjustment
+        "min_buy_pct_multiplier": 1.0,  # No adjustment
+        "min_exret_multiplier": 1.0,  # No adjustment
+        "min_analysts_offset": 0,  # No adjustment
+        "max_upside_sell_offset": 0.0,  # No adjustment
+        "max_pct_52w_buy_multiplier": 1.0,  # No adjustment
+        "max_pe_multiplier": 1.0,  # No adjustment
     },
     VixRegime.HIGH: {
-        "min_upside_multiplier": 1.0,      # No adjustment
-        "min_buy_pct_multiplier": 1.0,     # No adjustment
-        "min_exret_multiplier": 1.0,       # No adjustment
-        "min_analysts_offset": 0,          # No adjustment
-        "max_upside_sell_offset": 0.0,     # No adjustment
-        "max_pct_52w_buy_multiplier": 1.0, # No adjustment
-        "max_pe_multiplier": 1.0,          # No adjustment
+        "min_upside_multiplier": 1.0,  # No adjustment
+        "min_buy_pct_multiplier": 1.0,  # No adjustment
+        "min_exret_multiplier": 1.0,  # No adjustment
+        "min_analysts_offset": 0,  # No adjustment
+        "max_upside_sell_offset": 0.0,  # No adjustment
+        "max_pct_52w_buy_multiplier": 1.0,  # No adjustment
+        "max_pe_multiplier": 1.0,  # No adjustment
     },
 }
 
@@ -89,25 +89,26 @@ REGIME_ADJUSTMENTS: Dict[VixRegime, Dict[str, float]] = {
 # In high volatility, reduce position sizes to manage risk.
 # The signal engine loosens BUY criteria to capture quality at a discount,
 # but we must simultaneously reduce position sizes.
-REGIME_POSITION_MULTIPLIERS: Dict[VixRegime, float] = {
-    VixRegime.LOW: 1.00,       # Normal sizing
-    VixRegime.NORMAL: 1.00,    # Normal sizing
+REGIME_POSITION_MULTIPLIERS: dict[VixRegime, float] = {
+    VixRegime.LOW: 1.00,  # Normal sizing
+    VixRegime.NORMAL: 1.00,  # Normal sizing
     VixRegime.ELEVATED: 0.75,  # Reduce 25%
-    VixRegime.HIGH: 0.50,      # Reduce 50%
+    VixRegime.HIGH: 0.50,  # Reduce 50%
 }
 
 
 # Cache for VIX data
-_vix_cache: Optional[float] = None
-_vix_cache_timestamp: Optional[datetime] = None
+_vix_cache: float | None = None
+_vix_cache_timestamp: datetime | None = None
 _vix_cache_lock = threading.Lock()
 _VIX_CACHE_TTL_MINUTES = 30  # Refresh every 30 minutes (VIX is more volatile)
 
 
-def _fetch_vix() -> Optional[float]:
+def _fetch_vix() -> float | None:
     """Fetch current VIX level from Yahoo Finance."""
     try:
         import yfinance as yf
+
         ticker = yf.Ticker("^VIX")
         hist = ticker.history(period="1d")
         if hist is not None and not hist.empty:
@@ -127,7 +128,7 @@ def _is_cache_valid() -> bool:
     return datetime.now() - _vix_cache_timestamp < timedelta(minutes=_VIX_CACHE_TTL_MINUTES)
 
 
-def get_current_vix() -> Optional[float]:
+def get_current_vix() -> float | None:
     """
     Get current VIX level.
 
@@ -175,7 +176,7 @@ def get_vix_regime() -> VixRegime:
         return VixRegime.HIGH
 
 
-def get_regime_adjustments() -> Dict[str, float]:
+def get_regime_adjustments() -> dict[str, float]:
     """
     Get threshold adjustment multipliers for current VIX regime.
 
@@ -186,7 +187,7 @@ def get_regime_adjustments() -> Dict[str, float]:
     return REGIME_ADJUSTMENTS[regime].copy()
 
 
-def adjust_buy_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict:
+def adjust_buy_criteria(criteria: dict, apply_adjustments: bool = True) -> dict:
     """
     Adjust buy criteria based on current VIX regime.
 
@@ -220,7 +221,9 @@ def adjust_buy_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict:
         adjusted["min_buy_percentage"] = round(original * adjustments["min_buy_pct_multiplier"], 1)
         adjusted["min_buy_percentage"] = min(adjusted["min_buy_percentage"], 95.0)
         if adjusted["min_buy_percentage"] != original:
-            logger.debug(f"VIX regime: min_buy_percentage adjusted {original} -> {adjusted['min_buy_percentage']}")
+            logger.debug(
+                f"VIX regime: min_buy_percentage adjusted {original} -> {adjusted['min_buy_percentage']}"
+            )
 
     # Adjust min_exret
     if "min_exret" in adjusted:
@@ -234,7 +237,9 @@ def adjust_buy_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict:
         original = adjusted["min_analysts"]
         adjusted["min_analysts"] = max(4, original + adjustments["min_analysts_offset"])
         if adjusted["min_analysts"] != original:
-            logger.debug(f"VIX regime: min_analysts adjusted {original} -> {adjusted['min_analysts']}")
+            logger.debug(
+                f"VIX regime: min_analysts adjusted {original} -> {adjusted['min_analysts']}"
+            )
 
     # Adjust min_pct_from_52w_high
     if "min_pct_from_52w_high" in adjusted:
@@ -243,7 +248,9 @@ def adjust_buy_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict:
             original * adjustments["max_pct_52w_buy_multiplier"], 1
         )
         if adjusted["min_pct_from_52w_high"] != original:
-            logger.debug(f"VIX regime: min_pct_from_52w_high adjusted {original} -> {adjusted['min_pct_from_52w_high']}")
+            logger.debug(
+                f"VIX regime: min_pct_from_52w_high adjusted {original} -> {adjusted['min_pct_from_52w_high']}"
+            )
 
     # Adjust PE caps
     pe_multiplier = adjustments["max_pe_multiplier"]
@@ -257,7 +264,7 @@ def adjust_buy_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict:
     return adjusted
 
 
-def adjust_sell_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict:
+def adjust_sell_criteria(criteria: dict, apply_adjustments: bool = True) -> dict:
     """
     Adjust sell criteria based on current VIX regime.
 
@@ -283,22 +290,24 @@ def adjust_sell_criteria(criteria: Dict, apply_adjustments: bool = True) -> Dict
         original = adjusted["max_upside"]
         adjusted["max_upside"] = round(original + adjustments["max_upside_sell_offset"], 1)
         if adjusted["max_upside"] != original:
-            logger.debug(f"VIX regime: sell max_upside adjusted {original} -> {adjusted['max_upside']}")
+            logger.debug(
+                f"VIX regime: sell max_upside adjusted {original} -> {adjusted['max_upside']}"
+            )
 
     # Adjust max_exret for sells (in high VIX, require worse exret to trigger sell)
     if "max_exret" in adjusted:
         original = adjusted["max_exret"]
         # In risk-off, increase the exret threshold (harder to trigger sell)
-        adjusted["max_exret"] = round(
-            original + adjustments["max_upside_sell_offset"] * 0.4, 1
-        )
+        adjusted["max_exret"] = round(original + adjustments["max_upside_sell_offset"] * 0.4, 1)
         if adjusted["max_exret"] != original:
-            logger.debug(f"VIX regime: sell max_exret adjusted {original} -> {adjusted['max_exret']}")
+            logger.debug(
+                f"VIX regime: sell max_exret adjusted {original} -> {adjusted['max_exret']}"
+            )
 
     return adjusted
 
 
-def get_adjusted_thresholds(base_config: Dict, config_type: str = "buy") -> Dict:
+def get_adjusted_thresholds(base_config: dict, config_type: str = "buy") -> dict:
     """
     Get regime-adjusted thresholds for a tier-region config block.
 
@@ -331,13 +340,11 @@ def get_position_size_multiplier() -> float:
     regime = get_vix_regime()
     multiplier = REGIME_POSITION_MULTIPLIERS.get(regime, 1.0)
     if multiplier < 1.0:
-        logger.info(
-            f"VIX regime {regime.value}: position size multiplier = {multiplier:.2f}"
-        )
+        logger.info(f"VIX regime {regime.value}: position size multiplier = {multiplier:.2f}")
     return multiplier
 
 
-def get_regime_context() -> Dict:
+def get_regime_context() -> dict:
     """
     Get regime context summary for inclusion in committee reports.
 
@@ -381,7 +388,7 @@ def get_regime_context() -> Dict:
     }
 
 
-def get_regime_status() -> Tuple[VixRegime, float, str]:
+def get_regime_status() -> tuple[VixRegime, float, str]:
     """
     Get current VIX regime status for display.
 

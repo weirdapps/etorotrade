@@ -124,46 +124,88 @@ import logging
 import math
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-__version__ = "v35.0"
+__version__ = "v36.0"
 
-# CIO v35.0: Active modifier set. Only modifiers in this set influence
-# conviction scoring. Disabled modifiers are still computed as shadow
-# values in the waterfall (prefixed with "~") for comparison tracking.
-# Reviewed all 63 modifiers against T+30 forward returns (group comparison,
-# correlation, academic literature) on 2026-05-02 with portfolio manager.
-ACTIVE_MODIFIERS = {
-    "census_alignment",         # +3/+5 (reduced from +5/+8, pending top-100 census fix)
-    "revenue_growth",           # -5/+8 (near-significant r=0.35, Novy-Marx 2013)
-    "eps_revisions_up",         # +5/+8 (increased from +3/+7, PEAD literature)
-    "eps_revisions_down",       # -5 (increased from -3, symmetric with up)
-    "earnings_surprise",        # -5/+10 (increased bonus from +8, Bernard & Thomas 1989)
-    "iv_low_entry",             # +5 (increased from +2, significant p=0.047)
-    "news_catalyst_neg",        # -8 (increased from -5, Tetlock 2007)
-    "news_catalyst_pos",        # +5 (unchanged, news momentum)
-    "target_consensus",         # +2 (unchanged, Diether et al. 2002)
-    "piotroski_quality",        # +3 (unchanged, Asness et al. quality factor)
-    "fcf_quality_strong",       # +2 (unchanged, quality signal)
-    "currency_risk_USD",        # -3 (unchanged, real FX risk)
-    "currency_risk_HKD",        # -2 (unchanged)
-    "currency_risk_JPY",        # -2 (unchanged)
-    "currency_risk_GBP",        # -2 (unchanged)
-    "signal_velocity",          # -5/+5 (unchanged, signal momentum)
-    "sector_rotation",          # -5/+5 (unchanged, Conover et al. 2008)
-    "sector_concentration",     # -10/+1 (reduced max from -15)
-    "dividend_yield_trap",      # -5 (unchanged, Fuller & Goldstein 2011)
-    "short_interest_weakness",  # -3 (unchanged, Desai et al. 2002)
-    "iv_x_earnings",            # -5 (reduced from -9, Ni et al. 2008)
-    "volume_confirm",           # +3 (unchanged, Campbell et al. 1993)
+# CIO v36.0 — Empirical Refoundation (2026-05-04)
+#
+# Two modifier sets coexist:
+#
+# V35_ACTIVE_MODIFIERS (22, literature-validated) — the historical default.
+# V36_ACTIVE_MODIFIERS (6, empirically-validated by M11 calibrator).
+#
+# ACTIVE_MODIFIERS resolves at import time based on the
+# CIO_V36_NEW_MODIFIERS env var:
+#   unset / "0"  → V35_ACTIVE_MODIFIERS (safe default)
+#   "1"          → V36_ACTIVE_MODIFIERS (new empirically-grounded set)
+#
+# Best-practice rationale (CIO v36 N3): the v35 → v36 swap is a research
+# conclusion that needs A/B shadow validation before becoming default.
+# Operators run with the env var ON to test; default stays V35 until
+# accumulated forward-return evidence justifies the flip.
+#
+# To switch to v36 in production:
+#     export CIO_V36_NEW_MODIFIERS=1
+#
+# Re-run scripts/calibrate_modifiers_t30.py weekly. Promote a modifier to
+# V36 only when verdict is PREDICTIVE or WEAK with n≥100. Demote SHADOW
+# entries with n≥150 confirming no edge.
+
+V35_ACTIVE_MODIFIERS = {
+    # Literature-validated set (CIO v35.0). Default until v36 evidence.
+    "census_alignment",  # +3/+5 (Novy-Marx-style alignment)
+    "revenue_growth",  # -5/+8 (Novy-Marx 2013)
+    "eps_revisions_up",  # +5/+8 (PEAD literature)
+    "eps_revisions_down",  # -5
+    "earnings_surprise",  # -5/+10 (Bernard & Thomas 1989)
+    "iv_low_entry",  # +5
+    "news_catalyst_neg",  # -8 (Tetlock 2007)
+    "news_catalyst_pos",  # +5
+    "target_consensus",  # +2 (Diether et al. 2002)
+    "piotroski_quality",  # +3 (Asness et al. quality factor)
+    "fcf_quality_strong",  # +2
+    "currency_risk_USD",  # -3
+    "currency_risk_HKD",  # -2
+    "currency_risk_JPY",  # -2
+    "currency_risk_GBP",  # -2
+    "signal_velocity",  # -5/+5
+    "sector_rotation",  # -5/+5 (Conover et al. 2008)
+    "sector_concentration",  # -10/+1
+    "dividend_yield_trap",  # -5 (Fuller & Goldstein 2011)
+    "short_interest_weakness",  # -3 (Desai et al. 2002)
+    "iv_x_earnings",  # -5 (Ni et al. 2008)
+    "volume_confirm",  # +3 (Campbell et al. 1993)
 }
+
+V36_ACTIVE_MODIFIERS = {
+    # Empirically-validated set from M11 calibrator (n=5,801 obs T+30).
+    # See ~/.weirdapps-trading/committee/modifier_t30_calibration.json.
+    "sector_concentration",  # PREDICTIVE  ρ=−0.32 n=202 (-10/+1)
+    "consensus_crowded",  # PREDICTIVE  ρ=+0.18 n=226
+    "tech_disagree",  # PREDICTIVE  ρ=+0.26 n= 66
+    "revenue_growth",  # MARGINAL    ρ=+0.13 n=180
+    "earnings_surprise",  # PEAD precedent; n<30 calibration sample
+    "signal_velocity",  # SHADOW      n= 33 too small to drop
+}
+
+
+def _resolve_active_modifiers():
+    """Pick V35 or V36 based on env var. Re-evaluated on every import."""
+    flag = os.environ.get("CIO_V36_NEW_MODIFIERS", "0")
+    if str(flag).strip().lower() in ("1", "true", "yes", "on"):
+        return V36_ACTIVE_MODIFIERS
+    return V35_ACTIVE_MODIFIERS
+
+
+ACTIVE_MODIFIERS = _resolve_active_modifiers()
 
 CIRCUIT_BREAKER_PATH = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
 
 
-def filter_waterfall(waterfall: Dict[str, int]) -> Tuple[int, int, Dict[str, int]]:
+def filter_waterfall(waterfall: dict[str, int]) -> tuple[int, int, dict[str, int]]:
     """Filter waterfall to only active modifiers, shadow-tracking disabled ones.
 
     CIO v35.0: After all modifiers are computed, this function separates
@@ -190,7 +232,7 @@ def filter_waterfall(waterfall: Dict[str, int]) -> Tuple[int, int, Dict[str, int
     return bonuses, penalties, filtered
 
 
-def load_circuit_breaker() -> Dict[str, Any]:
+def load_circuit_breaker() -> dict[str, Any]:
     """Load portfolio circuit breaker state from etoro-portfolio.
 
     Returns dict with level, position_size_multiplier, new_positions_allowed.
@@ -210,6 +252,87 @@ def load_circuit_breaker() -> Dict[str, Any]:
     except Exception as e:
         logger.warning("Failed to read circuit breaker: %s", e)
     return {"level": "NORMAL", "position_size_multiplier": 1.0, "new_positions_allowed": True}
+
+
+# ---------------------------------------------------------------------------
+# Signal Transparency Bridge (CIO v35.1)
+# ---------------------------------------------------------------------------
+
+SIGNAL_LOG_PATH = Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_log.jsonl"
+
+
+def load_signal_triggers(
+    log_path: Path | None = None,
+    max_age_hours: int = 48,
+) -> dict[str, dict[str, Any]]:
+    """Load most recent sell_triggers from signal_log.jsonl.
+
+    Reads the signal log tail-first, keeping the most recent entry per ticker.
+    Returns a dict of ticker -> {sell_triggers, sell_score, signal, timestamp}.
+    """
+    path = log_path or SIGNAL_LOG_PATH
+    if not path.exists():
+        logger.warning("Signal log not found: %s", path)
+        return {}
+
+    from datetime import datetime, timedelta
+
+    cutoff = (datetime.now() - timedelta(hours=max_age_hours)).isoformat()
+
+    result: dict[str, dict[str, Any]] = {}
+    try:
+        with open(path) as f:
+            for line in f:
+                try:
+                    entry = json.loads(line.strip())
+                except json.JSONDecodeError:
+                    continue
+                ts = entry.get("timestamp", "")
+                if ts < cutoff:
+                    continue
+                ticker = entry.get("ticker", "")
+                if not ticker:
+                    continue
+                result[ticker] = {
+                    "sell_triggers": entry.get("sell_triggers", []),
+                    "signal": entry.get("signal", ""),
+                    "timestamp": ts,
+                }
+        logger.info("Loaded signal triggers for %d tickers from %s", len(result), path)
+    except Exception as e:
+        logger.warning("Failed to read signal log: %s", e)
+    return result
+
+
+def classify_trigger_strength(triggers: list[str]) -> str:
+    """Classify sell trigger strength as STRONG/MODERATE/WEAK/NONE."""
+    if not triggers:
+        return "NONE"
+    # Filter out non-sell markers
+    real = [t for t in triggers if t not in ("", "earnings_proximity_hold")]
+    if not real:
+        return "NONE"
+    hard = [
+        t
+        for t in real
+        if any(
+            k in t
+            for k in (
+                "catastrophic",
+                "extreme_leverage",
+                "very_low_exret",
+                "max_pct_from_52w_high",
+                "hard_trigger",
+            )
+        )
+    ]
+    if hard:
+        return "STRONG"
+    if len(real) >= 3:
+        return "STRONG"
+    if len(real) >= 2:
+        return "MODERATE"
+    return "WEAK"
 
 
 # ---------------------------------------------------------------------------
@@ -244,9 +367,17 @@ def canonicalize_impact(raw: str) -> str:
         return mapped
     # Substring fallback for unknown variants
     if "POSITIVE" in upper or "BULLISH" in upper:
-        return "HIGH_POSITIVE" if any(w in upper for w in ("HIGH", "VERY", "STRONG")) else "LOW_POSITIVE"
+        return (
+            "HIGH_POSITIVE"
+            if any(w in upper for w in ("HIGH", "VERY", "STRONG"))
+            else "LOW_POSITIVE"
+        )
     if "NEGATIVE" in upper or "BEARISH" in upper:
-        return "HIGH_NEGATIVE" if any(w in upper for w in ("HIGH", "VERY", "STRONG")) else "LOW_NEGATIVE"
+        return (
+            "HIGH_NEGATIVE"
+            if any(w in upper for w in ("HIGH", "VERY", "STRONG"))
+            else "LOW_NEGATIVE"
+        )
     return upper  # Pass through NEUTRAL, MIXED, etc.
 
 
@@ -259,7 +390,7 @@ def canonicalize_impact(raw: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _normalize_fund_stocks(fund_report: Dict) -> Dict:
+def _normalize_fund_stocks(fund_report: dict) -> dict:
     """Ensure fund_report['stocks'] is dict of ticker -> data.
 
     Agents sometimes return a list of dicts with 'ticker' keys instead
@@ -274,11 +405,13 @@ def _normalize_fund_stocks(fund_report: Dict) -> Dict:
                 if tkr:
                     normalized[tkr] = item
         fund_report["stocks"] = normalized
-        logger.info("Normalized fund_report['stocks'] from list (%d items) to dict", len(normalized))
+        logger.info(
+            "Normalized fund_report['stocks'] from list (%d items) to dict", len(normalized)
+        )
     return fund_report
 
 
-def _normalize_census_divergences(census_report: Dict) -> Dict:
+def _normalize_census_divergences(census_report: dict) -> dict:
     """Ensure census_report['divergences'] is structured dict of lists of dicts.
 
     Expected: {signal_divergences: [...], census_divergences: [...], consensus_aligned: [...]}
@@ -334,12 +467,167 @@ def _normalize_census_divergences(census_report: Dict) -> Dict:
     return census_report
 
 
-def _normalize_breaking_news(news_report: Dict) -> Dict:
+# CIO v36 / M1 — Empirical Refoundation
+#
+# Hardcoded placeholder breaking_news fingerprints from
+# ~/.weirdapps-trading/committee/scripts/fetch_news_events.py:142-181.
+# These fictional headlines have been shipping to production every committee
+# run, biasing regime momentum scoring (compute_regime_momentum:1100). We
+# reject reports containing them so the news_catalyst modifier and the
+# breaking_news regime signal do not consume fabricated data.
+#
+# When real news is fetched (e.g. via news-reader MCP), these specific
+# strings will not appear; if they do, they are still rejected because the
+# downside (treating fake as real) is worse than the cost of a freak match.
+_PLACEHOLDER_HEADLINE_FINGERPRINTS = (
+    "fed maintains rates, signals data-dependent approach",
+    "ai chip demand remains robust despite china export restrictions",
+)
+
+
+class BrokenAgentReportError(RuntimeError):
+    """Raised when an agent JSON report is unusable.
+
+    CIO v36 / M15: today's news.json and census.json have been HTTP error
+    blobs (OAuth 401) but the committee silently fed empty stubs to
+    synthesis. Raising on first sight gives the operator a clear signal
+    that the upstream agent failed and the run should not proceed with
+    fake all-clear data.
+    """
+
+
+def validate_agent_report(report: Any, agent_name: str) -> dict[str, Any]:
+    """Validate an agent JSON report.
+
+    Returns the report unchanged when valid. Raises BrokenAgentReportError
+    when the report is None / non-dict / HTTP error envelope. Reports
+    declaring `data_status: "INSUFFICIENT_DATA"` are logged but pass through
+    so synthesis can apply graceful-degradation defaults.
+
+    Used by load_agent_report() and inline at the read sites in
+    committee_html.generate_report_from_files.
+    """
+    if not isinstance(report, dict):
+        raise BrokenAgentReportError(
+            f"{agent_name} report is not a dict: type={type(report).__name__}"
+        )
+
+    if "error" in report and "error_description" in report:
+        raise BrokenAgentReportError(
+            f"{agent_name} report is an HTTP error envelope: "
+            f"error={report.get('error')!r} desc={report.get('error_description')!r}"
+        )
+
+    status = str(report.get("data_status", "")).upper()
+    if status == "INSUFFICIENT_DATA":
+        logger.warning(
+            "%s report flags data_status=INSUFFICIENT_DATA — synthesis will degrade gracefully",
+            agent_name,
+        )
+    elif status == "ERROR":
+        raise BrokenAgentReportError(f"{agent_name} report self-declares data_status=ERROR")
+    return report
+
+
+def load_agent_report(path: Any, agent_name: str) -> dict[str, Any]:
+    """Load an agent JSON report from disk and validate it.
+
+    Raises FileNotFoundError if the path doesn't exist; BrokenAgentReportError
+    on invalid JSON, HTTP error envelopes, or non-dict roots.
+    """
+    from pathlib import Path as _Path
+
+    p = _Path(path) if not isinstance(path, _Path) else path
+    if not p.exists():
+        raise FileNotFoundError(f"{agent_name} report missing at {p}")
+    try:
+        with open(p) as f:
+            report = json.load(f)
+    except json.JSONDecodeError as exc:
+        raise BrokenAgentReportError(
+            f"{agent_name} report is malformed JSON at {p}: {exc}"
+        ) from exc
+    return validate_agent_report(report, agent_name)
+
+
+def validate_news_report(report: dict[str, Any]) -> str:
+    """Classify a news report's data integrity.
+
+    Returns one of:
+      - "ERROR"       — HTTP/OAuth error envelope (`error` + `error_description`)
+      - "PLACEHOLDER" — known fabricated headlines or explicit placeholder marker
+      - "EMPTY"       — no breaking_news content
+      - "OK"          — appears to be real, current news data
+
+    Synthesis must skip the news_catalyst modifier and the breaking_news
+    regime-momentum signal whenever this returns anything other than OK.
+    """
+    if not isinstance(report, dict):
+        return "ERROR"
+
+    # 1) HTTP error envelope: outlook-cli/news-reader OAuth blob, etc.
+    if "error" in report and "error_description" in report:
+        return "ERROR"
+
+    # 2) Explicit data_status set by upstream fetcher
+    status = str(report.get("data_status", "")).upper()
+    if status in {"PLACEHOLDER", "ERROR", "INSUFFICIENT_DATA"}:
+        return "PLACEHOLDER" if status == "PLACEHOLDER" else "ERROR"
+
+    # 3) Inspect breaking_news for known hardcoded fingerprints
+    bn = report.get("breaking_news", [])
+    if isinstance(bn, dict):
+        # Flatten any category-grouped news for fingerprint scan
+        flat = []
+        for items in bn.values():
+            if isinstance(items, list):
+                flat.extend(items)
+        bn = flat
+    if not isinstance(bn, list) or not bn:
+        return "EMPTY"
+
+    headlines = [str(item.get("headline", "")).lower() for item in bn if isinstance(item, dict)]
+    if not headlines:
+        return "EMPTY"
+
+    placeholder_hits = sum(
+        1 for h in headlines if any(fp in h for fp in _PLACEHOLDER_HEADLINE_FINGERPRINTS)
+    )
+    # Even a single placeholder hit is a fail — these strings should never
+    # come from a real news source.
+    if placeholder_hits > 0:
+        return "PLACEHOLDER"
+
+    return "OK"
+
+
+def _normalize_breaking_news(news_report: dict) -> dict:
     """Ensure news_report['breaking_news'] is a list of dicts.
 
     Agents sometimes return a dict of category_name -> list_of_items
     instead of a flat list.
+
+    CIO v36 / M1: Also runs validate_news_report and clears breaking_news
+    when the report is an HTTP error envelope or contains hardcoded
+    placeholder headlines. Records the verdict at news_data_status so the
+    synthesis pipeline can skip news-derived modifiers cleanly.
     """
+    status = validate_news_report(news_report)
+    news_report["news_data_status"] = status
+    if status in ("ERROR", "PLACEHOLDER"):
+        # Strip fabricated/erroneous news so it cannot bias regime scoring,
+        # the news_catalyst modifier, or per-ticker news impact.
+        if news_report.get("breaking_news"):
+            logger.warning(
+                "Rejected breaking_news (status=%s): clearing %d entries",
+                status,
+                len(news_report.get("breaking_news") or [])
+                if isinstance(news_report.get("breaking_news"), list)
+                else 1,
+            )
+        news_report["breaking_news"] = []
+        return news_report
+
     bn = news_report.get("breaking_news", [])
     if isinstance(bn, dict):
         flat = []
@@ -362,12 +650,15 @@ def _normalize_breaking_news(news_report: Dict) -> Dict:
                     entry["affected_sectors"] = entry.get("sectors", [])
                 flat.append(entry)
         news_report["breaking_news"] = flat
-        logger.info("Normalized breaking_news from dict (%d categories) to list (%d items)",
-                     len(bn), len(flat))
+        logger.info(
+            "Normalized breaking_news from dict (%d categories) to list (%d items)",
+            len(bn),
+            len(flat),
+        )
     return news_report
 
 
-def _normalize_sector_rankings(macro_report: Dict) -> Dict:
+def _normalize_sector_rankings(macro_report: dict) -> dict:
     """Ensure macro_report['sector_rankings'] is dict of ETF/sector -> data.
 
     Agents sometimes return a list of dicts with 'sector'/'etf' keys
@@ -384,7 +675,9 @@ def _normalize_sector_rankings(macro_report: Dict) -> Dict:
                 sr_dict[key] = {
                     "return_1m": item.get("1m_return", item.get("return_1m", 0)),
                     "return_3m": item.get("3m_return", item.get("return_3m", 0)),
-                    "relative_strength": item.get("status", item.get("relative_strength", "NEUTRAL")),
+                    "relative_strength": item.get(
+                        "status", item.get("relative_strength", "NEUTRAL")
+                    ),
                     "rank": item.get("rank", 6),
                 }
         macro_report["sector_rankings"] = sr_dict
@@ -392,7 +685,7 @@ def _normalize_sector_rankings(macro_report: Dict) -> Dict:
     return macro_report
 
 
-def _normalize_portfolio_news(news_report: Dict) -> Dict:
+def _normalize_portfolio_news(news_report: dict) -> dict:
     """Ensure news_report['portfolio_news'] is dict of ticker -> list of news items.
 
     Agents sometimes return a list of dicts with 'ticker' keys instead
@@ -400,7 +693,7 @@ def _normalize_portfolio_news(news_report: Dict) -> Dict:
     """
     pn = news_report.get("portfolio_news", {})
     if isinstance(pn, list):
-        pn_dict: Dict[str, list] = {}
+        pn_dict: dict[str, list] = {}
         for item in pn:
             if not isinstance(item, dict):
                 continue
@@ -411,14 +704,19 @@ def _normalize_portfolio_news(news_report: Dict) -> Dict:
             if isinstance(news_items, list):
                 pn_dict[tkr] = news_items
             else:
-                pn_dict[tkr] = [{"headline": str(news_items), "impact": item.get("impact", "NEUTRAL")}]
+                pn_dict[tkr] = [
+                    {"headline": str(news_items), "impact": item.get("impact", "NEUTRAL")}
+                ]
         news_report["portfolio_news"] = pn_dict
-        logger.info("Normalized portfolio_news from list (%d items) to dict (%d tickers)",
-                     len(pn), len(pn_dict))
+        logger.info(
+            "Normalized portfolio_news from list (%d items) to dict (%d tickers)",
+            len(pn),
+            len(pn_dict),
+        )
     return news_report
 
 
-def _normalize_census_sentiment(census_report: Dict) -> Dict:
+def _normalize_census_sentiment(census_report: dict) -> dict:
     """Ensure census sentiment values are plain numbers, not nested dicts.
 
     Agents sometimes return {fg_top100: {value: 59, classification: "Greed"}}
@@ -436,7 +734,7 @@ def _normalize_census_sentiment(census_report: Dict) -> Dict:
     return census_report
 
 
-def _normalize_economic_events(news_report: Dict) -> Dict:
+def _normalize_economic_events(news_report: dict) -> dict:
     """Ensure news_report['economic_events'] is a flat list.
 
     Agents sometimes return {this_week: [...], key_context: "..."}
@@ -459,8 +757,12 @@ def _normalize_economic_events(news_report: Dict) -> Dict:
 # case variants silently fell through to the neutral branch in the vote counter.
 # This map normalizes everything to the canonical set.
 _TECH_SIGNAL_CANONICAL = {
-    "ENTER_NOW", "AVOID", "EXIT_SOON",
-    "WAIT_FOR_PULLBACK", "WAIT_FOR_CONFIRMATION", "HOLD",
+    "ENTER_NOW",
+    "AVOID",
+    "EXIT_SOON",
+    "WAIT_FOR_PULLBACK",
+    "WAIT_FOR_CONFIRMATION",
+    "HOLD",
 }
 _TECH_SIGNAL_ALIASES = {
     "buy": "ENTER_NOW",
@@ -532,7 +834,7 @@ def _canonicalize_tech_signal(value) -> str:
     return "HOLD"
 
 
-def _normalize_tech_stocks(tech_report: Dict) -> Dict:
+def _normalize_tech_stocks(tech_report: dict) -> dict:
     """Ensure tech_report['stocks'] is dict of ticker -> data.
 
     Agents sometimes return a list of dicts with 'ticker' keys instead
@@ -551,7 +853,9 @@ def _normalize_tech_stocks(tech_report: Dict) -> Dict:
                 if tkr:
                     normalized[tkr] = item
         tech_report["stocks"] = normalized
-        logger.info("Normalized tech_report['stocks'] from list (%d items) to dict", len(normalized))
+        logger.info(
+            "Normalized tech_report['stocks'] from list (%d items) to dict", len(normalized)
+        )
         stocks = normalized
 
     # Fix 4: Agents write 'technical_signal'/'entry_timing'/'timing', synthesis reads 'timing_signal'
@@ -560,9 +864,9 @@ def _normalize_tech_stocks(tech_report: Dict) -> Dict:
     for tkr, data in stocks.items():
         if isinstance(data, dict):
             if "timing_signal" not in data:
-                data["timing_signal"] = data.get("technical_signal",
-                                                 data.get("entry_timing",
-                                                 data.get("timing", "HOLD")))
+                data["timing_signal"] = data.get(
+                    "technical_signal", data.get("entry_timing", data.get("timing", "HOLD"))
+                )
             # Phase A 2026-04-18: canonicalize the value to prevent silent neutral fallthroughs
             data["timing_signal"] = _canonicalize_tech_signal(data["timing_signal"])
             if "momentum_score" not in data:
@@ -576,7 +880,7 @@ def _normalize_tech_stocks(tech_report: Dict) -> Dict:
     return tech_report
 
 
-def _normalize_macro_portfolio_implications(macro_report: Dict) -> Dict:
+def _normalize_macro_portfolio_implications(macro_report: dict) -> dict:
     """Ensure macro_report['portfolio_implications'] exists as {ticker: {fit, rationale}}.
 
     Agents write per-stock macro fit in macro.stocks[tkr].macro_fit.
@@ -598,7 +902,7 @@ def _normalize_macro_portfolio_implications(macro_report: Dict) -> Dict:
     return macro_report
 
 
-def _normalize_macro_indicators(macro_report: Dict) -> Dict:
+def _normalize_macro_indicators(macro_report: dict) -> dict:
     """Ensure macro_report['indicators'] contains indicator data.
 
     Agents write 'key_indicators', synthesis reads 'macro_indicators' or 'indicators'.
@@ -618,7 +922,7 @@ def _normalize_macro_indicators(macro_report: Dict) -> Dict:
     return macro_report
 
 
-def _normalize_risk_warnings(risk_report: Dict) -> Dict:
+def _normalize_risk_warnings(risk_report: dict) -> dict:
     """Ensure risk_report['consensus_warnings'] exists.
 
     Agents write 'top_warnings' and per-stock risk_warning in stocks[tkr].
@@ -634,13 +938,18 @@ def _normalize_risk_warnings(risk_report: Dict) -> Dict:
         if isinstance(data, dict) and data.get("risk_warning"):
             existing = risk_report.get("consensus_warnings", [])
             if not any(w.get("ticker") == tkr for w in existing if isinstance(w, dict)):
-                existing.append({"ticker": tkr, "severity": data.get("risk_score", "MODERATE"),
-                                 "reason": "; ".join(data.get("risk_factors", []))[:200]})
+                existing.append(
+                    {
+                        "ticker": tkr,
+                        "severity": data.get("risk_score", "MODERATE"),
+                        "reason": "; ".join(data.get("risk_factors", []))[:200],
+                    }
+                )
                 risk_report["consensus_warnings"] = existing
     return risk_report
 
 
-def _normalize_news_breaking(news_report: Dict) -> Dict:
+def _normalize_news_breaking(news_report: dict) -> dict:
     """Synthesise breaking_news from key_themes/sector_news when empty.
 
     Agents sometimes put news in 'key_themes' and 'sector_news' instead
@@ -651,46 +960,79 @@ def _normalize_news_breaking(news_report: Dict) -> Dict:
     items = []
     for theme in news_report.get("key_themes", []):
         if isinstance(theme, str) and theme.strip():
-            items.append({
-                "headline": theme.strip(),
-                "impact": "NEUTRAL",
-                "affected_tickers": [],
-                "affected_sectors": [],
-            })
+            items.append(
+                {
+                    "headline": theme.strip(),
+                    "impact": "NEUTRAL",
+                    "affected_tickers": [],
+                    "affected_sectors": [],
+                }
+            )
         elif isinstance(theme, dict):
             headline = theme.get("theme", theme.get("title", theme.get("headline", "")))
             if headline:
-                items.append({
-                    "headline": headline,
-                    "impact": theme.get("sentiment", theme.get("impact", "NEUTRAL")),
-                    "affected_tickers": theme.get("affected_tickers",
-                                                  theme.get("tickers", [])),
-                    "affected_sectors": theme.get("affected_sectors", []),
-                })
+                items.append(
+                    {
+                        "headline": headline,
+                        "impact": theme.get("sentiment", theme.get("impact", "NEUTRAL")),
+                        "affected_tickers": theme.get("affected_tickers", theme.get("tickers", [])),
+                        "affected_sectors": theme.get("affected_sectors", []),
+                    }
+                )
     for sn in news_report.get("sector_news", []):
         if isinstance(sn, dict):
             headline = sn.get("headline", sn.get("summary", ""))
             if headline and len(items) < 8:
-                items.append({
-                    "headline": headline,
-                    "impact": sn.get("impact", sn.get("sentiment", "NEUTRAL")),
-                    "affected_tickers": sn.get("affected_tickers", []),
-                    "affected_sectors": [sn.get("sector", "")],
-                })
+                items.append(
+                    {
+                        "headline": headline,
+                        "impact": sn.get("impact", sn.get("sentiment", "NEUTRAL")),
+                        "affected_tickers": sn.get("affected_tickers", []),
+                        "affected_sectors": [sn.get("sector", "")],
+                    }
+                )
     if items:
         news_report["breaking_news"] = items
         logger.info("Synthesised breaking_news from key_themes/sector_news (%d items)", len(items))
     return news_report
 
 
+def _normalize_sentiment_report(sentiment_report: dict) -> dict:
+    """Ensure sentiment_report has consistent schema.
+
+    Handles missing fields and ensures sentiment_score is numeric.
+    """
+    if not sentiment_report:
+        return {"stocks": {}, "market_sentiment": {}, "summary": {}}
+    stocks = sentiment_report.get("stocks", {})
+    for tkr, data in stocks.items():
+        if not isinstance(data, dict):
+            stocks[tkr] = {"sentiment_score": 50, "sentiment_view": "NEUTRAL"}
+            continue
+        score = data.get("sentiment_score")
+        if score is None:
+            data["sentiment_score"] = 50
+        elif isinstance(score, str):
+            try:
+                data["sentiment_score"] = float(score)
+            except ValueError:
+                data["sentiment_score"] = 50
+        if "sentiment_view" not in data:
+            s = data["sentiment_score"]
+            data["sentiment_view"] = "BULLISH" if s >= 65 else "BEARISH" if s <= 35 else "NEUTRAL"
+    sentiment_report["stocks"] = stocks
+    return sentiment_report
+
+
 def normalize_agent_reports(
-    fund_report: Dict,
-    tech_report: Dict,
-    macro_report: Dict,
-    census_report: Dict,
-    news_report: Dict,
-    risk_report: Dict,
-) -> Tuple[Dict, Dict, Dict, Dict, Dict, Dict]:
+    fund_report: dict,
+    tech_report: dict,
+    macro_report: dict,
+    census_report: dict,
+    news_report: dict,
+    risk_report: dict,
+    sentiment_report: dict | None = None,
+) -> tuple[dict, dict, dict, dict, dict, dict, dict]:
     """Apply all normalizers to agent reports before synthesis.
 
     Call this once at the start of build_concordance() to ensure all
@@ -708,7 +1050,16 @@ def normalize_agent_reports(
     macro_report = _normalize_macro_indicators(macro_report)
     macro_report = _normalize_macro_portfolio_implications(macro_report)
     risk_report = _normalize_risk_warnings(risk_report)
-    return fund_report, tech_report, macro_report, census_report, news_report, risk_report
+    sentiment_report = _normalize_sentiment_report(sentiment_report or {})
+    return (
+        fund_report,
+        tech_report,
+        macro_report,
+        census_report,
+        news_report,
+        risk_report,
+        sentiment_report,
+    )
 
 
 # Per-agent vote weights (originally "freshness multipliers" — CIO v3 F2)
@@ -726,6 +1077,7 @@ AGENT_FRESHNESS = {
     "macro": 0.75,
     "census": 1.25,
     "news": 1.00,
+    "sentiment": 0.75,
     "opportunity": 0.75,
     "risk": 1.00,
 }
@@ -759,68 +1111,132 @@ SECTOR_ETF_MAP = {
 # rotation signals, and meaningless concentration analysis.
 TICKER_GICS_MAP = {
     # Technology
-    "AAPL": "Technology", "MSFT": "Technology", "NVDA": "Technology",
-    "AVGO": "Technology", "ADBE": "Technology", "CRM": "Technology",
-    "AMD": "Technology", "INTC": "Technology", "QCOM": "Technology",
-    "PANW": "Technology", "NOW": "Technology", "PLTR": "Technology",
-    "CRWD": "Technology", "SNPS": "Technology", "CDNS": "Technology",
-    "SAP.DE": "Technology", "MRVL": "Technology", "MU": "Technology",
-    "ANET": "Technology", "FTNT": "Technology",
+    "AAPL": "Technology",
+    "MSFT": "Technology",
+    "NVDA": "Technology",
+    "AVGO": "Technology",
+    "ADBE": "Technology",
+    "CRM": "Technology",
+    "AMD": "Technology",
+    "INTC": "Technology",
+    "QCOM": "Technology",
+    "PANW": "Technology",
+    "NOW": "Technology",
+    "PLTR": "Technology",
+    "CRWD": "Technology",
+    "SNPS": "Technology",
+    "CDNS": "Technology",
+    "SAP.DE": "Technology",
+    "MRVL": "Technology",
+    "MU": "Technology",
+    "ANET": "Technology",
+    "FTNT": "Technology",
     # Financials
-    "JPM": "Financials", "BAC": "Financials", "GS": "Financials",
-    "MS": "Financials", "C": "Financials", "WFC": "Financials",
-    "SCHW": "Financials", "BLK": "Financials", "AXP": "Financials",
-    "V": "Financials", "MA": "Financials", "PYPL": "Financials",
+    "JPM": "Financials",
+    "BAC": "Financials",
+    "GS": "Financials",
+    "MS": "Financials",
+    "C": "Financials",
+    "WFC": "Financials",
+    "SCHW": "Financials",
+    "BLK": "Financials",
+    "AXP": "Financials",
+    "V": "Financials",
+    "MA": "Financials",
+    "PYPL": "Financials",
     # Healthcare
-    "UNH": "Healthcare", "JNJ": "Healthcare", "LLY": "Healthcare",
-    "PFE": "Healthcare", "ABBV": "Healthcare", "MRK": "Healthcare",
-    "TMO": "Healthcare", "ABT": "Healthcare", "AMGN": "Healthcare",
-    "ISRG": "Healthcare", "ELV": "Healthcare",
+    "UNH": "Healthcare",
+    "JNJ": "Healthcare",
+    "LLY": "Healthcare",
+    "PFE": "Healthcare",
+    "ABBV": "Healthcare",
+    "MRK": "Healthcare",
+    "TMO": "Healthcare",
+    "ABT": "Healthcare",
+    "AMGN": "Healthcare",
+    "ISRG": "Healthcare",
+    "ELV": "Healthcare",
     # Consumer Discretionary
-    "AMZN": "Consumer Discretionary", "TSLA": "Consumer Discretionary",
-    "HD": "Consumer Discretionary", "MCD": "Consumer Discretionary",
-    "NKE": "Consumer Discretionary", "BKNG": "Consumer Discretionary",
-    "SBUX": "Consumer Discretionary", "TJX": "Consumer Discretionary",
-    "CMG": "Consumer Discretionary", "ABNB": "Consumer Discretionary",
+    "AMZN": "Consumer Discretionary",
+    "TSLA": "Consumer Discretionary",
+    "HD": "Consumer Discretionary",
+    "MCD": "Consumer Discretionary",
+    "NKE": "Consumer Discretionary",
+    "BKNG": "Consumer Discretionary",
+    "SBUX": "Consumer Discretionary",
+    "TJX": "Consumer Discretionary",
+    "CMG": "Consumer Discretionary",
+    "ABNB": "Consumer Discretionary",
     # Communication Services
-    "GOOGL": "Communication Services", "META": "Communication Services",
-    "GOOG": "Communication Services", "NFLX": "Communication Services",
-    "DIS": "Communication Services", "CMCSA": "Communication Services",
-    "T": "Communication Services", "VZ": "Communication Services",
-    "SNAP": "Communication Services", "PINS": "Communication Services",
+    "GOOGL": "Communication Services",
+    "META": "Communication Services",
+    "GOOG": "Communication Services",
+    "NFLX": "Communication Services",
+    "DIS": "Communication Services",
+    "CMCSA": "Communication Services",
+    "T": "Communication Services",
+    "VZ": "Communication Services",
+    "SNAP": "Communication Services",
+    "PINS": "Communication Services",
     # Consumer Staples
-    "PG": "Consumer Staples", "KO": "Consumer Staples",
-    "PEP": "Consumer Staples", "COST": "Consumer Staples",
-    "WMT": "Consumer Staples", "CL": "Consumer Staples",
+    "PG": "Consumer Staples",
+    "KO": "Consumer Staples",
+    "PEP": "Consumer Staples",
+    "COST": "Consumer Staples",
+    "WMT": "Consumer Staples",
+    "CL": "Consumer Staples",
     "PM": "Consumer Staples",
     # Industrials
-    "CAT": "Industrials", "DE": "Industrials", "UNP": "Industrials",
-    "HON": "Industrials", "RTX": "Industrials", "LMT": "Industrials",
-    "BA": "Industrials", "GE": "Industrials", "MMM": "Industrials",
+    "CAT": "Industrials",
+    "DE": "Industrials",
+    "UNP": "Industrials",
+    "HON": "Industrials",
+    "RTX": "Industrials",
+    "LMT": "Industrials",
+    "BA": "Industrials",
+    "GE": "Industrials",
+    "MMM": "Industrials",
     "UPS": "Industrials",
     # Energy
-    "XOM": "Energy", "CVX": "Energy", "COP": "Energy",
-    "SLB": "Energy", "EOG": "Energy", "MPC": "Energy",
-    "OXY": "Energy", "HAL": "Energy",
+    "XOM": "Energy",
+    "CVX": "Energy",
+    "COP": "Energy",
+    "SLB": "Energy",
+    "EOG": "Energy",
+    "MPC": "Energy",
+    "OXY": "Energy",
+    "HAL": "Energy",
     # Materials
-    "LIN": "Materials", "APD": "Materials", "ECL": "Materials",
-    "NEM": "Materials", "FCX": "Materials", "GLD": "Materials",
+    "LIN": "Materials",
+    "APD": "Materials",
+    "ECL": "Materials",
+    "NEM": "Materials",
+    "FCX": "Materials",
+    "GLD": "Materials",
     # Real Estate
-    "PLD": "Real Estate", "AMT": "Real Estate", "SPG": "Real Estate",
+    "PLD": "Real Estate",
+    "AMT": "Real Estate",
+    "SPG": "Real Estate",
     "EQIX": "Real Estate",
     # Utilities
-    "NEE": "Utilities", "DUK": "Utilities", "SO": "Utilities",
+    "NEE": "Utilities",
+    "DUK": "Utilities",
+    "SO": "Utilities",
     "D": "Utilities",
     # Crypto / Alt
-    "BTC-USD": "Crypto/Alt", "ETH-USD": "Crypto/Alt",
-    "MSTR": "Crypto/Alt", "COIN": "Crypto/Alt",
+    "BTC-USD": "Crypto/Alt",
+    "ETH-USD": "Crypto/Alt",
+    "MSTR": "Crypto/Alt",
+    "COIN": "Crypto/Alt",
     # Semiconductors → Technology
-    "TSM": "Technology", "ASML": "Technology",
+    "TSM": "Technology",
+    "ASML": "Technology",
     # European stocks
     "LYXGRE.DE": "Financials",  # Greek ETF proxy
     "NOVO-B.CO": "Healthcare",
     "SAP": "Technology",
-    "AZN": "Healthcare", "AZN.L": "Healthcare",
+    "AZN": "Healthcare",
+    "AZN.L": "Healthcare",
     "SHEL": "Energy",
     "TTE": "Energy",
     "BABA": "Consumer Discretionary",
@@ -892,34 +1308,34 @@ _SECTOR_NORMALIZE = {
 
 # CIO v25.2: Currency zone inference from ticker suffix.
 # Used as fallback when sig_data doesn't include currency_zone from data_loader.
-_EUR_SUFFIXES = ('.DE', '.PA', '.AS', '.MI', '.MC', '.BR', '.CO', '.ST', '.OL', '.HE')
-_CRYPTO_BASES = {'BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE'}
+_EUR_SUFFIXES = (".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".CO", ".ST", ".OL", ".HE")
+_CRYPTO_BASES = {"BTC", "ETH", "SOL", "XRP", "ADA", "DOGE"}
 
 
 def _infer_currency_zone(ticker: str) -> str:
     """Infer currency denomination from ticker suffix."""
     if any(ticker.endswith(s) for s in _EUR_SUFFIXES):
-        return 'EUR'
-    if ticker.endswith('.L'):
-        return 'GBP'
-    if ticker.endswith('.HK'):
-        return 'HKD'
-    if ticker.endswith('.T'):
-        return 'JPY'
-    if ticker.endswith('.SW'):
-        return 'CHF'
-    if '-USD' in ticker and ticker.split('-')[0] in _CRYPTO_BASES:
-        return 'CRYPTO'
-    if ticker.endswith('.AE'):
-        return 'AED'
-    return 'USD'
+        return "EUR"
+    if ticker.endswith(".L"):
+        return "GBP"
+    if ticker.endswith(".HK"):
+        return "HKD"
+    if ticker.endswith(".T"):
+        return "JPY"
+    if ticker.endswith(".SW"):
+        return "CHF"
+    if "-USD" in ticker and ticker.split("-")[0] in _CRYPTO_BASES:
+        return "CRYPTO"
+    if ticker.endswith(".AE"):
+        return "AED"
+    return "USD"
 
 
 def compute_regime_momentum(
-    macro_report: Dict[str, Any],
-    tech_report: Dict[str, Any],
-    fund_report: Dict[str, Any],
-    news_report: Dict[str, Any],
+    macro_report: dict[str, Any],
+    tech_report: dict[str, Any],
+    fund_report: dict[str, Any],
+    news_report: dict[str, Any],
 ) -> str:
     """
     CIO v19.0 R1: Assess whether the current regime is IMPROVING, STABLE,
@@ -942,8 +1358,11 @@ def compute_regime_momentum(
     # High oversold breadth = capitulation = regime likely IMPROVING
     tech_stocks = tech_report.get("stocks", {})
     if tech_stocks:
-        rsis = [d.get("rsi", 50) for d in tech_stocks.values()
-                if isinstance(d, dict) and d.get("rsi") is not None]
+        rsis = [
+            d.get("rsi", 50)
+            for d in tech_stocks.values()
+            if isinstance(d, dict) and d.get("rsi") is not None
+        ]
         if rsis:
             oversold_pct = sum(1 for r in rsis if r < 30) / len(rsis)
             avg_rsi = sum(rsis) / len(rsis)
@@ -959,12 +1378,16 @@ def compute_regime_momentum(
     # Signal 2: Insider sentiment — net buying = forward bullish
     fund_stocks = fund_report.get("stocks", {})
     if fund_stocks:
-        net_buying = sum(1 for d in fund_stocks.values()
-                        if isinstance(d, dict) and
-                        d.get("insider_sentiment") == "NET_BUYING")
-        net_selling = sum(1 for d in fund_stocks.values()
-                         if isinstance(d, dict) and
-                         d.get("insider_sentiment") == "NET_SELLING")
+        net_buying = sum(
+            1
+            for d in fund_stocks.values()
+            if isinstance(d, dict) and d.get("insider_sentiment") == "NET_BUYING"
+        )
+        net_selling = sum(
+            1
+            for d in fund_stocks.values()
+            if isinstance(d, dict) and d.get("insider_sentiment") == "NET_SELLING"
+        )
         total = net_buying + net_selling
         if total > 0:
             buy_ratio = net_buying / total
@@ -996,10 +1419,8 @@ def compute_regime_momentum(
     # Signal 4: News catalyst polarity — more positive catalysts = improving
     breaking = news_report.get("breaking_news", [])
     if breaking:
-        pos = sum(1 for n in breaking
-                  if n.get("impact", "").endswith("POSITIVE"))
-        neg = sum(1 for n in breaking
-                  if n.get("impact", "").endswith("NEGATIVE"))
+        pos = sum(1 for n in breaking if n.get("impact", "").endswith("POSITIVE"))
+        neg = sum(1 for n in breaking if n.get("impact", "").endswith("NEGATIVE"))
         if pos > neg + 1:
             score += 1
         elif neg > pos + 1:
@@ -1022,15 +1443,16 @@ def compute_regime_momentum(
 
     logger.info(
         "Regime momentum: score=%d → %s (rsi_breadth, insiders, vix, news, credit)",
-        score, momentum,
+        score,
+        momentum,
     )
     return momentum
 
 
 def compute_regime_transition(
-    history_dir: Optional[str] = None,
+    history_dir: str | None = None,
     min_runs: int = 3,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     CIO v23.3: Detect regime transitions by comparing short-term (3-run)
     vs long-term (7-run) moving averages of committee conviction scores.
@@ -1061,7 +1483,11 @@ def compute_regime_transition(
             convictions = [c.get("conviction", 50) for c in concs if isinstance(c, dict)]
             if convictions:
                 avg = sum(convictions) / len(convictions)
-                date = data.get("date", Path(fp).stem.replace("concordance-", "")) if isinstance(data, dict) else Path(fp).stem.replace("concordance-", "")
+                date = (
+                    data.get("date", Path(fp).stem.replace("concordance-", ""))
+                    if isinstance(data, dict)
+                    else Path(fp).stem.replace("concordance-", "")
+                )
                 run_scores.append({"date": date, "avg_conviction": round(avg, 1)})
         except Exception:
             continue
@@ -1102,7 +1528,7 @@ def compute_regime_transition(
     }
 
 
-def resolve_sector(ticker: str, sector_map: Dict[str, str]) -> str:
+def resolve_sector(ticker: str, sector_map: dict[str, str]) -> str:
     """Resolve sector for a ticker using caller map, then built-in GICS fallback.
 
     CIO v8.0 F1: Eliminates 'Other' sector assignments by falling back
@@ -1123,11 +1549,11 @@ def resolve_sector(ticker: str, sector_map: Dict[str, str]) -> str:
 
 
 def compute_sector_medians(
-    portfolio_signals: Dict[str, Dict],
-    sector_map: Dict[str, str],
-) -> Tuple[Dict[str, float], float]:
+    portfolio_signals: dict[str, dict],
+    sector_map: dict[str, str],
+) -> tuple[dict[str, float], float]:
     """Compute median EXRET per sector and universe median."""
-    sector_exrets: Dict[str, List[float]] = {}
+    sector_exrets: dict[str, list[float]] = {}
     all_exrets = []
     for ticker, sig in portfolio_signals.items():
         sector = resolve_sector(ticker, sector_map)
@@ -1169,7 +1595,9 @@ def count_agent_votes(
     census_div_score: float = 0.0,
     rsi: float = 50.0,
     buy_pct: float = 50.0,
-) -> Tuple[float, float]:
+    sentiment_view: str = "",
+    sentiment_volume: str = "LOW",
+) -> tuple[float, float]:
     """
     Count bull/bear weighted votes from agent views.
 
@@ -1353,6 +1781,23 @@ def count_agent_votes(
         bear += 0.5
         neutral_weight += 1.0
 
+    # Social Sentiment (CIO v35.1)
+    # Weight 0.75x, same tier as Technical. HIGH volume mentions get full weight;
+    # LOW volume gets half weight (thin data is unreliable).
+    sent_weight = AGENT_FRESHNESS.get("sentiment", 0.75)
+    volume_disc = 1.0 if sentiment_volume in ("HIGH", "MEDIUM") else 0.5
+    sent_weight *= volume_disc
+    if sentiment_view == "BULLISH":
+        bull += sent_weight
+        directional_weight += sent_weight
+    elif sentiment_view == "BEARISH":
+        bear += sent_weight
+        directional_weight += sent_weight
+    else:
+        bull += sent_weight / 2
+        bear += sent_weight / 2
+        neutral_weight += sent_weight
+
     # Risk Manager (CIO Legacy B3: 1.2x for BUY assessment, 2.0x for SELL)
     # CIO v6.0 F5: Regime-sensitive neutral vote when no warning found
     # CIO v14.0 V3: When overwhelming consensus (buy_pct >= 90 AND fund_score >= 70),
@@ -1413,8 +1858,8 @@ def count_agent_votes(
 
 def compute_portfolio_sharpe_impact(
     ticker: str,
-    portfolio_signals: Dict[str, Dict],
-    risk_report: Dict,
+    portfolio_signals: dict[str, dict],
+    risk_report: dict,
 ) -> int:
     """
     CIO v20.0 D6: Estimate if adding/keeping this stock improves portfolio Sharpe.
@@ -1423,7 +1868,7 @@ def compute_portfolio_sharpe_impact(
     high correlation with existing holdings.
     """
     correlations = risk_report.get("correlation_clusters", [])
-    beta = portfolio_signals.get(ticker, {}).get("beta", 1.0)
+    portfolio_signals.get(ticker, {}).get("beta", 1.0)
 
     # Count highly correlated positions (>0.7)
     correlated_count = 0
@@ -1608,7 +2053,7 @@ def detect_contradictions(
     census_alignment: str,
     news_impact: str,
     **kwargs,
-) -> Tuple[int, List[str]]:
+) -> tuple[int, list[str]]:
     """
     Detect logical contradictions between agent views (CIO Legacy A3).
 
@@ -1619,7 +2064,7 @@ def detect_contradictions(
 
     Returns (penalty_points, list_of_contradiction_descriptions).
     """
-    contradictions: List[str] = []
+    contradictions: list[str] = []
     penalty = 0
 
     # Macro-Technical: regime says avoid but technicals say enter
@@ -1639,9 +2084,7 @@ def detect_contradictions(
                 f"Fundamental score {fund_score:.0f} vs Risk warning (overridden by {_bp:.0f}% consensus)"
             )
         else:
-            contradictions.append(
-                f"Fundamental score {fund_score:.0f} but Risk Manager warns"
-            )
+            contradictions.append(f"Fundamental score {fund_score:.0f} but Risk Manager warns")
             penalty += 3
 
     # Census-News: popular investors distributing despite positive news
@@ -1659,9 +2102,9 @@ def detect_contradictions(
 
 def compute_signal_velocity(
     current_signal: str,
-    previous_signal: Optional[str] = None,
-    days_since_change: Optional[int] = None,
-) -> Tuple[int, str]:
+    previous_signal: str | None = None,
+    days_since_change: int | None = None,
+) -> tuple[int, str]:
     """
     Compute signal velocity bonus/penalty based on signal direction change
     (CIO Legacy B4).
@@ -1701,10 +2144,10 @@ def compute_signal_velocity(
 
 
 def get_earnings_surprise_adjustment(
-    recent_surprise_pct: Optional[float] = None,
+    recent_surprise_pct: float | None = None,
     consecutive_beats: int = 0,
-    surprise_trajectory: Optional[str] = None,
-) -> Tuple[int, str]:
+    surprise_trajectory: str | None = None,
+) -> tuple[int, str]:
     """
     Conviction adjustment based on earnings surprise history (CIO Legacy B5).
 
@@ -1757,8 +2200,8 @@ def get_earnings_surprise_adjustment(
 
 
 def compute_dynamic_freshness(
-    agent_timestamp: Optional[str] = None,
-    committee_timestamp: Optional[str] = None,
+    agent_timestamp: str | None = None,
+    committee_timestamp: str | None = None,
 ) -> float:
     """
     Compute freshness multiplier based on actual data age (CIO Legacy A4).
@@ -1783,13 +2226,17 @@ def compute_dynamic_freshness(
     try:
         # Handle both ISO format and date-only
         if "T" in agent_timestamp:
-            agent_dt = datetime.fromisoformat(agent_timestamp.replace("Z", "+00:00").replace("+00:00", ""))
+            agent_dt = datetime.fromisoformat(
+                agent_timestamp.replace("Z", "+00:00").replace("+00:00", "")
+            )
         else:
             agent_dt = datetime.strptime(agent_timestamp, "%Y-%m-%d")
 
         if committee_timestamp:
             if "T" in committee_timestamp:
-                committee_dt = datetime.fromisoformat(committee_timestamp.replace("Z", "+00:00").replace("+00:00", ""))
+                committee_dt = datetime.fromisoformat(
+                    committee_timestamp.replace("Z", "+00:00").replace("+00:00", "")
+                )
             else:
                 committee_dt = datetime.strptime(committee_timestamp, "%Y-%m-%d")
         else:
@@ -1827,10 +2274,10 @@ def compute_adjustments(
     beta: float,
     quality_trap: bool,
     sector: str,
-    sector_rankings: Dict[str, Any],
+    sector_rankings: dict[str, Any],
     bull_count: int,
     stock_tier: str = "MID",
-) -> Tuple[int, int, Dict[str, int]]:
+) -> tuple[int, int, dict[str, int]]:
     """
     Compute bonus and penalty adjustments.
 
@@ -1839,7 +2286,7 @@ def compute_adjustments(
     """
     bonuses = 0
     penalties = 0
-    _w: Dict[str, int] = {}
+    _w: dict[str, int] = {}
 
     def _apply(name: str, value: int) -> bool:
         """Apply modifier if active; shadow-track if disabled."""
@@ -1933,9 +2380,7 @@ def compute_adjustments(
 
     # Quality trap — DISABLED v35.0 (zero predictive power, p=0.279)
     if quality_trap:
-        is_quality_growth = (
-            fund_score >= 70 and buy_pct >= 70 and signal in ("B", "H")
-        )
+        is_quality_growth = fund_score >= 70 and buy_pct >= 70 and signal in ("B", "H")
         if not is_quality_growth:
             _apply("quality_trap", -5)
 
@@ -2024,7 +2469,7 @@ def determine_action(
     signal: str,
     tech_signal: str,
     risk_warning: bool,
-    thresholds: Optional[Dict[str, Dict[str, float]]] = None,
+    thresholds: dict[str, dict[str, float]] | None = None,
 ) -> str:
     """Determine action from conviction and signal with signal-aware thresholds.
 
@@ -2042,6 +2487,7 @@ def determine_action(
     # Resolve signal-specific thresholds (rolling if available, legacy otherwise).
     try:
         from trade_modules.conviction_thresholds import get_action_thresholds
+
         thr = get_action_thresholds(signal, rolling=thresholds)
     except Exception:
         thr = {}
@@ -2077,7 +2523,7 @@ def apply_trim_regime_gate(
     kill_thesis_triggered: bool = False,
     risk_warning: bool = False,
     risk_recommends_trim: bool = False,
-) -> Tuple[str, Optional[str]]:
+) -> tuple[str, str | None]:
     """
     CIO v17 M2: Suppress whipsaw TRIMs in trending markets.
 
@@ -2129,8 +2575,8 @@ def apply_action_hysteresis(
     current_action: str,
     conviction: int,
     signal: str,
-    prev_action: Optional[str],
-    prev_conviction: Optional[int],
+    prev_action: str | None,
+    prev_conviction: int | None,
     delta_threshold: int = 5,
 ) -> str:
     """Apply hysteresis to prevent HOLD/ADD whipsaw.
@@ -2147,8 +2593,9 @@ def apply_action_hysteresis(
         return current_action
 
     # Only apply hysteresis to HOLD↔ADD transitions
-    is_hold_add = (current_action == "HOLD" and prev_action == "ADD") or \
-                  (current_action == "ADD" and prev_action == "HOLD")
+    is_hold_add = (current_action == "HOLD" and prev_action == "ADD") or (
+        current_action == "ADD" and prev_action == "HOLD"
+    )
     if not is_hold_add:
         return current_action
 
@@ -2195,9 +2642,9 @@ def recalculate_trim_conviction(
     if tech_signal in ("EXIT_SOON", "AVOID"):
         trim_factors.append(12)  # Primary signal (reduced from 15)
     if macro_fit == "UNFAVORABLE":
-        trim_factors.append(8)   # Reduced from 10
+        trim_factors.append(8)  # Reduced from 10
     if risk_warning:
-        trim_factors.append(7)   # Reduced from 10
+        trim_factors.append(7)  # Reduced from 10
     if beta > 1.5:
         trim_factors.append(4)
     if rsi > 70:
@@ -2231,11 +2678,11 @@ def classify_hold_tier(conviction: int) -> str:
 def generate_kill_thesis(
     ticker: str,
     action: str,
-    sig_data: Dict[str, Any],
-    fund_data: Optional[Dict[str, Any]] = None,
-    tech_data: Optional[Dict[str, Any]] = None,
-    macro_data: Optional[Dict[str, Any]] = None,
-    earnings_days_away: Optional[int] = None,
+    sig_data: dict[str, Any],
+    fund_data: dict[str, Any] | None = None,
+    tech_data: dict[str, Any] | None = None,
+    macro_data: dict[str, Any] | None = None,
+    earnings_days_away: int | None = None,
 ) -> str:
     """Generate a stock-specific kill thesis with numeric, actionable triggers.
 
@@ -2270,9 +2717,12 @@ def generate_kill_thesis(
     macro_data = macro_data or {}
 
     def _num(v, d=0.0):
-        if v is None: return d
-        try: return float(str(v).replace("%", "").replace(",", ""))
-        except (ValueError, TypeError): return d
+        if v is None:
+            return d
+        try:
+            return float(str(v).replace("%", "").replace(",", ""))
+        except (ValueError, TypeError):
+            return d
 
     price = _num(sig_data.get("price") or sig_data.get("PRC") or sig_data.get("p0"), 0)
     rsi = _num(tech_data.get("rsi"), 50)
@@ -2280,18 +2730,22 @@ def generate_kill_thesis(
     resistance = _num(tech_data.get("resistance"), 0)
     fund_score = fund_data.get("fundamental_score") or 50
     eps_class = (fund_data.get("eps_revisions") or {}).get("classification", "")
-    regime = (macro_data.get("executive_summary") or {}).get("regime") or macro_data.get("regime", "")
+    regime = (macro_data.get("executive_summary") or {}).get("regime") or macro_data.get(
+        "regime", ""
+    )
 
     # Build action-specific trigger lists
-    triggers: List[str] = []
+    triggers: list[str] = []
 
     # Compute concrete price levels
     def _stop_below(pct: float) -> str:
-        if price <= 0: return f"price drops {pct:.0f}% from entry"
+        if price <= 0:
+            return f"price drops {pct:.0f}% from entry"
         return f"price closes below ${price * (1 - pct/100):.2f} ({-pct:.0f}% stop)"
 
     def _stop_above(pct: float) -> str:
-        if price <= 0: return f"price rises {pct:.0f}% from entry"
+        if price <= 0:
+            return f"price rises {pct:.0f}% from entry"
         return f"price closes above ${price * (1 + pct/100):.2f} (+{pct:.0f}%)"
 
     if action in ("BUY", "BUY NEW", "ADD"):
@@ -2312,7 +2766,9 @@ def generate_kill_thesis(
             triggers.append("forward EPS revisions turn down >5%")
         # Earnings event
         if earnings_days_away is not None and earnings_days_away <= 14:
-            triggers.append(f"Q-earnings miss revenue or EPS by >5% (event in {earnings_days_away}d)")
+            triggers.append(
+                f"Q-earnings miss revenue or EPS by >5% (event in {earnings_days_away}d)"
+            )
         # Macro regime flip
         if regime != "RISK_OFF":
             triggers.append("macro regime degrades to RISK_OFF (VIX > 30 sustained 5 days)")
@@ -2322,12 +2778,16 @@ def generate_kill_thesis(
         # Price ceiling break (we trimmed, then it ripped — confirm thesis was wrong)
         if resistance > 0 and price > 0 and resistance > price:
             res_pct = (resistance - price) / price * 100
-            triggers.append(f"price closes above resistance ${resistance:.2f} (+{res_pct:.1f}%) for 3 sessions")
+            triggers.append(
+                f"price closes above resistance ${resistance:.2f} (+{res_pct:.1f}%) for 3 sessions"
+            )
         else:
             triggers.append(f"{_stop_above(10)} within 14 days")
         # RSI mean-reverts with volume confirmation
         if rsi > 70:
-            triggers.append("RSI mean-reverts below 60 with rising volume (overbought resolved cleanly)")
+            triggers.append(
+                "RSI mean-reverts below 60 with rising volume (overbought resolved cleanly)"
+            )
         # Fundamental reversal
         triggers.append("EPS revisions flip to REVISIONS_UP within 14 days")
         # Macro improvement
@@ -2335,21 +2795,27 @@ def generate_kill_thesis(
             triggers.append("macro regime improves to RISK_ON")
         # Quality stock specific
         if fund_score >= 70:
-            triggers.append(f"fundamental_score holds ≥{fund_score:.0f} with positive analyst momentum")
+            triggers.append(
+                f"fundamental_score holds ≥{fund_score:.0f} with positive analyst momentum"
+            )
 
     elif action == "SELL":
         # SELL kill thesis = "wrong to sell if it bounces"
         triggers.append(f"{_stop_above(8)} for 3 sessions (oversold bounce confirmed)")
         triggers.append("analyst upgrade wave: 2+ banks raise target within 5 days")
         if earnings_days_away is not None and earnings_days_away <= 30:
-            triggers.append(f"earnings beat by >5% with raised guidance (event in {earnings_days_away}d)")
+            triggers.append(
+                f"earnings beat by >5% with raised guidance (event in {earnings_days_away}d)"
+            )
         else:
             triggers.append("next earnings beat by >5% with raised guidance")
         triggers.append("RSI crosses above 50 with rising volume")
 
     elif action in ("HOLD", "WATCH"):
         # HOLD kill thesis = "what would change my mind"
-        triggers.append(f"{_stop_below(10)} OR {_stop_above(15).replace('above ', 'above ')} (forces action either way)")
+        triggers.append(
+            f"{_stop_below(10)} OR {_stop_above(15).replace('above ', 'above ')} (forces action either way)"
+        )
         triggers.append("RSI > 90 OR < 30 sustained 3 sessions")
         triggers.append("EPS revisions direction changes")
         if earnings_days_away is not None and earnings_days_away <= 14:
@@ -2377,15 +2843,19 @@ def generate_kill_thesis(
         labelled = [f"({chr(97 + i)}) {t}" for i, t in enumerate(triggers)]
         body = ", ".join(labelled[:-1]) + f", OR {labelled[-1]}"
 
-    verb = "Wrong to trim if" if action == "TRIM" else ("Wrong to sell if" if action == "SELL" else "Wrong if")
+    verb = (
+        "Wrong to trim if"
+        if action == "TRIM"
+        else ("Wrong to sell if" if action == "SELL" else "Wrong if")
+    )
     return f"{verb} {body}. {horizon}"
 
 
 def synthesize_stock(
     ticker: str,
-    sig_data: Dict[str, Any],
-    fund_data: Dict[str, Any],
-    tech_data: Dict[str, Any],
+    sig_data: dict[str, Any],
+    fund_data: dict[str, Any],
+    tech_data: dict[str, Any],
     macro_fit: str,
     census_alignment: str,
     div_score: int,
@@ -2394,33 +2864,38 @@ def synthesize_stock(
     risk_warning: bool,
     sector: str,
     sector_median_exret: float,
-    sector_rankings: Dict[str, Any],
+    sector_rankings: dict[str, Any],
     position_limit: float,
     regime: str = "",
-    previous_signal: Optional[str] = None,
-    days_since_signal_change: Optional[int] = None,
-    earnings_surprise_pct: Optional[float] = None,
+    previous_signal: str | None = None,
+    days_since_signal_change: int | None = None,
+    earnings_surprise_pct: float | None = None,
     consecutive_earnings_beats: int = 0,
     kill_thesis_triggered: bool = False,
     regime_momentum: str = "STABLE",
-    fg_score: Optional[float] = None,
-    earnings_days_away: Optional[int] = None,
+    fg_score: float | None = None,
+    earnings_days_away: int | None = None,
     is_opportunity: bool = False,
-    fx_data: Optional[Dict] = None,
-    debate_conviction_signal: Optional[str] = None,
-    debate_data: Optional[Dict[str, Any]] = None,
-    rolling_thresholds: Optional[Dict[str, Dict[str, float]]] = None,
-) -> Dict[str, Any]:
+    fx_data: dict | None = None,
+    debate_conviction_signal: str | None = None,
+    debate_data: dict[str, Any] | None = None,
+    rolling_thresholds: dict[str, dict[str, float]] | None = None,
+    sentiment_view: str = "",
+    sentiment_volume: str = "LOW",
+    signal_triggers: list[str] | None = None,
+    signal_trigger_strength: str = "NONE",
+) -> dict[str, Any]:
     """
     Synthesize a single stock through the full conviction scoring pipeline.
 
     This is the core function that replaces the ad-hoc /tmp scripts.
     """
+
     def _num(v, default=0):
         if v is None:
             return default
         try:
-            return float(str(v).replace('%', '').replace(',', ''))
+            return float(str(v).replace("%", "").replace(",", ""))
         except (ValueError, TypeError):
             return default
 
@@ -2437,26 +2912,38 @@ def synthesize_stock(
     # expected -8.25pp penalty. Tier-scale the penalty accordingly.
     cap_str = str(sig_data.get("market_cap_str", "") or fund_data.get("market_cap", ""))
     cap_tier_hint = str(fund_data.get("cap_tier", "")).upper()
+
     def _cap_to_b(s):
         s = (s or "").strip()
-        if not s: return 0.0
+        if not s:
+            return 0.0
         try:
-            if s.endswith("T"): return float(s[:-1]) * 1000
-            if s.endswith("B"): return float(s[:-1])
-            if s.endswith("M"): return float(s[:-1]) / 1000
+            if s.endswith("T"):
+                return float(s[:-1]) * 1000
+            if s.endswith("B"):
+                return float(s[:-1])
+            if s.endswith("M"):
+                return float(s[:-1]) / 1000
             return float(s)
-        except (ValueError, TypeError): return 0.0
+        except (ValueError, TypeError):
+            return 0.0
+
     # Prefer cap_str (real number) over cap_tier_hint, since the upstream
     # fundamental script uses a 4-tier taxonomy (mega = ≥$200B) that conflicts
     # with the 5-tier system in CLAUDE.md (mega = ≥$500B). When cap_str gives
     # a usable number, use it; otherwise fall back to the hint.
     cb = _cap_to_b(cap_str)
     if cb > 0:
-        if cb >= 500: stock_tier = "MEGA"
-        elif cb >= 100: stock_tier = "LARGE"
-        elif cb >= 10: stock_tier = "MID"
-        elif cb >= 2: stock_tier = "SMALL"
-        else: stock_tier = "MICRO"
+        if cb >= 500:
+            stock_tier = "MEGA"
+        elif cb >= 100:
+            stock_tier = "LARGE"
+        elif cb >= 10:
+            stock_tier = "MID"
+        elif cb >= 2:
+            stock_tier = "SMALL"
+        else:
+            stock_tier = "MICRO"
     elif cap_tier_hint in ("MEGA", "LARGE", "MID", "SMALL", "MICRO"):
         stock_tier = cap_tier_hint
     else:
@@ -2467,7 +2954,10 @@ def synthesize_stock(
     # to a numeric default prevents downstream "<= str and int" TypeError crashes
     # in the synthesis comparisons.
     fund_score = _coerce_fund_score(fund_data.get("fundamental_score"))
-    if not isinstance(fund_data.get("fundamental_score"), (int, float)) and fund_data.get("fundamental_score") is not None:
+    if (
+        not isinstance(fund_data.get("fundamental_score"), (int, float))
+        and fund_data.get("fundamental_score") is not None
+    ):
         # Mark as synthetic so downstream weighting applies the fallback discount.
         fund_data.setdefault("synthetic", True)
     quality_trap = fund_data.get("quality_trap_warning", False)
@@ -2517,14 +3007,22 @@ def synthesize_stock(
 
     # Step 1: Count agent votes
     bull_weight, bear_weight, dir_confidence = count_agent_votes(
-        fund_score, tech_signal, tech_mom, macro_fit,
-        census_alignment, news_impact, risk_warning, signal,
+        fund_score,
+        tech_signal,
+        tech_mom,
+        macro_fit,
+        census_alignment,
+        news_impact,
+        risk_warning,
+        signal,
         fund_synthetic=fund_synthetic,
         tech_synthetic=tech_synthetic,
         regime=regime,
         census_div_score=float(div_score) if div_score else 0.0,
         rsi=rsi,
         buy_pct=float(buy_pct),
+        sentiment_view=sentiment_view,
+        sentiment_volume=sentiment_volume,
     )
 
     total_weight = bull_weight + bear_weight
@@ -2533,27 +3031,49 @@ def synthesize_stock(
 
     # Step 2: Determine base conviction
     base = determine_base_conviction(
-        bull_pct, signal, fund_score, excess_exret, bear_ratio,
+        bull_pct,
+        signal,
+        fund_score,
+        excess_exret,
+        bear_ratio,
         regime=regime,
         regime_momentum=regime_momentum,
     )
 
     # Step 3: Count directional agreement
-    bull_count = sum(1 for x in [
-        fund_score >= 70,
-        tech_signal == "ENTER_NOW" or tech_mom > 20,
-        macro_fit == "FAVORABLE",
-        census_alignment == "ALIGNED",
-        "POSITIVE" in news_impact,
-        not risk_warning,
-    ] if x)
+    bull_count = sum(
+        1
+        for x in [
+            fund_score >= 70,
+            tech_signal == "ENTER_NOW" or tech_mom > 20,
+            macro_fit == "FAVORABLE",
+            census_alignment == "ALIGNED",
+            "POSITIVE" in news_impact,
+            not risk_warning,
+        ]
+        if x
+    )
 
     # Step 4: Compute adjustments
     bonuses, penalties, _w_base = compute_adjustments(
-        signal, fund_score, tech_signal, tech_mom, rsi,
-        macro_fit, census_alignment, div_score, census_ts_trend,
-        news_impact, risk_warning, buy_pct, excess_exret,
-        beta, quality_trap, sector, sector_rankings, bull_count,
+        signal,
+        fund_score,
+        tech_signal,
+        tech_mom,
+        rsi,
+        macro_fit,
+        census_alignment,
+        div_score,
+        census_ts_trend,
+        news_impact,
+        risk_warning,
+        buy_pct,
+        excess_exret,
+        beta,
+        quality_trap,
+        sector,
+        sector_rankings,
+        bull_count,
         stock_tier=stock_tier,
     )
 
@@ -2562,7 +3082,7 @@ def synthesize_stock(
     # Only non-zero deltas are recorded. Positive = bonus, negative = penalty.
     # Merge base modifiers from compute_adjustments into the waterfall.
     _w = dict(_w_base)
-    _adj_bonuses = bonuses   # Snapshot base adjustments before individual modifiers
+    _adj_bonuses = bonuses  # Snapshot base adjustments before individual modifiers
     _adj_penalties = penalties
 
     # Step 4b: Signal quality penalties — separate cap from base penalties.
@@ -2576,8 +3096,12 @@ def synthesize_stock(
 
     # Contradiction penalty (CIO Legacy A3)
     contradiction_penalty, contradictions = detect_contradictions(
-        macro_fit, tech_signal, fund_score, risk_warning,
-        census_alignment, news_impact,
+        macro_fit,
+        tech_signal,
+        fund_score,
+        risk_warning,
+        census_alignment,
+        news_impact,
         buy_pct=buy_pct,  # CIO v14.0 V3: consensus override
     )
     signal_quality_penalty += contradiction_penalty
@@ -2586,7 +3110,9 @@ def synthesize_stock(
 
     # Step 4c: Signal velocity (CIO Legacy B4)
     velocity_adj, velocity_label = compute_signal_velocity(
-        signal, previous_signal, days_since_signal_change,
+        signal,
+        previous_signal,
+        days_since_signal_change,
     )
     if velocity_adj > 0:
         bonuses = min(bonuses + velocity_adj, 20)
@@ -2597,7 +3123,8 @@ def synthesize_stock(
 
     # Step 4d: Earnings surprise (CIO Legacy B5)
     earnings_adj, earnings_label = get_earnings_surprise_adjustment(
-        earnings_surprise_pct, consecutive_earnings_beats,
+        earnings_surprise_pct,
+        consecutive_earnings_beats,
     )
     if earnings_adj > 0:
         bonuses = min(bonuses + earnings_adj, 20)
@@ -2609,10 +3136,11 @@ def synthesize_stock(
     # CIO v20.0 D5: Regional calibration
     # European stocks have 38.6% hit rate, HK has 66.4%
     ticker_str = str(ticker)
-    is_european = any(ticker_str.endswith(s) for s in (
-        '.DE', '.L', '.PA', '.AS', '.MI', '.MC', '.BR', '.OL', '.ST', '.HE', '.CO'
-    ))
-    is_hk = ticker_str.endswith('.HK')
+    is_european = any(
+        ticker_str.endswith(s)
+        for s in (".DE", ".L", ".PA", ".AS", ".MI", ".MC", ".BR", ".OL", ".ST", ".HE", ".CO")
+    )
+    is_hk = ticker_str.endswith(".HK")
     if is_european and signal == "B":
         penalties += 5  # European BUY discount
         _w["regional_EU"] = -5
@@ -2688,8 +3216,8 @@ def synthesize_stock(
     # Pedersen 2014 QMJ ≈ FF5 RMW). Penalties remain individual (they measure
     # genuinely different risks: weak P, declining revenue, downward revisions,
     # FCF concern).
-    fund_composite_keys: List[str] = []  # Track which sub-signals fired
-    fund_composite_pending: List[Tuple[str, int]] = []
+    fund_composite_keys: list[str] = []  # Track which sub-signals fired
+    fund_composite_pending: list[tuple[str, int]] = []
 
     # CIO v22.0 E5: Piotroski quality gate — independent 9-point quality metric.
     # F >= 7 independently validates fundamental thesis.
@@ -3027,8 +3555,14 @@ def synthesize_stock(
         conviction = min(conviction, 100)
     else:
         conviction = apply_conviction_floors(
-            conviction, signal, excess_exret, pef, pet,
-            bull_count, fund_score, buy_pct,
+            conviction,
+            signal,
+            excess_exret,
+            pef,
+            pet,
+            bull_count,
+            fund_score,
+            buy_pct,
         )
     if conviction > _pre_floor:
         _w["floor_applied"] = conviction - _pre_floor
@@ -3057,7 +3591,10 @@ def synthesize_stock(
     # CIO v17 H4.b: Pass rolling-percentile thresholds when supplied;
     # determine_action falls back to legacy fixed cuts otherwise.
     action = determine_action(
-        conviction, signal, tech_signal, risk_warning,
+        conviction,
+        signal,
+        tech_signal,
+        risk_warning,
         thresholds=rolling_thresholds,
     )
 
@@ -3104,7 +3641,7 @@ def synthesize_stock(
     # names trimmed into rallies. Raise quality threshold from <70 to <75 AND
     # require no triggered kill thesis. Quality stocks (fund_score >= 75) only
     # get TRIM-escalated when a specific kill thesis has fired against them.
-    quality_blocks_trim = (fund_score >= 75 and not kill_thesis_triggered)
+    quality_blocks_trim = fund_score >= 75 and not kill_thesis_triggered
     if action == "HOLD" and signal == "H" and rsi >= 30 and not quality_blocks_trim:
         if rsi > 80 and tech_signal in ("AVOID", "EXIT_SOON") and risk_warning:
             action = "TRIM"
@@ -3115,8 +3652,13 @@ def synthesize_stock(
     # trim confidence (how confident we are the position should be reduced)
     if action == "TRIM":
         conviction = recalculate_trim_conviction(
-            tech_signal, macro_fit, risk_warning, beta, rsi,
-            fund_score, census_alignment,
+            tech_signal,
+            macro_fit,
+            risk_warning,
+            beta,
+            rsi,
+            fund_score,
+            census_alignment,
         )
         # CIO v8.0 F3: Cap TRIM conviction for low-data stocks.
         # When both fundamental and technical data are synthetic (estimated
@@ -3181,6 +3723,10 @@ def synthesize_stock(
         "div_score": div_score,
         "census_ts": census_ts_trend,
         "news_impact": news_impact,
+        "sentiment_view": sentiment_view,
+        "sentiment_volume": sentiment_volume,
+        "signal_triggers": signal_triggers or [],
+        "signal_trigger_strength": signal_trigger_strength,
         "risk_warning": risk_warning,
         "exret": exret,
         "excess_exret": round(excess_exret, 1),
@@ -3202,7 +3748,7 @@ def synthesize_stock(
         "signal_velocity": velocity_label,
         "earnings_surprise": earnings_label,
         "directional_confidence": round(dir_confidence, 2),
-        "pef": pef,   # CIO v11.0: stored for post-penalty floor reapplication
+        "pef": pef,  # CIO v11.0: stored for post-penalty floor reapplication
         "pet": pet,
         "price": sig_data.get("price", 0),  # CIO v17.0: for evaluate_recent() returns
         "am": sig_data.get("am", 0),  # CIO v35.0: analyst momentum for grid display
@@ -3228,7 +3774,9 @@ def synthesize_stock(
         "eps_revisions": eps_class if eps_class else None,  # CIO v23.3
         "iv_rank": iv_rank,  # CIO v23.4
         "volatility_regime": vol_regime,  # CIO v23.4
-        "fcf_classification": fcf_quality.get("classification") if fcf_quality else None,  # CIO v23.4
+        "fcf_classification": fcf_quality.get("classification")
+        if fcf_quality
+        else None,  # CIO v23.4
         "debt_risk": debt_quality.get("risk") if debt_quality else None,  # CIO v23.4
         "conviction_waterfall": _w,  # CIO v25.0: full modifier attribution
         # CIO v27.0: Adversarial debate
@@ -3244,18 +3792,23 @@ def synthesize_stock(
 
 # Action priority for sorting (5 canonical actions only)
 ACTION_ORDER = {
-    "SELL": 0, "TRIM": 1, "BUY": 2, "ADD": 3, "HOLD": 4,
+    "SELL": 0,
+    "TRIM": 1,
+    "BUY": 2,
+    "ADD": 3,
+    "HOLD": 4,
 }
 
 
 def _build_agent_lookups(
-    fund_report: Dict,
-    tech_report: Dict,
-    macro_report: Dict,
-    census_report: Dict,
-    news_report: Dict,
-    risk_report: Dict,
-) -> Dict[str, Any]:
+    fund_report: dict,
+    tech_report: dict,
+    macro_report: dict,
+    census_report: dict,
+    news_report: dict,
+    risk_report: dict,
+    sentiment_report: dict | None = None,
+) -> dict[str, Any]:
     """Extract lookup maps from agent reports (shared by portfolio and opportunity paths)."""
     macro_impl = macro_report.get("portfolio_implications", {})
     census_divs = census_report.get("divergences", {})
@@ -3274,7 +3827,7 @@ def _build_agent_lookups(
     risk_limits = risk_report.get("position_limits", {})
     sector_rankings = macro_report.get("sector_rankings", {})
 
-    div_map: Dict[str, Tuple[str, int]] = {}
+    div_map: dict[str, tuple[str, int]] = {}
     for item in census_divs.get("consensus_aligned", []):
         div_map[item["ticker"]] = ("ALIGNED", item.get("divergence_score", 0))
     for item in census_divs.get("signal_divergences", []):
@@ -3291,9 +3844,14 @@ def _build_agent_lookups(
             continue  # Divergences data takes precedence
         if not isinstance(data, dict):
             continue
-        alignment = (data.get("alignment") or data.get("sentiment")
-                     or data.get("signal") or data.get("census_signal")
-                     or data.get("signal_divergence") or "")
+        alignment = (
+            data.get("alignment")
+            or data.get("sentiment")
+            or data.get("signal")
+            or data.get("census_signal")
+            or data.get("signal_divergence")
+            or ""
+        )
         if isinstance(alignment, dict):
             alignment = alignment.get("direction", alignment.get("signal", ""))
         alignment = str(alignment).upper()
@@ -3318,6 +3876,17 @@ def _build_agent_lookups(
             div_map[tkr] = ("DIVERGENT", div_score_val or -15)
         # else: leave as NEUTRAL default — no data is better than wrong data
 
+    # Social sentiment lookup (CIO v35.1)
+    sentiment_impl: dict[str, dict] = {}
+    if sentiment_report:
+        for tkr, data in (sentiment_report.get("stocks") or {}).items():
+            if isinstance(data, dict):
+                sentiment_impl[tkr] = {
+                    "view": data.get("sentiment_view", "NEUTRAL"),
+                    "score": data.get("sentiment_score", 50),
+                    "volume": data.get("mention_volume", "LOW"),
+                }
+
     return {
         "macro_impl": macro_impl,
         "div_map": div_map,
@@ -3326,11 +3895,12 @@ def _build_agent_lookups(
         "risk_limits": risk_limits,
         "sector_rankings": sector_rankings,
         "fx_data": risk_report.get("fx_data", {}),  # CIO v23.1 R6
+        "sentiment_impl": sentiment_impl,
     }
 
 
 def _resolve_macro_fit(
-    macro_impl: Dict,
+    macro_impl: dict,
     ticker: str,
     sector: str = "",
     regime: str = "",
@@ -3358,42 +3928,85 @@ def _resolve_macro_fit(
     if regime and sector:
         sector_lower = sector.lower()
         if regime == "RISK_OFF":
-            if any(kw in sector_lower for kw in [
-                "health", "pharma", "medical", "utilit", "staple",
-                "defense", "commodit", "gold",
-            ]):
+            if any(
+                kw in sector_lower
+                for kw in [
+                    "health",
+                    "pharma",
+                    "medical",
+                    "utilit",
+                    "staple",
+                    "defense",
+                    "commodit",
+                    "gold",
+                ]
+            ):
                 return "FAVORABLE"
-            if any(kw in sector_lower for kw in [
-                "tech", "software", "semi", "consumer elec",
-                "e-commerce", "social", "entertainment",
-                "fintech", "banking", "financial",
-            ]):
+            if any(
+                kw in sector_lower
+                for kw in [
+                    "tech",
+                    "software",
+                    "semi",
+                    "consumer elec",
+                    "e-commerce",
+                    "social",
+                    "entertainment",
+                    "fintech",
+                    "banking",
+                    "financial",
+                ]
+            ):
                 return "UNFAVORABLE"
         elif regime == "RISK_ON":
-            if any(kw in sector_lower for kw in [
-                "tech", "software", "semi", "consumer",
-                "e-commerce", "social", "entertainment",
-            ]):
+            if any(
+                kw in sector_lower
+                for kw in [
+                    "tech",
+                    "software",
+                    "semi",
+                    "consumer",
+                    "e-commerce",
+                    "social",
+                    "entertainment",
+                ]
+            ):
                 return "FAVORABLE"
-            if any(kw in sector_lower for kw in [
-                "utilit", "staple",
-            ]):
+            if any(
+                kw in sector_lower
+                for kw in [
+                    "utilit",
+                    "staple",
+                ]
+            ):
                 return "NEUTRAL"
         elif regime == "CAUTIOUS":
-            if any(kw in sector_lower for kw in [
-                "health", "pharma", "medical", "utilit", "staple",
-                "defense", "commodit", "gold",
-            ]):
+            if any(
+                kw in sector_lower
+                for kw in [
+                    "health",
+                    "pharma",
+                    "medical",
+                    "utilit",
+                    "staple",
+                    "defense",
+                    "commodit",
+                    "gold",
+                ]
+            ):
                 return "FAVORABLE"
-            if any(kw in sector_lower for kw in [
-                "crypto",
-            ]):
+            if any(
+                kw in sector_lower
+                for kw in [
+                    "crypto",
+                ]
+            ):
                 return "UNFAVORABLE"
 
     return "NEUTRAL"
 
 
-def _resolve_news_impact(port_news: Dict, ticker: str) -> str:
+def _resolve_news_impact(port_news: dict, ticker: str) -> str:
     """
     Determine aggregate news impact for a ticker.
 
@@ -3410,7 +4023,9 @@ def _resolve_news_impact(port_news: Dict, ticker: str) -> str:
     if isinstance(items, dict):
         items = [items]
     # v33.0: Canonicalize agent impact variants before matching
-    impacts = [canonicalize_impact(i.get("impact", "NEUTRAL")) for i in items if isinstance(i, dict)]
+    impacts = [
+        canonicalize_impact(i.get("impact", "NEUTRAL")) for i in items if isinstance(i, dict)
+    ]
     if not impacts:
         return "NEUTRAL"
 
@@ -3427,7 +4042,7 @@ def _resolve_news_impact(port_news: Dict, ticker: str) -> str:
     return "NEUTRAL"
 
 
-def _fallback_technical(sig_data: Dict) -> Dict:
+def _fallback_technical(sig_data: dict) -> dict:
     """
     Generate synthetic technical view from signal CSV data (CIO v5.2).
 
@@ -3435,11 +4050,12 @@ def _fallback_technical(sig_data: Dict) -> Dict:
     52W (52-week high %), and beta to derive a directional view instead of
     defaulting everything to momentum=0, timing=HOLD.
     """
+
     def _num(v, default=0):
         if v is None:
             return default
         try:
-            return float(str(v).replace('%', '').replace(',', ''))
+            return float(str(v).replace("%", "").replace(",", ""))
         except (ValueError, TypeError):
             return default
 
@@ -3484,13 +4100,14 @@ def _fallback_technical(sig_data: Dict) -> Dict:
     }
 
 
-def _fallback_fundamental(sig_data: Dict) -> Dict:
+def _fallback_fundamental(sig_data: dict) -> dict:
     """Generate synthetic fundamental score from signal data."""
+
     def _num(v, default=0):
         if v is None:
             return default
         try:
-            return float(str(v).replace('%', '').replace(',', ''))
+            return float(str(v).replace("%", "").replace(",", ""))
         except (ValueError, TypeError):
             return default
 
@@ -3516,24 +4133,24 @@ def _fallback_fundamental(sig_data: Dict) -> Dict:
 
 def _synthesize_with_lookups(
     ticker: str,
-    sig_data: Dict,
-    lookups: Dict[str, Any],
-    fund_report: Dict,
-    tech_report: Dict,
+    sig_data: dict,
+    lookups: dict[str, Any],
+    fund_report: dict,
+    tech_report: dict,
     sector: str,
     sec_median: float,
-    census_ts_map: Dict[str, str],
+    census_ts_map: dict[str, str],
     regime: str = "",
     kill_thesis_triggered: bool = False,
-    previous_signal: Optional[str] = None,
-    days_since_signal_change: Optional[int] = None,
+    previous_signal: str | None = None,
+    days_since_signal_change: int | None = None,
     regime_momentum: str = "STABLE",
-    fg_score: Optional[float] = None,
-    news_report: Optional[Dict] = None,
+    fg_score: float | None = None,
+    news_report: dict | None = None,
     is_opportunity: bool = False,
-    debate_conviction_signal: Optional[str] = None,
-    debate_data: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    debate_conviction_signal: str | None = None,
+    debate_data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Run synthesize_stock using pre-built agent lookups."""
     # CIO v6.0 E3: Log warnings when agents have stocks section but ticker
     # is missing vs when entire stocks section is absent, to distinguish
@@ -3548,7 +4165,8 @@ def _synthesize_with_lookups(
             # Agent produced a report but no 'stocks' key — likely malformed
             logger.warning(
                 "Fundamental agent report missing 'stocks' key — "
-                "possible schema issue (using fallback for %s)", ticker,
+                "possible schema issue (using fallback for %s)",
+                ticker,
             )
         fund_data = _fallback_fundamental(sig_data)
 
@@ -3560,11 +4178,15 @@ def _synthesize_with_lookups(
         elif tech_report:
             logger.warning(
                 "Technical agent report missing 'stocks' key — "
-                "possible schema issue (using fallback for %s)", ticker,
+                "possible schema issue (using fallback for %s)",
+                ticker,
             )
         tech_data = _fallback_technical(sig_data)
     macro_fit = _resolve_macro_fit(
-        lookups["macro_impl"], ticker, sector=sector, regime=regime,
+        lookups["macro_impl"],
+        ticker,
+        sector=sector,
+        regime=regime,
     )
     cen_align, div_score = lookups["div_map"].get(ticker, ("NEUTRAL", 0))
     news_impact = _resolve_news_impact(lookups["port_news"], ticker)
@@ -3600,6 +4222,7 @@ def _synthesize_with_lookups(
     if fund_data.get("next_earnings_date"):
         try:
             from datetime import datetime as _dt
+
             ed = _dt.strptime(fund_data["next_earnings_date"], "%Y-%m-%d").date()
             today = _dt.now().date()
             delta = (ed - today).days
@@ -3614,6 +4237,18 @@ def _synthesize_with_lookups(
         ticker_earnings = [e for e in earnings_cal if e.get("ticker") == ticker]
         if ticker_earnings:
             earnings_days_away = ticker_earnings[0].get("days_away", 14)
+
+    # Social sentiment lookup (CIO v35.1)
+    sent_data = lookups.get("sentiment_impl", {}).get(ticker, {})
+    sent_view = sent_data.get("view", "") if isinstance(sent_data, dict) else ""
+    sent_vol = sent_data.get("volume", "LOW") if isinstance(sent_data, dict) else "LOW"
+
+    # Signal transparency bridge (CIO v35.1)
+    sig_trigger_data = lookups.get("signal_triggers", {}).get(ticker, {})
+    sig_triggers = (
+        sig_trigger_data.get("sell_triggers", []) if isinstance(sig_trigger_data, dict) else []
+    )
+    sig_trigger_strength = classify_trigger_strength(sig_triggers)
 
     return synthesize_stock(
         ticker=ticker,
@@ -3644,18 +4279,22 @@ def _synthesize_with_lookups(
         debate_conviction_signal=debate_conviction_signal,
         debate_data=debate_data,
         rolling_thresholds=lookups.get("rolling_thresholds"),
+        sentiment_view=sent_view,
+        sentiment_volume=sent_vol,
+        signal_triggers=sig_triggers,
+        signal_trigger_strength=sig_trigger_strength,
     )
 
 
 def apply_opportunity_gate(
-    entry: Dict[str, Any],
-    fund_report: Dict,
-    tech_report: Dict,
+    entry: dict[str, Any],
+    fund_report: dict,
+    tech_report: dict,
     macro_fit: str,
     census_alignment: str,
-    portfolio_sectors: Dict[str, int],
+    portfolio_sectors: dict[str, int],
     regime: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Apply CIO C2 validation gate to new opportunities.
 
@@ -3745,11 +4384,11 @@ def apply_opportunity_gate(
 
 
 def detect_sector_gaps(
-    portfolio_sectors: Dict[str, int],
-    sector_rankings: Dict[str, Any],
-    portfolio_weights: Optional[Dict[str, float]] = None,
+    portfolio_sectors: dict[str, int],
+    sector_rankings: dict[str, Any],
+    portfolio_weights: dict[str, float] | None = None,
     min_meaningful_exposure: float = 3.0,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Identify sectors underweight in the portfolio that are leading in rotation.
 
@@ -3792,37 +4431,42 @@ def detect_sector_gaps(
             is_gap = count == 0
 
         if is_gap and rank <= 5 and ret_1m > 0:
-            urgency = "HIGH" if rank <= 3 and (portfolio_weights is None or exposure < 1.0) else "MEDIUM"
-            gaps.append({
-                "sector": sector,
-                "portfolio_exposure": round(exposure, 1),
-                "performance_1m": ret_1m,
-                "rank": rank,
-                "urgency": urgency,
-            })
+            urgency = (
+                "HIGH" if rank <= 3 and (portfolio_weights is None or exposure < 1.0) else "MEDIUM"
+            )
+            gaps.append(
+                {
+                    "sector": sector,
+                    "portfolio_exposure": round(exposure, 1),
+                    "performance_1m": ret_1m,
+                    "rank": rank,
+                    "urgency": urgency,
+                }
+            )
 
     gaps.sort(key=lambda g: g["rank"])
     return gaps
 
 
 def build_concordance(
-    portfolio_signals: Dict[str, Dict],
-    fund_report: Dict,
-    tech_report: Dict,
-    macro_report: Dict,
-    census_report: Dict,
-    news_report: Dict,
-    risk_report: Dict,
-    sector_map: Dict[str, str],
-    census_ts_map: Optional[Dict[str, str]] = None,
-    opportunity_signals: Optional[Dict[str, Dict]] = None,
-    opportunity_sector_map: Optional[Dict[str, str]] = None,
-    triggered_kill_theses: Optional[Dict[str, bool]] = None,
-    previous_concordance: Optional[List[Dict[str, Any]]] = None,
-    debate_results: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> List[Dict[str, Any]]:
+    portfolio_signals: dict[str, dict],
+    fund_report: dict,
+    tech_report: dict,
+    macro_report: dict,
+    census_report: dict,
+    news_report: dict,
+    risk_report: dict,
+    sector_map: dict[str, str],
+    census_ts_map: dict[str, str] | None = None,
+    opportunity_signals: dict[str, dict] | None = None,
+    opportunity_sector_map: dict[str, str] | None = None,
+    triggered_kill_theses: dict[str, bool] | None = None,
+    previous_concordance: list[dict[str, Any]] | None = None,
+    debate_results: dict[str, dict[str, Any]] | None = None,
+    sentiment_report: dict | None = None,
+) -> list[dict[str, Any]]:
     """
-    Build the full concordance matrix from all 7 agent reports.
+    Build the full concordance matrix from all 8 agent reports.
 
     This is the main entry point for CIO synthesis.
 
@@ -3864,7 +4508,8 @@ def build_concordance(
     if cb_level in ("WARNING", "CRITICAL"):
         logger.warning(
             "Circuit breaker %s: drawdown %.1f%%, new positions %s",
-            cb_level, cb_state.get("drawdown_pct", 0),
+            cb_level,
+            cb_state.get("drawdown_pct", 0),
             "blocked" if not cb_new_allowed else "allowed",
         )
 
@@ -3872,6 +4517,7 @@ def build_concordance(
     # When None or stale, determine_action falls back to legacy fixed thresholds.
     try:
         from trade_modules.conviction_thresholds import load_thresholds
+
         rolling_thresholds = load_thresholds()
     except Exception:
         rolling_thresholds = None
@@ -3881,7 +4527,7 @@ def build_concordance(
     # (no date field), infer the date from the concordance file mtime or
     # default to 7 days (typical committee cadence). Previously, the missing
     # date caused ALL stocks to get NO_HISTORY, making velocity dead code.
-    prev_signal_map: Dict[str, Tuple[str, Optional[int]]] = {}
+    prev_signal_map: dict[str, tuple[str, int | None]] = {}
     if previous_concordance:
         _prev_list = previous_concordance
         _prev_date_str = None
@@ -3905,6 +4551,7 @@ def build_concordance(
                     if _d:
                         try:
                             from datetime import datetime as _dt
+
                             _days = (_dt.now() - _dt.strptime(str(_d)[:10], "%Y-%m-%d")).days
                         except (ValueError, TypeError):
                             pass
@@ -3918,28 +4565,50 @@ def build_concordance(
                     prev_signal_map[_t] = (_ps, _days)
 
     # CIO v26.1: Normalize agent report structures before processing.
-    fund_report, tech_report, macro_report, census_report, news_report, risk_report = (
-        normalize_agent_reports(
-            fund_report, tech_report, macro_report,
-            census_report, news_report, risk_report,
-        )
+    if sentiment_report is None:
+        sentiment_report = {}
+    (
+        fund_report,
+        tech_report,
+        macro_report,
+        census_report,
+        news_report,
+        risk_report,
+        sentiment_report,
+    ) = normalize_agent_reports(
+        fund_report,
+        tech_report,
+        macro_report,
+        census_report,
+        news_report,
+        risk_report,
+        sentiment_report,
     )
 
     lookups = _build_agent_lookups(
-        fund_report, tech_report, macro_report,
-        census_report, news_report, risk_report,
+        fund_report,
+        tech_report,
+        macro_report,
+        census_report,
+        news_report,
+        risk_report,
+        sentiment_report,
     )
     # CIO v17 H4.b: Make rolling-percentile thresholds available to
     # downstream synthesize_stock calls without changing every signature.
     lookups["rolling_thresholds"] = rolling_thresholds
 
+    # CIO v35.1: Signal transparency bridge — load sell_triggers from signal log
+    lookups["signal_triggers"] = load_signal_triggers()
+
     # Compute sector medians from portfolio
     sector_medians, universe_median = compute_sector_medians(
-        portfolio_signals, sector_map,
+        portfolio_signals,
+        sector_map,
     )
 
     # Portfolio sector counts (for gap detection)
-    portfolio_sectors: Dict[str, int] = {}
+    portfolio_sectors: dict[str, int] = {}
     for ticker in portfolio_signals:
         sec = resolve_sector(ticker, sector_map)
         portfolio_sectors[sec] = portfolio_sectors.get(sec, 0) + 1
@@ -3956,15 +4625,20 @@ def build_concordance(
 
     # CIO v19.0 R1: Compute forward-looking regime momentum overlay
     regime_momentum = compute_regime_momentum(
-        macro_report, tech_report, fund_report, news_report,
+        macro_report,
+        tech_report,
+        fund_report,
+        news_report,
     )
     logger.info("Regime momentum overlay: %s (regime=%s)", regime_momentum, regime)
 
     # CIO v23.3: Regime transition model from concordance history
     regime_transition = compute_regime_transition()
-    logger.info("Regime transition: %s (spread=%.1f)",
-                regime_transition.get("transition", "N/A"),
-                regime_transition.get("spread", 0))
+    logger.info(
+        "Regime transition: %s (spread=%.1f)",
+        regime_transition.get("transition", "N/A"),
+        regime_transition.get("spread", 0),
+    )
 
     # CIO v7.0 P3: Risk warning dilution detection.
     # When >40% of portfolio stocks trigger risk warnings, the warnings are
@@ -3979,7 +4653,9 @@ def build_concordance(
         logger.info(
             "Risk warning dilution detected: %d/%d (%.0f%%) stocks warned — "
             "treat as systemic risk, not stock-specific",
-            warned_count, total_count, warned_count / total_count * 100,
+            warned_count,
+            total_count,
+            warned_count / total_count * 100,
         )
 
     # CIO v29.0: F&G data disabled — unreliable
@@ -3995,8 +4671,15 @@ def build_concordance(
         _debate = debate_results.get(ticker, {})
         _debate_signal = _debate.get("conviction_signal") if _debate else None
         entry = _synthesize_with_lookups(
-            ticker, sig_data, lookups, fund_report, tech_report,
-            sector, sec_median, census_ts_map, regime=regime,
+            ticker,
+            sig_data,
+            lookups,
+            fund_report,
+            tech_report,
+            sector,
+            sec_median,
+            census_ts_map,
+            regime=regime,
             kill_thesis_triggered=triggered_kill_theses.get(ticker, False),
             previous_signal=_prev_sig,
             days_since_signal_change=_prev_days,
@@ -4037,8 +4720,15 @@ def build_concordance(
         opp_score = sig_data.get("opportunity_score", 0)
 
         entry = _synthesize_with_lookups(
-            ticker, sig_data, lookups, fund_report, tech_report,
-            sector, sec_median, census_ts_map, regime=regime,
+            ticker,
+            sig_data,
+            lookups,
+            fund_report,
+            tech_report,
+            sector,
+            sec_median,
+            census_ts_map,
+            regime=regime,
             regime_momentum=regime_momentum,
             fg_score=fg_score,
             news_report=news_report,
@@ -4061,8 +4751,13 @@ def build_concordance(
         macro_fit = _resolve_macro_fit(lookups["macro_impl"], ticker)
         cen_align = lookups["div_map"].get(ticker, ("NEUTRAL", 0))[0]
         entry = apply_opportunity_gate(
-            entry, fund_report, tech_report, macro_fit,
-            cen_align, portfolio_sectors, regime=regime,
+            entry,
+            fund_report,
+            tech_report,
+            macro_fit,
+            cen_align,
+            portfolio_sectors,
+            regime=regime,
         )
         concordance.append(entry)
 
@@ -4097,16 +4792,18 @@ def build_concordance(
             entry["conviction_waterfall"] = wf
             logger.debug(
                 "%s: conviction decay applied (days=%d, factor=%.3f, %d→%d)",
-                entry["ticker"], days_held, decay_factor, old_conviction, entry["conviction"]
+                entry["ticker"],
+                days_held,
+                decay_factor,
+                old_conviction,
+                entry["conviction"],
             )
 
     # CIO v20.0 D6: Portfolio Sharpe impact — penalize redundant positions
     # Compute correlation penalties based on risk report clusters
     for entry in concordance:
         ticker = entry["ticker"]
-        sharpe_penalty = compute_portfolio_sharpe_impact(
-            ticker, portfolio_signals, risk_report
-        )
+        sharpe_penalty = compute_portfolio_sharpe_impact(ticker, portfolio_signals, risk_report)
         if sharpe_penalty < 0:
             entry["conviction"] += sharpe_penalty  # sharpe_penalty is negative
             entry["portfolio_redundancy_penalty"] = abs(sharpe_penalty)
@@ -4146,7 +4843,7 @@ def build_concordance(
     # but only 3 with BUY/ADD action — the other 7 are HOLD and don't represent
     # concentration risk in the ACTION space. Using total count inflated the penalty
     # and suppressed stocks that weren't actually adding concentration.
-    sector_counts: Dict[str, int] = {}
+    sector_counts: dict[str, int] = {}
     for entry in concordance:
         if entry.get("action") in ("BUY", "ADD") or entry.get("signal") == "B":
             sec = entry.get("sector", "Other")
@@ -4197,14 +4894,19 @@ def build_concordance(
                 entry.get("pet", 0) if "pet" in entry else 0,
                 # Recount bull agents — we don't store bull_count but can
                 # approximate from stored fields
-                sum(1 for x in [
-                    entry.get("fund_score", 0) >= 70,
-                    entry.get("tech_signal") in ("ENTER_NOW",) or entry.get("tech_momentum", 0) > 20,
-                    entry.get("macro_fit") == "FAVORABLE",
-                    entry.get("census") == "ALIGNED",
-                    "POSITIVE" in (entry.get("news_impact") or ""),
-                    not entry.get("risk_warning", False),
-                ] if x),
+                sum(
+                    1
+                    for x in [
+                        entry.get("fund_score", 0) >= 70,
+                        entry.get("tech_signal") in ("ENTER_NOW",)
+                        or entry.get("tech_momentum", 0) > 20,
+                        entry.get("macro_fit") == "FAVORABLE",
+                        entry.get("census") == "ALIGNED",
+                        "POSITIVE" in (entry.get("news_impact") or ""),
+                        not entry.get("risk_warning", False),
+                    ]
+                    if x
+                ),
                 entry.get("fund_score", 50),
                 entry.get("buy_pct", 0),
             )
@@ -4219,7 +4921,8 @@ def build_concordance(
                 entry["action"] = "BUY" if entry["conviction"] >= 55 else "HOLD"
             else:
                 entry["action"] = determine_action(
-                    entry["conviction"], entry.get("signal", "H"),
+                    entry["conviction"],
+                    entry.get("signal", "H"),
                     entry.get("tech_signal", "HOLD"),
                     entry.get("risk_warning", False),
                     thresholds=rolling_thresholds,
@@ -4228,13 +4931,12 @@ def build_concordance(
     # CIO v32.0 T2: Action hysteresis — prevent HOLD/ADD whipsaw.
     # Applied after ALL conviction modifiers so it doesn't contaminate scoring.
     if previous_concordance:
-        _prev_action_map: Dict[str, Tuple[str, int]] = {}
+        _prev_action_map: dict[str, tuple[str, int]] = {}
         _prev_list_hyst = previous_concordance
         if isinstance(previous_concordance, dict):
             if "stocks" in previous_concordance:
                 _prev_list_hyst = [
-                    dict(v, ticker=k)
-                    for k, v in previous_concordance["stocks"].items()
+                    dict(v, ticker=k) for k, v in previous_concordance["stocks"].items()
                 ]
             elif "concordance" in previous_concordance:
                 _prev_list_hyst = previous_concordance["concordance"]
@@ -4254,9 +4956,11 @@ def build_concordance(
             if prev_data:
                 prev_act, prev_conv = prev_data
                 new_action = apply_action_hysteresis(
-                    entry["action"], entry["conviction"],
+                    entry["action"],
+                    entry["conviction"],
                     entry.get("signal", "H"),
-                    prev_act, prev_conv,
+                    prev_act,
+                    prev_conv,
                 )
                 if new_action != entry["action"]:
                     wf = entry.get("conviction_waterfall", {})
@@ -4279,12 +4983,7 @@ def build_concordance(
         norm_beta = (3.0 - raw_beta) / 2.7 * 100
         # Bull pct: already 0-100
         norm_bull = min(100, max(0, entry.get("bull_pct", 50)))
-        tiebreak = (
-            norm_exret * 0.4
-            + norm_fund * 0.3
-            + norm_beta * 0.1
-            + norm_bull * 0.2
-        )
+        tiebreak = norm_exret * 0.4 + norm_fund * 0.3 + norm_beta * 0.1 + norm_bull * 0.2
         entry["tiebreak"] = round(tiebreak, 2)
 
         # CIO Legacy C2: Capital efficiency score for within-group ranking.
@@ -4300,11 +4999,12 @@ def build_concordance(
 
     # CIO v23.4: Tax-loss harvesting (Q4 only: Oct-Dec)
     from datetime import datetime as _dt_cls
+
     current_month = _dt_cls.now().month
     if current_month >= 10:  # Q4
         # Identify correlation clusters for substitute suggestions
         corr_clusters = risk_report.get("correlation_clusters", [])
-        cluster_map: Dict[str, list] = {}
+        cluster_map: dict[str, list] = {}
         for cl in corr_clusters:
             tickers = cl.get("tickers", cl.get("stocks", []))
             for t in tickers:
@@ -4312,7 +5012,7 @@ def build_concordance(
 
         for entry in concordance:
             if not entry.get("is_opportunity") and entry.get("action") in ("HOLD", "TRIM", "SELL"):
-                price = entry.get("price", 0)
+                entry.get("price", 0)
                 exret = entry.get("exret", 0)
                 # Negative EXRET as proxy for unrealized loss
                 if exret < -10:
@@ -4339,7 +5039,8 @@ def build_concordance(
         if cb_blocked:
             logger.warning(
                 "Circuit breaker %s: blocked %d BUY/ADD actions → HOLD/WATCH",
-                cb_level, cb_blocked,
+                cb_level,
+                cb_blocked,
             )
     elif cb_level == "CAUTION" and cb_size_mult < 1.0:
         for entry in concordance:
@@ -4360,6 +5061,41 @@ def build_concordance(
                 f"holds underperform. Review thesis or set exit timeline."
             )
 
+    # CIO v36 / M4: optional EmpiricalFactorScore BUY gate. Disabled by
+    # default until accumulated forward-return evidence validates the demote
+    # rate. Enable by setting CIO_V36_ENABLE_EMPIRICAL_GATE=1 in the env.
+    import os as _os
+
+    if _os.environ.get("CIO_V36_ENABLE_EMPIRICAL_GATE") == "1":
+        try:
+            from trade_modules.empirical_factor import apply_empirical_gate
+
+            # Enrich concordance entries with the factor inputs (pct_52w_high,
+            # short_interest, roe, upside) from the original portfolio_signals
+            # / opportunity_signals. The concordance row from build_concordance
+            # doesn't preserve these fields, so we copy them in before scoring.
+            _all_signals = dict(portfolio_signals)
+            if opportunity_signals:
+                _all_signals.update(opportunity_signals)
+            for _entry in concordance:
+                _t = _entry.get("ticker")
+                _src = _all_signals.get(_t, {})
+                for _k in ("pct_52w_high", "52w", "short_interest", "roe", "upside"):
+                    if _k in _src and _entry.get(_k) is None:
+                        _entry[_k] = _src[_k]
+                # Map 52w → pct_52w_high alias if missing
+                if "pct_52w_high" not in _entry and "52w" in _entry:
+                    _entry["pct_52w_high"] = _entry["52w"]
+
+            demoted = apply_empirical_gate(concordance, threshold=0.0)
+            if demoted:
+                logger.info(
+                    "CIO v36 empirical gate active: demoted %d BUY/ADD → HOLD",
+                    demoted,
+                )
+        except Exception as exc:
+            logger.warning("Empirical-factor gate failed (continuing): %s", exc)
+
     # Sort by action priority, then conviction desc, then tiebreak desc
     concordance.sort(
         key=lambda x: (ACTION_ORDER.get(x["action"], 9), -x["conviction"], -x["tiebreak"])
@@ -4369,9 +5105,9 @@ def build_concordance(
 
 
 def build_agent_memory(
-    prev_concordance: List[Dict[str, Any]],
-    current_signals: Dict[str, Dict],
-) -> Dict[str, str]:
+    prev_concordance: list[dict[str, Any]],
+    current_signals: dict[str, dict],
+) -> dict[str, str]:
     """
     Build per-agent feedback strings from previous concordance + current prices.
 
@@ -4389,7 +5125,7 @@ def build_agent_memory(
         return {}
 
     # Track per-agent assessments vs outcomes
-    agent_records: Dict[str, List[str]] = {
+    agent_records: dict[str, list[str]] = {
         "fundamental": [],
         "technical": [],
         "macro": [],
@@ -4508,23 +5244,33 @@ def build_agent_memory(
                 agent_records[agent].insert(0, _pnl_summary)
 
     # Format output strings, limit to top 10 most informative entries per agent
-    result: Dict[str, str] = {}
+    result: dict[str, str] = {}
     for agent, records in agent_records.items():
         if not records:
             continue
         # Sort by absolute accuracy signal — put WRONG/TOO OPTIMISTIC first
-        priority_order = {"WRONG": 0, "TOO OPTIMISTIC": 1, "TOO PESSIMISTIC": 2,
-                          "FALSE ALARM": 3, "POOR PICK": 4, "CORRECT": 5,
-                          "VALIDATED": 6, "GOOD PICK": 7, "NEUTRAL": 8}
-        records.sort(key=lambda r: priority_order.get(
-            r.split("[")[-1].rstrip("]") if "[" in r else "NEUTRAL", 8
-        ))
+        priority_order = {
+            "WRONG": 0,
+            "TOO OPTIMISTIC": 1,
+            "TOO PESSIMISTIC": 2,
+            "FALSE ALARM": 3,
+            "POOR PICK": 4,
+            "CORRECT": 5,
+            "VALIDATED": 6,
+            "GOOD PICK": 7,
+            "NEUTRAL": 8,
+        }
+        records.sort(
+            key=lambda r: priority_order.get(
+                r.split("[")[-1].rstrip("]") if "[" in r else "NEUTRAL", 8
+            )
+        )
         result[agent] = "\n".join(records[:10])
 
     return result
 
 
-def _load_realized_pnl_summary() -> Optional[str]:
+def _load_realized_pnl_summary() -> str | None:
     """Load realized P&L summary from etoro-portfolio for agent context.
 
     Returns a formatted string with portfolio-level performance stats,
@@ -4535,13 +5281,15 @@ def _load_realized_pnl_summary() -> Optional[str]:
         return None
     try:
         import sqlite3
+
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
 
         # Check if statement data exists
-        tables = [r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()]
+        tables = [
+            r[0]
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        ]
         if "statement_closed" not in tables:
             conn.close()
             return None
@@ -4581,9 +5329,7 @@ def _load_realized_pnl_summary() -> Optional[str]:
         ]
         for r in recent[:5]:
             ret = f"{r['return_pct']:+.1f}%" if r["return_pct"] else "?%"
-            lines.append(
-                f"  {r['ticker']}: ${r['profit_usd']:+,.0f} ({ret}, {r['holding_days']}d)"
-            )
+            lines.append(f"  {r['ticker']}: ${r['profit_usd']:+,.0f} ({ret}, {r['holding_days']}d)")
         return "\n".join(lines)
     except Exception as e:
         logger.debug("Failed to load realized P&L: %s", e)
@@ -4591,9 +5337,9 @@ def _load_realized_pnl_summary() -> Optional[str]:
 
 
 def compute_changes(
-    current: List[Dict[str, Any]],
+    current: list[dict[str, Any]],
     previous,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Compare current and previous concordance to detect changes.
 
@@ -4618,26 +5364,35 @@ def compute_changes(
     for c in current:
         prev = prev_map.get(c["ticker"])
         if prev:
-            if prev.get("action") != c["action"] or abs(prev.get("conviction", 0) - c["conviction"]) > 5:
-                changes.append({
+            if (
+                prev.get("action") != c["action"]
+                or abs(prev.get("conviction", 0) - c["conviction"]) > 5
+            ):
+                changes.append(
+                    {
+                        "ticker": c["ticker"],
+                        "prev_action": prev.get("action"),
+                        "prev_conviction": prev.get("conviction"),
+                        "curr_action": c["action"],
+                        "curr_conviction": c["conviction"],
+                        "delta": c["conviction"] - prev.get("conviction", 0),
+                        "type": "UPGRADE"
+                        if c["conviction"] > prev.get("conviction", 0)
+                        else "DOWNGRADE",
+                    }
+                )
+        else:
+            changes.append(
+                {
                     "ticker": c["ticker"],
-                    "prev_action": prev.get("action"),
-                    "prev_conviction": prev.get("conviction"),
+                    "prev_action": None,
+                    "prev_conviction": None,
                     "curr_action": c["action"],
                     "curr_conviction": c["conviction"],
-                    "delta": c["conviction"] - prev.get("conviction", 0),
-                    "type": "UPGRADE" if c["conviction"] > prev.get("conviction", 0) else "DOWNGRADE",
-                })
-        else:
-            changes.append({
-                "ticker": c["ticker"],
-                "prev_action": None,
-                "prev_conviction": None,
-                "curr_action": c["action"],
-                "curr_conviction": c["conviction"],
-                "delta": 0,
-                "type": "NEW",
-            })
+                    "delta": 0,
+                    "type": "NEW",
+                }
+            )
 
     return changes
 
@@ -4649,6 +5404,7 @@ def _compute_multi_tf_var(var_daily_raw: float, portfolio_risk: dict) -> dict:
     CVaR (ES) ≈ VaR * 1.25 for normal distribution at 95% confidence.
     """
     import math
+
     # Normalize to percentage
     var_d = var_daily_raw * 100 if 0 < abs(var_daily_raw) < 1 else var_daily_raw
     if var_d == 0:
@@ -4663,33 +5419,42 @@ def _compute_multi_tf_var(var_daily_raw: float, portfolio_risk: dict) -> dict:
     # CVaR/VaR ratio: for normal dist at 95%, E[X | X < VaR] / VaR ≈ 1.25
     cvar_ratio = 1.25
     return {
-        "daily":   {"var": round(var_d, 2),        "cvar": round(var_d * cvar_ratio, 2)},
-        "weekly":  {"var": round(var_d * math.sqrt(5), 2),  "cvar": round(var_d * math.sqrt(5) * cvar_ratio, 2)},
-        "monthly": {"var": round(var_d * math.sqrt(21), 2), "cvar": round(var_d * math.sqrt(21) * cvar_ratio, 2)},
-        "annual":  {"var": round(var_d * math.sqrt(252), 2),"cvar": round(var_d * math.sqrt(252) * cvar_ratio, 2)},
+        "daily": {"var": round(var_d, 2), "cvar": round(var_d * cvar_ratio, 2)},
+        "weekly": {
+            "var": round(var_d * math.sqrt(5), 2),
+            "cvar": round(var_d * math.sqrt(5) * cvar_ratio, 2),
+        },
+        "monthly": {
+            "var": round(var_d * math.sqrt(21), 2),
+            "cvar": round(var_d * math.sqrt(21) * cvar_ratio, 2),
+        },
+        "annual": {
+            "var": round(var_d * math.sqrt(252), 2),
+            "cvar": round(var_d * math.sqrt(252) * cvar_ratio, 2),
+        },
     }
 
 
 def generate_synthesis_output(
-    concordance: List[Dict[str, Any]],
-    macro_report: Dict,
-    census_report: Dict,
-    news_report: Dict,
-    risk_report: Dict,
-    changes: List[Dict[str, Any]],
-    sector_gaps: List[Dict[str, Any]],
-    census_ts_map: Optional[Dict[str, str]] = None,
-    opportunity_report: Optional[Dict] = None,
-    performance_data: Optional[Dict] = None,
-    tech_report: Optional[Dict] = None,
-    fund_report: Optional[Dict] = None,
-    regime_transition: Optional[Dict] = None,
-    current_positions: Optional[Dict[str, float]] = None,
-    current_sector_exposures: Optional[Dict[str, float]] = None,
-    sector_map: Optional[Dict[str, str]] = None,
+    concordance: list[dict[str, Any]],
+    macro_report: dict,
+    census_report: dict,
+    news_report: dict,
+    risk_report: dict,
+    changes: list[dict[str, Any]],
+    sector_gaps: list[dict[str, Any]],
+    census_ts_map: dict[str, str] | None = None,
+    opportunity_report: dict | None = None,
+    performance_data: dict | None = None,
+    tech_report: dict | None = None,
+    fund_report: dict | None = None,
+    regime_transition: dict | None = None,
+    current_positions: dict[str, float] | None = None,
+    current_sector_exposures: dict[str, float] | None = None,
+    sector_map: dict[str, str] | None = None,
     max_sector_pct: float = 40.0,
     max_single_stock_pct: float = 10.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate complete synthesis JSON output from concordance and agent reports.
 
@@ -4718,14 +5483,21 @@ def generate_synthesis_output(
     # Risk agent sometimes puts metrics at top level, not in portfolio_risk sub-dict
     if not pr:
         pr = {}
-    risk_score = (pr.get("risk_score")
-                  or risk_report.get("portfolio_risk_score")
-                  or risk_report.get("risk_score")  # BUG 5 fix: also check top-level
-                  or risk_report.get("executive_summary", {}).get("overall_risk_rating_score", 50)
-                  or 50)
+    risk_score = (
+        pr.get("risk_score")
+        or risk_report.get("portfolio_risk_score")
+        or risk_report.get("risk_score")  # BUG 5 fix: also check top-level
+        or risk_report.get("executive_summary", {}).get("overall_risk_rating_score", 50)
+        or 50
+    )
     # BUG 4 fix: var_95 may be a dict with daily/weekly/monthly keys
-    var_raw = (pr.get("var_95_annual") or pr.get("var_95_daily") or pr.get("var_95")
-               or risk_report.get("var_95") or 0)
+    var_raw = (
+        pr.get("var_95_annual")
+        or pr.get("var_95_daily")
+        or pr.get("var_95")
+        or risk_report.get("var_95")
+        or 0
+    )
     # v35.0: Also check portfolio_metrics.value_at_risk_95pct (agent variant)
     _var_is_estimate = False
     if not var_raw:
@@ -4736,7 +5508,8 @@ def generate_synthesis_output(
         var_95 = var_raw.get("monthly", var_raw.get("weekly", var_raw.get("daily", 0)))
     elif isinstance(var_raw, str):
         import re as _re_var
-        m = _re_var.search(r'(\d+\.?\d*)', str(var_raw))
+
+        m = _re_var.search(r"(\d+\.?\d*)", str(var_raw))
         var_95 = float(m.group(1)) if m else 0
     else:
         var_95 = var_raw
@@ -4744,21 +5517,32 @@ def generate_synthesis_output(
     # Convert to daily so _compute_multi_tf_var scales correctly.
     if _var_is_estimate and var_95 > 5:
         var_95 = var_95 / math.sqrt(252)
-    max_dd = pr.get("max_drawdown_1y") or pr.get("max_drawdown") or risk_report.get("max_drawdown") or 0
+    max_dd = (
+        pr.get("max_drawdown_1y") or pr.get("max_drawdown") or risk_report.get("max_drawdown") or 0
+    )
     if not max_dd:
         pm = risk_report.get("portfolio_metrics", {})
         max_dd_raw = pm.get("max_drawdown_scenario") or pm.get("max_drawdown") or 0
         if isinstance(max_dd_raw, str):
-            m = _re_var.search(r'(\d+\.?\d*)', str(max_dd_raw))
+            m = _re_var.search(r"(\d+\.?\d*)", str(max_dd_raw))
             max_dd = float(m.group(1)) if m else 0
         elif isinstance(max_dd_raw, (int, float)):
             max_dd = max_dd_raw
-    port_beta_agent = pr.get("portfolio_beta_vs_spy") or pr.get("portfolio_beta") or risk_report.get("portfolio_beta") or 0
+    port_beta_agent = (
+        pr.get("portfolio_beta_vs_spy")
+        or pr.get("portfolio_beta")
+        or risk_report.get("portfolio_beta")
+        or 0
+    )
     # Compute weighted-average beta from individual stock betas (more reliable than
     # correlation-based portfolio beta which understates for non-US heavy portfolios)
     port_beta_csv = 0
     if concordance:
-        betas = [e.get("beta", 0) for e in concordance if not e.get("is_opportunity") and e.get("beta", 0) > 0]
+        betas = [
+            e.get("beta", 0)
+            for e in concordance
+            if not e.get("is_opportunity") and e.get("beta", 0) > 0
+        ]
         if betas:
             port_beta_csv = sum(betas) / len(betas)
     # Prefer CSV-derived beta (individual stock betas averaged) over agent's
@@ -4767,9 +5551,11 @@ def generate_synthesis_output(
 
     # Macro — try nested paths for agent report compatibility.
     # Macro agent writes: key_indicators.us_10y_yield, regime.classification
-    indicators = (macro_report.get("macro_indicators")
-                  or macro_report.get("indicators")
-                  or macro_report.get("key_indicators", {}))
+    indicators = (
+        macro_report.get("macro_indicators")
+        or macro_report.get("indicators")
+        or macro_report.get("key_indicators", {})
+    )
     # Flatten nested indicator structures (yield_curve.10y → us_10y_yield, etc.)
     _yc = indicators.get("yield_curve", {})
     if isinstance(_yc, dict) and _yc:
@@ -4805,17 +5591,21 @@ def generate_synthesis_output(
         or (es.get("regime") if isinstance(es, dict) else "")
         or "CAUTIOUS"
     )
-    macro_score = (macro_report.get("macro_score")
-                   or (es.get("macro_score") if isinstance(es, dict) else 0)
-                   or macro_report.get("regime_confidence")
-                   or 0)
+    macro_score = (
+        macro_report.get("macro_score")
+        or (es.get("macro_score") if isinstance(es, dict) else 0)
+        or macro_report.get("regime_confidence")
+        or 0
+    )
     try:
         macro_score = int(float(str(macro_score)))
     except (ValueError, TypeError):
         macro_score = 0
     _ms_labels = {
-        range(0, 3): "Very Bearish", range(3, 5): "Bearish",
-        range(5, 6): "Neutral", range(6, 8): "Bullish",
+        range(0, 3): "Very Bearish",
+        range(3, 5): "Bearish",
+        range(5, 6): "Neutral",
+        range(6, 8): "Bullish",
         range(8, 11): "Very Bullish",
     }
     macro_label = "Neutral"
@@ -4826,9 +5616,7 @@ def generate_synthesis_output(
     rotation = (
         macro_report.get("sector_rotation_view", {}).get("rationale", "").split(".")[0]
         if isinstance(macro_report.get("sector_rotation_view"), dict)
-        else macro_report.get("sector_rotation_phase")
-        or macro_report.get("rotation_phase")
-        or ""
+        else macro_report.get("sector_rotation_phase") or macro_report.get("rotation_phase") or ""
     )
     if not rotation or rotation == "Unknown":
         rotation = macro_label
@@ -4841,9 +5629,9 @@ def generate_synthesis_output(
     fg_data = census_report.get("fear_greed", {})
     cash_data = census_report.get("cash_trends", {})
     fg_val = fg_data.get("current") or fg_data.get("value")
-    cash_val = (cash_data.get("mean_cash_pct")
-                or cash_data.get("avg_cash_pct")
-                or fg_data.get("cash_pct"))
+    cash_val = (
+        cash_data.get("mean_cash_pct") or cash_data.get("avg_cash_pct") or fg_data.get("cash_pct")
+    )
 
     # Fallback: nested sentiment structure (older report formats)
     sentiment_raw = census_report.get("sentiment", {})
@@ -4851,10 +5639,7 @@ def generate_synthesis_output(
     b1500 = sentiment_raw.get("broad_1500", sentiment_raw.get("broad", {}))
 
     sentiment["fg_top100"] = (
-        fg_val
-        or t100.get("fear_greed_index")
-        or sentiment_raw.get("fg_top100")
-        or 0
+        fg_val or t100.get("fear_greed_index") or sentiment_raw.get("fg_top100") or 0
     )
     sentiment["fg_broad"] = (
         fg_val  # Census agent reports one F&G value, use for both
@@ -4863,16 +5648,10 @@ def generate_synthesis_output(
         or 0
     )
     sentiment["cash_top100"] = (
-        cash_val
-        or t100.get("avg_cash_pct")
-        or sentiment_raw.get("cash_top100")
-        or 0
+        cash_val or t100.get("avg_cash_pct") or sentiment_raw.get("cash_top100") or 0
     )
     sentiment["cash_broad"] = (
-        cash_val
-        or b1500.get("avg_cash_pct")
-        or sentiment_raw.get("cash_broad")
-        or 0
+        cash_val or b1500.get("avg_cash_pct") or sentiment_raw.get("cash_broad") or 0
     )
     sentiment["trend_summary"] = (
         cash_data.get("assessment")
@@ -4895,9 +5674,12 @@ def generate_synthesis_output(
 
     # CIO v23.3: Build watchlist from gated opportunities
     watchlist = [
-        {"ticker": e["ticker"], "conviction": e["conviction"],
-         "watch_trigger": e.get("watch_trigger", ""),
-         "sector": e.get("sector", "")}
+        {
+            "ticker": e["ticker"],
+            "conviction": e["conviction"],
+            "watch_trigger": e.get("watch_trigger", ""),
+            "sector": e.get("sector", ""),
+        }
         for e in concordance
         if e.get("is_opportunity") and e.get("action") == "HOLD" and e.get("watch_trigger")
     ]
@@ -4966,6 +5748,7 @@ def generate_synthesis_output(
     # so the HTML and emailed action items reflect what's actually safe to add.
     if current_positions or current_sector_exposures:
         from trade_modules.conviction_sizer import apply_portfolio_constraints
+
         cur_pos = current_positions or {}
         cur_sec = current_sector_exposures or {}
         smap = sector_map or {}
@@ -4983,23 +5766,26 @@ def generate_synthesis_output(
             if requested_pct <= 0:
                 continue
             sector = smap.get(tkr) or entry.get("sector") or "Other"
-            new_positions_payload.append({
-                "ticker": tkr,
-                "sector": sector,
-                "position_size": requested_pct,
-                "_entry_ref": entry,
-            })
+            new_positions_payload.append(
+                {
+                    "ticker": tkr,
+                    "sector": sector,
+                    "position_size": requested_pct,
+                    "_entry_ref": entry,
+                }
+            )
 
         if new_positions_payload:
             constrained = apply_portfolio_constraints(
-                new_positions=[{k: v for k, v in p.items() if k != "_entry_ref"}
-                               for p in new_positions_payload],
+                new_positions=[
+                    {k: v for k, v in p.items() if k != "_entry_ref"} for p in new_positions_payload
+                ],
                 current_sector_exposures=cur_sec,
                 max_sector_pct=max_sector_pct,
                 max_single_stock_pct=max_single_stock_pct,
                 current_stock_exposures=cur_pos,
             )
-            for src, result in zip(new_positions_payload, constrained):
+            for src, result in zip(new_positions_payload, constrained, strict=False):
                 entry = src["_entry_ref"]
                 entry["requested_pct"] = result["original_size"]
                 entry["constrained_pct"] = result["constrained_size"]
@@ -5017,27 +5803,31 @@ def generate_synthesis_output(
             "current_sector_exposures": cur_sec,
             "current_stock_exposures": cur_pos,
             "constrained_actions": [
-                {"ticker": e["ticker"], "requested_pct": e.get("requested_pct"),
-                 "constrained_pct": e.get("constrained_pct"),
-                 "reason": e.get("constraint_reason", "")}
+                {
+                    "ticker": e["ticker"],
+                    "requested_pct": e.get("requested_pct"),
+                    "constrained_pct": e.get("constrained_pct"),
+                    "reason": e.get("constraint_reason", ""),
+                }
                 for e in concordance
                 if e.get("was_constrained")
             ],
         }
         # Recompute action_distribution (some BUY/ADD may have flipped to HOLD)
         from collections import Counter as _C
+
         output["action_distribution"] = dict(_C(e["action"] for e in concordance))
 
     return output
 
 
 def repair_synthesis(
-    synthesis: Dict[str, Any],
-    macro_report: Dict,
-    census_report: Dict,
-    news_report: Dict,
-    risk_report: Dict,
-) -> List[str]:
+    synthesis: dict[str, Any],
+    macro_report: dict,
+    census_report: dict,
+    news_report: dict,
+    risk_report: dict,
+) -> list[str]:
     """
     Attempt to repair missing/zero fields in the synthesis output by
     re-extracting from raw agent reports.
@@ -5063,9 +5853,11 @@ def repair_synthesis(
 
     # ── Risk score ──
     if not synthesis.get("risk_score") or synthesis.get("risk_score") == 50:
-        rs = (risk_report.get("portfolio_risk_score")
-              or risk_report.get("portfolio_risk", {}).get("risk_score")
-              or risk_report.get("executive_summary", {}).get("overall_risk_rating_score"))
+        rs = (
+            risk_report.get("portfolio_risk_score")
+            or risk_report.get("portfolio_risk", {}).get("risk_score")
+            or risk_report.get("executive_summary", {}).get("overall_risk_rating_score")
+        )
         if rs and rs != 50:
             synthesis["risk_score"] = rs
             repairs.append(f"risk_score repaired → {rs}")
@@ -5092,8 +5884,9 @@ def repair_synthesis(
     # ── Portfolio beta ──
     if not synthesis.get("portfolio_beta"):
         concordance = synthesis.get("concordance", [])
-        betas = [e.get("beta", 1.0) for e in concordance
-                 if not e.get("is_opportunity") and e.get("beta")]
+        betas = [
+            e.get("beta", 1.0) for e in concordance if not e.get("is_opportunity") and e.get("beta")
+        ]
         if betas:
             synthesis["portfolio_beta"] = round(sum(betas) / len(betas), 2)
             repairs.append(f"portfolio_beta repaired → {synthesis['portfolio_beta']}")
@@ -5103,21 +5896,30 @@ def repair_synthesis(
         items = []
         for theme in news_report.get("key_themes", []):
             if isinstance(theme, str) and theme.strip():
-                items.append({"headline": theme.strip(), "impact": "NEUTRAL",
-                              "affected_tickers": []})
+                items.append(
+                    {"headline": theme.strip(), "impact": "NEUTRAL", "affected_tickers": []}
+                )
             elif isinstance(theme, dict):
                 hl = theme.get("theme", theme.get("title", theme.get("headline", "")))
                 if hl:
-                    items.append({"headline": hl,
-                                  "impact": theme.get("sentiment", "NEUTRAL"),
-                                  "affected_tickers": theme.get("affected_tickers", [])})
+                    items.append(
+                        {
+                            "headline": hl,
+                            "impact": theme.get("sentiment", "NEUTRAL"),
+                            "affected_tickers": theme.get("affected_tickers", []),
+                        }
+                    )
         for sn in news_report.get("sector_news", []):
             if isinstance(sn, dict):
                 hl = sn.get("headline", sn.get("summary", ""))
                 if hl and len(items) < 8:
-                    items.append({"headline": hl,
-                                  "impact": sn.get("impact", "NEUTRAL"),
-                                  "affected_tickers": sn.get("affected_tickers", [])})
+                    items.append(
+                        {
+                            "headline": hl,
+                            "impact": sn.get("impact", "NEUTRAL"),
+                            "affected_tickers": sn.get("affected_tickers", []),
+                        }
+                    )
         if items:
             synthesis["breaking_news"] = items
             repairs.append(f"breaking_news repaired ({len(items)} items)")
@@ -5138,25 +5940,43 @@ def repair_synthesis(
 
     # ── Macro score ──
     if not synthesis.get("macro_score"):
-        ms = (macro_report.get("macro_score")
-              or macro_report.get("regime_confidence")
-              or macro_report.get("executive_summary", {}).get("macro_score"))
+        ms = (
+            macro_report.get("macro_score")
+            or macro_report.get("regime_confidence")
+            or macro_report.get("executive_summary", {}).get("macro_score")
+        )
         if ms:
             synthesis["macro_score"] = ms
             repairs.append(f"macro_score repaired → {ms}")
 
     if repairs:
-        logger.info("Synthesis repair applied %d fixes: %s",
-                     len(repairs), "; ".join(repairs))
+        logger.info("Synthesis repair applied %d fixes: %s", len(repairs), "; ".join(repairs))
 
     return repairs
 
 
+# CIO v36 / M10: kill-thesis cooldown log location (overridable for tests)
+KILL_THESIS_COOLDOWN_LOG = (
+    Path.home() / ".weirdapps-trading" / "committee" / "kill_thesis_cooldowns.jsonl"
+)
+
+
+def _cooldown_now() -> "datetime":  # noqa: F821 — imported in body for test monkeypatching
+    """Return now() — separate function so tests can monkeypatch it."""
+    from datetime import datetime as _dt
+
+    return _dt.now()
+
+
 def enrich_with_position_sizes(
-    concordance: List[Dict[str, Any]],
+    concordance: list[dict[str, Any]],
     regime: str = "normal",
     portfolio_value: float = 450000.0,
     base_position_size: float = 2500.0,
+    base_position_pct: float | None = None,
+    fx_aware: bool = False,
+    ref_currency: str = "EUR",
+    vol_scale: float = 1.0,
 ) -> None:
     """
     CIO v13.0 S2: Enrich BUY/ADD concordance entries with suggested position sizes.
@@ -5167,7 +5987,40 @@ def enrich_with_position_sizes(
 
     Only enriches BUY and ADD actions. HOLD/TRIM/SELL don't need new sizing.
     Mutates concordance in-place.
+
+    CIO v36 / M3: When base_position_pct is provided (e.g. 0.005 = 0.5%),
+    the base position is computed dynamically as portfolio_value × pct.
+    This keeps relative sizing constant across drawdowns and gains. The
+    legacy static base_position_size is used only when pct is None.
+
+    CIO v36 / M10: BUY/ADD positions on tickers in active kill-thesis
+    cooldown (within 28d of last trigger) are forced to size 0 with the
+    `kill_thesis_cooldown` flag. Stops the leak where a kill-thesis
+    triggers a -15 conviction penalty but the position is sized at 0.85×
+    and re-entered next week.
     """
+    if base_position_pct is not None and portfolio_value > 0:
+        base_position_size = float(portfolio_value) * float(base_position_pct)
+
+    # CIO v36 / M8: optional FX-vol-aware sizing for EUR-home account
+    if fx_aware:
+        try:
+            from trade_modules.fx_sizing import (
+                currency_for_ticker,
+                fx_vol_multiplier,
+            )
+        except ImportError:
+            currency_for_ticker = lambda t: "USD"  # noqa: E731
+            fx_vol_multiplier = lambda c, **_: 1.0  # noqa: E731
+    else:
+        currency_for_ticker = None
+        fx_vol_multiplier = None
+
+    try:
+        from trade_modules.kill_thesis_cooldown import is_in_cooldown
+    except ImportError:
+        is_in_cooldown = None  # graceful degradation if module missing
+
     try:
         from trade_modules.conviction_sizer import calculate_conviction_size
     except ImportError:
@@ -5186,12 +6039,38 @@ def enrich_with_position_sizes(
 
     # Tier multipliers (from config.yaml defaults)
     tier_multipliers = {
-        "MEGA": 5.0, "LARGE": 4.0, "MID": 3.0, "SMALL": 2.0, "MICRO": 1.0,
+        "MEGA": 5.0,
+        "LARGE": 4.0,
+        "MID": 3.0,
+        "SMALL": 2.0,
+        "MICRO": 1.0,
     }
 
     for entry in concordance:
         if entry.get("action") not in ("BUY", "ADD"):
             continue
+
+        # CIO v36 / M10: hard-zero positions in active kill-thesis cooldown
+        ticker = entry.get("ticker", "")
+        if is_in_cooldown is not None and ticker:
+            try:
+                in_cd = is_in_cooldown(
+                    ticker,
+                    log_path=KILL_THESIS_COOLDOWN_LOG,
+                    now=_cooldown_now(),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "kill_thesis_cooldown check failed for %s: %s",
+                    ticker,
+                    exc,
+                )
+                in_cd = False
+            if in_cd:
+                entry["suggested_size_usd"] = 0
+                entry["size_pct"] = 0.0
+                entry["kill_thesis_cooldown"] = True
+                continue
 
         conviction = entry.get("conviction", 50)
         # Infer tier from market cap if available, default MID
@@ -5215,25 +6094,43 @@ def enrich_with_position_sizes(
             tier=tier,
         )
 
-        entry["suggested_size_usd"] = round(result.get("position_size", 0), 0)
-        entry["size_pct"] = round(
-            result.get("position_size", 0) / portfolio_value * 100, 2
-        ) if portfolio_value > 0 else 0
+        position_usd = result.get("position_size", 0)
+
+        # CIO v36 / M8: apply FX-vol haircut for non-ref-currency positions
+        if fx_aware and currency_for_ticker is not None:
+            ccy = currency_for_ticker(ticker)
+            mult = fx_vol_multiplier(ccy, ref_currency=ref_currency)
+            entry["fx_currency"] = ccy
+            entry["fx_multiplier"] = mult
+            position_usd = position_usd * mult
+
+        # CIO v36 / M9: apply portfolio-level vol-target scaling
+        if vol_scale and vol_scale != 1.0:
+            position_usd = position_usd * vol_scale
+            entry["vol_scale"] = vol_scale
+
+        entry["suggested_size_usd"] = round(position_usd, 0)
+        entry["size_pct"] = (
+            round(result.get("position_size", 0) / portfolio_value * 100, 2)
+            if portfolio_value > 0
+            else 0
+        )
 
 
 def archive_committee_run(
     date_str: str,
-    concordance: List[Dict[str, Any]],
-    synthesis: Dict[str, Any],
-    portfolio_signals: Dict[str, Dict],
-    reports: Dict[str, Dict],
-) -> Dict[str, str]:
+    concordance: list[dict[str, Any]],
+    synthesis: dict[str, Any],
+    portfolio_signals: dict[str, dict],
+    reports: dict[str, dict],
+) -> dict[str, str]:
     """Archive all committee outputs for backtesting.
 
     CIO v35.0: Date-stamps agent reports, synthesis, concordance, and
     writes parameter history. Returns dict of archived file paths.
     """
     import shutil
+
     from trade_modules.parameter_history import save_parameter_history
 
     base = Path.home() / ".weirdapps-trading" / "committee"
@@ -5244,8 +6141,17 @@ def archive_committee_run(
 
     # Archive agent reports
     reports_dir = base / "reports"
-    for agent_name in ("fundamental", "technical", "macro", "census", "news",
-                       "risk", "opportunities", "opportunity"):
+    for agent_name in (
+        "fundamental",
+        "technical",
+        "macro",
+        "census",
+        "news",
+        "sentiment",
+        "risk",
+        "opportunities",
+        "opportunity",
+    ):
         src = reports_dir / f"{agent_name}.json"
         if src.exists():
             dst = archive_dir / f"{agent_name}.json"
@@ -5282,16 +6188,23 @@ def archive_committee_run(
 
     logger.info(
         "Archived committee run %s: %d agent reports, %d parameter lines",
-        date_str, len([k for k in archived if k not in ("synthesis", "concordance_history", "parameter_history_lines")]),
+        date_str,
+        len(
+            [
+                k
+                for k in archived
+                if k not in ("synthesis", "concordance_history", "parameter_history_lines")
+            ]
+        ),
         param_count,
     )
     return archived
 
 
 def save_concordance(
-    concordance: List[Dict[str, Any]],
+    concordance: list[dict[str, Any]],
     output_path: str,
-    date_str: Optional[str] = None,
+    date_str: str | None = None,
 ) -> None:
     """
     Save concordance with date wrapper for signal velocity support.

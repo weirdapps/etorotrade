@@ -8,9 +8,8 @@ CIO Review Finding #N: Sector-relative momentum factor.
 """
 
 import logging
-from typing import Dict, Optional, List, Tuple
-from datetime import datetime, timedelta
 import threading
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +17,8 @@ logger = logging.getLogger(__name__)
 from trade_modules.sector_pe_provider import SECTOR_ETF_MAP
 
 # Cache for momentum calculations
-_momentum_cache: Dict[str, Dict[str, float]] = {}
-_cache_timestamp: Optional[datetime] = None
+_momentum_cache: dict[str, dict[str, float]] = {}
+_cache_timestamp: datetime | None = None
 _cache_lock = threading.Lock()
 _CACHE_TTL_HOURS = 4  # 4-hour cache matching other providers
 
@@ -27,7 +26,7 @@ _CACHE_TTL_HOURS = 4  # 4-hour cache matching other providers
 UNDERPERFORMANCE_THRESHOLD = 15.0  # >15% below sector = underperforming
 
 
-def _fetch_return(ticker: str, period_days: int = 252) -> Optional[float]:
+def _fetch_return(ticker: str, period_days: int = 252) -> float | None:
     """
     Fetch total return for a ticker over a period.
 
@@ -40,7 +39,6 @@ def _fetch_return(ticker: str, period_days: int = 252) -> Optional[float]:
     """
     try:
         import yfinance as yf
-        import pandas as pd
 
         yticker = yf.Ticker(ticker)
 
@@ -57,8 +55,8 @@ def _fetch_return(ticker: str, period_days: int = 252) -> Optional[float]:
             return None
 
         # Get first and last close prices
-        first_price = float(hist['Close'].iloc[0])
-        last_price = float(hist['Close'].iloc[-1])
+        first_price = float(hist["Close"].iloc[0])
+        last_price = float(hist["Close"].iloc[-1])
 
         if first_price <= 0:
             return None
@@ -73,10 +71,8 @@ def _fetch_return(ticker: str, period_days: int = 252) -> Optional[float]:
 
 
 def calculate_relative_momentum(
-    ticker: str,
-    sector: Optional[str],
-    period_days: int = 252
-) -> Optional[float]:
+    ticker: str, sector: str | None, period_days: int = 252
+) -> float | None:
     """
     Calculate stock momentum relative to its sector ETF.
 
@@ -109,9 +105,8 @@ def calculate_relative_momentum(
 
 
 def get_relative_momentum_flags(
-    tickers_with_sectors: List[Tuple[str, Optional[str]]],
-    period_days: int = 252
-) -> Dict[str, Dict[str, Optional[float]]]:
+    tickers_with_sectors: list[tuple[str, str | None]], period_days: int = 252
+) -> dict[str, dict[str, float | None]]:
     """
     Calculate relative momentum for multiple tickers (batch processing).
 
@@ -132,8 +127,8 @@ def get_relative_momentum_flags(
     with _cache_lock:
         # Check cache validity
         cache_valid = (
-            _cache_timestamp is not None and
-            datetime.now() - _cache_timestamp < timedelta(hours=_CACHE_TTL_HOURS)
+            _cache_timestamp is not None
+            and datetime.now() - _cache_timestamp < timedelta(hours=_CACHE_TTL_HOURS)
         )
 
         for ticker, sector in tickers_with_sectors:
@@ -150,10 +145,7 @@ def get_relative_momentum_flags(
             if relative_momentum is not None:
                 underperforming = relative_momentum < -UNDERPERFORMANCE_THRESHOLD
 
-            result = {
-                'relative_momentum': relative_momentum,
-                'underperforming': underperforming
-            }
+            result = {"relative_momentum": relative_momentum, "underperforming": underperforming}
 
             results[ticker] = result
             _momentum_cache[ticker] = result.copy()
@@ -166,9 +158,7 @@ def get_relative_momentum_flags(
 
 
 def is_underperforming_sector(
-    ticker: str,
-    sector: Optional[str],
-    threshold: float = UNDERPERFORMANCE_THRESHOLD
+    ticker: str, sector: str | None, threshold: float = UNDERPERFORMANCE_THRESHOLD
 ) -> bool:
     """
     Check if a stock is significantly underperforming its sector.

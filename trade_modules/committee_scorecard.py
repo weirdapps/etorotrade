@@ -22,7 +22,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -45,8 +45,7 @@ BONUS_PER_APPEARANCE = 3
 
 # F11: Default portfolio signals path
 DEFAULT_PORTFOLIO_SIGNALS_PATH = (
-    Path.home() / "SourceCode" / "etorotrade"
-    / "yahoofinance" / "output" / "portfolio.csv"
+    Path.home() / "SourceCode" / "etorotrade" / "yahoofinance" / "output" / "portfolio.csv"
 )
 
 # F11: Kill thesis expiry default (days)
@@ -55,10 +54,10 @@ KILL_THESIS_DEFAULT_EXPIRY_DAYS = 90
 
 def log_committee_actions(
     date: str,
-    actions: List[Dict[str, Any]],
-    log_path: Optional[Path] = None,
-    portfolio_signals: Optional[Dict[str, Any]] = None,
-    concordance: Optional[List[Dict[str, Any]]] = None,
+    actions: list[dict[str, Any]],
+    log_path: Path | None = None,
+    portfolio_signals: dict[str, Any] | None = None,
+    concordance: list[dict[str, Any]] | None = None,
     require_waterfall: bool = False,
     waterfall_threshold: float = 0.10,
 ) -> None:
@@ -90,7 +89,7 @@ def log_committee_actions(
     # CIO v17 H2: Build a ticker→concordance index so each action row gets
     # enriched with its waterfall (and other rich fields) without forcing
     # callers to manually merge upstream.
-    conc_by_ticker: Dict[str, Dict[str, Any]] = {}
+    conc_by_ticker: dict[str, dict[str, Any]] = {}
     if concordance:
         for c in concordance:
             t = c.get("ticker") if isinstance(c, dict) else None
@@ -99,12 +98,28 @@ def log_committee_actions(
 
     missing_waterfall = 0
     rich_action_keys = (
-        "conviction_waterfall", "adx", "adx_trend", "divergence",
-        "piotroski_score", "entry_timing", "rs_vs_spy", "revenue_growth_class",
-        "atr_pct", "short_interest_pct", "target_dispersion", "currency_zone",
-        "fx_impact", "confluence_score", "obv_trend", "relative_volume",
-        "eps_revisions", "iv_rank", "volatility_regime", "fcf_classification",
-        "debt_risk", "debate_signal",
+        "conviction_waterfall",
+        "adx",
+        "adx_trend",
+        "divergence",
+        "piotroski_score",
+        "entry_timing",
+        "rs_vs_spy",
+        "revenue_growth_class",
+        "atr_pct",
+        "short_interest_pct",
+        "target_dispersion",
+        "currency_zone",
+        "fx_impact",
+        "confluence_score",
+        "obv_trend",
+        "relative_volume",
+        "eps_revisions",
+        "iv_rank",
+        "volatility_regime",
+        "fcf_classification",
+        "debt_risk",
+        "debate_signal",
     )
 
     for action in actions:
@@ -187,7 +202,10 @@ def log_committee_actions(
         if missing_waterfall:
             logger.warning(
                 "Logged %d committee actions for %s (%d missing waterfall, %.1f%%)",
-                len(actions), date, missing_waterfall, miss_pct * 100,
+                len(actions),
+                date,
+                missing_waterfall,
+                miss_pct * 100,
             )
         else:
             logger.info("Logged %d committee actions for %s", len(actions), date)
@@ -203,8 +221,8 @@ def log_committee_actions(
 
 
 def backfill_action_log_from_concordance(
-    history_dir: Optional[Path] = None,
-    log_path: Optional[Path] = None,
+    history_dir: Path | None = None,
+    log_path: Path | None = None,
     overwrite: bool = False,
 ) -> int:
     """
@@ -226,9 +244,7 @@ def backfill_action_log_from_concordance(
     Returns:
         Number of entries written.
     """
-    hist_dir = history_dir or (
-        Path.home() / ".weirdapps-trading" / "committee" / "history"
-    )
+    hist_dir = history_dir or (Path.home() / ".weirdapps-trading" / "committee" / "history")
     out_path = log_path or COMMITTEE_LOG_PATH
     if not hist_dir.is_dir():
         logger.warning("No history directory at %s", hist_dir)
@@ -246,8 +262,9 @@ def backfill_action_log_from_concordance(
                     continue
 
     written = 0
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     import re
+
     _date_re = re.compile(r"(\d{4}-\d{2}-\d{2})")
     for fpath in sorted(hist_dir.glob("concordance-*.json")):
         try:
@@ -331,15 +348,17 @@ def backfill_action_log_from_concordance(
 
     logger.info(
         "backfill_action_log_from_concordance: %d entries (overwrite=%s) → %s",
-        written, overwrite, out_path,
+        written,
+        overwrite,
+        out_path,
     )
     return written
 
 
 def load_committee_actions(
     months_back: int = 3,
-    log_path: Optional[Path] = None,
-) -> List[Dict[str, Any]]:
+    log_path: Path | None = None,
+) -> list[dict[str, Any]]:
     """Load committee actions from the log file."""
     path = log_path or COMMITTEE_LOG_PATH
     if not path.exists():
@@ -348,7 +367,7 @@ def load_committee_actions(
     cutoff = (datetime.now() - timedelta(days=months_back * 30)).strftime("%Y-%m-%d")
     actions = []
 
-    with open(path, "r") as f:
+    with open(path) as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -365,8 +384,8 @@ def load_committee_actions(
 
 def generate_committee_scorecard(
     months_back: int = 3,
-    log_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    log_path: Path | None = None,
+) -> dict[str, Any]:
     """
     Generate performance scorecard for committee recommendations.
 
@@ -392,20 +411,19 @@ def generate_committee_scorecard(
 
     try:
         from trade_modules.price_service import PriceService
+
         svc = PriceService()
 
-        tickers = list(set(
-            a["ticker"] for a in actions
-            if a.get("ticker") and a.get("price_at_recommendation")
-        ))
+        tickers = list(
+            {a["ticker"] for a in actions if a.get("ticker") and a.get("price_at_recommendation")}
+        )
 
         if tickers:
             # Date range: earliest action to today + buffer
-            dates = sorted(
-                a["committee_date"] for a in actions if a.get("committee_date")
-            )
+            dates = sorted(a["committee_date"] for a in actions if a.get("committee_date"))
             start = dates[0] if dates else "2026-01-01"
             from datetime import date as dt_date
+
             end = (dt_date.today() + timedelta(days=5)).strftime("%Y-%m-%d")
 
             prices = svc.get_prices(tickers, start, end)
@@ -434,24 +452,16 @@ def generate_committee_scorecard(
                 }
 
                 # T+7 (5 trading days)
-                ret_7d = svc.trading_day_return(
-                    prices, ticker, committee_date, 5
-                )
-                alpha_7d = svc.trading_day_alpha(
-                    prices, ticker, committee_date, 5
-                )
+                ret_7d = svc.trading_day_return(prices, ticker, committee_date, 5)
+                alpha_7d = svc.trading_day_alpha(prices, ticker, committee_date, 5)
                 if ret_7d is not None:
                     result["return_7d"] = round(ret_7d, 2)
                 if alpha_7d is not None:
                     result["alpha_7d"] = round(alpha_7d, 2)
 
                 # T+30 (21 trading days)
-                ret_30d = svc.trading_day_return(
-                    prices, ticker, committee_date, 21
-                )
-                alpha_30d = svc.trading_day_alpha(
-                    prices, ticker, committee_date, 21
-                )
+                ret_30d = svc.trading_day_return(prices, ticker, committee_date, 21)
+                alpha_30d = svc.trading_day_alpha(prices, ticker, committee_date, 21)
                 if ret_30d is not None:
                     result["return_30d"] = round(ret_30d, 2)
                 if alpha_30d is not None:
@@ -532,17 +542,13 @@ def generate_committee_scorecard(
 
                 if len(close) >= 5:
                     t7_price = float(close.iloc[min(5, len(close) - 1)])
-                    result["return_7d"] = round(
-                        (t7_price - entry_price) / entry_price * 100, 2
-                    )
+                    result["return_7d"] = round((t7_price - entry_price) / entry_price * 100, 2)
                     if spy_return_7d is not None:
                         result["alpha_7d"] = round(result["return_7d"] - spy_return_7d, 2)
 
                 if len(close) >= 21:
                     t30_price = float(close.iloc[min(21, len(close) - 1)])
-                    result["return_30d"] = round(
-                        (t30_price - entry_price) / entry_price * 100, 2
-                    )
+                    result["return_30d"] = round((t30_price - entry_price) / entry_price * 100, 2)
                     if spy_return_30d is not None:
                         result["alpha_30d"] = round(result["return_30d"] - spy_return_30d, 2)
 
@@ -563,9 +569,7 @@ def generate_committee_scorecard(
         "buy_recommendations": _summarize_buys(buy_results),
         "sell_recommendations": _summarize_sells(sell_results),
         "hold_recommendations": _summarize_holds(hold_results),
-        "conviction_calibration": _calibrate_conviction(
-            buy_results + hold_results
-        ),
+        "conviction_calibration": _calibrate_conviction(buy_results + hold_results),
         "benchmark_comparison": compute_benchmark_comparison(months_back, log_path),
         "modifier_attribution": attribute_performance_to_modifiers(months_back, log_path),
         "details": {
@@ -582,10 +586,10 @@ def generate_committee_scorecard(
 
 
 def track_opportunities(
-    opportunity_tickers: List[str],
+    opportunity_tickers: list[str],
     committee_date: str,
-    history_path: Optional[Path] = None,
-) -> Dict[str, Dict[str, Any]]:
+    history_path: Path | None = None,
+) -> dict[str, dict[str, Any]]:
     """
     Track opportunity persistence across consecutive committee runs.
 
@@ -612,7 +616,7 @@ def track_opportunities(
     previous_tickers = set(history.get("active_tickers", []))
     ticker_records = history.get("ticker_records", {})
 
-    result: Dict[str, Dict[str, Any]] = {}
+    result: dict[str, dict[str, Any]] = {}
 
     for ticker in opportunity_tickers:
         record = ticker_records.get(ticker, {})
@@ -661,8 +665,8 @@ def track_opportunities(
 
 
 def save_opportunity_history(
-    history: Dict[str, Any],
-    history_path: Optional[Path] = None,
+    history: dict[str, Any],
+    history_path: Path | None = None,
 ) -> None:
     """
     Save opportunity history to disk.
@@ -682,7 +686,7 @@ def save_opportunity_history(
         logger.error(f"Failed to save opportunity history: {e}")
 
 
-def _load_opportunity_history(path: Path) -> Dict[str, Any]:
+def _load_opportunity_history(path: Path) -> dict[str, Any]:
     """Load opportunity history from disk, returning empty structure on failure."""
     if not path.exists():
         return {
@@ -692,7 +696,7 @@ def _load_opportunity_history(path: Path) -> Dict[str, Any]:
         }
 
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
         return data
     except (json.JSONDecodeError, OSError) as e:
@@ -705,8 +709,8 @@ def _load_opportunity_history(path: Path) -> Dict[str, Any]:
 
 
 def check_previous_recommendations(
-    log_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    log_path: Path | None = None,
+) -> dict[str, Any]:
     """
     Check performance of most recent committee BUY/ADD recommendations.
 
@@ -737,7 +741,7 @@ def check_previous_recommendations(
         return _empty_performance_check()
 
     # Get the most recent committee date
-    dates = sorted(set(a.get("committee_date", "") for a in all_actions))
+    dates = sorted({a.get("committee_date", "") for a in all_actions})
     if not dates:
         return _empty_performance_check()
 
@@ -745,9 +749,9 @@ def check_previous_recommendations(
 
     # Filter to BUY/ADD from the most recent run
     buy_actions = [
-        a for a in all_actions
-        if a.get("committee_date") == latest_date
-        and a.get("action", "").upper() in ("BUY", "ADD")
+        a
+        for a in all_actions
+        if a.get("committee_date") == latest_date and a.get("action", "").upper() in ("BUY", "ADD")
     ]
 
     if not buy_actions:
@@ -789,18 +793,18 @@ def check_previous_recommendations(
             if current_price <= 0:
                 continue
 
-            return_pct = round(
-                (current_price - entry_price) / entry_price * 100, 2
-            )
+            return_pct = round((current_price - entry_price) / entry_price * 100, 2)
 
-            results.append({
-                "ticker": ticker,
-                "entry_price": entry_price,
-                "current_price": current_price,
-                "return_pct": return_pct,
-                "conviction": action.get("conviction"),
-                "committee_date": latest_date,
-            })
+            results.append(
+                {
+                    "ticker": ticker,
+                    "entry_price": entry_price,
+                    "current_price": current_price,
+                    "return_pct": return_pct,
+                    "conviction": action.get("conviction"),
+                    "committee_date": latest_date,
+                }
+            )
 
         except Exception as e:
             logger.debug(f"Failed to fetch price for {ticker}: {e}")
@@ -832,7 +836,7 @@ def check_previous_recommendations(
 
 
 def get_track_record_summary(
-    log_path: Optional[Path] = None,
+    log_path: Path | None = None,
 ) -> str:
     """
     Return a one-line track record summary for display in committee reports.
@@ -855,7 +859,7 @@ def get_track_record_summary(
         return "Track record: insufficient data (no scorecard generated yet)"
 
     try:
-        with open(scorecard_path, "r") as f:
+        with open(scorecard_path) as f:
             scorecard = json.load(f)
     except (json.JSONDecodeError, OSError):
         return "Track record: insufficient data (scorecard unreadable)"
@@ -897,8 +901,8 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 
 def log_kill_theses(
     date: str,
-    theses: List[Dict[str, Any]],
-    log_path: Optional[Path] = None,
+    theses: list[dict[str, Any]],
+    log_path: Path | None = None,
 ) -> None:
     """
     Store kill theses as structured JSON.
@@ -923,10 +927,7 @@ def log_kill_theses(
     existing = _load_kill_theses(path)
 
     # Build a set of (ticker, committee_date) for dedup
-    existing_keys = {
-        (t["ticker"], t["committee_date"])
-        for t in existing
-    }
+    existing_keys = {(t["ticker"], t["committee_date"]) for t in existing}
 
     new_count = 0
     for thesis in theses:
@@ -954,16 +955,13 @@ def log_kill_theses(
 
     # Save back
     _save_kill_theses(existing, path)
-    logger.info(
-        f"Logged {new_count} kill theses for {date} "
-        f"({len(existing)} total)"
-    )
+    logger.info(f"Logged {new_count} kill theses for {date} " f"({len(existing)} total)")
 
 
 def check_kill_theses(
-    portfolio_signals_path: Optional[Path] = None,
-    log_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    portfolio_signals_path: Path | None = None,
+    log_path: Path | None = None,
+) -> dict[str, Any]:
     """
     Check if any active kill theses have triggered based on signal data.
 
@@ -1005,7 +1003,7 @@ def check_kill_theses(
     concordance_path = _USER_COMMITTEE_DIR / "concordance.json"
     if concordance_path.exists():
         try:
-            with open(concordance_path, "r") as f:
+            with open(concordance_path) as f:
                 conc_data = json.load(f)
             # Handle both list format and dict-with-stocks format
             entries = conc_data if isinstance(conc_data, list) else conc_data.get("concordance", [])
@@ -1116,7 +1114,11 @@ def check_kill_theses(
 
             # Strong downtrend confirmed by ADX >= 30 with -DI dominant
             adx = concordance_entry.get("adx")
-            if adx and adx >= 30 and concordance_entry.get("entry_timing") in ("AVOID", "EXIT_SOON"):
+            if (
+                adx
+                and adx >= 30
+                and concordance_entry.get("entry_timing") in ("AVOID", "EXIT_SOON")
+            ):
                 triggers.append("strong_downtrend_confirmed")
 
             # Piotroski quality deterioration (score <= 2 = severe weakness)
@@ -1148,7 +1150,7 @@ def check_kill_theses(
 
 def expire_old_theses(
     days: int = 90,
-    log_path: Optional[Path] = None,
+    log_path: Path | None = None,
 ) -> int:
     """
     Mark theses older than ``days`` as expired.
@@ -1193,13 +1195,13 @@ def expire_old_theses(
     return expired_count
 
 
-def _load_kill_theses(path: Path) -> List[Dict[str, Any]]:
+def _load_kill_theses(path: Path) -> list[dict[str, Any]]:
     """Load kill theses from JSON file."""
     if not path.exists():
         return []
 
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
         if isinstance(data, list):
             return data
@@ -1210,7 +1212,7 @@ def _load_kill_theses(path: Path) -> List[Dict[str, Any]]:
 
 
 def _save_kill_theses(
-    theses: List[Dict[str, Any]],
+    theses: list[dict[str, Any]],
     path: Path,
 ) -> None:
     """Save kill theses to JSON file."""
@@ -1222,7 +1224,7 @@ def _save_kill_theses(
         logger.error(f"Failed to save kill theses: {e}")
 
 
-def _load_portfolio_signals(path: Path) -> Dict[str, Dict[str, str]]:
+def _load_portfolio_signals(path: Path) -> dict[str, dict[str, str]]:
     """
     Load portfolio signals from CSV into a dict keyed by ticker.
 
@@ -1236,8 +1238,8 @@ def _load_portfolio_signals(path: Path) -> Dict[str, Dict[str, str]]:
         return {}
 
     try:
-        signals: Dict[str, Dict[str, str]] = {}
-        with open(path, "r") as f:
+        signals: dict[str, dict[str, str]] = {}
+        with open(path) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 ticker = row.get("TKR", "").strip()
@@ -1249,13 +1251,13 @@ def _load_portfolio_signals(path: Path) -> Dict[str, Dict[str, str]]:
         return {}
 
 
-def _load_all_actions(path: Path) -> List[Dict[str, Any]]:
+def _load_all_actions(path: Path) -> list[dict[str, Any]]:
     """Load all committee actions from log without date filtering."""
     if not path.exists():
         return []
 
     actions = []
-    with open(path, "r") as f:
+    with open(path) as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -1268,7 +1270,7 @@ def _load_all_actions(path: Path) -> List[Dict[str, Any]]:
     return actions
 
 
-def _empty_performance_check() -> Dict[str, Any]:
+def _empty_performance_check() -> dict[str, Any]:
     """Return empty performance check structure."""
     return {
         "committee_date": None,
@@ -1282,7 +1284,7 @@ def _empty_performance_check() -> Dict[str, Any]:
     }
 
 
-def _summarize_buys(results: List[Dict]) -> Dict[str, Any]:
+def _summarize_buys(results: list[dict]) -> dict[str, Any]:
     """Summarize BUY recommendation performance using alpha (vs SPY)."""
     if not results:
         return {"total": 0}
@@ -1292,12 +1294,10 @@ def _summarize_buys(results: List[Dict]) -> Dict[str, Any]:
     returns_7d = [r["return_7d"] for r in results if "return_7d" in r]
     returns_30d = [r["return_30d"] for r in results if "return_30d" in r]
 
-    summary: Dict[str, Any] = {"total": len(results)}
+    summary: dict[str, Any] = {"total": len(results)}
 
     if alphas_7d:
-        summary["hit_rate_7d"] = round(
-            sum(1 for a in alphas_7d if a > 0) / len(alphas_7d) * 100, 1
-        )
+        summary["hit_rate_7d"] = round(sum(1 for a in alphas_7d if a > 0) / len(alphas_7d) * 100, 1)
         summary["avg_alpha_7d"] = round(np.mean(alphas_7d), 2)
     if returns_7d:
         summary["avg_return_7d"] = round(np.mean(returns_7d), 2)
@@ -1321,7 +1321,7 @@ def _summarize_buys(results: List[Dict]) -> Dict[str, Any]:
     return summary
 
 
-def _summarize_sells(results: List[Dict]) -> Dict[str, Any]:
+def _summarize_sells(results: list[dict]) -> dict[str, Any]:
     """Summarize SELL recommendation performance (validated if underperformed SPY)."""
     if not results:
         return {"total": 0}
@@ -1329,7 +1329,7 @@ def _summarize_sells(results: List[Dict]) -> Dict[str, Any]:
     alphas_30d = [r["alpha_30d"] for r in results if "alpha_30d" in r]
     returns_30d = [r["return_30d"] for r in results if "return_30d" in r]
 
-    summary: Dict[str, Any] = {"total": len(results)}
+    summary: dict[str, Any] = {"total": len(results)}
 
     if alphas_30d:
         # For SELLs, validated = stock underperformed SPY (negative alpha)
@@ -1343,7 +1343,7 @@ def _summarize_sells(results: List[Dict]) -> Dict[str, Any]:
     return summary
 
 
-def _summarize_holds(results: List[Dict]) -> Dict[str, Any]:
+def _summarize_holds(results: list[dict]) -> dict[str, Any]:
     """Summarize HOLD recommendation performance.
 
     A HOLD is validated if it tracked the market (alpha within ±3%).
@@ -1355,7 +1355,7 @@ def _summarize_holds(results: List[Dict]) -> Dict[str, Any]:
     alphas_30d = [r["alpha_30d"] for r in results if "alpha_30d" in r]
     returns_30d = [r["return_30d"] for r in results if "return_30d" in r]
 
-    summary: Dict[str, Any] = {"total": len(results)}
+    summary: dict[str, Any] = {"total": len(results)}
 
     if alphas_30d:
         summary["validated_30d"] = round(
@@ -1373,7 +1373,7 @@ def _summarize_holds(results: List[Dict]) -> Dict[str, Any]:
     return summary
 
 
-def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
+def _calibrate_conviction(results: list[dict]) -> dict[str, Any]:
     """
     Check if conviction scores predict alpha (outperformance vs SPY).
 
@@ -1382,10 +1382,7 @@ def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
     if not results or len(results) < 5:
         return {"sufficient_data": False}
 
-    scored = [
-        r for r in results
-        if r.get("conviction") is not None and "alpha_30d" in r
-    ]
+    scored = [r for r in results if r.get("conviction") is not None and "alpha_30d" in r]
 
     if len(scored) < 5:
         return {"sufficient_data": False}
@@ -1394,7 +1391,7 @@ def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
     high_conv = [r for r in scored if r["conviction"] >= 65]
     low_conv = [r for r in scored if r["conviction"] < 65]
 
-    calibration: Dict[str, Any] = {"sufficient_data": True}
+    calibration: dict[str, Any] = {"sufficient_data": True}
 
     if high_conv:
         calibration["high_conviction_avg_alpha"] = round(
@@ -1419,20 +1416,44 @@ def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
     indicator_groups = {
         "strong_adx": [r for r in scored if r.get("adx") and r["adx"] >= 30],
         "bullish_divergence": [r for r in scored if r.get("divergence") == "bullish"],
-        "high_piotroski": [r for r in scored if r.get("piotroski_score") and r["piotroski_score"] >= 7],
+        "high_piotroski": [
+            r for r in scored if r.get("piotroski_score") and r["piotroski_score"] >= 7
+        ],
         "rs_outperforming": [r for r in scored if r.get("rs_vs_spy") and r["rs_vs_spy"] > 1.0],
         "rs_underperforming": [r for r in scored if r.get("rs_vs_spy") and r["rs_vs_spy"] < 0.95],
-        "rev_accelerating": [r for r in scored if r.get("revenue_growth_class", "").upper() in ("ACCELERATING", "STRONG_GROWTH")],
+        "rev_accelerating": [
+            r
+            for r in scored
+            if r.get("revenue_growth_class", "").upper() in ("ACCELERATING", "STRONG_GROWTH")
+        ],
         "high_atr_pct": [r for r in scored if r.get("atr_pct") and r["atr_pct"] > 5.0],
-        "high_short_interest": [r for r in scored if r.get("short_interest_pct") and r["short_interest_pct"] > 10],
-        "high_dispersion": [r for r in scored if r.get("target_dispersion") and r["target_dispersion"] > 30],
-        "low_dispersion": [r for r in scored if r.get("target_dispersion") and r["target_dispersion"] < 10],
+        "high_short_interest": [
+            r for r in scored if r.get("short_interest_pct") and r["short_interest_pct"] > 10
+        ],
+        "high_dispersion": [
+            r for r in scored if r.get("target_dispersion") and r["target_dispersion"] > 30
+        ],
+        "low_dispersion": [
+            r for r in scored if r.get("target_dispersion") and r["target_dispersion"] < 10
+        ],
         "usd_zone": [r for r in scored if r.get("currency_zone") == "USD"],
         "eur_zone": [r for r in scored if r.get("currency_zone") == "EUR"],
-        "other_fx_zone": [r for r in scored if r.get("currency_zone") not in (None, "USD", "EUR", "CRYPTO")],
-        "strong_confluence": [r for r in scored if r.get("confluence_score") and r["confluence_score"] >= 5],
-        "weak_confluence": [r for r in scored if r.get("confluence_score") and r["confluence_score"] <= -3],
-        "volume_confirmed": [r for r in scored if r.get("relative_volume") and r["relative_volume"] > 1.5 and r.get("obv_trend") == "RISING"],
+        "other_fx_zone": [
+            r for r in scored if r.get("currency_zone") not in (None, "USD", "EUR", "CRYPTO")
+        ],
+        "strong_confluence": [
+            r for r in scored if r.get("confluence_score") and r["confluence_score"] >= 5
+        ],
+        "weak_confluence": [
+            r for r in scored if r.get("confluence_score") and r["confluence_score"] <= -3
+        ],
+        "volume_confirmed": [
+            r
+            for r in scored
+            if r.get("relative_volume")
+            and r["relative_volume"] > 1.5
+            and r.get("obv_trend") == "RISING"
+        ],
         "eps_revisions_up": [r for r in scored if r.get("eps_revisions") == "REVISIONS_UP"],
         "low_iv_rank": [r for r in scored if r.get("iv_rank") is not None and r["iv_rank"] < 20],
         "high_iv_rank": [r for r in scored if r.get("iv_rank") is not None and r["iv_rank"] > 80],
@@ -1451,7 +1472,7 @@ def _calibrate_conviction(results: List[Dict]) -> Dict[str, Any]:
     return calibration
 
 
-def _save_scorecard(scorecard: Dict[str, Any]) -> None:
+def _save_scorecard(scorecard: dict[str, Any]) -> None:
     """Save scorecard to JSON file."""
     _USER_COMMITTEE_DIR.mkdir(parents=True, exist_ok=True)
     with open(SCORECARD_OUTPUT_PATH, "w") as f:
@@ -1459,7 +1480,7 @@ def _save_scorecard(scorecard: Dict[str, Any]) -> None:
     logger.info(f"Committee scorecard saved to {SCORECARD_OUTPUT_PATH}")
 
 
-def _empty_scorecard(months_back: int) -> Dict[str, Any]:
+def _empty_scorecard(months_back: int) -> dict[str, Any]:
     """Return empty scorecard structure."""
     return {
         "generated_at": datetime.now().strftime("%Y-%m-%d"),
@@ -1476,11 +1497,12 @@ def _empty_scorecard(months_back: int) -> Dict[str, Any]:
 # CIO v23.6: Self-Calibration Infrastructure
 # =============================================================================
 
+
 def calibrate_modifiers(
     months_back: int = 3,
     min_observations: int = 10,
-    log_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    log_path: Path | None = None,
+) -> dict[str, Any]:
     """
     CIO v23.6: Auto-calibration from scorecard data.
 
@@ -1502,7 +1524,7 @@ def calibrate_modifiers(
         return {"sufficient_data": False, "error": "yfinance not available"}
 
     # Fetch current prices + SPY benchmark for alpha calculation
-    tickers = list(set(a["ticker"] for a in actions if a.get("ticker")))
+    tickers = list({a["ticker"] for a in actions if a.get("ticker")})
     if not tickers:
         return {"sufficient_data": False, "total_actions": 0}
 
@@ -1511,6 +1533,7 @@ def calibrate_modifiers(
     # Translate held-side tickers (e.g. LYXGRE.DE → GRE.PA) before download,
     # then key the prices dict by the held-side symbol so action lookups match.
     from trade_modules.price_service import _apply_data_fetch_substitutions
+
     fetch_tickers, reverse_map = _apply_data_fetch_substitutions(held_tickers)
 
     scored = []
@@ -1520,7 +1543,11 @@ def calibrate_modifiers(
         if not data.empty:
             for fetch_t in fetch_tickers:
                 try:
-                    closes = data['Close'][fetch_t].dropna() if len(fetch_tickers) > 1 else data['Close'].dropna()
+                    closes = (
+                        data["Close"][fetch_t].dropna()
+                        if len(fetch_tickers) > 1
+                        else data["Close"].dropna()
+                    )
                     if not closes.empty:
                         held_t = reverse_map.get(fetch_t, fetch_t)
                         prices[held_t] = closes  # Keep full series for date-matched alpha
@@ -1557,8 +1584,11 @@ def calibrate_modifiers(
         scored.append({**a, "return_pct": round(ret, 2), "alpha_pct": round(alpha, 2)})
 
     if len(scored) < min_observations:
-        return {"sufficient_data": False, "total_scored": len(scored),
-                "min_required": min_observations}
+        return {
+            "sufficient_data": False,
+            "total_scored": len(scored),
+            "min_required": min_observations,
+        }
 
     # Define modifier groups to calibrate
     modifier_defs = {
@@ -1566,7 +1596,8 @@ def calibrate_modifiers(
         "bullish_divergence": lambda r: r.get("divergence") == "bullish",
         "high_piotroski": lambda r: r.get("piotroski_score") and r["piotroski_score"] >= 7,
         "rs_outperforming": lambda r: r.get("rs_vs_spy") and r["rs_vs_spy"] > 1.0,
-        "high_short_interest": lambda r: r.get("short_interest_pct") and r["short_interest_pct"] > 10,
+        "high_short_interest": lambda r: r.get("short_interest_pct")
+        and r["short_interest_pct"] > 10,
         "strong_confluence": lambda r: r.get("confluence_score") and r["confluence_score"] >= 5,
         "volume_confirmed": lambda r: r.get("relative_volume") and r["relative_volume"] > 1.5,
         "eps_revisions_up": lambda r: r.get("eps_revisions") == "REVISIONS_UP",
@@ -1579,7 +1610,11 @@ def calibrate_modifiers(
     calibration = {"sufficient_data": True, "total_scored": len(scored), "modifiers": {}}
     buy_scored = [r for r in scored if r.get("action") == "BUY"]
     baseline_avg = float(np.mean([r["alpha_pct"] for r in buy_scored])) if buy_scored else 0
-    baseline_hit = (sum(1 for r in buy_scored if r["alpha_pct"] > 0) / len(buy_scored) * 100) if buy_scored else 0
+    baseline_hit = (
+        (sum(1 for r in buy_scored if r["alpha_pct"] > 0) / len(buy_scored) * 100)
+        if buy_scored
+        else 0
+    )
 
     for mod_name, mod_fn in modifier_defs.items():
         with_mod = [r for r in buy_scored if mod_fn(r)]
@@ -1618,7 +1653,7 @@ def calibrate_modifiers(
 
     # CIO v25.0: Waterfall-based calibration — uses actual conviction deltas
     # correlated with alpha (regime-neutral) rather than absolute returns.
-    wf_stats: Dict[str, Dict[str, Any]] = {}
+    wf_stats: dict[str, dict[str, Any]] = {}
     for r in scored:
         wf = r.get("conviction_waterfall")
         if not isinstance(wf, dict):
@@ -1643,8 +1678,11 @@ def calibrate_modifiers(
                 continue
             avg_delta = float(np.mean(stats["deltas"]))
             avg_alpha = float(np.mean(stats["alphas"]))
-            correlation = float(np.corrcoef(stats["deltas"], stats["alphas"])[0, 1]) \
-                if len(stats["deltas"]) >= 5 else None
+            correlation = (
+                float(np.corrcoef(stats["deltas"], stats["alphas"])[0, 1])
+                if len(stats["deltas"]) >= 5
+                else None
+            )
             calibration["waterfall_calibration"][mod_key] = {
                 "count": len(stats["deltas"]),
                 "avg_delta": round(avg_delta, 2),
@@ -1657,8 +1695,8 @@ def calibrate_modifiers(
 
 def attribute_performance_to_modifiers(
     months_back: int = 3,
-    log_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    log_path: Path | None = None,
+) -> dict[str, Any]:
     """
     CIO v23.6: Performance attribution per modifier.
 
@@ -1671,15 +1709,17 @@ def attribute_performance_to_modifiers(
         return {"sufficient_data": False}
 
     attribution = {"sufficient_data": True, "modifiers": {}}
-    baseline = cal.get("baseline", {})
+    cal.get("baseline", {})
 
     for mod_name, mod_data in cal.get("modifiers", {}).items():
         delta = mod_data.get("alpha_delta", 0)
         with_hit = mod_data.get("with_alpha_hit_rate", 0)
         recommendation = mod_data.get("recommendation", "ADJUST")
 
-        verdict = "EFFECTIVE" if recommendation == "KEEP" else (
-            "INEFFECTIVE" if recommendation == "REMOVE" else "INCONCLUSIVE"
+        verdict = (
+            "EFFECTIVE"
+            if recommendation == "KEEP"
+            else ("INEFFECTIVE" if recommendation == "REMOVE" else "INCONCLUSIVE")
         )
 
         attribution["modifiers"][mod_name] = {
@@ -1701,15 +1741,17 @@ def attribute_performance_to_modifiers(
 
 def compute_benchmark_comparison(
     months_back: int = 3,
-    log_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    log_path: Path | None = None,
+) -> dict[str, Any]:
     """
     CIO v23.6: Committee BUY portfolio vs SPY buy-and-hold.
 
     Computes information ratio, tracking error, and excess return.
     """
     actions = load_committee_actions(months_back, log_path)
-    buy_actions = [a for a in actions if a.get("action") == "BUY" and a.get("price_at_recommendation")]
+    buy_actions = [
+        a for a in actions if a.get("action") == "BUY" and a.get("price_at_recommendation")
+    ]
 
     if len(buy_actions) < 3:
         return {"sufficient_data": False}
@@ -1724,18 +1766,19 @@ def compute_benchmark_comparison(
         spy = yf.download("SPY", period=f"{months_back * 30}d", progress=False, auto_adjust=True)
         if spy.empty:
             return {"sufficient_data": False}
-        spy_start = float(spy['Close'].iloc[0])
-        spy_end = float(spy['Close'].iloc[-1])
+        spy_start = float(spy["Close"].iloc[0])
+        spy_end = float(spy["Close"].iloc[-1])
         spy_return = (spy_end - spy_start) / spy_start * 100
     except Exception:
         return {"sufficient_data": False, "error": "SPY data unavailable"}
 
     # Get current prices for BUY portfolio
-    tickers = list(set(a["ticker"] for a in buy_actions))
+    tickers = list({a["ticker"] for a in buy_actions})
     # Translate held-side tickers to yfinance-friendly substitutes (e.g.
     # LYXGRE.DE → GRE.PA) before fetching, then route results back via the
     # original ticker so downstream lookups still match action_log entries.
     from trade_modules.price_service import _apply_data_fetch_substitutions
+
     fetch_tickers, reverse_map = _apply_data_fetch_substitutions(tickers)
     try:
         data = yf.download(fetch_tickers, period="3mo", progress=False, auto_adjust=True)
@@ -1758,7 +1801,11 @@ def compute_benchmark_comparison(
         # substituted (e.g. data['Close']['GRE.PA'] for an LYXGRE.DE action).
         fetch_t = next((k for k, v in reverse_map.items() if v == t), t)
         try:
-            closes = data['Close'][fetch_t].dropna() if len(fetch_tickers) > 1 else data['Close'].dropna()
+            closes = (
+                data["Close"][fetch_t].dropna()
+                if len(fetch_tickers) > 1
+                else data["Close"].dropna()
+            )
             curr = float(closes.iloc[-1])
             ret = (curr - rec_price) / rec_price * 100
             returns.append(ret)

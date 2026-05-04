@@ -3,6 +3,7 @@ import unittest
 from yahoofinance.analysis.market import MarketMetrics
 from yahoofinance.utils.error_handling import safe_operation, with_retry
 
+
 # Since we don't have economic data functions in market.py, we'll test the MarketMetrics class instead
 class TestMarketData(unittest.TestCase):
     def setUp(self):
@@ -68,6 +69,7 @@ class TestMarketData(unittest.TestCase):
         # They should be equal
         self.assertEqual(metrics1.avg_upside, metrics2.avg_upside)
         self.assertEqual(metrics1.median_upside, metrics2.median_upside)
+
 
 if __name__ == "__main__":
     unittest.main()

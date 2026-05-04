@@ -354,8 +354,8 @@ class TestIntegration:
 
         for ticker in regular_tickers:
             normalized = normalize_ticker(ticker)
-            display = get_ticker_for_display(ticker)
-            fetch = get_ticker_for_data_fetch(ticker)
+            get_ticker_for_display(ticker)
+            get_ticker_for_data_fetch(ticker)
             canonical = get_canonical_ticker(ticker)
             processed = process_ticker_input(ticker)
 

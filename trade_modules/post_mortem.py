@@ -18,19 +18,15 @@ the system was missing.
 import json
 import logging
 from collections import Counter
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_LESSONS_PATH = (
-    Path.home() / ".weirdapps-trading" / "committee" / "lessons_learned.jsonl"
-)
-DEFAULT_HISTORY_DIR = (
-    Path.home() / ".weirdapps-trading" / "committee" / "history"
-)
+DEFAULT_LESSONS_PATH = Path.home() / ".weirdapps-trading" / "committee" / "lessons_learned.jsonl"
+DEFAULT_HISTORY_DIR = Path.home() / ".weirdapps-trading" / "committee" / "history"
 
 # A recommended ADD/BUY that drops by this much within 30d triggers an audit.
 DRAWDOWN_TRIGGER_PCT = -10.0
@@ -46,24 +42,24 @@ class PostMortem:
     drawdown_date: str
     drawdown_pct: float
     days_to_drawdown: int
-    endorsing_agents: List[str] = field(default_factory=list)
-    dissenting_agents: List[str] = field(default_factory=list)
-    waterfall_top: List[Dict[str, Any]] = field(default_factory=list)
+    endorsing_agents: list[str] = field(default_factory=list)
+    dissenting_agents: list[str] = field(default_factory=list)
+    waterfall_top: list[dict[str, Any]] = field(default_factory=list)
     kill_thesis_text: str = ""
     kill_thesis_triggered: bool = False
-    days_to_kill_trigger: Optional[int] = None
-    similar_failures: List[str] = field(default_factory=list)
+    days_to_kill_trigger: int | None = None
+    similar_failures: list[str] = field(default_factory=list)
     lesson: str = ""
 
 
-def _safe_float(v) -> Optional[float]:
+def _safe_float(v) -> float | None:
     try:
         return float(v)
     except (TypeError, ValueError):
         return None
 
 
-def _agent_views_to_lists(stock: Dict[str, Any]) -> tuple:
+def _agent_views_to_lists(stock: dict[str, Any]) -> tuple:
     """Split agent views into endorsing/dissenting for an ADD/BUY action."""
     endorsing = []
     dissenting = []
@@ -99,7 +95,7 @@ def _agent_views_to_lists(stock: Dict[str, Any]) -> tuple:
     return endorsing, dissenting
 
 
-def _waterfall_top_n(stock: Dict[str, Any], n: int = 5) -> List[Dict[str, Any]]:
+def _waterfall_top_n(stock: dict[str, Any], n: int = 5) -> list[dict[str, Any]]:
     """Top-N waterfall keys by abs(value)."""
     wf = stock.get("conviction_waterfall") or {}
     pairs = []
@@ -115,12 +111,12 @@ def _waterfall_top_n(stock: Dict[str, Any], n: int = 5) -> List[Dict[str, Any]]:
 
 
 def detect_post_mortems(
-    history_dir: Optional[Path] = None,
-    price_data: Optional[Dict[str, Dict[str, float]]] = None,
+    history_dir: Path | None = None,
+    price_data: dict[str, dict[str, float]] | None = None,
     drawdown_threshold: float = DRAWDOWN_TRIGGER_PCT,
     horizon_days: int = 30,
     use_price_cache: bool = True,
-) -> List[PostMortem]:
+) -> list[PostMortem]:
     """
     Scan history for ADD/BUY recommendations whose forward return at
     any point in the next `horizon_days` calendar days fell to
@@ -149,6 +145,7 @@ def detect_post_mortems(
             continue
         date_str = None
         import re
+
         m = re.search(r"(\d{4}-\d{2}-\d{2})", fpath.stem)
         if m:
             date_str = m.group(1)
@@ -165,12 +162,14 @@ def detect_post_mortems(
             entry_px = _safe_float(stock.get("price"))
             if entry_px is None or entry_px <= 0:
                 continue
-            candidates.append({
-                "ticker": stock.get("ticker", ""),
-                "date": date_str,
-                "stock": stock,
-                "entry_price": entry_px,
-            })
+            candidates.append(
+                {
+                    "ticker": stock.get("ticker", ""),
+                    "date": date_str,
+                    "stock": stock,
+                    "entry_price": entry_px,
+                }
+            )
 
     if not candidates:
         return []
@@ -179,14 +178,14 @@ def detect_post_mortems(
     if price_data is None and use_price_cache:
         try:
             from trade_modules.price_cache import load_prices
+
             unique = list({c["ticker"] for c in candidates})
             cache = load_prices(unique)
             price_data = {}
             for tkr, df in cache.items():
                 if df is not None and not df.empty:
                     price_data[tkr] = {
-                        d.strftime("%Y-%m-%d"): float(p)
-                        for d, p in df["Close"].items()
+                        d.strftime("%Y-%m-%d"): float(p) for d, p in df["Close"].items()
                     }
         except Exception as exc:
             logger.debug("price cache unavailable: %s", exc)
@@ -195,7 +194,7 @@ def detect_post_mortems(
     if not price_data:
         return []
 
-    post_mortems: List[PostMortem] = []
+    post_mortems: list[PostMortem] = []
     for c in candidates:
         tkr = c["ticker"]
         if tkr not in price_data:
@@ -228,29 +227,31 @@ def detect_post_mortems(
         # Lesson summary
         lesson = _build_lesson(c["stock"], dissenting, wf_top, worst_pct)
 
-        post_mortems.append(PostMortem(
-            ticker=tkr,
-            recommendation_date=c["date"],
-            action=c["stock"].get("action", ""),
-            conviction=int(c["stock"].get("conviction", 0)),
-            entry_price=entry_px,
-            drawdown_date=worst_date or "",
-            drawdown_pct=round(worst_pct, 2),
-            days_to_drawdown=worst_day or 0,
-            endorsing_agents=endorsing,
-            dissenting_agents=dissenting,
-            waterfall_top=wf_top,
-            kill_thesis_text=str(c["stock"].get("kill_thesis", ""))[:200],
-            lesson=lesson,
-        ))
+        post_mortems.append(
+            PostMortem(
+                ticker=tkr,
+                recommendation_date=c["date"],
+                action=c["stock"].get("action", ""),
+                conviction=int(c["stock"].get("conviction", 0)),
+                entry_price=entry_px,
+                drawdown_date=worst_date or "",
+                drawdown_pct=round(worst_pct, 2),
+                days_to_drawdown=worst_day or 0,
+                endorsing_agents=endorsing,
+                dissenting_agents=dissenting,
+                waterfall_top=wf_top,
+                kill_thesis_text=str(c["stock"].get("kill_thesis", ""))[:200],
+                lesson=lesson,
+            )
+        )
 
     return post_mortems
 
 
 def _build_lesson(
-    stock: Dict[str, Any],
-    dissenters: List[str],
-    wf_top: List[Dict[str, Any]],
+    stock: dict[str, Any],
+    dissenters: list[str],
+    wf_top: list[dict[str, Any]],
     worst_pct: float,
 ) -> str:
     """Compose a 1-2 sentence lesson summary."""
@@ -264,7 +265,7 @@ def _build_lesson(
     bear_keys = [w for w in wf_top if w["value"] < 0]
     if bear_keys:
         parts.append(
-            f"Loudest bearish modifiers: "
+            "Loudest bearish modifiers: "
             + ", ".join(f"{w['key']}({w['value']})" for w in bear_keys[:3])
             + "."
         )
@@ -272,8 +273,8 @@ def _build_lesson(
 
 
 def append_lessons(
-    post_mortems: List[PostMortem],
-    path: Optional[Path] = None,
+    post_mortems: list[PostMortem],
+    path: Path | None = None,
 ) -> int:
     """
     Append each post-mortem as one JSONL line. Dedupes by
@@ -306,8 +307,8 @@ def append_lessons(
 
 def load_recent_lessons(
     n: int = 10,
-    path: Optional[Path] = None,
-) -> List[Dict[str, Any]]:
+    path: Path | None = None,
+) -> list[dict[str, Any]]:
     """Load the N most recent lessons for inclusion in agent_memory."""
     p = path or DEFAULT_LESSONS_PATH
     if not p.exists():
@@ -322,7 +323,7 @@ def load_recent_lessons(
     return rows[:n]
 
 
-def summarise_for_committee(lessons: List[Dict[str, Any]]) -> str:
+def summarise_for_committee(lessons: list[dict[str, Any]]) -> str:
     """One-page summary for inclusion in next committee's prompt."""
     if not lessons:
         return ""

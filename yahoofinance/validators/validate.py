@@ -13,7 +13,6 @@ import yfinance as yf
 from ..core.logging import get_logger
 from ..utils.data.ticker_utils import normalize_ticker
 
-
 logger = get_logger(__name__)
 
 
@@ -36,18 +35,22 @@ def is_valid_ticker(ticker_symbol: str) -> bool:
 
         # Check if we can get basic info
         if not ticker.info:
-            logger.warning(f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) has no info data")
+            logger.warning(
+                f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) has no info data"
+            )
             return False
 
         # Check if we can get history data
         history = ticker.history(period="1mo")
         if history.empty:
-            logger.warning(f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) has no history data")
+            logger.warning(
+                f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) has no history data"
+            )
             return False
 
         logger.info(f"Ticker {ticker_symbol} (normalized: {normalized_ticker}) is valid")
         return True
-    except (ValueError, TypeError, KeyError, AttributeError, OSError, IOError) as e:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as e:
         logger.error(f"Error validating ticker {ticker_symbol}: {str(e)}")
         return False
 
@@ -82,7 +85,12 @@ def validate_tickers_batch(tickers: list, max_workers: int = 5) -> list:
                     is_valid = future.result()
                     if is_valid:
                         valid_tickers.append(ticker)
-                except (ValueError, TypeError, concurrent.futures.CancelledError, concurrent.futures.TimeoutError) as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    concurrent.futures.CancelledError,
+                    concurrent.futures.TimeoutError,
+                ) as e:
                     logger.error(f"Exception when processing ticker {ticker}: {str(e)}")
 
             logger.info(f"Found {len(valid_tickers)} valid tickers")
@@ -112,7 +120,7 @@ def save_valid_tickers(valid_tickers: list, output_dir: str = "output") -> None:
         output_file = output_path / "valid_tickers.csv"
         df.to_csv(output_file, index=False)
         logger.info(f"Saved {len(valid_tickers)} valid tickers to {output_file}")
-    except (OSError, IOError, PermissionError, ValueError) as e:
+    except (OSError, PermissionError, ValueError) as e:
         logger.error(f"Error saving valid tickers: {str(e)}")
 
 

@@ -6,6 +6,7 @@ Target: Increase coverage from 21% to 80%+
 
 from unittest.mock import patch
 
+
 class TestGetUserSourceChoice:
     """Test get_user_source_choice function."""
 
@@ -58,6 +59,7 @@ class TestGetUserSourceChoice:
                 result = get_user_source_choice()
                 assert result == "I"
 
+
 class TestGetPortfolioChoice:
     """Test get_portfolio_choice function."""
 
@@ -95,6 +97,7 @@ class TestGetPortfolioChoice:
                 result = get_portfolio_choice()
                 assert result == "E"
 
+
 class TestGetTradeAnalysisChoice:
     """Test get_trade_analysis_choice function."""
 
@@ -130,6 +133,7 @@ class TestGetTradeAnalysisChoice:
             with patch("builtins.print"):
                 result = get_trade_analysis_choice()
                 assert result == "B"
+
 
 class TestDisplayFunctions:
     """Test display functions."""
@@ -249,6 +253,7 @@ class TestDisplayFunctions:
         captured = capsys.readouterr()
         assert "Found 5 opportunities" in captured.out
 
+
 class TestConfirmAction:
     """Test confirm_action function."""
 
@@ -301,6 +306,7 @@ class TestConfirmAction:
             result = confirm_action("Continue?", default=True)
             assert result is True
 
+
 class TestValidateUserChoice:
     """Test validate_user_choice function."""
 
@@ -324,6 +330,7 @@ class TestValidateUserChoice:
 
         result = validate_user_choice("X", ["P", "M", "I"])
         assert result is False
+
 
 class TestGetManualTickers:
     """Test get_manual_tickers function."""
@@ -371,6 +378,7 @@ class TestGetManualTickers:
             with patch("builtins.print"):
                 result = get_manual_tickers()
                 assert result == []
+
 
 class TestCLIManager:
     """Test CLIManager class."""
@@ -425,6 +433,7 @@ class TestCLIManager:
             with patch("builtins.print"):
                 result = manager.handle_manual_input_flow()
                 assert result == ["AAPL", "MSFT"]
+
 
 class TestBackwardCompatibility:
     """Test backward compatibility functions."""

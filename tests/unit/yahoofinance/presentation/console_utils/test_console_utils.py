@@ -10,6 +10,7 @@ from yahoofinance.presentation.console_utils.colors import ConsoleColors
 from yahoofinance.presentation.console_utils.formatters import ConsoleFormatter
 from yahoofinance.presentation.console_utils.tables import TableRenderer
 
+
 class TestConsoleColors:
     """Tests for ConsoleColors class."""
 
@@ -50,6 +51,7 @@ class TestConsoleColors:
         """Test colorize with small negative value."""
         result = ConsoleColors.colorize("price", -0.001)
         assert ConsoleColors.RED in result
+
 
 class TestConsoleFormatter:
     """Tests for ConsoleFormatter class."""
@@ -125,15 +127,18 @@ class TestConsoleFormatter:
         result = ConsoleFormatter.format_percentage("not_a_number")
         assert result == "--"
 
+
 class TestTableRenderer:
     """Tests for TableRenderer class."""
 
     def test_render_dataframe_basic(self):
         """Test render_dataframe with basic DataFrame."""
-        df = pd.DataFrame({
-            "name": ["Apple", "Microsoft"],
-            "price": [175.0, 380.0],
-        })
+        df = pd.DataFrame(
+            {
+                "name": ["Apple", "Microsoft"],
+                "price": [175.0, 380.0],
+            }
+        )
 
         result = TableRenderer.render_dataframe(df)
 
@@ -145,9 +150,12 @@ class TestTableRenderer:
 
     def test_render_dataframe_with_index(self):
         """Test render_dataframe preserves index."""
-        df = pd.DataFrame({
-            "price": [175.0, 380.0],
-        }, index=["AAPL", "MSFT"])
+        df = pd.DataFrame(
+            {
+                "price": [175.0, 380.0],
+            },
+            index=["AAPL", "MSFT"],
+        )
 
         result = TableRenderer.render_dataframe(df)
 
@@ -164,10 +172,12 @@ class TestTableRenderer:
 
     def test_render_dataframe_custom_headers(self):
         """Test render_dataframe with custom headers."""
-        df = pd.DataFrame({
-            "name": ["Apple"],
-            "price": [175.0],
-        })
+        df = pd.DataFrame(
+            {
+                "name": ["Apple"],
+                "price": [175.0],
+            }
+        )
 
         result = TableRenderer.render_dataframe(df, headers=["Name", "Price"])
 
@@ -175,17 +185,20 @@ class TestTableRenderer:
 
     def test_render_dataframe_numeric_columns(self):
         """Test render_dataframe with various numeric types."""
-        df = pd.DataFrame({
-            "int_col": [1, 2, 3],
-            "float_col": [1.5, 2.5, 3.5],
-            "str_col": ["a", "b", "c"],
-        })
+        df = pd.DataFrame(
+            {
+                "int_col": [1, 2, 3],
+                "float_col": [1.5, 2.5, 3.5],
+                "str_col": ["a", "b", "c"],
+            }
+        )
 
         result = TableRenderer.render_dataframe(df)
 
         assert "1.5" in result
         assert "2.5" in result
         assert "3.5" in result
+
 
 class TestConsoleUtilsIntegration:
     """Integration tests for console utilities."""
@@ -201,11 +214,13 @@ class TestConsoleUtilsIntegration:
 
     def test_render_formatted_data(self):
         """Test rendering pre-formatted data."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL"],
-            "price": [ConsoleFormatter.format_number(175.0)],
-            "change": [ConsoleFormatter.format_percentage(5.5)],
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL"],
+                "price": [ConsoleFormatter.format_number(175.0)],
+                "change": [ConsoleFormatter.format_percentage(5.5)],
+            }
+        )
 
         result = TableRenderer.render_dataframe(df)
 

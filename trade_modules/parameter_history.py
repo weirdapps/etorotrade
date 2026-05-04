@@ -12,7 +12,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +21,14 @@ HISTORY_PATH = Path.home() / ".weirdapps-trading" / "committee" / "parameter_his
 
 def save_parameter_history(
     date: str,
-    concordance: List[Dict[str, Any]],
-    portfolio_signals: Dict[str, Dict],
-    fund_report: Dict,
-    tech_report: Dict,
-    macro_report: Dict,
-    census_report: Dict,
-    news_report: Dict,
-    risk_report: Dict,
+    concordance: list[dict[str, Any]],
+    portfolio_signals: dict[str, dict],
+    fund_report: dict,
+    tech_report: dict,
+    macro_report: dict,
+    census_report: dict,
+    news_report: dict,
+    risk_report: dict,
 ) -> int:
     """Archive all parameters for every stock in this committee run."""
     HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -53,61 +53,102 @@ def save_parameter_history(
     return lines
 
 
-def _write_record(f, record: Dict) -> int:
+def _write_record(f, record: dict) -> int:
     f.write(json.dumps(record, default=str) + "\n")
     return 1
 
 
-def _write_signals(f, date: str, ticker: str, signals: Dict) -> int:
+def _write_signals(f, date: str, ticker: str, signals: dict) -> int:
     sig = signals.get(ticker)
     if not sig:
         return 0
     record = {"date": date, "ticker": ticker, "source": "signals"}
-    for key in ("price", "upside", "buy_pct", "exret", "beta", "pet", "pef",
-                "pp", "52w", "am", "analyst_type", "signal", "short_interest",
-                "roe", "de", "fcf", "num_targets"):
+    for key in (
+        "price",
+        "upside",
+        "buy_pct",
+        "exret",
+        "beta",
+        "pet",
+        "pef",
+        "pp",
+        "52w",
+        "am",
+        "analyst_type",
+        "signal",
+        "short_interest",
+        "roe",
+        "de",
+        "fcf",
+        "num_targets",
+    ):
         val = sig.get(key)
         if val is not None:
             record[key] = val
     return _write_record(f, record)
 
 
-def _write_fundamental(f, date: str, ticker: str, fund: Dict) -> int:
+def _write_fundamental(f, date: str, ticker: str, fund: dict) -> int:
     stock = fund.get("stocks", {}).get(ticker)
     if not stock or not isinstance(stock, dict):
         return 0
     record = {"date": date, "ticker": ticker, "source": "fundamental"}
-    for key in ("fundamental_score", "outlook", "pe_trajectory", "quality_trap",
-                "piotroski_score", "revenue_growth_class", "eps_revisions",
-                "insider_sentiment", "earnings_quality"):
+    for key in (
+        "fundamental_score",
+        "outlook",
+        "pe_trajectory",
+        "quality_trap",
+        "piotroski_score",
+        "revenue_growth_class",
+        "eps_revisions",
+        "insider_sentiment",
+        "earnings_quality",
+    ):
         val = stock.get(key)
         if val is not None:
             record[key] = val
     return _write_record(f, record)
 
 
-def _write_technical(f, date: str, ticker: str, tech: Dict) -> int:
+def _write_technical(f, date: str, ticker: str, tech: dict) -> int:
     stock = tech.get("stocks", {}).get(ticker)
     if not stock or not isinstance(stock, dict):
         return 0
     record = {"date": date, "ticker": ticker, "source": "technical"}
-    for key in ("price", "rsi", "macd_signal", "macd_histogram", "bb_position",
-                "above_sma50", "above_sma200", "golden_cross", "vol_ratio",
-                "support", "resistance", "momentum_score", "trend",
-                "timing_signal", "relative_strength_vs_spy", "atr_pct",
-                "adx", "adx_trend"):
+    for key in (
+        "price",
+        "rsi",
+        "macd_signal",
+        "macd_histogram",
+        "bb_position",
+        "above_sma50",
+        "above_sma200",
+        "golden_cross",
+        "vol_ratio",
+        "support",
+        "resistance",
+        "momentum_score",
+        "trend",
+        "timing_signal",
+        "relative_strength_vs_spy",
+        "atr_pct",
+        "adx",
+        "adx_trend",
+    ):
         val = stock.get(key)
         if val is not None:
             record[key] = val
     return _write_record(f, record)
 
 
-def _write_macro(f, date: str, ticker: str, macro: Dict) -> int:
+def _write_macro(f, date: str, ticker: str, macro: dict) -> int:
     impl = macro.get("portfolio_implications", {}).get(ticker)
     if not impl or not isinstance(impl, dict):
         return 0
     record = {
-        "date": date, "ticker": ticker, "source": "macro",
+        "date": date,
+        "ticker": ticker,
+        "source": "macro",
         "regime": macro.get("regime"),
         "macro_score": macro.get("macro_score"),
         "rotation_phase": macro.get("rotation_phase"),
@@ -119,10 +160,12 @@ def _write_macro(f, date: str, ticker: str, macro: Dict) -> int:
     return _write_record(f, record)
 
 
-def _write_census(f, date: str, ticker: str, census: Dict) -> int:
+def _write_census(f, date: str, ticker: str, census: dict) -> int:
     sentiment = census.get("sentiment", {})
     record = {
-        "date": date, "ticker": ticker, "source": "census",
+        "date": date,
+        "ticker": ticker,
+        "source": "census",
         "fg_top100": _num(sentiment.get("fg_top100")),
         "fg_broad": _num(sentiment.get("fg_broad")),
         "cash_top100": _num(sentiment.get("cash_top100")),
@@ -131,7 +174,7 @@ def _write_census(f, date: str, ticker: str, census: Dict) -> int:
     return _write_record(f, record)
 
 
-def _write_news(f, date: str, ticker: str, news: Dict) -> int:
+def _write_news(f, date: str, ticker: str, news: dict) -> int:
     port_news = news.get("portfolio_news", {}).get(ticker, [])
     impact = "NEUTRAL"
     if isinstance(port_news, list) and port_news:
@@ -150,7 +193,9 @@ def _write_news(f, date: str, ticker: str, news: Dict) -> int:
                 pass
 
     record = {
-        "date": date, "ticker": ticker, "source": "news",
+        "date": date,
+        "ticker": ticker,
+        "source": "news",
         "news_impact": impact,
         "earnings_days_away": earnings_days,
         "news_count": len(port_news) if isinstance(port_news, list) else 0,
@@ -158,10 +203,12 @@ def _write_news(f, date: str, ticker: str, news: Dict) -> int:
     return _write_record(f, record)
 
 
-def _write_risk(f, date: str, ticker: str, risk: Dict) -> int:
+def _write_risk(f, date: str, ticker: str, risk: dict) -> int:
     limits = risk.get("position_limits", {}).get(ticker, {})
     record = {
-        "date": date, "ticker": ticker, "source": "risk",
+        "date": date,
+        "ticker": ticker,
+        "source": "risk",
         "position_limit_pct": limits.get("max_pct") if isinstance(limits, dict) else None,
         "portfolio_risk_score": risk.get("portfolio_risk", {}).get("risk_score"),
         "portfolio_beta": risk.get("portfolio_risk", {}).get("portfolio_beta"),
@@ -169,19 +216,42 @@ def _write_risk(f, date: str, ticker: str, risk: Dict) -> int:
     return _write_record(f, record)
 
 
-def _write_synthesis(f, date: str, ticker: str, concordance: List[Dict]) -> int:
+def _write_synthesis(f, date: str, ticker: str, concordance: list[dict]) -> int:
     entry = next((e for e in concordance if e.get("ticker") == ticker), None)
     if not entry:
         return 0
     record = {"date": date, "ticker": ticker, "source": "synthesis"}
-    for key in ("conviction", "action", "base", "bonuses", "penalties",
-                "bull_weight", "bear_weight", "bull_pct",
-                "signal_velocity", "earnings_surprise", "days_held",
-                "holding_review_flag", "position_size_pct", "entry_timing",
-                "is_opportunity", "sector", "directional_confidence",
-                "hold_tier", "max_pct", "fund_score", "tech_signal",
-                "macro_fit", "census", "news_impact", "rsi", "exret",
-                "buy_pct", "signal", "price"):
+    for key in (
+        "conviction",
+        "action",
+        "base",
+        "bonuses",
+        "penalties",
+        "bull_weight",
+        "bear_weight",
+        "bull_pct",
+        "signal_velocity",
+        "earnings_surprise",
+        "days_held",
+        "holding_review_flag",
+        "position_size_pct",
+        "entry_timing",
+        "is_opportunity",
+        "sector",
+        "directional_confidence",
+        "hold_tier",
+        "max_pct",
+        "fund_score",
+        "tech_signal",
+        "macro_fit",
+        "census",
+        "news_impact",
+        "rsi",
+        "exret",
+        "buy_pct",
+        "signal",
+        "price",
+    ):
         val = entry.get(key)
         if val is not None:
             record[key] = val
@@ -205,10 +275,10 @@ def _num(val):
 
 
 def get_parameter_history(
-    ticker: Optional[str] = None,
-    source: Optional[str] = None,
+    ticker: str | None = None,
+    source: str | None = None,
     days: int = 90,
-) -> List[Dict]:
+) -> list[dict]:
     """Read parameter history, optionally filtered by ticker and source."""
     if not HISTORY_PATH.exists():
         return []

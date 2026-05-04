@@ -9,9 +9,9 @@ CIO Review Finding S5: No transaction cost or liquidity model.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
 import threading
+from datetime import datetime, timedelta
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 # Minimum ADV in USD by tier
-TIER_MIN_ADV: Dict[str, float] = {
+TIER_MIN_ADV: dict[str, float] = {
     "MEGA": 50_000_000,
     "LARGE": 20_000_000,
     "MID": 10_000_000,
@@ -29,7 +29,7 @@ TIER_MIN_ADV: Dict[str, float] = {
 
 # Estimated spread costs by tier (basis points)
 # Larger stocks have tighter spreads
-TIER_SPREAD_BPS: Dict[str, float] = {
+TIER_SPREAD_BPS: dict[str, float] = {
     "MEGA": 2.0,
     "LARGE": 5.0,
     "MID": 10.0,
@@ -41,12 +41,12 @@ TIER_SPREAD_BPS: Dict[str, float] = {
 ETORO_OVERNIGHT_ANNUAL_RATE = 0.064
 
 # Cache for ADV data
-_adv_cache: Dict[str, Tuple[float, datetime]] = {}
+_adv_cache: dict[str, tuple[float, datetime]] = {}
 _adv_cache_lock = threading.Lock()
 _ADV_CACHE_TTL_HOURS = 4
 
 
-def _fetch_adv(ticker: str, period_days: int = 30) -> Optional[float]:
+def _fetch_adv(ticker: str, period_days: int = 30) -> float | None:
     """
     Fetch average daily dollar volume for a ticker.
 
@@ -59,6 +59,7 @@ def _fetch_adv(ticker: str, period_days: int = 30) -> Optional[float]:
     """
     try:
         import yfinance as yf
+
         stock = yf.Ticker(ticker)
         hist = stock.history(period=f"{period_days}d")
         if hist is None or hist.empty or len(hist) < 5:
@@ -73,7 +74,7 @@ def _fetch_adv(ticker: str, period_days: int = 30) -> Optional[float]:
         return None
 
 
-def get_adv(ticker: str) -> Optional[float]:
+def get_adv(ticker: str) -> float | None:
     """
     Get average daily dollar volume with caching.
 
@@ -97,7 +98,7 @@ def get_adv(ticker: str) -> Optional[float]:
     return adv
 
 
-def check_liquidity(ticker: str, tier: str) -> Dict[str, Any]:
+def check_liquidity(ticker: str, tier: str) -> dict[str, Any]:
     """
     Check if a stock meets minimum liquidity requirements for its tier.
 
@@ -144,7 +145,7 @@ def estimate_transaction_cost(
     position_size: float,
     tier: str,
     holding_period_days: int = 90,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Estimate total transaction cost for a position.
 

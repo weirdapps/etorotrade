@@ -5,7 +5,8 @@ This module defines the core data structures used throughout the package.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
+
 
 @dataclass
 class StockData:
@@ -55,59 +56,59 @@ class StockData:
     # Basic Info
     name: str = "N/A"
     sector: str = "N/A"
-    market_cap: Optional[float] = None
+    market_cap: float | None = None
 
     # Price Data
-    current_price: Optional[float] = None
-    target_price: Optional[float] = None
-    price_change_percentage: Optional[float] = None
-    mtd_change: Optional[float] = None
-    ytd_change: Optional[float] = None
-    two_year_change: Optional[float] = None
+    current_price: float | None = None
+    target_price: float | None = None
+    price_change_percentage: float | None = None
+    mtd_change: float | None = None
+    ytd_change: float | None = None
+    two_year_change: float | None = None
 
     # Analyst Coverage
-    recommendation_mean: Optional[float] = None
+    recommendation_mean: float | None = None
     recommendation_key: str = "N/A"
-    analyst_count: Optional[int] = None
+    analyst_count: int | None = None
 
     # Valuation Metrics
-    pe_trailing: Optional[float] = None
-    pe_forward: Optional[float] = None
-    peg_ratio: Optional[float] = None
+    pe_trailing: float | None = None
+    pe_forward: float | None = None
+    peg_ratio: float | None = None
 
     # Financial Health
-    quick_ratio: Optional[float] = None
-    current_ratio: Optional[float] = None
-    debt_to_equity: Optional[float] = None
+    quick_ratio: float | None = None
+    current_ratio: float | None = None
+    debt_to_equity: float | None = None
 
     # Risk Metrics
-    short_float_pct: Optional[float] = None
-    short_ratio: Optional[float] = None
-    beta: Optional[float] = None
-    alpha: Optional[float] = None
-    sharpe_ratio: Optional[float] = None
-    sortino_ratio: Optional[float] = None
-    cash_percentage: Optional[float] = None
+    short_float_pct: float | None = None
+    short_ratio: float | None = None
+    beta: float | None = None
+    alpha: float | None = None
+    sharpe_ratio: float | None = None
+    sortino_ratio: float | None = None
+    cash_percentage: float | None = None
 
     # Technical Indicators
-    ma50: Optional[float] = None
-    ma200: Optional[float] = None
+    ma50: float | None = None
+    ma200: float | None = None
 
     # Dividends
-    dividend_yield: Optional[float] = None
+    dividend_yield: float | None = None
 
     # Events
-    last_earnings: Optional[str] = None
-    previous_earnings: Optional[str] = None
+    last_earnings: str | None = None
+    previous_earnings: str | None = None
 
     # Insider Activity
-    insider_buy_pct: Optional[float] = None
-    insider_transactions: Optional[int] = None
+    insider_buy_pct: float | None = None
+    insider_transactions: int | None = None
 
     # Internal
     ticker_object: Any = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert to dictionary.
 
@@ -123,7 +124,7 @@ class StockData:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "StockData":
+    def from_dict(cls, data: dict[str, Any]) -> "StockData":
         """
         Create StockData from dictionary.
 

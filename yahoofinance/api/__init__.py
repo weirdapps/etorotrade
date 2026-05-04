@@ -14,7 +14,6 @@ from .providers.async_yahoo_finance import AsyncYahooFinanceProvider
 from .providers.async_yahooquery_provider import AsyncYahooQueryProvider
 from .providers.base_provider import AsyncFinanceDataProvider, FinanceDataProvider
 
-
 # Export provider classes
 __all__ = [
     # Provider factory functions

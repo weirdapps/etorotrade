@@ -9,9 +9,8 @@ CIO Review Finding #5: Integrate signal scorecard warnings.
 
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
-from typing import List
-from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ SCORECARD_CACHE_PATH = Path.home() / ".weirdapps-trading" / "signals" / "signal_
 SCORECARD_MAX_AGE_DAYS = 7  # Alert if scorecard is older than 7 days
 
 
-def get_scorecard_warnings() -> List[str]:
+def get_scorecard_warnings() -> list[str]:
     """
     Load cached signal scorecard and extract calibration alerts.
 
@@ -39,18 +38,18 @@ def get_scorecard_warnings() -> List[str]:
             return []
 
         # Load scorecard
-        with open(SCORECARD_CACHE_PATH, 'r') as f:
+        with open(SCORECARD_CACHE_PATH) as f:
             scorecard = json.load(f)
 
         # Check freshness
-        generated_at_str = scorecard.get('generated_at')
+        generated_at_str = scorecard.get("generated_at")
         if not generated_at_str:
             logger.warning("Scorecard missing 'generated_at' field")
             return []
 
         # Parse timestamp
         try:
-            generated_at = datetime.fromisoformat(generated_at_str.replace('Z', '+00:00'))
+            generated_at = datetime.fromisoformat(generated_at_str.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
             logger.warning(f"Invalid scorecard timestamp: {generated_at_str}")
             return []
@@ -65,7 +64,7 @@ def get_scorecard_warnings() -> List[str]:
             return []
 
         # Extract calibration alerts
-        alerts = scorecard.get('calibration_alerts', [])
+        alerts = scorecard.get("calibration_alerts", [])
         if alerts:
             logger.info(f"Found {len(alerts)} calibration alerts from scorecard")
         else:
@@ -81,7 +80,7 @@ def get_scorecard_warnings() -> List[str]:
         return []
 
 
-def format_scorecard_warnings_for_console(warnings: List[str]) -> str:
+def format_scorecard_warnings_for_console(warnings: list[str]) -> str:
     """
     Format scorecard warnings for console output.
 
@@ -122,48 +121,50 @@ def get_scorecard_summary() -> dict:
     try:
         if not SCORECARD_CACHE_PATH.exists():
             return {
-                'warnings': [],
-                'scorecard_age_days': None,
-                'scorecard_date': None,
-                'is_fresh': False,
+                "warnings": [],
+                "scorecard_age_days": None,
+                "scorecard_date": None,
+                "is_fresh": False,
             }
 
-        with open(SCORECARD_CACHE_PATH, 'r') as f:
+        with open(SCORECARD_CACHE_PATH) as f:
             scorecard = json.load(f)
 
-        generated_at_str = scorecard.get('generated_at')
+        generated_at_str = scorecard.get("generated_at")
         if not generated_at_str:
             return {
-                'warnings': [],
-                'scorecard_age_days': None,
-                'scorecard_date': None,
-                'is_fresh': False,
+                "warnings": [],
+                "scorecard_age_days": None,
+                "scorecard_date": None,
+                "is_fresh": False,
             }
 
         try:
-            generated_at = datetime.fromisoformat(generated_at_str.replace('Z', '+00:00'))
-            age_days = (datetime.now().replace(tzinfo=None) - generated_at.replace(tzinfo=None)).days
+            generated_at = datetime.fromisoformat(generated_at_str.replace("Z", "+00:00"))
+            age_days = (
+                datetime.now().replace(tzinfo=None) - generated_at.replace(tzinfo=None)
+            ).days
             is_fresh = age_days <= SCORECARD_MAX_AGE_DAYS
         except (ValueError, AttributeError):
             return {
-                'warnings': [],
-                'scorecard_age_days': None,
-                'scorecard_date': None,
-                'is_fresh': False,
+                "warnings": [],
+                "scorecard_age_days": None,
+                "scorecard_date": None,
+                "is_fresh": False,
             }
 
         return {
-            'warnings': scorecard.get('calibration_alerts', []),
-            'scorecard_age_days': age_days,
-            'scorecard_date': generated_at_str,
-            'is_fresh': is_fresh,
+            "warnings": scorecard.get("calibration_alerts", []),
+            "scorecard_age_days": age_days,
+            "scorecard_date": generated_at_str,
+            "is_fresh": is_fresh,
         }
 
     except Exception as e:
         logger.warning(f"Failed to get scorecard summary: {e}")
         return {
-            'warnings': [],
-            'scorecard_age_days': None,
-            'scorecard_date': None,
-            'is_fresh': False,
+            "warnings": [],
+            "scorecard_age_days": None,
+            "scorecard_date": None,
+            "is_fresh": False,
         }

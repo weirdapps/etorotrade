@@ -115,7 +115,7 @@ class TestRateLimitError:
 
     def test_rate_limit_inherits_from_api_error(self):
         """RateLimitError inherits from APIError."""
-        from yahoofinance.core.errors import RateLimitError, APIError
+        from yahoofinance.core.errors import APIError, RateLimitError
 
         error = RateLimitError("Rate limited")
 
@@ -127,7 +127,7 @@ class TestNetworkErrors:
 
     def test_network_error(self):
         """Create NetworkError."""
-        from yahoofinance.core.errors import NetworkError, APIError
+        from yahoofinance.core.errors import APIError, NetworkError
 
         error = NetworkError("Network failed")
 
@@ -144,7 +144,7 @@ class TestNetworkErrors:
 
     def test_timeout_error(self):
         """Create TimeoutError."""
-        from yahoofinance.core.errors import TimeoutError, NetworkError
+        from yahoofinance.core.errors import NetworkError, TimeoutError
 
         error = TimeoutError("Request timed out")
 
@@ -156,7 +156,7 @@ class TestResourceNotFoundError:
 
     def test_resource_not_found(self):
         """Create ResourceNotFoundError."""
-        from yahoofinance.core.errors import ResourceNotFoundError, APIError
+        from yahoofinance.core.errors import APIError, ResourceNotFoundError
 
         error = ResourceNotFoundError("Not found")
 
@@ -176,7 +176,7 @@ class TestDataErrors:
 
     def test_data_quality_error(self):
         """Create DataQualityError."""
-        from yahoofinance.core.errors import DataQualityError, DataError
+        from yahoofinance.core.errors import DataError, DataQualityError
 
         error = DataQualityError("Poor data quality")
 
@@ -184,7 +184,7 @@ class TestDataErrors:
 
     def test_missing_data_error(self):
         """Create MissingDataError."""
-        from yahoofinance.core.errors import MissingDataError, DataError
+        from yahoofinance.core.errors import DataError, MissingDataError
 
         error = MissingDataError("Data not available")
 
@@ -272,7 +272,7 @@ class TestClassifyApiError:
 
     def test_classify_404_error(self):
         """Classify 404 as ResourceNotFoundError."""
-        from yahoofinance.core.errors import classify_api_error, ResourceNotFoundError
+        from yahoofinance.core.errors import ResourceNotFoundError, classify_api_error
 
         result = classify_api_error(404, "Not found")
 
@@ -282,7 +282,7 @@ class TestClassifyApiError:
 
     def test_classify_429_error(self):
         """Classify 429 as RateLimitError."""
-        from yahoofinance.core.errors import classify_api_error, RateLimitError
+        from yahoofinance.core.errors import RateLimitError, classify_api_error
 
         result = classify_api_error(429, "Too many requests")
 
@@ -291,7 +291,7 @@ class TestClassifyApiError:
 
     def test_classify_500_error(self):
         """Classify 500 as server error."""
-        from yahoofinance.core.errors import classify_api_error, APIError
+        from yahoofinance.core.errors import APIError, classify_api_error
 
         result = classify_api_error(500, "Internal server error")
 
@@ -301,7 +301,7 @@ class TestClassifyApiError:
 
     def test_classify_400_error(self):
         """Classify 400 as client error."""
-        from yahoofinance.core.errors import classify_api_error, APIError
+        from yahoofinance.core.errors import APIError, classify_api_error
 
         result = classify_api_error(400, "Bad request")
 
@@ -310,7 +310,7 @@ class TestClassifyApiError:
 
     def test_classify_unexpected_error(self):
         """Classify unexpected status code."""
-        from yahoofinance.core.errors import classify_api_error, APIError
+        from yahoofinance.core.errors import APIError, classify_api_error
 
         result = classify_api_error(200, "OK but error")
 

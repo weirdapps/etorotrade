@@ -27,7 +27,6 @@ from trade_modules.committee_scorecard import (
     track_opportunities,
 )
 
-
 # ============================================================
 # Fixtures
 # ============================================================
@@ -94,9 +93,7 @@ class TestTrackOpportunities:
         track_opportunities(["AAPL", "MSFT"], "2026-03-09", history_path=history_path)
 
         # Second run — AAPL returns, NVDA is new
-        result = track_opportunities(
-            ["AAPL", "NVDA"], "2026-03-16", history_path=history_path
-        )
+        result = track_opportunities(["AAPL", "NVDA"], "2026-03-16", history_path=history_path)
 
         assert result["AAPL"]["consecutive_appearances"] == 2
         assert result["AAPL"]["conviction_bonus"] == BONUS_PER_APPEARANCE  # +3
@@ -109,9 +106,7 @@ class TestTrackOpportunities:
         """Three runs: streak=3, bonus=6."""
         track_opportunities(["AAPL"], "2026-03-02", history_path=history_path)
         track_opportunities(["AAPL"], "2026-03-09", history_path=history_path)
-        result = track_opportunities(
-            ["AAPL"], "2026-03-16", history_path=history_path
-        )
+        result = track_opportunities(["AAPL"], "2026-03-16", history_path=history_path)
 
         assert result["AAPL"]["consecutive_appearances"] == 3
         assert result["AAPL"]["conviction_bonus"] == 6
@@ -122,9 +117,7 @@ class TestTrackOpportunities:
         # Run 5 consecutive times to exceed the cap
         for i in range(5):
             date = f"2026-03-{(i + 1):02d}"
-            result = track_opportunities(
-                ["AAPL"], date, history_path=history_path
-            )
+            result = track_opportunities(["AAPL"], date, history_path=history_path)
 
         # streak=5, raw bonus = (5-1)*3 = 12, capped at 9
         assert result["AAPL"]["consecutive_appearances"] == 5
@@ -138,9 +131,7 @@ class TestTrackOpportunities:
         track_opportunities(["MSFT"], "2026-03-09", history_path=history_path)
 
         # AAPL returns — streak resets to 1
-        result = track_opportunities(
-            ["AAPL", "MSFT"], "2026-03-16", history_path=history_path
-        )
+        result = track_opportunities(["AAPL", "MSFT"], "2026-03-16", history_path=history_path)
 
         assert result["AAPL"]["consecutive_appearances"] == 1
         assert result["AAPL"]["conviction_bonus"] == 0
@@ -169,9 +160,7 @@ class TestTrackOpportunities:
 
     def test_single_appearance_no_bonus(self, history_path):
         """Single appearance gives zero bonus (bonus starts at appearance 2)."""
-        result = track_opportunities(
-            ["TSLA"], "2026-03-16", history_path=history_path
-        )
+        result = track_opportunities(["TSLA"], "2026-03-16", history_path=history_path)
         assert result["TSLA"]["conviction_bonus"] == 0
 
 
@@ -245,9 +234,7 @@ class TestCheckPreviousRecommendations:
 
     def test_no_log_file(self, tmp_path):
         """Returns empty result when log file does not exist."""
-        result = check_previous_recommendations(
-            log_path=tmp_path / "nonexistent.jsonl"
-        )
+        result = check_previous_recommendations(log_path=tmp_path / "nonexistent.jsonl")
         assert result == _empty_performance_check()
 
     def test_empty_log_file(self, action_log_path):
@@ -258,27 +245,33 @@ class TestCheckPreviousRecommendations:
 
     def test_no_buy_actions(self, action_log_path):
         """Returns empty when only SELL actions exist."""
-        _write_action_log(action_log_path, [
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "BADCO",
-                "action": "SELL",
-                "price_at_recommendation": 50.0,
-            }
-        ])
+        _write_action_log(
+            action_log_path,
+            [
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "BADCO",
+                    "action": "SELL",
+                    "price_at_recommendation": 50.0,
+                }
+            ],
+        )
         result = check_previous_recommendations(log_path=action_log_path)
         assert result["total_recommendations"] == 0
 
     def test_yfinance_import_failure(self, action_log_path):
         """Returns empty when yfinance is not available."""
-        _write_action_log(action_log_path, [
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "AAPL",
-                "action": "BUY",
-                "price_at_recommendation": 150.0,
-            }
-        ])
+        _write_action_log(
+            action_log_path,
+            [
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "AAPL",
+                    "action": "BUY",
+                    "price_at_recommendation": 150.0,
+                }
+            ],
+        )
 
         with patch.dict("sys.modules", {"yfinance": None}):
             with patch(
@@ -292,22 +285,25 @@ class TestCheckPreviousRecommendations:
 
     def test_successful_check_with_mock_yfinance(self, action_log_path):
         """Full happy-path with mocked yfinance."""
-        _write_action_log(action_log_path, [
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "AAPL",
-                "action": "BUY",
-                "conviction": 75,
-                "price_at_recommendation": 150.0,
-            },
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "MSFT",
-                "action": "ADD",
-                "conviction": 65,
-                "price_at_recommendation": 400.0,
-            },
-        ])
+        _write_action_log(
+            action_log_path,
+            [
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "AAPL",
+                    "action": "BUY",
+                    "conviction": 75,
+                    "price_at_recommendation": 150.0,
+                },
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "MSFT",
+                    "action": "ADD",
+                    "conviction": 65,
+                    "price_at_recommendation": 400.0,
+                },
+            ],
+        )
 
         mock_yf = MagicMock()
 
@@ -341,20 +337,23 @@ class TestCheckPreviousRecommendations:
 
     def test_uses_most_recent_date(self, action_log_path):
         """Only checks recommendations from the most recent committee date."""
-        _write_action_log(action_log_path, [
-            {
-                "committee_date": "2026-03-03",
-                "ticker": "OLD",
-                "action": "BUY",
-                "price_at_recommendation": 100.0,
-            },
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "AAPL",
-                "action": "BUY",
-                "price_at_recommendation": 150.0,
-            },
-        ])
+        _write_action_log(
+            action_log_path,
+            [
+                {
+                    "committee_date": "2026-03-03",
+                    "ticker": "OLD",
+                    "action": "BUY",
+                    "price_at_recommendation": 100.0,
+                },
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "AAPL",
+                    "action": "BUY",
+                    "price_at_recommendation": 150.0,
+                },
+            ],
+        )
 
         mock_yf = MagicMock()
         mock_stock = MagicMock()
@@ -371,26 +370,29 @@ class TestCheckPreviousRecommendations:
 
     def test_skips_invalid_prices(self, action_log_path):
         """Skips actions with missing or invalid entry prices."""
-        _write_action_log(action_log_path, [
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "NOPR",
-                "action": "BUY",
-                # Missing price_at_recommendation
-            },
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "BADPR",
-                "action": "BUY",
-                "price_at_recommendation": "not_a_number",
-            },
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "AAPL",
-                "action": "BUY",
-                "price_at_recommendation": 150.0,
-            },
-        ])
+        _write_action_log(
+            action_log_path,
+            [
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "NOPR",
+                    "action": "BUY",
+                    # Missing price_at_recommendation
+                },
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "BADPR",
+                    "action": "BUY",
+                    "price_at_recommendation": "not_a_number",
+                },
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "AAPL",
+                    "action": "BUY",
+                    "price_at_recommendation": 150.0,
+                },
+            ],
+        )
 
         mock_yf = MagicMock()
         mock_stock = MagicMock()
@@ -409,14 +411,17 @@ class TestCheckPreviousRecommendations:
         """Falls back to stock.history when fast_info gives zero price."""
         import pandas as pd
 
-        _write_action_log(action_log_path, [
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "AAPL",
-                "action": "BUY",
-                "price_at_recommendation": 150.0,
-            },
-        ])
+        _write_action_log(
+            action_log_path,
+            [
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "AAPL",
+                    "action": "BUY",
+                    "price_at_recommendation": 150.0,
+                },
+            ],
+        )
 
         mock_yf = MagicMock()
         mock_stock = MagicMock()
@@ -432,19 +437,23 @@ class TestCheckPreviousRecommendations:
 
     def test_all_prices_fail_returns_empty(self, action_log_path):
         """Returns empty when all price fetches fail."""
-        _write_action_log(action_log_path, [
-            {
-                "committee_date": "2026-03-10",
-                "ticker": "FAIL",
-                "action": "BUY",
-                "price_at_recommendation": 100.0,
-            },
-        ])
+        _write_action_log(
+            action_log_path,
+            [
+                {
+                    "committee_date": "2026-03-10",
+                    "ticker": "FAIL",
+                    "action": "BUY",
+                    "price_at_recommendation": 100.0,
+                },
+            ],
+        )
 
         mock_yf = MagicMock()
         mock_stock = MagicMock()
         mock_stock.fast_info = {"lastPrice": 0}
         import pandas as pd
+
         mock_stock.history.return_value = pd.DataFrame()
         mock_yf.Ticker.return_value = mock_stock
 
@@ -570,10 +579,13 @@ class TestLoadAllActions:
 
     def test_load_valid_actions(self, action_log_path):
         """Loads valid JSONL entries."""
-        _write_action_log(action_log_path, [
-            {"committee_date": "2026-03-10", "ticker": "AAPL", "action": "BUY"},
-            {"committee_date": "2026-03-10", "ticker": "MSFT", "action": "SELL"},
-        ])
+        _write_action_log(
+            action_log_path,
+            [
+                {"committee_date": "2026-03-10", "ticker": "AAPL", "action": "BUY"},
+                {"committee_date": "2026-03-10", "ticker": "MSFT", "action": "SELL"},
+            ],
+        )
         result = _load_all_actions(action_log_path)
         assert len(result) == 2
 
@@ -647,15 +659,18 @@ class TestCustomKillTheses:
     def test_log_kill_thesis_with_conditions(self, tmp_path):
         """log_kill_theses should store conditions field."""
         from trade_modules.committee_scorecard import log_kill_theses
+
         log_file = tmp_path / "kill_theses.json"
-        theses = [{
-            "ticker": "AAPL",
-            "kill_thesis": "Revenue growth stalls",
-            "conditions": [
-                {"metric": "EG", "operator": "lt", "threshold": 5.0},
-                {"metric": "UP%", "operator": "lt", "threshold": 0},
-            ],
-        }]
+        theses = [
+            {
+                "ticker": "AAPL",
+                "kill_thesis": "Revenue growth stalls",
+                "conditions": [
+                    {"metric": "EG", "operator": "lt", "threshold": 5.0},
+                    {"metric": "UP%", "operator": "lt", "threshold": 0},
+                ],
+            }
+        ]
         log_kill_theses("2026-03-17", theses, log_path=log_file)
 
         data = json.loads(log_file.read_text())
@@ -669,15 +684,18 @@ class TestCustomKillTheses:
             check_kill_theses,
             log_kill_theses,
         )
+
         # Setup: log a thesis with condition EG < 5
         log_file = tmp_path / "kill_theses.json"
-        theses = [{
-            "ticker": "AAPL",
-            "kill_thesis": "Growth collapse",
-            "conditions": [
-                {"metric": "EG", "operator": "lt", "threshold": 5.0},
-            ],
-        }]
+        theses = [
+            {
+                "ticker": "AAPL",
+                "kill_thesis": "Growth collapse",
+                "conditions": [
+                    {"metric": "EG", "operator": "lt", "threshold": 5.0},
+                ],
+            }
+        ]
         log_kill_theses("2026-03-01", theses, log_path=log_file)
 
         # Create mock portfolio CSV with EG=3 (below threshold)
@@ -703,14 +721,17 @@ class TestCustomKillTheses:
             check_kill_theses,
             log_kill_theses,
         )
+
         log_file = tmp_path / "kill_theses.json"
-        theses = [{
-            "ticker": "AAPL",
-            "kill_thesis": "Beta too high",
-            "conditions": [
-                {"metric": "SI", "operator": "gt", "threshold": 10.0},
-            ],
-        }]
+        theses = [
+            {
+                "ticker": "AAPL",
+                "kill_thesis": "Beta too high",
+                "conditions": [
+                    {"metric": "SI", "operator": "gt", "threshold": 10.0},
+                ],
+            }
+        ]
         log_kill_theses("2026-03-01", theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
@@ -735,14 +756,17 @@ class TestCustomKillTheses:
             check_kill_theses,
             log_kill_theses,
         )
+
         log_file = tmp_path / "kill_theses.json"
-        theses = [{
-            "ticker": "AAPL",
-            "kill_thesis": "Revenue collapse",
-            "conditions": [
-                {"metric": "EG", "operator": "lt", "threshold": 5.0},
-            ],
-        }]
+        theses = [
+            {
+                "ticker": "AAPL",
+                "kill_thesis": "Revenue collapse",
+                "conditions": [
+                    {"metric": "EG", "operator": "lt", "threshold": 5.0},
+                ],
+            }
+        ]
         log_kill_theses("2026-03-01", theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
@@ -767,12 +791,15 @@ class TestCustomKillTheses:
             check_kill_theses,
             log_kill_theses,
         )
+
         log_file = tmp_path / "kill_theses.json"
-        theses = [{
-            "ticker": "AAPL",
-            "kill_thesis": "Revenue collapse",
-            # No conditions field
-        }]
+        theses = [
+            {
+                "ticker": "AAPL",
+                "kill_thesis": "Revenue collapse",
+                # No conditions field
+            }
+        ]
         log_kill_theses("2026-03-01", theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
@@ -800,6 +827,7 @@ class TestScorecardPriceService:
     def test_scorecard_uses_price_service(self, tmp_path):
         """Scorecard should work with PriceService for price fetching."""
         import json
+
         # Create action log
         log_path = tmp_path / "action_log.jsonl"
         entries = [

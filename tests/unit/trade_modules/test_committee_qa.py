@@ -1,29 +1,37 @@
 """Tests for committee_qa.py — Stage 0/1/2 QA validation."""
+
 import pytest
 
 from trade_modules.committee_qa import (
-    normalize_agent_reports,
-    validate_pre_html,
-    validate_post_html,
-    run_qa,
-    format_qa_report,
     CRITICAL,
     WARNING,
+    format_qa_report,
+    normalize_agent_reports,
+    run_qa,
+    validate_post_html,
+    validate_pre_html,
 )
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 def _base_macro():
     return {
         "regime": "CAUTIOUS",
         "macro_score": 65,
         "rotation_phase": "LATE_CYCLE",
-        "indicators": {"vix": 19.2, "us_10y_yield": 4.31, "eur_usd": 1.08,
-                        "dxy": 98.7, "brent_crude": 96.4},
+        "indicators": {
+            "vix": 19.2,
+            "us_10y_yield": 4.31,
+            "eur_usd": 1.08,
+            "dxy": 98.7,
+            "brent_crude": 96.4,
+        },
         "sector_rankings": {"Technology": "Overweight"},
     }
+
 
 def _base_census():
     return {
@@ -31,64 +39,98 @@ def _base_census():
         "cash_trends": {"mean_cash_pct": 12.5},
     }
 
+
 def _base_news():
     return {
         "breaking_news": [{"headline": "Fed holds rates"}],
         "earnings_calendar": {"next_2_weeks": [{"ticker": "NVDA"}]},
     }
 
+
 def _base_risk():
     return {
-        "portfolio_risk": {"var_95": 2.0, "max_drawdown": 0.1,
-                           "risk_score": 55, "portfolio_beta": 1.05},
+        "portfolio_risk": {
+            "var_95": 2.0,
+            "max_drawdown": 0.1,
+            "risk_score": 55,
+            "portfolio_beta": 1.05,
+        },
         "correlation_clusters": [["NVDA", "AMD"]],
     }
+
 
 def _base_opps():
     return {
         "top_opportunities": [
-            {"ticker": "AVGO", "why_compelling": "Strong AI play",
-             "opportunity_score": 85, "exret": 24.6, "buy_pct": 71,
-             "pe_forward": 19.7, "sector": "Technology"},
+            {
+                "ticker": "AVGO",
+                "why_compelling": "Strong AI play",
+                "opportunity_score": 85,
+                "exret": 24.6,
+                "buy_pct": 71,
+                "pe_forward": 19.7,
+                "sector": "Technology",
+            },
         ],
     }
 
+
 def _base_fund():
-    return {"stocks": {"NVDA": {"fundamental_score": 80,
-                                "key_metrics": {"pe": 37}}}}
+    return {"stocks": {"NVDA": {"fundamental_score": 80, "key_metrics": {"pe": 37}}}}
+
 
 def _base_tech():
-    return {"stocks": {"NVDA": {"rsi": 62.5, "trend": "BULLISH",
-                                "adx_trend": "STRONG_UP",
-                                "timing_signal": "ENTER_NOW",
-                                "momentum_score": 65,
-                                "macd_signal": "BULLISH"}}}
+    return {
+        "stocks": {
+            "NVDA": {
+                "rsi": 62.5,
+                "trend": "BULLISH",
+                "adx_trend": "STRONG_UP",
+                "timing_signal": "ENTER_NOW",
+                "momentum_score": 65,
+                "macd_signal": "BULLISH",
+            }
+        }
+    }
+
 
 def _base_synthesis():
     return {
         "concordance": [
-            {"ticker": "NVDA", "action": "HOLD", "conviction": 72,
-             "conviction_waterfall": {"base": 60, "tech_bonus": 5},
-             "signal": "B", "pet": 37.5, "pef": 16.5},
+            {
+                "ticker": "NVDA",
+                "action": "HOLD",
+                "conviction": 72,
+                "conviction_waterfall": {"base": 60, "tech_bonus": 5},
+                "signal": "B",
+                "pet": 37.5,
+                "pef": 16.5,
+            },
         ],
         "regime": "CAUTIOUS",
         "risk_score": 55,
         "macro_score": 65,
         "rotation": "Late cycle positioning",
         "portfolio_beta": 1.05,
-        "indicators": {"vix": 19.2, "us_10y_yield": 4.31,
-                        "eur_usd": 1.08, "dxy": 98.7, "brent_crude": 96.4},
+        "indicators": {
+            "vix": 19.2,
+            "us_10y_yield": 4.31,
+            "eur_usd": 1.08,
+            "dxy": 98.7,
+            "brent_crude": 96.4,
+        },
         "sector_rankings": {"Technology": "Overweight"},
         "breaking_news": [{"headline": "Fed holds rates"}],
         "earnings_calendar": {"next_2_weeks": [{"ticker": "NVDA"}]},
     }
 
+
 # ---------------------------------------------------------------------------
 # Stage 0: Normalize
 # ---------------------------------------------------------------------------
 
-class TestNormalize:
 
+class TestNormalize:
     def test_key_indicators_alias(self):
         macro = {"key_indicators": {"vix": 19.2}}
         fixes = normalize_agent_reports(macro, {}, {}, {}, {})
@@ -191,10 +233,12 @@ class TestNormalize:
         assert any("market_news" in f for f in fixes)
 
     def test_portfolio_news_list_to_dict(self):
-        news = {"portfolio_news": [
-            {"ticker": "NVDA", "headline": "Earnings beat"},
-            {"ticker": "AAPL", "headline": "New product"},
-        ]}
+        news = {
+            "portfolio_news": [
+                {"ticker": "NVDA", "headline": "Earnings beat"},
+                {"ticker": "AAPL", "headline": "New product"},
+            ]
+        }
         fixes = normalize_agent_reports({}, {}, news, {}, {})
         assert isinstance(news["portfolio_news"], dict)
         assert news["portfolio_news"]["NVDA"]["headline"] == "Earnings beat"
@@ -225,19 +269,27 @@ class TestNormalize:
 
     def test_risk_warnings_by_stock_normalized(self):
         """v33.0: risk_warnings_by_stock ingested into consensus_warnings."""
-        risk = {"risk_warnings_by_stock": {"NVDA": {"severity": "HIGH", "warning": "Concentration"}}}
+        risk = {
+            "risk_warnings_by_stock": {"NVDA": {"severity": "HIGH", "warning": "Concentration"}}
+        }
         fixes = normalize_agent_reports({}, {}, {}, risk, {})
         assert any("risk_warnings_by_stock" in f for f in fixes)
-        assert any(w.get("ticker") == "NVDA" for w in risk.get("consensus_warnings", [])
-                   if isinstance(w, dict))
+        assert any(
+            w.get("ticker") == "NVDA"
+            for w in risk.get("consensus_warnings", [])
+            if isinstance(w, dict)
+        )
 
     def test_risk_warnings_by_stock_string_values(self):
         """v33.0: String value in risk_warnings_by_stock."""
         risk = {"risk_warnings_by_stock": {"AAPL": "high beta exposure"}}
         normalize_agent_reports({}, {}, {}, risk, {})
         cw = risk.get("consensus_warnings", [])
-        assert any(w.get("ticker") == "AAPL" and "high beta" in w.get("reason", "")
-                   for w in cw if isinstance(w, dict))
+        assert any(
+            w.get("ticker") == "AAPL" and "high beta" in w.get("reason", "")
+            for w in cw
+            if isinstance(w, dict)
+        )
 
     def test_risk_warnings_by_stock_no_duplicates(self):
         """v33.0: Ticker already in consensus_warnings is not doubled."""
@@ -246,124 +298,213 @@ class TestNormalize:
             "risk_warnings_by_stock": {"NVDA": {"severity": "MODERATE"}},
         }
         normalize_agent_reports({}, {}, {}, risk, {})
-        nvda_count = sum(1 for w in risk["consensus_warnings"]
-                         if isinstance(w, dict) and w.get("ticker") == "NVDA")
+        nvda_count = sum(
+            1
+            for w in risk["consensus_warnings"]
+            if isinstance(w, dict) and w.get("ticker") == "NVDA"
+        )
         assert nvda_count == 1
+
 
 # ---------------------------------------------------------------------------
 # Stage 1: Pre-HTML Validate
 # ---------------------------------------------------------------------------
 
-class TestPreHTML:
 
+class TestPreHTML:
     def test_clean_data_passes(self):
         synth = _base_synthesis()
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         criticals = [g for g in gaps if g["severity"] == CRITICAL]
         assert len(criticals) == 0
 
     def test_empty_concordance_is_critical(self):
         synth = _base_synthesis()
         synth["concordance"] = []
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         crit = [g for g in gaps if g["severity"] == CRITICAL]
         assert any("concordance" in g["field"] for g in crit)
 
     def test_missing_regime_warned(self):
         synth = _base_synthesis()
         synth["regime"] = ""
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("regime" in g["field"] for g in warns)
 
     def test_missing_vix_warned(self):
         synth = _base_synthesis()
         synth["indicators"]["vix"] = 0
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("vix" in g["field"] for g in warns)
 
     def test_missing_10y_yield_warned(self):
         synth = _base_synthesis()
         synth["indicators"]["us_10y_yield"] = None
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("us_10y_yield" in g["field"] for g in warns)
 
     def test_missing_sector_rankings_warned(self):
         synth = _base_synthesis()
         synth.pop("sector_rankings", None)
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("sector_rankings" in g["field"] for g in warns)
 
     def test_no_fund_stocks_critical(self):
-        gaps = validate_pre_html(_base_synthesis(), {"stocks": {}}, _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            _base_synthesis(),
+            {"stocks": {}},
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         crit = [g for g in gaps if g["severity"] == CRITICAL]
         assert any("stocks" in g["field"] for g in crit)
 
     def test_no_tech_stocks_critical(self):
-        gaps = validate_pre_html(_base_synthesis(), _base_fund(), {"stocks": {}},
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            _base_synthesis(),
+            _base_fund(),
+            {"stocks": {}},
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         crit = [g for g in gaps if g["severity"] == CRITICAL]
         assert any("stocks" in g["field"] for g in crit)
 
     def test_missing_why_compelling_warned(self):
         opps = {"top_opportunities": [{"ticker": "AVGO"}]}
-        gaps = validate_pre_html(_base_synthesis(), _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 opps, _base_risk())
+        gaps = validate_pre_html(
+            _base_synthesis(),
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            opps,
+            _base_risk(),
+        )
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("why_compelling" in g["field"] for g in warns)
 
     def test_no_action_in_concordance_is_critical(self):
         synth = _base_synthesis()
         synth["concordance"] = [{"ticker": "NVDA", "conviction": 72, "signal": "B"}]
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         crit = [g for g in gaps if g["severity"] == CRITICAL]
         assert any("action" in g["field"] for g in crit)
 
     def test_default_portfolio_beta_warned(self):
         synth = _base_synthesis()
         synth["portfolio_beta"] = 1.0
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("portfolio_beta" in g["field"] for g in warns)
 
     def test_no_breaking_news_warned(self):
         synth = _base_synthesis()
         synth["breaking_news"] = []
-        gaps = validate_pre_html(synth, _base_fund(), _base_tech(),
-                                 _base_macro(), _base_census(), _base_news(),
-                                 _base_opps(), _base_risk())
+        gaps = validate_pre_html(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+        )
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("breaking_news" in g["field"] for g in warns)
+
 
 # ---------------------------------------------------------------------------
 # Stage 2: Post-HTML Validate
 # ---------------------------------------------------------------------------
 
-class TestPostHTML:
 
+class TestPostHTML:
     def _full_html(self, extra=""):
         html = "<h2>Executive Summary</h2>" + "x" * 200
         html += "<h2>Macro &amp; Market Context</h2>" + "x" * 200
@@ -389,9 +530,7 @@ class TestPostHTML:
         assert len(na_warns) == 0
 
     def test_empty_spans_warned(self):
-        gaps = validate_post_html(
-            self._full_html('color:#64748b;"> </span></td>' * 6)
-        )
+        gaps = validate_post_html(self._full_html('color:#64748b;"> </span></td>' * 6))
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("empty" in g["field"].lower() for g in warns)
 
@@ -412,29 +551,53 @@ class TestPostHTML:
         warns = [g for g in gaps if g["severity"] == WARNING]
         assert any("News" in g.get("field", "") for g in warns)
 
+
 # ---------------------------------------------------------------------------
 # Integration: run_qa
 # ---------------------------------------------------------------------------
 
-class TestRunQA:
 
+class TestRunQA:
     def test_clean_run_passes(self):
         synth = _base_synthesis()
-        passed, gaps = run_qa(synth, _base_fund(), _base_tech(),
-                              _base_macro(), _base_census(), _base_news(),
-                              _base_opps(), _base_risk(), normalize=False)
+        passed, gaps = run_qa(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            _base_macro(),
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+            normalize=False,
+        )
         assert passed is True
 
     def test_normalize_fixes_key_indicators(self):
-        macro = {"key_indicators": {"vix": 19.2, "us_10y_yield": 4.31,
-                                    "eur_usd": 1.08, "dxy": 98.7,
-                                    "brent_crude": 96.4},
-                 "regime": "CAUTIOUS", "macro_score": 65,
-                 "sector_rankings": {}}
+        macro = {
+            "key_indicators": {
+                "vix": 19.2,
+                "us_10y_yield": 4.31,
+                "eur_usd": 1.08,
+                "dxy": 98.7,
+                "brent_crude": 96.4,
+            },
+            "regime": "CAUTIOUS",
+            "macro_score": 65,
+            "sector_rankings": {},
+        }
         synth = _base_synthesis()
-        passed, gaps = run_qa(synth, _base_fund(), _base_tech(),
-                              macro, _base_census(), _base_news(),
-                              _base_opps(), _base_risk(), normalize=True)
+        passed, gaps = run_qa(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            macro,
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+            normalize=True,
+        )
         assert "indicators" in macro
         info = [g for g in gaps if g["section"] == "Normalize"]
         assert any("key_indicators" in g["message"] for g in info)
@@ -442,9 +605,17 @@ class TestRunQA:
     def test_normalize_off_skips_fixes(self):
         macro = {"key_indicators": {"vix": 19.2}}
         synth = _base_synthesis()
-        passed, gaps = run_qa(synth, _base_fund(), _base_tech(),
-                              macro, _base_census(), _base_news(),
-                              _base_opps(), _base_risk(), normalize=False)
+        passed, gaps = run_qa(
+            synth,
+            _base_fund(),
+            _base_tech(),
+            macro,
+            _base_census(),
+            _base_news(),
+            _base_opps(),
+            _base_risk(),
+            normalize=False,
+        )
         assert "key_indicators" in macro  # not renamed
         info = [g for g in gaps if g["section"] == "Normalize"]
         assert len(info) == 0
@@ -454,14 +625,12 @@ class TestRunQA:
         assert "PASSED" in report
 
     def test_format_qa_report_with_criticals(self):
-        gaps = [{"severity": CRITICAL, "section": "Exec", "field": "regime",
-                 "message": "UNKNOWN"}]
+        gaps = [{"severity": CRITICAL, "section": "Exec", "field": "regime", "message": "UNKNOWN"}]
         report = format_qa_report(gaps)
         assert "FAILED" in report
 
     def test_format_qa_report_with_warnings(self):
-        gaps = [{"severity": WARNING, "section": "Macro", "field": "vix",
-                 "message": "VIX is zero"}]
+        gaps = [{"severity": WARNING, "section": "Macro", "field": "vix", "message": "VIX is zero"}]
         report = format_qa_report(gaps)
         assert "PASSED with warnings" in report
 
@@ -470,17 +639,24 @@ class TestRunQA:
 # v33.0: Signal channel uniformity checks
 # ---------------------------------------------------------------------------
 
+
 class TestSignalChannelQA:
     """v33.0: QA catches broken signal channels."""
 
     def test_all_neutral_news_impact_is_critical(self):
         synth = _base_synthesis()
         synth["concordance"] = [
-            {"ticker": f"T{i}", "action": "HOLD", "conviction": 60,
-             "signal": "H", "news_impact": "NEUTRAL"}
+            {
+                "ticker": f"T{i}",
+                "action": "HOLD",
+                "conviction": 60,
+                "signal": "H",
+                "news_impact": "NEUTRAL",
+            }
             for i in range(15)
         ]
         from trade_modules.committee_qa import validate_synthesis_completeness
+
         gaps = validate_synthesis_completeness(synth)
         crit = [g for g in gaps if g["severity"] == CRITICAL and "news_impact" in g["field"]]
         assert len(crit) >= 1
@@ -488,12 +664,23 @@ class TestSignalChannelQA:
     def test_mixed_news_impact_passes(self):
         synth = _base_synthesis()
         synth["concordance"] = [
-            {"ticker": "NVDA", "action": "HOLD", "conviction": 60,
-             "signal": "H", "news_impact": "LOW_POSITIVE"},
-            {"ticker": "AAPL", "action": "ADD", "conviction": 70,
-             "signal": "B", "news_impact": "NEUTRAL"},
+            {
+                "ticker": "NVDA",
+                "action": "HOLD",
+                "conviction": 60,
+                "signal": "H",
+                "news_impact": "LOW_POSITIVE",
+            },
+            {
+                "ticker": "AAPL",
+                "action": "ADD",
+                "conviction": 70,
+                "signal": "B",
+                "news_impact": "NEUTRAL",
+            },
         ]
         from trade_modules.committee_qa import validate_synthesis_completeness
+
         gaps = validate_synthesis_completeness(synth)
         news_crit = [g for g in gaps if "news_impact" in g.get("field", "")]
         assert len(news_crit) == 0
@@ -501,11 +688,17 @@ class TestSignalChannelQA:
     def test_all_neutral_census_is_critical(self):
         synth = _base_synthesis()
         synth["concordance"] = [
-            {"ticker": f"T{i}", "action": "HOLD", "conviction": 60,
-             "signal": "H", "census": "NEUTRAL"}
+            {
+                "ticker": f"T{i}",
+                "action": "HOLD",
+                "conviction": 60,
+                "signal": "H",
+                "census": "NEUTRAL",
+            }
             for i in range(15)
         ]
         from trade_modules.committee_qa import validate_synthesis_completeness
+
         gaps = validate_synthesis_completeness(synth)
         crit = [g for g in gaps if g["severity"] == CRITICAL and "census" in g["field"]]
         assert len(crit) >= 1
@@ -513,11 +706,17 @@ class TestSignalChannelQA:
     def test_all_false_risk_warning_is_warning(self):
         synth = _base_synthesis()
         synth["concordance"] = [
-            {"ticker": f"T{i}", "action": "HOLD", "conviction": 60,
-             "signal": "H", "risk_warning": False}
+            {
+                "ticker": f"T{i}",
+                "action": "HOLD",
+                "conviction": 60,
+                "signal": "H",
+                "risk_warning": False,
+            }
             for i in range(20)
         ]
         from trade_modules.committee_qa import validate_synthesis_completeness
+
         gaps = validate_synthesis_completeness(synth)
         warns = [g for g in gaps if g["severity"] == WARNING and "risk_warning" in g["field"]]
         assert len(warns) >= 1
@@ -525,11 +724,17 @@ class TestSignalChannelQA:
     def test_some_risk_warnings_no_alert(self):
         synth = _base_synthesis()
         synth["concordance"] = [
-            {"ticker": f"T{i}", "action": "HOLD", "conviction": 60,
-             "signal": "H", "risk_warning": i < 3}
+            {
+                "ticker": f"T{i}",
+                "action": "HOLD",
+                "conviction": 60,
+                "signal": "H",
+                "risk_warning": i < 3,
+            }
             for i in range(20)
         ]
         from trade_modules.committee_qa import validate_synthesis_completeness
+
         gaps = validate_synthesis_completeness(synth)
         rw = [g for g in gaps if "risk_warning" in g.get("field", "")]
         assert len(rw) == 0

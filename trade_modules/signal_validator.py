@@ -10,51 +10,55 @@ this system performs forward validation using logged signals.
 
 import json
 import logging
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
 import statistics
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SIGNAL_LOG_PATH = Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_log.jsonl"
+DEFAULT_SIGNAL_LOG_PATH = (
+    Path(__file__).parent.parent / "yahoofinance" / "output" / "signal_log.jsonl"
+)
 
 
 @dataclass
 class ValidationResult:
     """Result of validating a single signal."""
+
     ticker: str
     signal: str
     signal_date: datetime
     price_at_signal: float
-    target_price: Optional[float]
-    current_price: Optional[float]
+    target_price: float | None
+    current_price: float | None
     days_elapsed: int
-    price_change_pct: Optional[float]
-    hit_target: Optional[bool]
-    excess_return: Optional[float]  # Return vs SPY benchmark
-    tier: Optional[str]
-    region: Optional[str]
-    spy_price_at_signal: Optional[float] = None  # SPY price when signal was logged
-    spy_current_price: Optional[float] = None  # Current SPY price
-    spy_return_pct: Optional[float] = None  # SPY return over same period
-    metrics_at_signal: Dict[str, Any] = field(default_factory=dict)
+    price_change_pct: float | None
+    hit_target: bool | None
+    excess_return: float | None  # Return vs SPY benchmark
+    tier: str | None
+    region: str | None
+    spy_price_at_signal: float | None = None  # SPY price when signal was logged
+    spy_current_price: float | None = None  # Current SPY price
+    spy_return_pct: float | None = None  # SPY return over same period
+    metrics_at_signal: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class ValidationSummary:
     """Summary statistics for signal validation."""
+
     total_signals: int
     validated_signals: int
     hit_rate: float  # % that hit target
     avg_return: float
     median_return: float
     excess_vs_benchmark: float
-    by_signal_type: Dict[str, Dict[str, float]] = field(default_factory=dict)
-    by_tier: Dict[str, Dict[str, float]] = field(default_factory=dict)
-    by_region: Dict[str, Dict[str, float]] = field(default_factory=dict)
-    improvement_suggestions: List[str] = field(default_factory=list)
+    by_signal_type: dict[str, dict[str, float]] = field(default_factory=dict)
+    by_tier: dict[str, dict[str, float]] = field(default_factory=dict)
+    by_region: dict[str, dict[str, float]] = field(default_factory=dict)
+    improvement_suggestions: list[str] = field(default_factory=list)
 
 
 class SignalValidator:
@@ -64,11 +68,7 @@ class SignalValidator:
     This is the core backtesting/forward-testing infrastructure.
     """
 
-    def __init__(
-        self,
-        log_path: Optional[Path] = None,
-        benchmark_ticker: str = "SPY"
-    ):
+    def __init__(self, log_path: Path | None = None, benchmark_ticker: str = "SPY"):
         """
         Initialize validator.
 
@@ -78,16 +78,16 @@ class SignalValidator:
         """
         self.log_path = log_path or DEFAULT_SIGNAL_LOG_PATH
         self.benchmark_ticker = benchmark_ticker
-        self._price_cache: Dict[str, Dict[str, float]] = {}
+        self._price_cache: dict[str, dict[str, float]] = {}
 
     def load_signals(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        signal_type: Optional[str] = None,
-        tier: Optional[str] = None,
-        region: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        signal_type: str | None = None,
+        tier: str | None = None,
+        region: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Load signals from log file with optional filtering.
 
@@ -108,7 +108,7 @@ class SignalValidator:
             return signals
 
         try:
-            with open(self.log_path, "r") as f:
+            with open(self.log_path) as f:
                 for line in f:
                     if not line.strip():
                         continue
@@ -142,7 +142,7 @@ class SignalValidator:
 
         return signals
 
-    def get_current_price(self, ticker: str) -> Optional[float]:
+    def get_current_price(self, ticker: str) -> float | None:
         """
         Get current price for ticker.
 
@@ -156,14 +156,12 @@ class SignalValidator:
 
         try:
             import yfinance as yf
+
             stock = yf.Ticker(ticker)
             hist = stock.history(period="1d")
             if not hist.empty:
                 price = float(hist["Close"].iloc[-1])
-                self._price_cache[ticker] = {
-                    "price": price,
-                    "timestamp": datetime.now()
-                }
+                self._price_cache[ticker] = {"price": price, "timestamp": datetime.now()}
                 return price
         except Exception as e:
             logger.debug(f"Failed to get price for {ticker}: {e}")
@@ -172,9 +170,9 @@ class SignalValidator:
 
     def validate_signal(
         self,
-        signal: Dict[str, Any],
-        current_price: Optional[float] = None,
-        spy_current_price: Optional[float] = None
+        signal: dict[str, Any],
+        current_price: float | None = None,
+        spy_current_price: float | None = None,
     ) -> ValidationResult:
         """
         Validate a single signal against current price.
@@ -254,15 +252,12 @@ class SignalValidator:
                 "debt_equity": signal.get("debt_equity"),
                 "pct_52w_high": signal.get("pct_52w_high"),
                 "sell_triggers": signal.get("sell_triggers", []),
-            }
+            },
         )
 
     def validate_signals_batch(
-        self,
-        signals: List[Dict[str, Any]],
-        min_days: int = 30,
-        max_days: int = 180
-    ) -> List[ValidationResult]:
+        self, signals: list[dict[str, Any]], min_days: int = 30, max_days: int = 180
+    ) -> list[ValidationResult]:
         """
         Validate multiple signals with age filtering.
 
@@ -289,10 +284,7 @@ class SignalValidator:
 
         return results
 
-    def generate_summary(
-        self,
-        results: List[ValidationResult]
-    ) -> ValidationSummary:
+    def generate_summary(self, results: list[ValidationResult]) -> ValidationSummary:
         """
         Generate summary statistics from validation results.
 
@@ -309,7 +301,7 @@ class SignalValidator:
                 hit_rate=0.0,
                 avg_return=0.0,
                 median_return=0.0,
-                excess_vs_benchmark=0.0
+                excess_vs_benchmark=0.0,
             )
 
         # Filter to results with price data
@@ -336,7 +328,7 @@ class SignalValidator:
                     "count": len(type_results),
                     "hit_rate": len(type_hits) / len(type_results) * 100,
                     "avg_return": statistics.mean(type_returns),
-                    "median_return": statistics.median(type_returns)
+                    "median_return": statistics.median(type_returns),
                 }
 
         # Group by tier
@@ -350,7 +342,7 @@ class SignalValidator:
                     "count": len(tier_results),
                     "hit_rate": len(tier_hits) / len(tier_results) * 100 if tier_results else 0,
                     "avg_return": statistics.mean(tier_returns),
-                    "median_return": statistics.median(tier_returns)
+                    "median_return": statistics.median(tier_returns),
                 }
 
         # Group by region
@@ -362,9 +354,11 @@ class SignalValidator:
                 region_hits = [r for r in region_results if r.hit_target is True]
                 by_region[region] = {
                     "count": len(region_results),
-                    "hit_rate": len(region_hits) / len(region_results) * 100 if region_results else 0,
+                    "hit_rate": len(region_hits) / len(region_results) * 100
+                    if region_results
+                    else 0,
                     "avg_return": statistics.mean(region_returns),
-                    "median_return": statistics.median(region_returns)
+                    "median_return": statistics.median(region_returns),
                 }
 
         # Generate improvement suggestions
@@ -380,16 +374,12 @@ class SignalValidator:
             by_signal_type=by_signal,
             by_tier=by_tier,
             by_region=by_region,
-            improvement_suggestions=suggestions
+            improvement_suggestions=suggestions,
         )
 
     def _generate_suggestions(
-        self,
-        by_signal: Dict,
-        by_tier: Dict,
-        by_region: Dict,
-        results: List[ValidationResult]
-    ) -> List[str]:
+        self, by_signal: dict, by_tier: dict, by_region: dict, results: list[ValidationResult]
+    ) -> list[str]:
         """Generate automated improvement suggestions based on performance."""
         suggestions = []
 
@@ -433,8 +423,16 @@ class SignalValidator:
         buy_results = [r for r in results if r.signal == "B" and r.price_change_pct is not None]
         if len(buy_results) >= 10:
             # Check if high EXR correlates with success
-            high_exret = [r for r in buy_results if r.metrics_at_signal.get("exret", 0) and r.metrics_at_signal["exret"] > 15]
-            low_exret = [r for r in buy_results if r.metrics_at_signal.get("exret", 0) and r.metrics_at_signal["exret"] <= 15]
+            high_exret = [
+                r
+                for r in buy_results
+                if r.metrics_at_signal.get("exret", 0) and r.metrics_at_signal["exret"] > 15
+            ]
+            low_exret = [
+                r
+                for r in buy_results
+                if r.metrics_at_signal.get("exret", 0) and r.metrics_at_signal["exret"] <= 15
+            ]
 
             if high_exret and low_exret:
                 high_avg = statistics.mean([r.price_change_pct for r in high_exret])
@@ -446,15 +444,17 @@ class SignalValidator:
                     )
 
         if not suggestions:
-            suggestions.append("Framework performing within expected parameters - no immediate changes recommended")
+            suggestions.append(
+                "Framework performing within expected parameters - no immediate changes recommended"
+            )
 
         return suggestions
 
     def generate_report(
         self,
-        start_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
         min_days: int = 30,
-        output_path: Optional[Path] = None
+        output_path: Path | None = None,
     ) -> str:
         """
         Generate comprehensive validation report.
@@ -544,10 +544,7 @@ class SignalValidator:
         return report_text
 
 
-def run_validation(
-    min_days: int = 30,
-    output_path: Optional[str] = None
-) -> str:
+def run_validation(min_days: int = 30, output_path: str | None = None) -> str:
     """
     Convenience function to run validation.
 

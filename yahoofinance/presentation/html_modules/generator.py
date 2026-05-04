@@ -7,17 +7,16 @@ from financial data.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 
-from ...core.config import PATHS, COLUMN_NAMES, STANDARD_DISPLAY_COLUMNS
+from ...core.config import COLUMN_NAMES, PATHS, STANDARD_DISPLAY_COLUMNS
 from ...core.errors import YFinanceError
 from ...core.logging import get_logger
 from ...utils.data.format_utils import format_position_size
 from .formatters import FormatUtils
 from .styles import DEFAULT_CSS, DEFAULT_JS
-
 
 logger = get_logger(__name__)
 logger.setLevel(logging.WARNING)
@@ -26,7 +25,7 @@ logger.setLevel(logging.WARNING)
 class HTMLGenerator:
     """Generator for HTML output from financial data."""
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: str | None = None):
         """
         Initialize HTMLGenerator.
 
@@ -37,20 +36,18 @@ class HTMLGenerator:
         # Ensure output directory exists
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
 
-    def _format_section(self, section: Dict[str, Any]) -> str:
+    def _format_section(self, section: dict[str, Any]) -> str:
         """Format a section for HTML display."""
         section_title = section.get("title", "Market Data")
         metrics = section.get("metrics", [])
         columns = section.get("columns", 4)
         width = section.get("width", "100%")
 
-        html = """
+        html = f"""
         <div class="section" style="width: {width}; margin-bottom: 30px;">
             <h2 class="section-title">{section_title}</h2>
             <div class="metrics-grid" style="grid-template-columns: repeat({columns}, 1fr); gap: 20px;">
-""".format(
-            width=width, section_title=section_title, columns=columns
-        )
+"""
 
         # Add metrics
         for metric in metrics:
@@ -59,15 +56,13 @@ class HTMLGenerator:
             formatted_value = metric.get("formatted_value", "--")
             color_class = metric.get("color", "normal")
 
-            html += """
+            html += f"""
                 <div class="metric-card">
                     <div class="metric-label">{label}</div>
                     <div class="metric-value {color_class}">{formatted_value}</div>
                     <div class="metric-border {color_class}-border"></div>
                 </div>
-""".format(
-                label=label, color_class=color_class, formatted_value=formatted_value
-            )
+"""
 
         html += """
             </div>
@@ -75,7 +70,7 @@ class HTMLGenerator:
 """
         return html
 
-    def generate_market_html(self, title: str, sections: List[Dict[str, Any]]) -> str:
+    def generate_market_html(self, title: str, sections: list[dict[str, Any]]) -> str:
         """
         Generate HTML content for market metrics display.
 
@@ -162,7 +157,7 @@ class HTMLGenerator:
             logger.error(f"Error generating market HTML: {str(e)}")
             return f"<html><body><h1>Error</h1><p>{str(e)}</p></body></html>"
 
-    def generate_market_dashboard(self, metrics: Dict[str, Dict[str, Any]]) -> Optional[str]:
+    def generate_market_dashboard(self, metrics: dict[str, dict[str, Any]]) -> str | None:
         """
         Generate market performance HTML dashboard.
 
@@ -210,11 +205,11 @@ class HTMLGenerator:
 
     def generate_portfolio_dashboard(
         self,
-        performance_metrics: Dict[str, Dict[str, Any]],
-        risk_metrics: Dict[str, Dict[str, Any]],
-        sector_allocation: Optional[Dict[str, float]] = None,
+        performance_metrics: dict[str, dict[str, Any]],
+        risk_metrics: dict[str, dict[str, Any]],
+        sector_allocation: dict[str, float] | None = None,
         title: str = "Portfolio Dashboard",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Generate portfolio performance HTML dashboard.
 
@@ -303,7 +298,7 @@ class HTMLGenerator:
 
             logger.info(f"Generated HTML file: {output_file}")
 
-        except (OSError, IOError, ValueError, TypeError, KeyError, AttributeError) as e:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:
             logger.error(f"Error generating HTML file {output_file}: {str(e)}")
             # Create fallback empty file
             self._generate_empty_results_html(title)
@@ -532,12 +527,12 @@ class HTMLGenerator:
 
     def generate_stock_table(
         self,
-        stocks_data: List[Dict[str, Any]],
+        stocks_data: list[dict[str, Any]],
         title: str = "Stock Analysis",
         output_filename: str = "stock_analysis",
-        include_columns: List[str] = None,
-        processing_stats: Optional[Dict[str, Any]] = None,
-    ) -> Optional[str]:
+        include_columns: list[str] = None,
+        processing_stats: dict[str, Any] | None = None,
+    ) -> str | None:
         """
         Generate HTML table for stock analysis results.
 
@@ -1024,15 +1019,15 @@ class HTMLGenerator:
 
     def generate_empty_stock_table(
         self,
-        columns: List[str],
+        columns: list[str],
         title: str = "Stock Analysis",
         output_filename: str = "stock_analysis",
-    ) -> Optional[str]:
+    ) -> str | None:
         """Generate an HTML table with headers only (no data rows)."""
         try:
-            header_row = "<tr>" + "".join(
-                f'<th class="sort-header">{col}</th>' for col in columns
-            ) + "</tr>"
+            header_row = (
+                "<tr>" + "".join(f'<th class="sort-header">{col}</th>' for col in columns) + "</tr>"
+            )
 
             table_html = f"""
             <table class="stock-table" border="0">
@@ -1042,6 +1037,7 @@ class HTMLGenerator:
             """
 
             from datetime import datetime
+
             footer_text = f"{title} | Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
 
             html_content = f"""<!DOCTYPE html>
@@ -1083,7 +1079,7 @@ class HTMLGenerator:
             return None
 
     def _generate_footer_text(
-        self, title: str, processing_stats: Optional[Dict[str, Any]] = None
+        self, title: str, processing_stats: dict[str, Any] | None = None
     ) -> str:
         """Generate the footer text with processing statistics if available.
 
@@ -1182,7 +1178,11 @@ class HTMLGenerator:
             elif col == "SIZE":
                 formatted_df[col] = formatted_df[col].apply(
                     lambda x: (
-                        format_position_size(float(x) if isinstance(x, (int, float, str)) and x not in ["--", ""] else None)
+                        format_position_size(
+                            float(x)
+                            if isinstance(x, (int, float, str)) and x not in ["--", ""]
+                            else None
+                        )
                         if isinstance(x, (int, float))
                         or (
                             isinstance(x, str)

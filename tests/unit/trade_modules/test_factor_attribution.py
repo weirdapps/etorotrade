@@ -1,16 +1,14 @@
 """Tests for factor attribution with PriceService integration."""
 
 import json
-import numpy as np
+from unittest.mock import patch
+
 import pandas as pd
-import pytest
-from unittest.mock import MagicMock, patch
-from datetime import date
 
 from trade_modules.factor_attribution import (
-    compute_factor_attribution,
-    _is_hit,
     BASE_FACTORS,
+    _is_hit,
+    compute_factor_attribution,
 )
 
 
@@ -58,15 +56,17 @@ class TestComputeFactorAttribution:
         log_path = tmp_path / "action_log.jsonl"
         entries = []
         for i in range(10):
-            entries.append({
-                "ticker": f"TICK{i}",
-                "committee_date": "2026-01-02",
-                "action": "BUY",
-                "conviction": 70 + i,
-                "price_at_recommendation": 100.0,
-                "buy_pct": 80 + i,
-                "exret": 20 + i,
-            })
+            entries.append(
+                {
+                    "ticker": f"TICK{i}",
+                    "committee_date": "2026-01-02",
+                    "action": "BUY",
+                    "conviction": 70 + i,
+                    "price_at_recommendation": 100.0,
+                    "buy_pct": 80 + i,
+                    "exret": 20 + i,
+                }
+            )
 
         with open(log_path, "w") as f:
             for e in entries:
@@ -78,13 +78,9 @@ class TestComputeFactorAttribution:
         for i in range(10):
             tkr = f"TICK{i}"
             mock_prices[tkr] = {
-                d.strftime("%Y-%m-%d"): 100 + i + (j * 0.5)
-                for j, d in enumerate(dates)
+                d.strftime("%Y-%m-%d"): 100 + i + (j * 0.5) for j, d in enumerate(dates)
             }
-        mock_prices["SPY"] = {
-            d.strftime("%Y-%m-%d"): 500 + (j * 0.2)
-            for j, d in enumerate(dates)
-        }
+        mock_prices["SPY"] = {d.strftime("%Y-%m-%d"): 500 + (j * 0.2) for j, d in enumerate(dates)}
 
         with patch(
             "trade_modules.factor_attribution._fetch_prices_as_df",
