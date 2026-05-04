@@ -21,6 +21,9 @@ from ...core.logging import get_logger
 from ...utils.error_handling import (
     with_retry,
 )
+from .batch import (
+    gather_with_concurrency,  # noqa: F401 — re-export for backward compat
+)
 from .enhanced import (
     process_batch_async as enhanced_process_batch_async,
 )
