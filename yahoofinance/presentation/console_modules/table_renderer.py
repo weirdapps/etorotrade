@@ -5,7 +5,7 @@ This module provides table formatting, display, and data preparation for console
 """
 
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 from tabulate import tabulate
@@ -25,6 +25,7 @@ from yahoofinance.utils.data.ticker_utils import (
 
 logger = get_logger(__name__)
 
+
 def sort_market_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Sort market data using universal sorting: asset type first, then market cap descending.
@@ -41,12 +42,16 @@ def sort_market_data(df: pd.DataFrame) -> pd.DataFrame:
     # Apply universal sorting (asset type priority, then market cap descending)
     return universal_sort_dataframe(df)
 
-def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+
+def format_dataframe(df: pd.DataFrame, truncate_name: bool = True) -> pd.DataFrame:
     """
     Format DataFrame for display.
 
     Args:
         df: Raw DataFrame
+        truncate_name: If True (default), truncate NAME to 10 chars for compact display.
+            Set False for CSV/data outputs where downstream consumers (e.g. news repo
+            ticker tagger) need the full company name.
 
     Returns:
         Formatted DataFrame ready for display
@@ -56,84 +61,84 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Map raw column names to short display column names for compact output
     column_mapping = {
-        'symbol': 'TKR',
-        'ticker': 'TKR',
-        'company': 'NAME',
-        'name': 'NAME',
-        'current_price': 'PRC',
-        'price': 'PRC',
-        'target_price': 'TGT',
-        'upside': 'UP%',
-        'analyst_count': COLUMN_NAMES['ANALYST_COUNT'],  # #T
-        'total_ratings': COLUMN_NAMES['TOTAL_RATINGS'],  # #A
-        'buy_percentage': COLUMN_NAMES['BUY_PERCENTAGE'],  # %B
-        'market_cap_fmt': 'CAP',
-        'market_cap': 'CAP',
-        'pe_trailing': 'PET',
-        'pe_forward': 'PEF',
-        'peg_ratio': 'PEG',
-        'beta': 'B',
-        'short_percent': 'SI',
-        'dividend_yield': COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],  # DV
-        'earnings_date': 'ERN',
-        'E': 'E',  # Earnings filter type column
-        'earnings_growth': 'EG',
-        'twelve_month_performance': 'PP',
-        'return_on_equity': 'ROE',
-        'debt_to_equity': 'DE',
+        "symbol": "TKR",
+        "ticker": "TKR",
+        "company": "NAME",
+        "name": "NAME",
+        "current_price": "PRC",
+        "price": "PRC",
+        "target_price": "TGT",
+        "upside": "UP%",
+        "analyst_count": COLUMN_NAMES["ANALYST_COUNT"],  # #T
+        "total_ratings": COLUMN_NAMES["TOTAL_RATINGS"],  # #A
+        "buy_percentage": COLUMN_NAMES["BUY_PERCENTAGE"],  # %B
+        "market_cap_fmt": "CAP",
+        "market_cap": "CAP",
+        "pe_trailing": "PET",
+        "pe_forward": "PEF",
+        "peg_ratio": "PEG",
+        "beta": "B",
+        "short_percent": "SI",
+        "dividend_yield": COLUMN_NAMES["DIVIDEND_YIELD_DISPLAY"],  # DV
+        "earnings_date": "ERN",
+        "E": "E",  # Earnings filter type column
+        "earnings_growth": "EG",
+        "twelve_month_performance": "PP",
+        "return_on_equity": "ROE",
+        "debt_to_equity": "DE",
         # FCF and Revenue Growth - for signal calculation and display
-        'fcf_yield': 'FCF',
-        'revenue_growth': 'revenue_growth',
-        'free_cash_flow': 'free_cash_flow',
-        'FCF': 'FCF',
-        'EXRET': 'EXR',
-        'A': 'A',
+        "fcf_yield": "FCF",
+        "revenue_growth": "revenue_growth",
+        "free_cash_flow": "free_cash_flow",
+        "FCF": "FCF",
+        "EXRET": "EXR",
+        "A": "A",
         # Identity mappings for columns already in display format (old names -> new short names)
-        'TICKER': 'TKR',
-        'COMPANY': 'NAME',
-        'PRICE': 'PRC',
-        'TARGET': 'TGT',
-        'UPSIDE': 'UP%',
-        COLUMN_NAMES['ANALYST_COUNT']: COLUMN_NAMES['ANALYST_COUNT'],
-        COLUMN_NAMES['TOTAL_RATINGS']: COLUMN_NAMES['TOTAL_RATINGS'],
-        COLUMN_NAMES['BUY_PERCENTAGE']: COLUMN_NAMES['BUY_PERCENTAGE'],
-        'CAP': 'CAP',
-        'PET': 'PET',
-        'PEF': 'PEF',
-        'PEG': 'PEG',
-        'BETA': 'B',
-        'SI': 'SI',
-        COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY']: COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY'],
-        'EARNINGS': 'ERN',
-        'EG': 'EG',
-        'PP': 'PP',
-        'ROE': 'ROE',
-        'DE': 'DE',
-        'SIZE': 'SZ',
-        'M': 'M',
+        "TICKER": "TKR",
+        "COMPANY": "NAME",
+        "PRICE": "PRC",
+        "TARGET": "TGT",
+        "UPSIDE": "UP%",
+        COLUMN_NAMES["ANALYST_COUNT"]: COLUMN_NAMES["ANALYST_COUNT"],
+        COLUMN_NAMES["TOTAL_RATINGS"]: COLUMN_NAMES["TOTAL_RATINGS"],
+        COLUMN_NAMES["BUY_PERCENTAGE"]: COLUMN_NAMES["BUY_PERCENTAGE"],
+        "CAP": "CAP",
+        "PET": "PET",
+        "PEF": "PEF",
+        "PEG": "PEG",
+        "BETA": "B",
+        "SI": "SI",
+        COLUMN_NAMES["DIVIDEND_YIELD_DISPLAY"]: COLUMN_NAMES["DIVIDEND_YIELD_DISPLAY"],
+        "EARNINGS": "ERN",
+        "EG": "EG",
+        "PP": "PP",
+        "ROE": "ROE",
+        "DE": "DE",
+        "SIZE": "SZ",
+        "M": "M",
         # New momentum metrics (short names)
-        'pct_from_52w_high': '52W',
-        'above_200dma': '2H',
-        'analyst_momentum': 'AM',
-        'pe_vs_sector': 'P/S',
-        'target_dispersion': 'TD',
+        "pct_from_52w_high": "52W",
+        "above_200dma": "2H",
+        "analyst_momentum": "AM",
+        "pe_vs_sector": "P/S",
+        "target_dispersion": "TD",
         # Identity mappings for new short display columns
-        '52W': '52W',
-        '2H': '2H',
-        'AM': 'AM',
-        'P/S': 'P/S',
-        'TD': 'TD',
-        'TKR': 'TKR',
-        'NAME': 'NAME',
-        'PRC': 'PRC',
-        'TGT': 'TGT',
-        'UP%': 'UP%',
-        'EXR': 'EXR',
-        'B': 'B',
-        'ERN': 'ERN',
-        'SZ': 'SZ',
-        'DV': 'DV',
-        '%B': '%B',
+        "52W": "52W",
+        "2H": "2H",
+        "AM": "AM",
+        "P/S": "P/S",
+        "TD": "TD",
+        "TKR": "TKR",
+        "NAME": "NAME",
+        "PRC": "PRC",
+        "TGT": "TGT",
+        "UP%": "UP%",
+        "EXR": "EXR",
+        "B": "B",
+        "ERN": "ERN",
+        "SZ": "SZ",
+        "DV": "DV",
+        "%B": "%B",
     }
 
     # Create new DataFrame with only mapped columns to avoid duplicates
@@ -145,111 +150,129 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     # Apply column mapping, taking the first available source column for each target
     for source_col, target_col in column_mapping.items():
         if source_col in df.columns and target_col not in new_df.columns:
-            if target_col == 'TICKER':
+            if target_col == "TICKER":
                 # Apply ticker normalization for dual-listed stock display
                 new_df[target_col] = df[source_col].apply(
-                    lambda x: get_ticker_for_display(process_ticker_input(x)) if pd.notna(x) and x else x
+                    lambda x: get_ticker_for_display(process_ticker_input(x))
+                    if pd.notna(x) and x
+                    else x
                 )
             else:
                 new_df[target_col] = df[source_col]
 
     # Handle special cases for EG and PP columns that might already exist with raw names
-    if 'earnings_growth' in df.columns and 'EG' not in new_df.columns:
-        new_df['EG'] = df['earnings_growth']
-    if 'twelve_month_performance' in df.columns and 'PP' not in new_df.columns:
-        new_df['PP'] = df['twelve_month_performance']
-    if 'return_on_equity' in df.columns and 'ROE' not in new_df.columns:
-        new_df['ROE'] = df['return_on_equity']
-    if 'debt_to_equity' in df.columns and 'DE' not in new_df.columns:
-        new_df['DE'] = df['debt_to_equity']
+    if "earnings_growth" in df.columns and "EG" not in new_df.columns:
+        new_df["EG"] = df["earnings_growth"]
+    if "twelve_month_performance" in df.columns and "PP" not in new_df.columns:
+        new_df["PP"] = df["twelve_month_performance"]
+    if "return_on_equity" in df.columns and "ROE" not in new_df.columns:
+        new_df["ROE"] = df["return_on_equity"]
+    if "debt_to_equity" in df.columns and "DE" not in new_df.columns:
+        new_df["DE"] = df["debt_to_equity"]
 
     # Copy any EXRET column if present
-    if 'EXRET' in df.columns:
-        new_df['EXRET'] = df['EXRET']
+    if "EXRET" in df.columns:
+        new_df["EXRET"] = df["EXRET"]
 
     # Copy any A column if present
-    if 'A' in df.columns:
-        new_df['A'] = df['A']
+    if "A" in df.columns:
+        new_df["A"] = df["A"]
 
     # Copy BS/ACTION column if present (critical for trade analysis display)
     for bs_col_name in ["BS", "ACTION", "ACT", "action"]:
-        if bs_col_name in df.columns and 'BS' not in new_df.columns:
-            new_df['BS'] = df[bs_col_name]
+        if bs_col_name in df.columns and "BS" not in new_df.columns:
+            new_df["BS"] = df[bs_col_name]
             break
 
     df = new_df
 
     # Handle BS/ACTION column - only recalculate if missing
     # For trade analysis display, we trust the pre-filtered BS values
-    bs_col = COLUMN_NAMES['ACTION']
+    bs_col = COLUMN_NAMES["ACTION"]
 
     # Check if BS column already exists with valid values
     existing_action_cols = [col for col in ["BS", "ACTION", "ACT", "action"] if col in df.columns]
     has_valid_bs = False
     if existing_action_cols:
         for col in existing_action_cols:
-            valid_values = df[col].isin(['B', 'S', 'H', 'I']).sum()
+            valid_values = df[col].isin(["B", "S", "H", "I"]).sum()
             if valid_values > 0:
                 has_valid_bs = True
                 # Rename to standard BS column if needed
                 if col != bs_col:
                     df[bs_col] = df[col]
                     if col != bs_col:
-                        df = df.drop(columns=[c for c in existing_action_cols if c != bs_col and c in df.columns])
+                        df = df.drop(
+                            columns=[
+                                c for c in existing_action_cols if c != bs_col and c in df.columns
+                            ]
+                        )
                 break
 
     # Only recalculate if no valid BS column exists
     if not has_valid_bs:
         # Drop any existing invalid action columns
-        existing_action_cols = [col for col in ["BS", "ACTION", "ACT", "action"] if col in df.columns]
+        existing_action_cols = [
+            col for col in ["BS", "ACTION", "ACT", "action"] if col in df.columns
+        ]
         if existing_action_cols:
-            logger.info(f"Dropping existing action columns {existing_action_cols} to force recalculation")
+            logger.info(
+                f"Dropping existing action columns {existing_action_cols} to force recalculation"
+            )
             df = df.drop(columns=existing_action_cols)
 
         # Create reverse aliases for short column names to long names
         # This allows _calculate_actions() to find ROE/DE when reading from CSV
-        if 'ROE' in df.columns and 'return_on_equity' not in df.columns:
-            df['return_on_equity'] = df['ROE']
-        if 'DE' in df.columns and 'debt_to_equity' not in df.columns:
-            df['debt_to_equity'] = df['DE']
+        if "ROE" in df.columns and "return_on_equity" not in df.columns:
+            df["return_on_equity"] = df["ROE"]
+        if "DE" in df.columns and "debt_to_equity" not in df.columns:
+            df["debt_to_equity"] = df["DE"]
 
         # Calculate actions using current trading criteria
         df[bs_col] = calculate_actions(df)
     else:
-        logger.debug(f"Using existing BS column values, skipping recalculation")
+        logger.debug("Using existing BS column values, skipping recalculation")
 
     # Apply number formatting based on FORMATTERS configuration
     formatters = DISPLAY.get("FORMATTERS", {})
 
     # Column mapping from short display name to formatter key
     format_mapping = {
-        'PRC': 'price',          # Price
-        'TGT': 'target_price',   # Target
-        'UP%': 'upside',         # Upside
-        '%B': 'buy_percentage',  # Buy percentage
-        'B': 'beta',             # Beta
-        'PET': 'pe_trailing',
-        'PEF': 'pe_forward',
-        'PEG': 'peg_ratio',
-        'DV': 'dividend_yield',  # Dividend yield
-        'SI': 'short_float_pct',
-        'EXR': 'exret',          # Expected return
-        'ROE': 'return_on_equity',
-        'DE': 'debt_to_equity'
+        "PRC": "price",  # Price
+        "TGT": "target_price",  # Target
+        "UP%": "upside",  # Upside
+        "%B": "buy_percentage",  # Buy percentage
+        "B": "beta",  # Beta
+        "PET": "pe_trailing",
+        "PEF": "pe_forward",
+        "PEG": "peg_ratio",
+        "DV": "dividend_yield",  # Dividend yield
+        "SI": "short_float_pct",
+        "EXR": "exret",  # Expected return
+        "ROE": "return_on_equity",
+        "DE": "debt_to_equity",
     }
 
     # Clean up NaN, None, and 0 values with "--" for better display
     df = df.copy()  # Don't modify original
 
     # List of columns that should show "--" for 0 values (percentages, counts, etc.)
-    zero_to_dash_cols = [COLUMN_NAMES['ANALYST_COUNT'], COLUMN_NAMES['BUY_PERCENTAGE'],
-                        COLUMN_NAMES['TOTAL_RATINGS'], "SI", COLUMN_NAMES['DIVIDEND_YIELD_DISPLAY']]
+    zero_to_dash_cols = [
+        COLUMN_NAMES["ANALYST_COUNT"],
+        COLUMN_NAMES["BUY_PERCENTAGE"],
+        COLUMN_NAMES["TOTAL_RATINGS"],
+        "SI",
+        COLUMN_NAMES["DIVIDEND_YIELD_DISPLAY"],
+    ]
 
     # Special handling for ERN (earnings date) formatting - compact MM/DD format
     if "ERN" in df.columns:
+
         def format_earnings_date(value):
             try:
-                if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+                if value is None or (
+                    isinstance(value, float) and (math.isnan(value) or math.isinf(value))
+                ):
                     return "--"
                 date_str = str(value).strip()
                 # Convert to compact MM/DD format
@@ -269,9 +292,10 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Special handling for ROE formatting (already in percentage from API)
     if "ROE" in df.columns:
+
         def format_roe(value):
             try:
-                if value is None or value == '' or value == '--':
+                if value is None or value == "" or value == "--":
                     return "--"
                 # Try to convert to float (handles both numeric and string inputs from CSV/API)
                 float_value = float(value)
@@ -285,9 +309,10 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Special handling for DE formatting (1 decimal place)
     if "DE" in df.columns:
+
         def format_de(value):
             try:
-                if value is None or value == '' or value == '--':
+                if value is None or value == "" or value == "--":
                     return "--"
                 # Try to convert to float (handles both numeric and string inputs from CSV/API)
                 float_value = float(value)
@@ -301,9 +326,10 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Special handling for FCF yield formatting (1 decimal place with % sign)
     if "FCF" in df.columns:
+
         def format_fcf(value):
             try:
-                if value is None or value == '' or value == '--':
+                if value is None or value == "" or value == "--":
                     return "--"
                 # Try to convert to float (handles both numeric and string inputs from CSV/API)
                 float_value = float(value)
@@ -317,9 +343,10 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Special handling for 52W formatting (percent from 52-week high)
     if "52W" in df.columns:
+
         def format_52w_pct(value):
             try:
-                if value is None or value == '' or value == '--':
+                if value is None or value == "" or value == "--":
                     return "--"
                 float_value = float(value)
                 if math.isnan(float_value) or math.isinf(float_value):
@@ -332,16 +359,17 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Special handling for 2H (above 200-day MA indicator)
     if "2H" in df.columns:
+
         def format_above_200dma(value):
             try:
-                if value is None or value == '' or value == '--':
+                if value is None or value == "" or value == "--":
                     return "-"
                 if isinstance(value, bool):
                     return "Y" if value else "N"
                 if isinstance(value, str):
-                    if value.lower() in ['true', 'yes', '1', 'y']:
+                    if value.lower() in ["true", "yes", "1", "y"]:
                         return "Y"
-                    elif value.lower() in ['false', 'no', '0', 'n']:
+                    elif value.lower() in ["false", "no", "0", "n"]:
                         return "N"
                 return "-"
             except (ValueError, TypeError):
@@ -351,9 +379,10 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Special handling for AM (analyst momentum)
     if "AM" in df.columns:
+
         def format_amom(value):
             try:
-                if value is None or value == '' or value == '--':
+                if value is None or value == "" or value == "--":
                     return "--"
                 float_value = float(value)
                 if math.isnan(float_value) or math.isinf(float_value):
@@ -372,9 +401,10 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Special handling for P/S (PE vs sector)
     if "P/S" in df.columns:
+
         def format_pe_vs_sector(value):
             try:
-                if value is None or value == '' or value == '--':
+                if value is None or value == "" or value == "--":
                     return "--"
                 float_value = float(value)
                 if math.isnan(float_value) or math.isinf(float_value):
@@ -385,10 +415,11 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
         df["P/S"] = df["P/S"].apply(format_pe_vs_sector)
 
-    # Truncate NAME to 10 characters for compact display
-    if "NAME" in df.columns:
+    # Truncate NAME to 10 characters for compact display (skip when writing to CSV)
+    if truncate_name and "NAME" in df.columns:
+
         def truncate_company(value):
-            if value is None or value == '--':
+            if value is None or value == "--":
                 return "--"
             name = str(value)
             if len(name) > 10:
@@ -408,16 +439,20 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
                 # Format numbers using the configuration
                 formatted_values = []
                 for value in df[col]:
-                    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+                    if value is None or (
+                        isinstance(value, float) and (math.isnan(value) or math.isinf(value))
+                    ):
                         formatted_values.append("--")
                     elif value == 0 and col in zero_to_dash_cols:
                         formatted_values.append("--")
-                    elif isinstance(value, (int, float)) and value != 0:
-                        formatted_values.append(format_number(
-                            value,
-                            precision=formatter_config.get('precision', 2),
-                            as_percentage=formatter_config.get('as_percentage', False)
-                        ))
+                    elif isinstance(value, int | float) and value != 0:
+                        formatted_values.append(
+                            format_number(
+                                value,
+                                precision=formatter_config.get("precision", 2),
+                                as_percentage=formatter_config.get("as_percentage", False),
+                            )
+                        )
                     else:
                         formatted_values.append(str(value) if value not in ["nan", "NaN"] else "--")
 
@@ -425,7 +460,7 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             else:
                 # Default cleanup for non-configured columns
                 # Replace NaN, None, and "nan" string with "--"
-                df[col] = df[col].replace([float('nan'), None, "nan", "NaN"], "--")
+                df[col] = df[col].replace([float("nan"), None, "nan", "NaN"], "--")
 
                 # Replace 0 with "--" for specific columns
                 if col in zero_to_dash_cols:
@@ -437,6 +472,7 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     existing_cols = [col for col in drop_cols if col in df.columns]
     return df.drop(columns=existing_cols)
 
+
 def calculate_actions(df: pd.DataFrame) -> pd.Series:
     """Calculate trading actions for each row in the DataFrame.
 
@@ -447,6 +483,7 @@ def calculate_actions(df: pd.DataFrame) -> pd.Series:
         # Use the new vectorized signal calculation system
         # Returns tuple (actions, buy_scores)
         from trade_modules.analysis.signals import calculate_action_vectorized
+
         actions, _ = calculate_action_vectorized(df, option="portfolio")
         return actions
     except ImportError:
@@ -455,15 +492,17 @@ def calculate_actions(df: pd.DataFrame) -> pd.Series:
         actions = []
         for _, row in df.iterrows():
             try:
-                from yahoofinance.utils.trade_criteria import calculate_action_for_row
                 from yahoofinance.core.config import TRADING_CRITERIA
+                from yahoofinance.utils.trade_criteria import calculate_action_for_row
+
                 action, _ = calculate_action_for_row(row, TRADING_CRITERIA, "short_percent")
                 actions.append(action if action is not None and action != "" else "H")
             except (ImportError, KeyError, ValueError, TypeError, AttributeError):
                 actions.append("H")
         return pd.Series(actions, index=df.index)
 
-def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock Analysis") -> None:
+
+def display_stock_table(stock_data: list[dict[str, Any]], title: str = "Stock Analysis") -> None:
     """
     Display a table of stock data in the console.
 
@@ -487,7 +526,7 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
         # If position size calculation fails, continue without it
         logger.warning(f"Failed to add position size column: {e}")
         # Ensure SIZE column exists for column filtering
-        df['SZ'] = '--'
+        df["SZ"] = "--"
 
     # Sort data AFTER all formatting and calculations are complete
     df = sort_market_data(df)
@@ -497,7 +536,7 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
         df.insert(0, "#", range(1, len(df) + 1))
 
     # Get the standard column order from config
-    bs_col = COLUMN_NAMES['ACTION']
+    bs_col = COLUMN_NAMES["ACTION"]
 
     # Save original dataframe for concentration analysis (before column filtering)
     original_df = df.copy()
@@ -521,13 +560,20 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
     RESET = "\033[0m"
 
     # Get action column
-    action_col = df[bs_col] if bs_col in df.columns else df.get("ACTION", pd.Series([""] * len(df), index=df.index))
+    action_col = (
+        df[bs_col]
+        if bs_col in df.columns
+        else df.get("ACTION", pd.Series([""] * len(df), index=df.index))
+    )
 
     # Vectorized: determine color prefix/suffix for each row
     import numpy as np
-    prefix = np.where(action_col == "B", GREEN,
-             np.where(action_col == "S", RED,
-             np.where(action_col == "I", YELLOW, "")))
+
+    prefix = np.where(
+        action_col == "B",
+        GREEN,
+        np.where(action_col == "S", RED, np.where(action_col == "I", YELLOW, "")),
+    )
     suffix = np.where(prefix != "", RESET, "")
 
     # Apply colors to all columns at once (column-wise loop is O(columns), not O(rows))
@@ -563,7 +609,11 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
 
     # Display concentration warnings for BUY signals
     try:
-        from trade_modules.concentration_analyzer import analyze_concentration, format_concentration_warnings
+        from trade_modules.concentration_analyzer import (
+            analyze_concentration,
+            format_concentration_warnings,
+        )
+
         # Count BUY signals in the original dataframe
         buy_count = (original_df[bs_col] == "B").sum() if bs_col in original_df.columns else 0
         if buy_count >= 3:
@@ -577,19 +627,24 @@ def display_stock_table(stock_data: List[Dict[str, Any]], title: str = "Stock An
 
     # Display processing statistics if available
     from yahoofinance.utils.async_utils.enhanced import display_processing_stats
+
     display_processing_stats()
 
-def display_empty_table(columns: List[str], title: str = "Stock Analysis") -> None:
+
+def display_empty_table(columns: list[str], title: str = "Stock Analysis") -> None:
     """Display a table with only headers (no data rows)."""
-    bs_col = COLUMN_NAMES['ACTION']
+    bs_col = COLUMN_NAMES["ACTION"]
     display_cols = [col for col in COMPACT_DISPLAY_COLUMNS if col in columns]
     if len(display_cols) < 5:
-        display_cols = [col for col in ["#", "TICKER", "COMPANY", "PRICE", bs_col] if col in columns]
+        display_cols = [
+            col for col in ["#", "TICKER", "COMPANY", "PRICE", bs_col] if col in columns
+        ]
 
     print(f"\n📊 {title}")
     print("=" * len(title))
     table = tabulate([], headers=display_cols, tablefmt="simple_grid")
     print(table)
+
 
 def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -608,14 +663,14 @@ def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     # Add EG and PP columns first, but only if they don't already exist with valid data
-    if 'EG' not in df.columns or df['EG'].isna().all() or (df['EG'] == '--').all():
+    if "EG" not in df.columns or df["EG"].isna().all() or (df["EG"] == "--").all():
         earnings_growths = []
 
         for _, row in df.iterrows():
             # Get earnings growth from the row if available, or set default
             # Check multiple possible column names
-            earnings_growth = row.get('earnings_growth', row.get('EG', None))
-            if earnings_growth is not None and earnings_growth != '--':
+            earnings_growth = row.get("earnings_growth", row.get("EG", None))
+            if earnings_growth is not None and earnings_growth != "--":
                 try:
                     # Convert to percentage if it's in decimal form
                     eg_value = float(earnings_growth)
@@ -629,16 +684,16 @@ def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
                 earnings_growths.append("--")
 
         # Add the new column
-        df['EG'] = earnings_growths
+        df["EG"] = earnings_growths
 
-    if 'PP' not in df.columns or df['PP'].isna().all() or (df['PP'] == '--').all():
+    if "PP" not in df.columns or df["PP"].isna().all() or (df["PP"] == "--").all():
         three_month_perfs = []
 
         for _, row in df.iterrows():
             # Use pre-calculated 12-month performance from provider (no additional API calls)
             # Check multiple possible column names
-            twelve_month_perf = row.get('twelve_month_performance', row.get('PP', None))
-            if twelve_month_perf is not None and twelve_month_perf != '--':
+            twelve_month_perf = row.get("twelve_month_performance", row.get("PP", None))
+            if twelve_month_perf is not None and twelve_month_perf != "--":
                 try:
                     pp_value = float(twelve_month_perf)
                     three_month_perfs.append(f"{pp_value:.1f}%")
@@ -648,35 +703,35 @@ def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
                 three_month_perfs.append("--")
 
         # Add the new column
-        df['PP'] = three_month_perfs
+        df["PP"] = three_month_perfs
 
     # Calculate position sizes with new criteria
     position_sizes = []
     for i, row in df.iterrows():
         # Get market cap value
         market_cap = None
-        if 'CAP' in row:
-            market_cap_raw = row['CAP']
-            if market_cap_raw and market_cap_raw != '--':
+        if "CAP" in row:
+            market_cap_raw = row["CAP"]
+            if market_cap_raw and market_cap_raw != "--":
                 # Parse market cap from formatted string (e.g., "3.14T" -> 3140000000000)
                 market_cap = parse_market_cap_value(market_cap_raw)
 
         # Get EXRET value
         exret = None
-        if 'EXRET' in row:
-            exret_raw = row['EXRET']
-            if exret_raw and exret_raw != '--':
+        if "EXRET" in row:
+            exret_raw = row["EXRET"]
+            if exret_raw and exret_raw != "--":
                 # Parse EXRET from percentage string (e.g., "6.3%" -> 6.3)
                 exret = parse_percentage_value(exret_raw)
 
         # Get earnings growth value
         earnings_growth_value = None
-        eg_str = df.loc[i, 'EG']
-        if eg_str and eg_str != '--':
+        eg_str = df.loc[i, "EG"]
+        if eg_str and eg_str != "--":
             try:
                 # Handle both string and numeric values
                 if isinstance(eg_str, str):
-                    earnings_growth_value = float(eg_str.rstrip('%'))
+                    earnings_growth_value = float(eg_str.rstrip("%"))
                 else:
                     earnings_growth_value = float(eg_str)
             except (ValueError, TypeError):
@@ -684,12 +739,12 @@ def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
 
         # Get 3-month performance value
         three_month_perf_value = None
-        mop_str = df.loc[i, 'PP']
-        if mop_str and mop_str != '--':
+        mop_str = df.loc[i, "PP"]
+        if mop_str and mop_str != "--":
             try:
                 # Handle both string and numeric values
                 if isinstance(mop_str, str):
-                    three_month_perf_value = float(mop_str.rstrip('%'))
+                    three_month_perf_value = float(mop_str.rstrip("%"))
                 else:
                     three_month_perf_value = float(mop_str)
             except (ValueError, TypeError):
@@ -697,16 +752,16 @@ def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
 
         # Get beta value
         beta_value = None
-        if 'BETA' in row:
-            beta_raw = row['BETA']
-            if beta_raw and beta_raw != '--':
+        if "BETA" in row:
+            beta_raw = row["BETA"]
+            if beta_raw and beta_raw != "--":
                 try:
                     beta_value = float(beta_raw)
                 except (ValueError, TypeError):
                     pass
 
         # Get ticker for ETF/commodity detection
-        ticker = row.get('TICKER', '') if 'TICKER' in row else ''
+        ticker = row.get("TICKER", "") if "TICKER" in row else ""
 
         # Calculate position size with new criteria
         position_size = calculate_position_size(
@@ -715,11 +770,12 @@ def add_position_size_column(df: pd.DataFrame) -> pd.DataFrame:
         position_sizes.append(position_size)
 
     # Add formatted position size column
-    df['SZ'] = [format_position_size(size) for size in position_sizes]
+    df["SZ"] = [format_position_size(size) for size in position_sizes]
 
     return df
 
-def parse_market_cap_value(market_cap_str: str) -> Optional[float]:
+
+def parse_market_cap_value(market_cap_str: str) -> float | None:
     """
     Parse market cap string to numeric value.
 
@@ -729,25 +785,25 @@ def parse_market_cap_value(market_cap_str: str) -> Optional[float]:
     Returns:
         Market cap value in USD or None if parsing fails
     """
-    if not market_cap_str or market_cap_str == '--':
+    if not market_cap_str or market_cap_str == "--":
         return None
 
     try:
         # If it's already a number, return it
-        if isinstance(market_cap_str, (int, float)):
+        if isinstance(market_cap_str, int | float):
             return float(market_cap_str)
 
         # Remove any whitespace
         market_cap_str = str(market_cap_str).strip()
 
         # Handle different suffixes
-        if market_cap_str.endswith('T'):
+        if market_cap_str.endswith("T"):
             return float(market_cap_str[:-1]) * 1_000_000_000_000
-        elif market_cap_str.endswith('B'):
+        elif market_cap_str.endswith("B"):
             return float(market_cap_str[:-1]) * 1_000_000_000
-        elif market_cap_str.endswith('M'):
+        elif market_cap_str.endswith("M"):
             return float(market_cap_str[:-1]) * 1_000_000
-        elif market_cap_str.endswith('K'):
+        elif market_cap_str.endswith("K"):
             return float(market_cap_str[:-1]) * 1_000
         else:
             # Try to parse as raw number
@@ -755,7 +811,8 @@ def parse_market_cap_value(market_cap_str: str) -> Optional[float]:
     except (ValueError, TypeError):
         return None
 
-def parse_percentage_value(percentage_str) -> Optional[float]:
+
+def parse_percentage_value(percentage_str) -> float | None:
     """
     Parse percentage string or float to numeric value.
 
@@ -765,16 +822,16 @@ def parse_percentage_value(percentage_str) -> Optional[float]:
     Returns:
         Percentage value as float or None if parsing fails
     """
-    if not percentage_str or percentage_str == '--':
+    if not percentage_str or percentage_str == "--":
         return None
 
     try:
         # If it's already a float, return it
-        if isinstance(percentage_str, (int, float)):
+        if isinstance(percentage_str, int | float):
             return float(percentage_str)
 
         # Remove % sign and any whitespace
-        clean_str = str(percentage_str).replace('%', '').strip()
+        clean_str = str(percentage_str).replace("%", "").strip()
         return float(clean_str)
     except (ValueError, TypeError):
         return None
