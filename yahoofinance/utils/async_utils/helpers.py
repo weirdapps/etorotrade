@@ -34,6 +34,7 @@ from .semaphore import (  # noqa: F401 — re-exports for backward compat
     AsyncRateLimiter,
     PriorityAsyncRateLimiter,
     async_rate_limited,
+    enhanced_async_rate_limited,
     global_async_rate_limiter,
     global_priority_rate_limiter,
 )
