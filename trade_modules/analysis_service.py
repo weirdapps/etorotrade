@@ -5,19 +5,19 @@ Contains analysis logic for trading signals and confidence scoring.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from .analysis_engine import calculate_action, calculate_exret
 from .data_processor import calculate_expected_return
-from .analysis_engine import calculate_exret, calculate_action
 
 
 class AnalysisService:
     """Service for trading analysis calculations."""
 
-    def __init__(self, config: Dict[str, Any] = None, logger: logging.Logger = None):
+    def __init__(self, config: dict[str, Any] = None, logger: logging.Logger = None):
         """Initialize analysis service."""
         self.config = config or {}
         self.logger = logger or logging.getLogger(__name__)

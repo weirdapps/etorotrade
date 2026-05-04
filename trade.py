@@ -17,28 +17,29 @@ warnings.filterwarnings("ignore", message=".*Net Income.*", category=Deprecation
 
 # Configure logging early
 from yahoofinance.core.logging import suppress_yfinance_noise
+
 suppress_yfinance_noise()
 
 # Import main CLI module
-from trade_modules.trade_cli import main, setup_secure_file_copy, config_validator
+from trade_modules.trade_cli import config_validator, main, setup_secure_file_copy
 
 if __name__ == "__main__":
     # Handle special validation-only mode
     if len(sys.argv) > 1 and sys.argv[1] == "--validate-config":
         is_valid = config_validator.print_validation_report()
         sys.exit(0 if is_valid else 1)
-    
+
     try:
         # Run configuration validation first
         if not config_validator.print_validation_report():
             sys.exit(1)
-        
+
         # Setup secure file operations
         setup_secure_file_copy()
 
         # Run the main function
         main()
-        
+
     except Exception as e:
         print(f"Critical error: {str(e)}", file=sys.stderr)
         sys.exit(1)

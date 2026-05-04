@@ -8,7 +8,7 @@ The etorotrade system employs a sophisticated, multi-factor position sizing appr
 
 ### Portfolio Configuration
 - **Portfolio Value**: $450,000 (updated from previous $500K)
-- **Position Limits**: 
+- **Position Limits**:
   - Minimum: $1,000 (0.22% of portfolio)
   - Maximum: $40,000 (8.89% of portfolio)
 - **Base Position**: 0.5% of portfolio = $2,250 for standard opportunities
@@ -35,7 +35,7 @@ The EXRET (Expected Return) multiplier provides the primary position sizing sign
 | ≥10% | 1.0x | Base position | $2,250 |
 | <10% | 0.5x | Conservative | $1,125 |
 
-**Academic Basis**: 
+**Academic Basis**:
 - Kelly Criterion principles: Position size proportional to expected edge
 - Simplified from complex stepped functions for cleaner scaling
 - Reduced maximum multiplier from 10x to 5x to limit concentration risk
@@ -198,7 +198,7 @@ Comprehensive unit tests validate the methodology:
 
 1. **Intuitive Scaling**: Clear relationship between opportunity quality and position size
 2. **Risk Management**: Tier-based and geographic risk adjustments
-3. **Simplified Logic**: Removed complex beta calculations for maintainability  
+3. **Simplified Logic**: Removed complex beta calculations for maintainability
 4. **Opportunity Focus**: EXRET-driven sizing aligns with investment merit
 5. **Realistic Limits**: $1K-$40K range appropriate for $450K portfolio
 

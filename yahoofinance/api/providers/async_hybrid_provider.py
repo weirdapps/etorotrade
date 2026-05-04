@@ -7,17 +7,17 @@ especially for metrics like PEG ratio.
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd  # Add pandas import
 
 from yahoofinance.core.errors import APIError, NetworkError, ValidationError, YFinanceError
+
 from ...core.logging import get_logger
 from ...utils.async_utils.enhanced import gather_with_concurrency  # Use the same concurrency helper
+from .async_yahoo_finance import AsyncYahooFinanceProvider
 from .async_yahooquery_provider import AsyncYahooQueryProvider
 from .base_provider import AsyncFinanceDataProvider
-from .async_yahoo_finance import AsyncYahooFinanceProvider
-
 
 logger = get_logger(__name__)
 
@@ -55,8 +55,8 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             "BTC": "BTC-USD",
             "ETH": "ETH-USD",
             "SOL": "SOL-USD",  # Solana cryptocurrency
-            "GOLD": "GC=F",    # Gold Futures
-            "OIL": "CL=F",     # Crude Oil Futures
+            "GOLD": "GC=F",  # Gold Futures
+            "OIL": "CL=F",  # Crude Oil Futures
             "SILVER": "SI=F",  # Silver Futures
             "NATURAL_GAS": "NG=F",  # Natural Gas Futures
             "EURUSD": "EURUSD=X",  # Forex
@@ -66,20 +66,21 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
 
     async def get_ticker_info(
         self, ticker: str, skip_insider_metrics: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get ticker info, combining yfinance and yahooquery data.
         """
         # Use original ticker for the final result keys
         original_ticker = ticker
-        
+
         # Use config_manager for ticker mapping instead of hardcoded mappings
         from trade_modules.config_manager import get_config
+
         config = get_config()
-        
+
         # First check our internal mappings for crypto/commodities
         mapped_ticker = self._ticker_mappings.get(original_ticker, original_ticker)
-        
+
         # If no internal mapping, use config_manager's data fetch ticker
         # This handles .NV -> .AS conversions and other mappings
         if mapped_ticker == original_ticker:
@@ -88,7 +89,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
         yf_data = {}
         yq_data = {}
         # Initialize with mapped ticker for symbol (SOL -> SOL-USD) but keep original ticker
-        merged_data: Dict[str, Any] = {"symbol": original_ticker, "ticker": original_ticker}
+        merged_data: dict[str, Any] = {"symbol": original_ticker, "ticker": original_ticker}
         errors = []
 
         # SMART SUPPLEMENTATION: First get yfinance data, then conditionally fetch yahooquery
@@ -101,7 +102,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             errors.append(f"yfinance provider error for {mapped_ticker}: {str(e)}")
             logger.warning(f"Error fetching yfinance data for {ticker}: {e}", exc_info=False)
             yf_data = {}
-        
+
         # Start with yfinance data but preserve original ticker/symbol
         if yf_data:
             # Save the original ticker/symbol values
@@ -111,59 +112,91 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             # Restore the original ticker/symbol values
             merged_data["symbol"] = original_symbol
             merged_data["ticker"] = original_symbol
-        
+
         # Smart supplementation: Only fetch from yahooquery if we have missing critical fields
         needs_supplement = False
         missing_fields = []
-        
+
         if self.enable_yahooquery and yf_data:
             # Define critical fields that are worth supplementing from yahooquery
             critical_fields = ["peg_ratio", "forward_pe", "trailing_pe", "beta", "market_cap"]
-            
+
             for field in critical_fields:
                 field_value = yf_data.get(field)
                 # Check if field is missing, None, or invalid (NaN, negative PE/PEG)
-                if (field_value is None or 
-                    (isinstance(field_value, (int, float)) and 
-                     (field_value <= 0 if field in ["peg_ratio", "forward_pe", "trailing_pe"] else False)) or
-                    (isinstance(field_value, str) and field_value.lower() in ["nan", "n/a", "null", ""])):
+                if (
+                    field_value is None
+                    or (
+                        isinstance(field_value, (int, float))
+                        and (
+                            field_value <= 0
+                            if field in ["peg_ratio", "forward_pe", "trailing_pe"]
+                            else False
+                        )
+                    )
+                    or (
+                        isinstance(field_value, str)
+                        and field_value.lower() in ["nan", "n/a", "null", ""]
+                    )
+                ):
                     needs_supplement = True
                     missing_fields.append(field)
                     break  # Exit early - we found at least one missing field
-        
+
         # Only fetch from yahooquery if supplementation is needed
         if needs_supplement and self.enable_yahooquery:
             try:
-                logger.debug(f"Smart supplement: fetching missing fields {missing_fields} for {original_ticker}")
-                yq_data = await self.yq_provider.get_ticker_info(mapped_ticker, skip_insider_metrics)
-                
+                logger.debug(
+                    f"Smart supplement: fetching missing fields {missing_fields} for {original_ticker}"
+                )
+                yq_data = await self.yq_provider.get_ticker_info(
+                    mapped_ticker, skip_insider_metrics
+                )
+
                 if isinstance(yq_data, Exception):
                     errors.append(f"yahooquery provider error for {mapped_ticker}: {str(yq_data)}")
-                    logger.warning(f"Error fetching yahooquery data for supplementation: {yq_data}", exc_info=False)
+                    logger.warning(
+                        f"Error fetching yahooquery data for supplementation: {yq_data}",
+                        exc_info=False,
+                    )
                     yq_data = {}
                 elif yq_data.get("error"):
                     errors.append(f"yahooquery: {yq_data['error']}")
                     yq_data = {}
             except Exception as e:
                 errors.append(f"Yahooquery supplement error for {mapped_ticker}: {str(e)}")
-                logger.warning(f"Error in yahooquery supplementation for {ticker}: {e}", exc_info=False)
+                logger.warning(
+                    f"Error in yahooquery supplementation for {ticker}: {e}", exc_info=False
+                )
                 yq_data = {}
         else:
             yq_data = {}
             if not self.enable_yahooquery:
                 logger.debug(f"Yahooquery supplementation disabled for {mapped_ticker}")
             elif not needs_supplement:
-                logger.debug(f"No supplementation needed for {mapped_ticker} - all critical fields present")
+                logger.debug(
+                    f"No supplementation needed for {mapped_ticker} - all critical fields present"
+                )
 
         # Supplement with yahooquery data for missing fields only
         if yq_data:
             for key, yq_value in yq_data.items():
                 # Only supplement if the field is missing or None in yfinance data
                 yf_value = merged_data.get(key)
-                should_supplement = (yf_value is None or 
-                                   (isinstance(yf_value, (int, float)) and 
-                                    (yf_value <= 0 if key in ["peg_ratio", "forward_pe", "trailing_pe"] else False)) or
-                                   (isinstance(yf_value, str) and yf_value.lower() in ["nan", "n/a", "null", ""]))
+                should_supplement = (
+                    yf_value is None
+                    or (
+                        isinstance(yf_value, (int, float))
+                        and (
+                            yf_value <= 0
+                            if key in ["peg_ratio", "forward_pe", "trailing_pe"]
+                            else False
+                        )
+                    )
+                    or (
+                        isinstance(yf_value, str) and yf_value.lower() in ["nan", "n/a", "null", ""]
+                    )
+                )
 
                 if should_supplement and yq_value is not None:
                     # Validate yahooquery value before supplementing
@@ -172,7 +205,9 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                             yq_float = float(yq_value)
                             if yq_float > 0:  # Only use positive PE/PEG values
                                 merged_data[key] = yq_value
-                                logger.debug(f"Supplemented {key}={yq_value} from yahooquery for {original_ticker}")
+                                logger.debug(
+                                    f"Supplemented {key}={yq_value} from yahooquery for {original_ticker}"
+                                )
                         except (ValueError, TypeError):
                             pass  # Skip invalid numeric values
                     else:
@@ -229,32 +264,42 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                         f"Added earnings date for {original_ticker} via async provider: {dates[0]}"
                     )
             except (APIError, NetworkError, ValidationError) as e:
-                logger.debug(f"API/Network error getting earnings date for {original_ticker}: {str(e)}")
+                logger.debug(
+                    f"API/Network error getting earnings date for {original_ticker}: {str(e)}"
+                )
             except Exception as e:
-                logger.warning(f"Unexpected error getting earnings date for {original_ticker}: {str(e)}")
+                logger.warning(
+                    f"Unexpected error getting earnings date for {original_ticker}: {str(e)}"
+                )
 
         # Add 12-month performance calculation to eliminate post-processing delays
         if "twelve_month_performance" not in merged_data:
             try:
-                twelve_month_perf = await self._calculate_twelve_month_performance_async(original_ticker)
+                twelve_month_perf = await self._calculate_twelve_month_performance_async(
+                    original_ticker
+                )
                 if twelve_month_perf is not None:
                     merged_data["twelve_month_performance"] = twelve_month_perf
-                    logger.debug(f"Added 12-month performance for {original_ticker}: {twelve_month_perf:.2f}%")
+                    logger.debug(
+                        f"Added 12-month performance for {original_ticker}: {twelve_month_perf:.2f}%"
+                    )
             except Exception as e:
-                logger.debug(f"Error calculating 12-month performance for {original_ticker}: {str(e)}")
+                logger.debug(
+                    f"Error calculating 12-month performance for {original_ticker}: {str(e)}"
+                )
 
         return merged_data
 
     async def batch_get_ticker_info(
-        self, tickers: List[str], skip_insider_metrics: bool = False
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tickers: list[str], skip_insider_metrics: bool = False
+    ) -> dict[str, dict[str, Any]]:
         """
         Process multiple tickers concurrently using the hybrid get_ticker_info.
         """
         if not tickers:
             return {}
 
-        async def get_hybrid_info(ticker: str) -> Dict[str, Any]:
+        async def get_hybrid_info(ticker: str) -> dict[str, Any]:
             """Wrapper for hybrid fetching."""
             try:
                 result = await self.get_ticker_info(ticker, skip_insider_metrics)
@@ -313,13 +358,19 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                 # Add 12-month performance calculation to eliminate post-processing delays
                 if "twelve_month_performance" not in result:
                     try:
-                        twelve_month_perf = await self._calculate_twelve_month_performance_async(ticker)
+                        twelve_month_perf = await self._calculate_twelve_month_performance_async(
+                            ticker
+                        )
                         if twelve_month_perf is not None:
                             result["twelve_month_performance"] = twelve_month_perf
-                            logger.debug(f"Added 12-month performance for {ticker}: {twelve_month_perf:.2f}%")
+                            logger.debug(
+                                f"Added 12-month performance for {ticker}: {twelve_month_perf:.2f}%"
+                            )
                     except Exception as e:
-                        logger.debug(f"Error calculating 12-month performance for {ticker}: {str(e)}")
-                        
+                        logger.debug(
+                            f"Error calculating 12-month performance for {ticker}: {str(e)}"
+                        )
+
                 return result
             except (APIError, NetworkError) as e:
                 # Handle API/Network errors gracefully in batch processing
@@ -365,7 +416,9 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             try:
                 if isinstance(result, dict) and "symbol" in result:
                     # Use the original ticker (from the request) as the key for consistency
-                    original_ticker = tickers[i] if i < len(tickers) else result.get("ticker", result["symbol"])
+                    original_ticker = (
+                        tickers[i] if i < len(tickers) else result.get("ticker", result["symbol"])
+                    )
                     processed_results[original_ticker] = result
                 elif isinstance(result, dict):
                     # If we have a dict without a symbol, try to recover using the original ticker list
@@ -429,7 +482,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
 
     # --- Delegate other methods primarily to yf_provider (or add specific hybrid logic) ---
 
-    async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+    async def get_price_data(self, ticker: str) -> dict[str, Any]:
         # Primarily use yf_provider, could supplement if needed
         try:
             return await self.yf_provider.get_price_data(ticker)
@@ -451,7 +504,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )
             return pd.DataFrame()
 
-    async def get_earnings_data(self, ticker: str) -> Dict[str, Any]:
+    async def get_earnings_data(self, ticker: str) -> dict[str, Any]:
         # Primarily use yf_provider
         try:
             return await self.yf_provider.get_earnings_data(ticker)
@@ -461,7 +514,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )
             return {"symbol": ticker, "earnings_dates": [], "earnings_history": [], "error": str(e)}
 
-    async def get_earnings_dates(self, ticker: str) -> List[str]:  # type: ignore[override]
+    async def get_earnings_dates(self, ticker: str) -> list[str]:  # type: ignore[override]
         """Get earnings dates for a ticker."""
         try:
             # Use yf_provider to get earnings dates
@@ -483,7 +536,9 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
                         if last_earnings:
                             dates.append(last_earnings)
                         if dates:
-                            logger.debug(f"Found earnings dates from yahooquery for {ticker}: {dates}")
+                            logger.debug(
+                                f"Found earnings dates from yahooquery for {ticker}: {dates}"
+                            )
                 except Exception as e:
                     logger.warning(
                         f"Error getting earnings dates from yahooquery for {ticker}: {str(e)}"
@@ -496,7 +551,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )
             return []
 
-    async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
+    async def get_analyst_ratings(self, ticker: str) -> dict[str, Any]:
         # Primarily use yf_provider
         try:
             return await self.yf_provider.get_analyst_ratings(ticker)
@@ -506,7 +561,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )
             return {"symbol": ticker, "error": str(e)}
 
-    async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
+    async def get_insider_transactions(self, ticker: str) -> list[dict[str, Any]]:
         # Primarily use yf_provider
         try:
             return await self.yf_provider.get_insider_transactions(ticker)
@@ -516,7 +571,7 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )
             return []
 
-    async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def search_tickers(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         # Primarily use yf_provider
         try:
             return await self.yf_provider.search_tickers(query, limit)
@@ -526,82 +581,86 @@ class AsyncHybridProvider(AsyncFinanceDataProvider):
             )
             return []
 
-    async def _calculate_3month_performance_async(self, ticker: str) -> Optional[float]:
+    async def _calculate_3month_performance_async(self, ticker: str) -> float | None:
         """
         Calculate 3-month price performance for a ticker asynchronously.
-        
+
         Args:
             ticker: Ticker symbol
-            
+
         Returns:
             3-month price performance as percentage, or None if unable to calculate
         """
         try:
             # Get historical data using our existing provider
             hist_data = await self.get_historical_data(
-                ticker, 
+                ticker,
                 period="3mo",  # Use 3-month period
-                interval="1d"
+                interval="1d",
             )
-            
+
             if hist_data.empty or len(hist_data) < 2:
-                logger.debug(f"No sufficient historical data for 3-month performance calculation: {ticker}")
+                logger.debug(
+                    f"No sufficient historical data for 3-month performance calculation: {ticker}"
+                )
                 return None
-                
+
             # Get the current price (most recent close)
             current_price = float(hist_data["Close"].iloc[-1])
-            
+
             # Get the price from 3 months ago (or earliest available)
             # Use the earliest data point as 3-month reference since we requested 3mo period
             three_month_price = float(hist_data["Close"].iloc[0])
-            
+
             # Calculate percentage change
             if three_month_price > 0:
                 performance = ((current_price - three_month_price) / three_month_price) * 100
                 return round(performance, 2)
             else:
                 return None
-                
+
         except Exception as e:
             logger.debug(f"Error calculating 3-month performance for {ticker}: {str(e)}")
             return None
 
-    async def _calculate_twelve_month_performance_async(self, ticker: str) -> Optional[float]:
+    async def _calculate_twelve_month_performance_async(self, ticker: str) -> float | None:
         """
         Calculate 12-month price performance for a ticker asynchronously.
-        
+
         Args:
             ticker: Ticker symbol
-            
+
         Returns:
             12-month price performance as percentage, or None if unable to calculate
         """
         try:
             # Get historical data using our existing provider
             hist_data = await self.get_historical_data(
-                ticker, 
+                ticker,
                 period="1y",  # Use 12-month period
-                interval="1d"
+                interval="1d",
             )
-            
+
             if hist_data.empty or len(hist_data) < 2:
-                logger.debug(f"No sufficient historical data for 12-month performance calculation: {ticker}")
+                logger.debug(
+                    f"No sufficient historical data for 12-month performance calculation: {ticker}"
+                )
                 return None
-                
+
             # Get the current price (most recent close)
             current_price = float(hist_data["Close"].iloc[-1])
-            
+
             # Get the price from 12 months ago (or earliest available)
             # Use the earliest data point as 12-month reference since we requested 1y period
             twelve_month_price = float(hist_data["Close"].iloc[0])
-            
+
             # Calculate percentage change
             if twelve_month_price > 0:
                 performance = ((current_price - twelve_month_price) / twelve_month_price) * 100
                 return round(performance, 2)
             else:
                 return None
-                
+
         except Exception as e:
             logger.debug(f"Error calculating 12-month performance for {ticker}: {str(e)}")
             return None

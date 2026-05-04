@@ -10,21 +10,21 @@ When run directly, this module performs market analysis on a default set of tick
 import logging
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import pandas as pd
 
+# Trading criteria moved to centralized trade configuration
+from trade_modules.trade_config import TradeConfig
 from yahoofinance.core.errors import YFinanceError
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
-# Trading criteria moved to centralized trade configuration
-from trade_modules.trade_config import TradeConfig
 from ..core.logging import get_logger
 from ..utils.data.ticker_utils import normalize_ticker
 from .market_filters import (
     filter_buy_opportunities_v2,
+    filter_hold_candidates_v2,
     filter_sell_candidates_v2,
-    filter_hold_candidates_v2
 )
 
 # Define constants for repeated strings
@@ -32,6 +32,7 @@ BUY_PERCENTAGE_DISPLAY = "% BUY"
 from ..core.errors import YFinanceError
 
 logger = get_logger(__name__)
+
 
 @dataclass
 class MarketMetrics:
@@ -62,18 +63,18 @@ class MarketMetrics:
     """
 
     # Average metrics
-    avg_upside: Optional[float] = None
-    median_upside: Optional[float] = None
-    avg_buy_percentage: Optional[float] = None
-    median_buy_percentage: Optional[float] = None
-    avg_pe_ratio: Optional[float] = None
-    median_pe_ratio: Optional[float] = None
-    avg_forward_pe: Optional[float] = None
-    median_forward_pe: Optional[float] = None
-    avg_peg_ratio: Optional[float] = None
-    median_peg_ratio: Optional[float] = None
-    avg_beta: Optional[float] = None
-    median_beta: Optional[float] = None
+    avg_upside: float | None = None
+    median_upside: float | None = None
+    avg_buy_percentage: float | None = None
+    median_buy_percentage: float | None = None
+    avg_pe_ratio: float | None = None
+    median_pe_ratio: float | None = None
+    avg_forward_pe: float | None = None
+    median_forward_pe: float | None = None
+    avg_peg_ratio: float | None = None
+    median_peg_ratio: float | None = None
+    avg_beta: float | None = None
+    median_beta: float | None = None
 
     # Count metrics
     buy_count: int = 0
@@ -82,14 +83,15 @@ class MarketMetrics:
     total_count: int = 0
 
     # Percentage metrics
-    buy_percentage: Optional[float] = None
-    sell_percentage: Optional[float] = None
-    hold_percentage: Optional[float] = None
-    net_breadth: Optional[float] = None
+    buy_percentage: float | None = None
+    sell_percentage: float | None = None
+    hold_percentage: float | None = None
+    net_breadth: float | None = None
 
     # Sector metrics
-    sector_counts: Dict[str, int] = field(default_factory=dict)
-    sector_breadth: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    sector_counts: dict[str, int] = field(default_factory=dict)
+    sector_breadth: dict[str, dict[str, float]] = field(default_factory=dict)
+
 
 @dataclass
 class SectorAnalysis:
@@ -117,14 +119,15 @@ class SectorAnalysis:
     buy_count: int = 0
     sell_count: int = 0
     hold_count: int = 0
-    buy_percentage: Optional[float] = None
-    sell_percentage: Optional[float] = None
-    hold_percentage: Optional[float] = None
-    net_breadth: Optional[float] = None
-    avg_upside: Optional[float] = None
-    avg_buy_rating: Optional[float] = None
-    avg_pe_ratio: Optional[float] = None
-    avg_peg_ratio: Optional[float] = None
+    buy_percentage: float | None = None
+    sell_percentage: float | None = None
+    hold_percentage: float | None = None
+    net_breadth: float | None = None
+    avg_upside: float | None = None
+    avg_buy_rating: float | None = None
+    avg_pe_ratio: float | None = None
+    avg_peg_ratio: float | None = None
+
 
 def get_confidence_condition(df: pd.DataFrame) -> pd.Series:
     """
@@ -170,9 +173,10 @@ def get_confidence_condition(df: pd.DataFrame) -> pd.Series:
         & (total_ratings >= TradeConfig().UNIVERSAL_THRESHOLDS.get("min_analyst_count", 5))
     )
 
+
 def process_ticker_batch_result(
-    tickers: List[str], ticker_info_batch: Dict[str, Dict]
-) -> List[Dict]:
+    tickers: list[str], ticker_info_batch: dict[str, dict]
+) -> list[dict]:
     """
     Process batch results from the provider to create a consistent market data list.
 
@@ -208,6 +212,7 @@ def process_ticker_batch_result(
                 }
             )
     return market_data
+
 
 def get_short_interest_condition(
     df: pd.DataFrame, short_interest_threshold: float, is_maximum: bool = True
@@ -263,9 +268,10 @@ def get_short_interest_condition(
         logger.debug("No short interest column found in dataset")
         return pd.Series(True if is_maximum else False, index=df.index)
 
+
 def calculate_sector_metrics(
     sector_stocks: pd.DataFrame,
-) -> Tuple[int, int, int, Dict[str, Optional[float]]]:
+) -> tuple[int, int, int, dict[str, float | None]]:
     """
     Calculate sector-specific metrics for stocks in a given sector.
 
@@ -307,6 +313,7 @@ def calculate_sector_metrics(
 
     return buy_count, sell_count, stock_count, metrics
 
+
 class MarketAnalyzer:
     """
     Analyzer for market-wide data and sector-specific analysis.
@@ -319,9 +326,7 @@ class MarketAnalyzer:
         is_async: Whether the provider is async or sync
     """
 
-    def __init__(
-        self, provider: Optional[Union[FinanceDataProvider, AsyncFinanceDataProvider]] = None
-    ):
+    def __init__(self, provider: FinanceDataProvider | AsyncFinanceDataProvider | None = None):
         """
         Initialize the MarketAnalyzer.
 
@@ -337,7 +342,7 @@ class MarketAnalyzer:
             and hasattr(self.provider.batch_get_ticker_info, "__await__")
         )
 
-    def analyze_market(self, tickers: List[str]) -> pd.DataFrame:
+    def analyze_market(self, tickers: list[str]) -> pd.DataFrame:
         """
         Analyze market data for a list of tickers.
 
@@ -370,7 +375,7 @@ class MarketAnalyzer:
             logger.error(f"Error analyzing market: {str(e)}")
             raise YFinanceError(f"Failed to analyze market: {str(e)}")
 
-    async def analyze_market_async(self, tickers: List[str]) -> pd.DataFrame:
+    async def analyze_market_async(self, tickers: list[str]) -> pd.DataFrame:
         """
         Analyze market data for a list of tickers asynchronously.
 
@@ -475,7 +480,7 @@ class MarketAnalyzer:
 
         return metrics
 
-    def analyze_sectors(self, market_df: pd.DataFrame) -> List[SectorAnalysis]:
+    def analyze_sectors(self, market_df: pd.DataFrame) -> list[SectorAnalysis]:
         """
         Analyze sectors from market data.
 
@@ -549,10 +554,11 @@ class MarketAnalyzer:
 
         return sector_analysis
 
+
 def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out buy opportunities from market data based on trading criteria.
-    
+
     This function delegates to the centralized filter which ensures consistency
     with ACT column calculation.
 
@@ -564,10 +570,11 @@ def filter_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     """
     return filter_buy_opportunities_v2(market_df)
 
+
 def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out sell candidates from portfolio data based on trading criteria.
-    
+
     This function delegates to the centralized filter which ensures consistency
     with ACT column calculation.
 
@@ -579,13 +586,14 @@ def filter_sell_candidates(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     """
     return filter_sell_candidates_v2(portfolio_df)
 
+
 def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
     """
     Filter out hold candidates from market data.
 
     This function delegates to the centralized filter which ensures consistency
     with ACT column calculation.
-    
+
     Hold candidates are stocks that:
     1. Pass the confidence threshold (sufficient analyst coverage)
     2. Don't trigger any SELL criteria
@@ -598,6 +606,7 @@ def filter_hold_candidates(market_df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with hold candidates
     """
     return filter_hold_candidates_v2(market_df)
+
 
 def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -614,28 +623,31 @@ def filter_risk_first_buy_opportunities(market_df: pd.DataFrame) -> pd.DataFrame
     """
     # Use the new centralized filter function that matches ACT calculation
     result = filter_buy_opportunities_v2(market_df)
-    
+
     # DEBUG: Check if AUSS.OL is in the input and output
     ticker_col = "TICKER" if "TICKER" in market_df.columns else "ticker"
     if ticker_col in market_df.columns:
         market_tickers = market_df[ticker_col].tolist()
         if "AUSS.OL" in market_tickers:
-            logger.info("DEBUG: AUSS.OL is in market_df input to filter_risk_first_buy_opportunities")
+            logger.info(
+                "DEBUG: AUSS.OL is in market_df input to filter_risk_first_buy_opportunities"
+            )
             # Check if it has ACT='B'
             if "ACT" in market_df.columns:
                 auss_row = market_df[market_df[ticker_col] == "AUSS.OL"]
                 if not auss_row.empty:
                     act_value = auss_row["ACT"].iloc[0]
                     logger.info(f"DEBUG: AUSS.OL has ACT='{act_value}' in market_df")
-    
+
     if not result.empty and ticker_col in result.columns:
         result_tickers = result[ticker_col].tolist()
         if "AUSS.OL" in result_tickers:
             logger.info("DEBUG: AUSS.OL passed filter_buy_opportunities and is in the result")
         else:
             logger.info("DEBUG: AUSS.OL did NOT pass filter_buy_opportunities")
-    
+
     return result
+
 
 def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -671,7 +683,8 @@ def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
     if not buy_opportunities.empty and ticker_col in buy_opportunities.columns:
         buy_tickers = set(buy_opportunities[ticker_col].astype(str).apply(normalize_ticker))
         result_df.loc[
-            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(buy_tickers), "classification"
+            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(buy_tickers),
+            "classification",
         ] = "BUY"
 
     # Filter for SELL stocks
@@ -679,7 +692,8 @@ def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
     if not sell_candidates.empty and ticker_col in sell_candidates.columns:
         sell_tickers = set(sell_candidates[ticker_col].astype(str).apply(normalize_ticker))
         result_df.loc[
-            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(sell_tickers), "classification"
+            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(sell_tickers),
+            "classification",
         ] = "SELL"
 
     # Filter for HOLD stocks (confident but neither BUY nor SELL)
@@ -691,12 +705,14 @@ def classify_stocks(market_df: pd.DataFrame) -> pd.DataFrame:
         sell_tickers = sell_tickers if "sell_tickers" in locals() else set()
         hold_tickers = confident_tickers - buy_tickers - sell_tickers
         result_df.loc[
-            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(hold_tickers), "classification"
+            result_df[ticker_col].astype(str).apply(normalize_ticker).isin(hold_tickers),
+            "classification",
         ] = "HOLD"
 
     return result_df
 
-def calculate_market_metrics(market_df: pd.DataFrame) -> Dict[str, Any]:
+
+def calculate_market_metrics(market_df: pd.DataFrame) -> dict[str, Any]:
     """
     Calculate overall market metrics from market data.
 
@@ -741,6 +757,7 @@ def calculate_market_metrics(market_df: pd.DataFrame) -> Dict[str, Any]:
     }
 
     return metrics_dict
+
 
 if __name__ == "__main__":
     """
@@ -800,20 +817,21 @@ if __name__ == "__main__":
         print(f"Error analyzing market data: {str(e)}")
         sys.exit(1)
 
+
 # Backward compatibility function
-def get_market_data(tickers: List[str] = None, provider=None) -> pd.DataFrame:
+def get_market_data(tickers: list[str] = None, provider=None) -> pd.DataFrame:
     """Backward compatibility wrapper for market data retrieval."""
     analyzer = MarketAnalyzer(provider=provider)
     if not tickers:
         tickers = []
-    
+
     # Return a basic DataFrame with market data
     import asyncio
-    
+
     async def _get_data():
         results = await analyzer.analyze_multiple_tickers(tickers)
         return analyzer._convert_results_to_dataframe(results)
-    
+
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():

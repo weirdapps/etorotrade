@@ -9,7 +9,7 @@ import os
 import shutil
 import time
 import uuid
-from typing import Any, Dict, List
+from typing import Any
 
 import aiofiles  # type: ignore[import-untyped]
 import aiohttp
@@ -28,11 +28,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from yahoofinance.core.errors import DataError, YFinanceError
-from ..utils.error_handling import with_retry
-from ..utils.data.ticker_utils import normalize_ticker
 
 from ..core.config import FILE_PATHS, PATHS
 from ..core.logging import get_logger
+from ..utils.data.ticker_utils import normalize_ticker
+from ..utils.error_handling import with_retry
 
 logger = get_logger(__name__)
 
@@ -41,6 +41,7 @@ load_dotenv()
 
 # HK ticker logic moved to centralized ticker_utils.py
 # This function is deprecated - use normalize_ticker instead
+
 
 def safe_click(driver, element, description="element"):
     """Helper function to safely click an element using JavaScript"""
@@ -55,6 +56,7 @@ def safe_click(driver, element, description="element"):
     except WebDriverException as e:
         logger.error(f"WebDriver error clicking {description}: {str(e)}")
         raise e
+
 
 def setup_driver():
     """Setup Chrome WebDriver with secure options"""
@@ -72,10 +74,14 @@ def setup_driver():
     options.add_argument("--disable-javascript")  # More secure if JS not needed
     # Set a specific user data directory within project (not system temp)
     import os
-    user_data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "chrome_profile")
+
+    user_data_dir = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "data", "chrome_profile"
+    )
     os.makedirs(user_data_dir, exist_ok=True)
     options.add_argument(f"--user-data-dir={user_data_dir}")
     return webdriver.Chrome(options=options)
+
 
 def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
     """Helper function to wait for and find an element"""
@@ -92,6 +98,7 @@ def wait_and_find_element(driver, by, value, timeout=10, check_visibility=True):
     except (YFinanceError, TimeoutException, NoSuchElementException) as e:
         logger.error(f"Error finding element {value}: {str(e)}")
         return None
+
 
 def find_sign_in_button(driver):
     """Helper function to find and click the sign-in button"""
@@ -110,6 +117,7 @@ def find_sign_in_button(driver):
         logger.error(f"WebDriver error finding sign-in button: {str(e)}")
         raise e
 
+
 def handle_email_sign_in(driver):
     """Handle the email sign-in process"""
     logger.info("Looking for email sign-in button...")
@@ -120,6 +128,7 @@ def handle_email_sign_in(driver):
         raise NoSuchElementException("Email sign-in button not found")
     safe_click(driver, email_sign_in, "email sign-in button")
     time.sleep(5)
+
 
 def handle_email_input(driver, email):
     """Handle the email input and next button process"""
@@ -150,6 +159,7 @@ def handle_email_input(driver, email):
 
     time.sleep(5)  # Wait longer for password field
 
+
 def find_password_input(driver, timeout=5):
     """Try different selectors to find password input"""
     for selector in [
@@ -166,6 +176,7 @@ def find_password_input(driver, timeout=5):
         except (NoSuchElementException, TimeoutException):
             continue
     return None
+
 
 def handle_password_submit(driver, password_input, password):
     """Handle password submission and final sign in"""
@@ -259,6 +270,7 @@ def handle_password_submit(driver, password_input, password):
     logger.info("Waiting for login to complete...")
     time.sleep(15)  # Wait longer for login to complete
 
+
 def handle_password_input(driver, password, max_attempts=3):
     """Handle the password input and final sign in process"""
     logger.info("Looking for password input...")
@@ -287,6 +299,7 @@ def handle_password_input(driver, password, max_attempts=3):
         f"Password input not found after {max_attempts} attempts: {str(last_error)}"
     )
 
+
 def login(driver, email, password):
     """Handle the login process with better error handling and reduced complexity"""
     logger.info("Attempting to log in...")
@@ -307,6 +320,7 @@ def login(driver, email, password):
 
     # Password input and submit
     handle_password_input(driver, password)
+
 
 def process_portfolio():
     """Process downloaded portfolio file"""
@@ -335,7 +349,7 @@ def process_portfolio():
         if not os.path.isfile(latest_file):
             logger.error(f"Error: {latest_file} is not a valid file")
             return False
-    except (OSError, IOError) as e:
+    except OSError as e:
         logger.error(f"Error accessing files: {str(e)}")
         return False
 
@@ -360,6 +374,7 @@ def process_portfolio():
     os.remove(latest_file)
     return True
 
+
 def handle_cookie_consent(driver):
     """Handle cookie consent if present"""
     try:
@@ -372,6 +387,7 @@ def handle_cookie_consent(driver):
             time.sleep(2)
     except (NoSuchElementException, TimeoutException):
         logger.info("No cookie consent needed or already accepted")
+
 
 def handle_portfolio_buttons(driver):
     """Handle clicking portfolio-related buttons"""
@@ -398,13 +414,14 @@ def handle_portfolio_buttons(driver):
         raise NoSuchElementException("Could not find 'Export Portfolio' link")
     safe_click(driver, export_link, "'Export Portfolio' link")
 
+
 async def download_portfolio(provider=None):
     """
     Download portfolio data using eToro API.
 
     This function:
     1. Fetches portfolio data from eToro API
-    2. Retrieves instrument metadata 
+    2. Retrieves instrument metadata
     3. Combines and processes the data
     4. Saves it in the expected format for the application
 
@@ -415,18 +432,19 @@ async def download_portfolio(provider=None):
         bool: True if successful, False otherwise
     """
     logger.info("Starting portfolio download using eToro API...")
-    
+
     # Call the modern eToro API implementation
     return await download_etoro_portfolio(provider)
 
+
 @with_retry
 def download_market_data(
-    tickers: List[str],
+    tickers: list[str],
     include_analyst_data: bool = True,
     include_price_data: bool = True,
     include_financial_data: bool = True,
     provider_name: str = None,
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """
     Download comprehensive market data for a list of tickers.
 
@@ -530,6 +548,7 @@ def download_market_data(
         logger.error(f"Async runtime error in download_market_data: {str(e)}")
         raise APIError(f"Async runtime error in download_market_data: {str(e)}")
 
+
 async def fallback_portfolio_download():
     """
     Fallback method that copies the existing portfolio
@@ -591,7 +610,7 @@ async def fallback_portfolio_download():
                     else:
                         logger.error(f"[{fallback_id}] No CSV files found in {input_dir}")
                         return False
-            except (OSError, IOError, PermissionError) as e:
+            except (OSError, PermissionError) as e:
                 logger.error(f"[{fallback_id}] Error checking alternative files: {str(e)}")
                 return False
 
@@ -605,11 +624,11 @@ async def fallback_portfolio_download():
                 # Continue anyway as we'll copy the empty file
 
             # Try to read the first few lines to verify file is readable
-            async with aiofiles.open(src_path, "r", encoding="utf-8") as f:
+            async with aiofiles.open(src_path, encoding="utf-8") as f:
                 header = await f.readline()
                 header = header.strip()
                 logger.info(f"[{fallback_id}] File header: {header}")
-        except (OSError, IOError, UnicodeDecodeError) as e:
+        except (OSError, UnicodeDecodeError) as e:
             logger.error(f"[{fallback_id}] Error checking source file: {str(e)}")
             # Continue anyway, as the copy operation might still succeed
 
@@ -617,8 +636,11 @@ async def fallback_portfolio_download():
         shutil.copy(src_path, dest_path)
         # Set secure permissions: owner read/write, group read, others no access
         import stat
+
         os.chmod(dest_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
-        logger.info(f"[{fallback_id}] Portfolio copied from {src_path} to {dest_path} with secure permissions")
+        logger.info(
+            f"[{fallback_id}] Portfolio copied from {src_path} to {dest_path} with secure permissions"
+        )
 
         # Verify the copy was successful
         if os.path.exists(dest_path):
@@ -648,7 +670,7 @@ async def fallback_portfolio_download():
                 # This is not fatal as long as the file was copied
 
         return True
-    except (OSError, IOError, shutil.Error) as e:
+    except (OSError, shutil.Error) as e:
         logger.error(f"[{fallback_id}] Error in fallback portfolio download: {str(e)}")
         import traceback
 
@@ -656,9 +678,11 @@ async def fallback_portfolio_download():
         logger.error(f"[{fallback_id}] Traceback: {trace}")
         return False
 
+
 # Performance optimization: Process in larger batches
 BATCH_SIZE = 10  # Increased from default
 MAX_WORKERS = 5  # For concurrent processing
+
 
 async def download_etoro_portfolio(provider=None):
     """
@@ -666,7 +690,7 @@ async def download_etoro_portfolio(provider=None):
 
     This function:
     1. Fetches portfolio data from eToro API
-    2. Retrieves instrument metadata 
+    2. Retrieves instrument metadata
     3. Combines and processes the data
     4. Saves it in the expected format for the application
 
@@ -676,7 +700,7 @@ async def download_etoro_portfolio(provider=None):
     Returns:
         bool: True if successful, False otherwise
     """
-    
+
     # Create a unique run ID for this download attempt
     run_id = f"etoro_download_{int(time.time())}"
     logger.info(f"Starting eToro portfolio download (run ID: {run_id})")
@@ -698,7 +722,7 @@ async def download_etoro_portfolio(provider=None):
         # Fetch portfolio data
         print("📊 Fetching eToro portfolio data...")
         logger.info(f"[{run_id}] Fetching portfolio for user: {username}")
-        
+
         portfolio = await _fetch_etoro_portfolio(username, api_key, user_key, run_id)
         if not portfolio:
             return False
@@ -711,8 +735,12 @@ async def download_etoro_portfolio(provider=None):
             return False
 
         instrument_ids = [pos.get("instrumentId") for pos in positions if pos.get("instrumentId")]
-        print(f"   Found {len(positions)} positions ({len(set(instrument_ids))} unique instruments)")
-        logger.info(f"[{run_id}] Found {len(positions)} positions with {len(instrument_ids)} instruments")
+        print(
+            f"   Found {len(positions)} positions ({len(set(instrument_ids))} unique instruments)"
+        )
+        logger.info(
+            f"[{run_id}] Found {len(positions)} positions with {len(instrument_ids)} instruments"
+        )
 
         # Fetch instrument metadata and process data in one step
         metadata = await _fetch_etoro_instrument_metadata(instrument_ids, api_key, user_key, run_id)
@@ -725,7 +753,7 @@ async def download_etoro_portfolio(provider=None):
         logger.info(f"[{run_id}] eToro portfolio download completed successfully")
         return True
 
-    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+    except (TimeoutError, aiohttp.ClientError) as e:
         error_msg = f"Network error during eToro portfolio download: {str(e)}"
         logger.error(f"[{run_id}] {error_msg}")
         print(error_msg)
@@ -735,166 +763,180 @@ async def download_etoro_portfolio(provider=None):
         logger.error(f"[{run_id}] {error_msg}")
         print(error_msg)
         return False
-    except (OSError, IOError) as e:
+    except OSError as e:
         error_msg = f"File system error during eToro portfolio download: {str(e)}"
         logger.error(f"[{run_id}] {error_msg}")
         print(error_msg)
         return False
 
+
 async def _fetch_etoro_portfolio(username: str, api_key: str, user_key: str, run_id: str):
     """Fetch portfolio data from eToro API."""
     import asyncio
+
     import aiohttp
-    
+
     url = f"https://www.etoro.com/api/public/v1/user-info/people/{username}/portfolio/live"
-    
+
     headers = {
         "X-REQUEST-ID": str(uuid.uuid4()),
         "X-API-KEY": api_key,
         "X-USER-KEY": user_key,
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
     }
 
     for attempt in range(3):
         try:
             # Use aiohttp for async HTTP requests
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                    
+                async with session.get(
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
                     if response.status == 429:
-                        wait_time = 2 ** attempt
+                        wait_time = 2**attempt
                         print(f"Rate limited. Waiting {wait_time} seconds...")
-                        logger.warning(f"[{run_id}] Rate limited, waiting {wait_time}s (attempt {attempt + 1})")
+                        logger.warning(
+                            f"[{run_id}] Rate limited, waiting {wait_time}s (attempt {attempt + 1})"
+                        )
                         await asyncio.sleep(wait_time)
                         continue
-                        
+
                     response.raise_for_status()
                     data = await response.json()
                     logger.info(f"[{run_id}] Successfully fetched portfolio data")
                     return data
-            
+
         except aiohttp.ClientError as e:
             logger.error(f"[{run_id}] HTTP error (attempt {attempt + 1}): {str(e)}")
             if attempt == 2:
                 print(f"Failed to fetch portfolio after 3 attempts: {e}")
                 return None
             await asyncio.sleep(1)
-    
+
     return None
 
-async def _fetch_etoro_instrument_metadata(instrument_ids: list, api_key: str, user_key: str, run_id: str):
+
+async def _fetch_etoro_instrument_metadata(
+    instrument_ids: list, api_key: str, user_key: str, run_id: str
+):
     """Fetch instrument metadata from eToro API."""
     import asyncio
-    
+
     if not instrument_ids:
         return {}
 
     # Remove duplicates
     unique_ids = list(set(instrument_ids))
-    
+
     # Build URL with comma-separated instrument IDs
     ids_param = ",".join(map(str, unique_ids))
     url = f"https://www.etoro.com/api/public/v1/market-data/instruments?instrumentIds={ids_param}"
-    
+
     headers = {
         "X-REQUEST-ID": str(uuid.uuid4()),
         "X-API-KEY": api_key,
         "X-USER-KEY": user_key,
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
     }
 
     for attempt in range(3):
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                    
+                async with session.get(
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
                     if response.status == 429:
-                        wait_time = 2 ** attempt
+                        wait_time = 2**attempt
                         print(f"Rate limited. Waiting {wait_time} seconds...")
-                        logger.warning(f"[{run_id}] Metadata rate limited, waiting {wait_time}s (attempt {attempt + 1})")
+                        logger.warning(
+                            f"[{run_id}] Metadata rate limited, waiting {wait_time}s (attempt {attempt + 1})"
+                        )
                         await asyncio.sleep(wait_time)
                         continue
-                        
+
                     response.raise_for_status()
                     data = await response.json()
-                    
+
                     # Convert to dictionary for easy lookup
                     metadata_dict = {}
                     if "instrumentDisplayDatas" in data:
                         for instrument in data["instrumentDisplayDatas"]:
                             if "instrumentID" in instrument:
                                 metadata_dict[instrument["instrumentID"]] = instrument
-                    
-                    logger.info(f"[{run_id}] Successfully fetched metadata for {len(metadata_dict)} instruments")
+
+                    logger.info(
+                        f"[{run_id}] Successfully fetched metadata for {len(metadata_dict)} instruments"
+                    )
                     return metadata_dict
-            
+
         except aiohttp.ClientError as e:
             logger.error(f"[{run_id}] Metadata HTTP error (attempt {attempt + 1}): {str(e)}")
             if attempt == 2:
                 print(f"Failed to fetch metadata after 3 attempts: {e}")
                 return {}
             await asyncio.sleep(1)
-    
+
     return {}
+
 
 def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
     """Process eToro portfolio data into the format expected by the application."""
     from collections import defaultdict
-    
+
     # Group positions by symbol (using original symbol first)
     grouped = defaultdict(list)
-    
+
     for position in portfolio.get("positions", []):
         instrument_id = position.get("instrumentId")
         instrument_meta = metadata.get(instrument_id, {})
-        
+
         # Get symbol, defaulting to Unknown if not available
         symbol = instrument_meta.get("symbolFull", "Unknown")
         if symbol and symbol != "Unknown":
-            grouped[symbol].append({
-                "position": position,
-                "metadata": instrument_meta
-            })
+            grouped[symbol].append({"position": position, "metadata": instrument_meta})
 
     # Process grouped data
     processed_data = []
-    
+
     for symbol, symbol_positions in grouped.items():
         # Get data from first position
         first_pos_data = symbol_positions[0]
         first_pos = first_pos_data["position"]
         first_meta = first_pos_data["metadata"]
-        
+
         # Calculate aggregated values
         num_positions = len(symbol_positions)
         total_investment_pct = sum(p["position"].get("investmentPct", 0) for p in symbol_positions)
         total_net_profit = sum(p["position"].get("netProfit", 0) for p in symbol_positions)
-        
+
         # Calculate weighted average open rate
         weighted_open_rate = 0
         if total_investment_pct > 0:
-            weighted_open_rate = sum(
-                p["position"].get("openRate", 0) * p["position"].get("investmentPct", 0) 
-                for p in symbol_positions
-            ) / total_investment_pct
-        
+            weighted_open_rate = (
+                sum(
+                    p["position"].get("openRate", 0) * p["position"].get("investmentPct", 0)
+                    for p in symbol_positions
+                )
+                / total_investment_pct
+            )
+
         # Get earliest open timestamp
         earliest_open = min(p["position"].get("openTimestamp", "") for p in symbol_positions)
-        
+
         # Check if all positions are buy
         all_buy = all(p["position"].get("isBuy", True) for p in symbol_positions)
-        
+
         # Get leverage (should be same for all positions of same symbol)
         leverages = set(p["position"].get("leverage", 1) for p in symbol_positions)
         leverage = leverages.pop() if len(leverages) == 1 else max(leverages)
-        
+
         # Fix the ticker format for Yahoo Finance compatibility using centralized system
         fixed_symbol = normalize_ticker(symbol)
-        
+
         # Log ticker changes if any
         if fixed_symbol != symbol:
             logger.info(f"[{run_id}] Fixed ticker: {symbol} -> {fixed_symbol}")
-        
+
         # Create the processed row
         processed_row = {
             "symbol": fixed_symbol,  # Use the fixed symbol
@@ -904,7 +946,9 @@ def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
             "totalInvestmentPct": round(total_investment_pct, 6),
             "avgOpenRate": round(weighted_open_rate, 4),
             "totalNetProfit": round(total_net_profit, 3),
-            "totalNetProfitPct": round((total_net_profit / total_investment_pct) if total_investment_pct > 0 else 0, 3),
+            "totalNetProfitPct": round(
+                (total_net_profit / total_investment_pct) if total_investment_pct > 0 else 0, 3
+            ),
             "earliestOpenTimestamp": earliest_open,
             "isBuy": all_buy,
             "leverage": leverage,
@@ -912,21 +956,22 @@ def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
             "exchangeId": first_meta.get("exchangeID", ""),
             "exchangeName": first_meta.get("priceSource", ""),
             "stocksIndustryId": first_meta.get("stocksIndustryID", ""),
-            "isInternalInstrument": first_meta.get("isInternalInstrument", False)
+            "isInternalInstrument": first_meta.get("isInternalInstrument", False),
         }
-        
+
         processed_data.append(processed_row)
-    
+
     # Sort by total investment percentage descending
     processed_data.sort(key=lambda x: x["totalInvestmentPct"], reverse=True)
-    
+
     logger.info(f"[{run_id}] Processed {len(processed_data)} unique symbols")
     return processed_data
+
 
 def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
     """Save eToro portfolio data to CSV in the expected format."""
     import csv
-    
+
     if not data:
         print("No data to save")
         logger.warning(f"[{run_id}] No data to save")
@@ -935,7 +980,7 @@ def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
     # Define the CSV columns to match the expected format
     fieldnames = [
         "symbol",
-        "instrumentDisplayName", 
+        "instrumentDisplayName",
         "instrumentId",
         "numPositions",
         "totalInvestmentPct",
@@ -946,26 +991,29 @@ def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
         "isBuy",
         "leverage",
         "instrumentTypeId",
-        "exchangeId", 
+        "exchangeId",
         "exchangeName",
         "stocksIndustryId",
-        "isInternalInstrument"
+        "isInternalInstrument",
     ]
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
+
     with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(data)
 
     logger.info(f"[{run_id}] eToro portfolio data saved to {output_path}")
-    
+
     # Print compact summary
-    total_investment = sum(row['totalInvestmentPct'] for row in data)
-    total_profit = sum(row['totalNetProfit'] for row in data)
-    print(f"\n✅ Portfolio saved: {len(data)} symbols | Investment: {total_investment:.1f}% | Net P&L: ${total_profit:,.0f}")
+    total_investment = sum(row["totalInvestmentPct"] for row in data)
+    total_profit = sum(row["totalNetProfit"] for row in data)
+    print(
+        f"\n✅ Portfolio saved: {len(data)} symbols | Investment: {total_investment:.1f}% | Net P&L: ${total_profit:,.0f}"
+    )
+
 
 # Test function
 if __name__ == "__main__":

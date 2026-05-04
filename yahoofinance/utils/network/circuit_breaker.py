@@ -14,7 +14,7 @@ import threading
 import time
 from enum import Enum
 from functools import wraps
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, TypeVar
 
 from ...core.config import CIRCUIT_BREAKER
 from ...core.errors import YFinanceError
@@ -27,12 +27,14 @@ R = TypeVar("R")
 # Set up logging
 logger = get_logger(__name__)
 
+
 class CircuitState(Enum):
     """Circuit breaker states"""
 
     CLOSED = "CLOSED"  # Normal operation, requests flow through
     OPEN = "OPEN"  # Circuit is open, requests are blocked
     HALF_OPEN = "HALF_OPEN"  # Testing if service has recovered
+
 
 class CircuitBreaker:
     """
@@ -74,28 +76,59 @@ class CircuitBreaker:
         """
         self.name = name
         # Use sensible defaults from module-level CIRCUIT_BREAKER config
-        cb_config: Dict[str, Any] = CIRCUIT_BREAKER if CIRCUIT_BREAKER else {}
+        cb_config: dict[str, Any] = CIRCUIT_BREAKER if CIRCUIT_BREAKER else {}
 
-        self.failure_threshold: int = failure_threshold if failure_threshold is not None else int(cb_config.get("FAILURE_THRESHOLD", 5))
-        self.failure_window: int = failure_window if failure_window is not None else int(cb_config.get("FAILURE_WINDOW", 60))
-        self.recovery_timeout: int = recovery_timeout if recovery_timeout is not None else int(cb_config.get("RECOVERY_TIMEOUT", 300))
-        self.success_threshold: int = success_threshold if success_threshold is not None else int(cb_config.get("SUCCESS_THRESHOLD", 3))
-        self.half_open_allow_percentage: int = (
-            half_open_allow_percentage if half_open_allow_percentage is not None else int(cb_config.get("HALF_OPEN_ALLOW_PERCENTAGE", 10))
+        self.failure_threshold: int = (
+            failure_threshold
+            if failure_threshold is not None
+            else int(cb_config.get("FAILURE_THRESHOLD", 5))
         )
-        self.max_open_timeout: int = max_open_timeout if max_open_timeout is not None else int(cb_config.get("MAX_OPEN_TIMEOUT", 1800))
-        self.timeout: float = timeout if timeout is not None else float(cb_config.get("TIMEOUT", 10.0))
-        self.enabled: bool = enabled if enabled is not None else bool(cb_config.get("ENABLED", True))
+        self.failure_window: int = (
+            failure_window
+            if failure_window is not None
+            else int(cb_config.get("FAILURE_WINDOW", 60))
+        )
+        self.recovery_timeout: int = (
+            recovery_timeout
+            if recovery_timeout is not None
+            else int(cb_config.get("RECOVERY_TIMEOUT", 300))
+        )
+        self.success_threshold: int = (
+            success_threshold
+            if success_threshold is not None
+            else int(cb_config.get("SUCCESS_THRESHOLD", 3))
+        )
+        self.half_open_allow_percentage: int = (
+            half_open_allow_percentage
+            if half_open_allow_percentage is not None
+            else int(cb_config.get("HALF_OPEN_ALLOW_PERCENTAGE", 10))
+        )
+        self.max_open_timeout: int = (
+            max_open_timeout
+            if max_open_timeout is not None
+            else int(cb_config.get("MAX_OPEN_TIMEOUT", 1800))
+        )
+        self.timeout: float = (
+            timeout if timeout is not None else float(cb_config.get("TIMEOUT", 10.0))
+        )
+        self.enabled: bool = (
+            enabled if enabled is not None else bool(cb_config.get("ENABLED", True))
+        )
         # Use secure temporary directory location
         import tempfile
+
         secure_temp_dir = tempfile.gettempdir()
         default_state_file = os.path.join(secure_temp_dir, f"circuit_breaker_{name}.json")
-        self.state_file: Optional[str] = state_file if state_file is not None else str(cb_config.get("STATE_FILE", default_state_file))
+        self.state_file: str | None = (
+            state_file
+            if state_file is not None
+            else str(cb_config.get("STATE_FILE", default_state_file))
+        )
 
         # State tracking
         self.state = CircuitState.CLOSED
         self.failure_count = 0
-        self.failure_timestamps: List[float] = []
+        self.failure_timestamps: list[float] = []
         self.success_count = 0
         self.last_state_change = time.time()
         self.last_failure_time: float = 0.0
@@ -122,7 +155,7 @@ class CircuitBreaker:
             return
 
         try:
-            with open(self.state_file, "r") as f:
+            with open(self.state_file) as f:
                 try:
                     state_data = json.load(f)
                 except json.JSONDecodeError:
@@ -176,7 +209,7 @@ class CircuitBreaker:
             state_data = {}
             if os.path.exists(self.state_file):
                 try:
-                    with open(self.state_file, "r") as f:
+                    with open(self.state_file) as f:
                         try:
                             state_data = json.load(f)
                         except json.JSONDecodeError:
@@ -354,7 +387,7 @@ class CircuitBreaker:
             self.consecutive_failures = 0
             self._save_state()
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get circuit breaker metrics"""
         with self.lock:
             current_state = self.get_state()
@@ -433,10 +466,11 @@ class CircuitBreaker:
             self.record_failure()
             raise e
 
+
 class CircuitBreakerError(Exception):
     """Exception raised when a circuit breaker operation fails"""
 
-    def __init__(self, message: str, circuit_name: str = None, details: Dict[str, Any] = None):
+    def __init__(self, message: str, circuit_name: str = None, details: dict[str, Any] = None):
         """
         Initialize circuit breaker error.
 
@@ -449,11 +483,12 @@ class CircuitBreakerError(Exception):
         self.details = details or {}
         super().__init__(message)
 
+
 class CircuitOpenError(Exception):
     """Exception raised when a circuit is open and rejects a request"""
 
     def __init__(
-        self, message: str, circuit_name: str, circuit_state: str, metrics: Dict[str, Any]
+        self, message: str, circuit_name: str, circuit_state: str, metrics: dict[str, Any]
     ):
         """
         Initialize circuit open error.
@@ -469,6 +504,7 @@ class CircuitOpenError(Exception):
         self.metrics = metrics
         self.retry_after = metrics.get("time_until_reset", 300)  # Default 5 minutes
         super().__init__(message)
+
 
 class AsyncCircuitBreaker(CircuitBreaker):
     """Asynchronous version of the circuit breaker"""
@@ -513,30 +549,34 @@ class AsyncCircuitBreaker(CircuitBreaker):
             self.record_failure()
             raise e
 
+
 # Circuit breaker registry for dependency injection
 class CircuitBreakerRegistry:
     """Registry for managing circuit breaker instances with dependency injection support."""
-    
-    def __init__(self, default_config: Optional[Dict[str, Any]] = None):
+
+    def __init__(self, default_config: dict[str, Any] | None = None):
         """
         Initialize the circuit breaker registry.
-        
+
         Args:
             default_config: Default configuration for circuit breakers
         """
         from ...core.config import CIRCUIT_BREAKER
+
         self.default_config = default_config or CIRCUIT_BREAKER
-        self._circuit_breakers: Dict[str, CircuitBreaker] = {}
+        self._circuit_breakers: dict[str, CircuitBreaker] = {}
         self._lock = threading.RLock()
-    
-    def get_circuit_breaker(self, name: str, config: Optional[Dict[str, Any]] = None) -> CircuitBreaker:
+
+    def get_circuit_breaker(
+        self, name: str, config: dict[str, Any] | None = None
+    ) -> CircuitBreaker:
         """
         Get or create a circuit breaker by name.
-        
+
         Args:
             name: Name of the circuit breaker
             config: Optional configuration overrides
-            
+
         Returns:
             Circuit breaker instance
         """
@@ -546,16 +586,24 @@ class CircuitBreakerRegistry:
                 final_config = self.default_config.copy()
                 if config:
                     final_config.update(config)
-                
+
                 # Map configuration keys to constructor parameters
                 # Handle missing keys gracefully for backward compatibility
-                constructor_args: Dict[str, Any] = {
+                constructor_args: dict[str, Any] = {
                     "failure_threshold": final_config.get("FAILURE_THRESHOLD"),
-                    "failure_window": final_config.get("FAILURE_WINDOW", 60),  # Default to 60 if missing
+                    "failure_window": final_config.get(
+                        "FAILURE_WINDOW", 60
+                    ),  # Default to 60 if missing
                     "recovery_timeout": final_config.get("RECOVERY_TIMEOUT"),
-                    "success_threshold": final_config.get("SUCCESS_THRESHOLD", 3),  # Default to 3 if missing
-                    "half_open_allow_percentage": final_config.get("HALF_OPEN_ALLOW_PERCENTAGE", 10),  # Default to 10 if missing
-                    "max_open_timeout": final_config.get("MAX_OPEN_TIMEOUT", 1800),  # Default to 30 min if missing
+                    "success_threshold": final_config.get(
+                        "SUCCESS_THRESHOLD", 3
+                    ),  # Default to 3 if missing
+                    "half_open_allow_percentage": final_config.get(
+                        "HALF_OPEN_ALLOW_PERCENTAGE", 10
+                    ),  # Default to 10 if missing
+                    "max_open_timeout": final_config.get(
+                        "MAX_OPEN_TIMEOUT", 1800
+                    ),  # Default to 30 min if missing
                     "timeout": final_config.get("TIMEOUT", 10.0),  # Default to 10s if missing
                     "enabled": final_config.get("ENABLED", True),  # Default to True if missing
                     "state_file": final_config.get("STATE_FILE"),
@@ -566,33 +614,41 @@ class CircuitBreakerRegistry:
 
                 self._circuit_breakers[name] = CircuitBreaker(name=name, **constructor_args)  # type: ignore[arg-type]
                 logger.debug(f"Created circuit breaker '{name}' with config: {constructor_args}")
-            
+
             return self._circuit_breakers[name]
-    
-    def create_circuit_breaker(self, name: str, config: Optional[Dict[str, Any]] = None) -> CircuitBreaker:
+
+    def create_circuit_breaker(
+        self, name: str, config: dict[str, Any] | None = None
+    ) -> CircuitBreaker:
         """
         Create a new circuit breaker instance (not cached).
-        
+
         Args:
             name: Name of the circuit breaker
             config: Configuration for the circuit breaker
-            
+
         Returns:
             New CircuitBreaker instance
         """
         final_config = self.default_config.copy()
         if config:
             final_config.update(config)
-        
+
         # Map configuration keys to constructor parameters
         # Handle missing keys gracefully for backward compatibility
-        constructor_args: Dict[str, Any] = {
+        constructor_args: dict[str, Any] = {
             "failure_threshold": final_config.get("FAILURE_THRESHOLD"),
             "failure_window": final_config.get("FAILURE_WINDOW", 60),  # Default to 60 if missing
             "recovery_timeout": final_config.get("RECOVERY_TIMEOUT"),
-            "success_threshold": final_config.get("SUCCESS_THRESHOLD", 3),  # Default to 3 if missing
-            "half_open_allow_percentage": final_config.get("HALF_OPEN_ALLOW_PERCENTAGE", 10),  # Default to 10 if missing
-            "max_open_timeout": final_config.get("MAX_OPEN_TIMEOUT", 1800),  # Default to 30 min if missing
+            "success_threshold": final_config.get(
+                "SUCCESS_THRESHOLD", 3
+            ),  # Default to 3 if missing
+            "half_open_allow_percentage": final_config.get(
+                "HALF_OPEN_ALLOW_PERCENTAGE", 10
+            ),  # Default to 10 if missing
+            "max_open_timeout": final_config.get(
+                "MAX_OPEN_TIMEOUT", 1800
+            ),  # Default to 30 min if missing
             "timeout": final_config.get("TIMEOUT", 10.0),  # Default to 10s if missing
             "enabled": final_config.get("ENABLED", True),  # Default to True if missing
             "state_file": final_config.get("STATE_FILE"),
@@ -602,34 +658,36 @@ class CircuitBreakerRegistry:
         constructor_args = {k: v for k, v in constructor_args.items() if v is not None}
 
         return CircuitBreaker(name=name, **constructor_args)  # type: ignore[arg-type]
-    
-    def get_all_circuits(self) -> Dict[str, CircuitBreaker]:
+
+    def get_all_circuits(self) -> dict[str, CircuitBreaker]:
         """
         Get all registered circuit breakers.
-        
+
         Returns:
             Dictionary of all circuit breaker instances
         """
         with self._lock:
             return self._circuit_breakers.copy()
-    
+
     def clear_circuits(self) -> None:
         """Clear all circuit breaker instances (useful for testing)."""
         with self._lock:
             self._circuit_breakers.clear()
             logger.debug("Cleared all circuit breaker instances")
 
+
 # Create a default circuit breaker registry
 _default_circuit_breaker_registry = CircuitBreakerRegistry()
 
 # Global registry of circuit breakers (for backward compatibility)
-_circuit_breakers: Dict[str, CircuitBreaker] = {}
+_circuit_breakers: dict[str, CircuitBreaker] = {}
 _circuit_breakers_lock = threading.RLock()
+
 
 def get_circuit_breaker(name: str) -> CircuitBreaker:
     """
     Get or create a circuit breaker by name.
-    
+
     This function provides backward compatibility by delegating to the default registry.
 
     Args:
@@ -639,6 +697,7 @@ def get_circuit_breaker(name: str) -> CircuitBreaker:
         Circuit breaker instance
     """
     return _default_circuit_breaker_registry.get_circuit_breaker(name)
+
 
 def get_async_circuit_breaker(name: str) -> AsyncCircuitBreaker:
     """
@@ -692,6 +751,7 @@ def get_async_circuit_breaker(name: str) -> AsyncCircuitBreaker:
 
         return _circuit_breakers[name]  # type: ignore
 
+
 def reset_all_circuits() -> None:
     """Reset all circuit breakers to closed state"""
     with _circuit_breakers_lock:
@@ -712,7 +772,8 @@ def reset_all_circuits() -> None:
         except YFinanceError as e:
             logger.warning(f"Failed to clear circuit breaker state file: {str(e)}")
 
-def get_all_circuits() -> Dict[str, Dict[str, Any]]:
+
+def get_all_circuits() -> dict[str, dict[str, Any]]:
     """
     Get metrics for all circuit breakers.
 
@@ -721,6 +782,7 @@ def get_all_circuits() -> Dict[str, Dict[str, Any]]:
     """
     with _circuit_breakers_lock:
         return {name: circuit.get_metrics() for name, circuit in _circuit_breakers.items()}
+
 
 def circuit_protected(circuit_name: str):
     """
@@ -742,6 +804,7 @@ def circuit_protected(circuit_name: str):
         return wrapper
 
     return decorator
+
 
 def async_circuit_protected(circuit_name: str):
     """

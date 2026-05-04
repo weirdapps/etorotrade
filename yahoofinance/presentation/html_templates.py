@@ -10,6 +10,7 @@ from yahoofinance.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 def get_template(template_key: str, default: str = "") -> str:
     """
     Get a template by key from the Templates class.
@@ -25,6 +26,7 @@ def get_template(template_key: str, default: str = "") -> str:
         return getattr(Templates, template_key)
     else:
         return default
+
 
 class Templates:
     """Container for HTML templates"""
@@ -249,11 +251,11 @@ h2 {
     .metrics-grid {
         grid-template-columns: repeat(2, 1fr) !important;
     }
-    
+
     .metric-card {
         padding: 12px;
     }
-    
+
     .metric-value {
         font-size: 1.2rem;
     }
@@ -270,7 +272,7 @@ h2 {
 document.addEventListener('DOMContentLoaded', function() {
     // Add any interactive behaviors here
     console.log('Dashboard loaded');
-    
+
     // Example: Add click animation to metric cards
     const metricCards = document.querySelectorAll('.metric-card');
     metricCards.forEach(card => {
@@ -282,6 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });"""
+
 
 class TemplateEngine:
     """Engine for rendering templates with context data"""

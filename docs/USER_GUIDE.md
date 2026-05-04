@@ -117,7 +117,7 @@ xdg-open yahoofinance/output/portfolio.html
 
 ### Color Coding
 - 🟢 **Green (B)**: Strong BUY recommendation
-- 🔴 **Red (S)**: Strong SELL recommendation  
+- 🔴 **Red (S)**: Strong SELL recommendation
 - 🟡 **Yellow (H)**: HOLD - wait and see
 - ⚪ **Gray (I)**: INCONCLUSIVE - insufficient data
 
@@ -196,7 +196,7 @@ python trade.py -o m -t 20
 # Buy opportunities
 python trade.py -o t -t b
 
-# Sell candidates  
+# Sell candidates
 python trade.py -o t -t s
 
 # Hold recommendations
@@ -257,7 +257,7 @@ etorotrade/
 │   │   └── portfolio.csv    # Your eToro export
 │   └── output/             # Analysis results
 │       ├── portfolio.csv   # Portfolio analysis
-│       ├── buy.csv        # Buy opportunities  
+│       ├── buy.csv        # Buy opportunities
 │       └── sell.csv       # Sell candidates
 └── logs/                   # Error logs
     └── trading_analysis.log

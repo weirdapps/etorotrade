@@ -9,7 +9,7 @@ with common functionality shared by different provider types.
 
 from abc import ABC, abstractmethod
 from datetime import date, datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pandas as pd
 import yfinance as yf
@@ -27,6 +27,7 @@ from ...utils.market.ticker_utils import is_us_ticker, validate_ticker
 
 # Set up logging
 logger = get_logger(__name__)
+
 
 def safe_extract_value(data: Any, key: str, default: Any = None) -> Any:
     """
@@ -46,6 +47,7 @@ def safe_extract_value(data: Any, key: str, default: Any = None) -> Any:
     except (TypeError, AttributeError, KeyError) as e:
         logger.debug(f"Error extracting {key}: {str(e)}")
     return default
+
 
 class YahooFinanceBaseProvider(ABC):
     """
@@ -111,7 +113,7 @@ class YahooFinanceBaseProvider(ABC):
                 details={"ticker": ticker, "operation": operation, "attempts": self.max_retries},
             )
 
-    def _format_date(self, dt) -> Optional[str]:
+    def _format_date(self, dt) -> str | None:
         """
         Format a date or datetime object to YYYY-MM-DD format.
 
@@ -148,7 +150,7 @@ class YahooFinanceBaseProvider(ABC):
         # Return string representation as a fallback
         return str(dt)
 
-    def _extract_earnings_date(self, info: Dict[str, Any]) -> Optional[str]:
+    def _extract_earnings_date(self, info: dict[str, Any]) -> str | None:
         """
         Extract earnings date from info dictionary handling different formats.
 
@@ -200,13 +202,13 @@ class YahooFinanceBaseProvider(ABC):
         # None of the fields found or had valid data
         return None
 
-    def _extract_last_earnings_date(self, info: Dict[str, Any]) -> Optional[str]:
+    def _extract_last_earnings_date(self, info: dict[str, Any]) -> str | None:
         """
         Extract the last (past) earnings date from info dictionary.
-        
+
         Args:
             info: Dictionary with ticker info
-            
+
         Returns:
             Last earnings date in YYYY-MM-DD format or None
         """
@@ -214,7 +216,7 @@ class YahooFinanceBaseProvider(ABC):
         # For now, return None and let the provider handle it
         return None
 
-    def _extract_common_ticker_info(self, info: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_common_ticker_info(self, info: dict[str, Any]) -> dict[str, Any]:
         """
         Extract common ticker information fields from the raw info dictionary.
 
@@ -252,23 +254,23 @@ class YahooFinanceBaseProvider(ABC):
                 "company": name,  # Match both formats
                 # Try multiple price fields in order of preference
                 "price": (
-                    safe_extract_value(info, "regularMarketPrice") or
-                    safe_extract_value(info, "currentPrice") or
-                    safe_extract_value(info, "lastPrice") or
-                    safe_extract_value(info, "previousClose")
+                    safe_extract_value(info, "regularMarketPrice")
+                    or safe_extract_value(info, "currentPrice")
+                    or safe_extract_value(info, "lastPrice")
+                    or safe_extract_value(info, "previousClose")
                 ),
                 "current_price": (
-                    safe_extract_value(info, "regularMarketPrice") or
-                    safe_extract_value(info, "currentPrice") or
-                    safe_extract_value(info, "lastPrice") or
-                    safe_extract_value(info, "previousClose")
+                    safe_extract_value(info, "regularMarketPrice")
+                    or safe_extract_value(info, "currentPrice")
+                    or safe_extract_value(info, "lastPrice")
+                    or safe_extract_value(info, "previousClose")
                 ),  # Match both formats
                 "change": safe_extract_value(info, "regularMarketChange"),
                 "change_percent": safe_extract_value(info, "regularMarketChangePercent"),
                 "market_cap": (
-                    safe_extract_value(info, "marketCap") or  # Regular stocks
-                    safe_extract_value(info, "totalAssets") or  # ETFs
-                    safe_extract_value(info, "netAssets")  # Alternative ETF field
+                    safe_extract_value(info, "marketCap")  # Regular stocks
+                    or safe_extract_value(info, "totalAssets")  # ETFs
+                    or safe_extract_value(info, "netAssets")  # Alternative ETF field
                 ),
                 "volume": safe_extract_value(info, "regularMarketVolume"),
                 "avg_volume": safe_extract_value(info, "averageVolume"),
@@ -284,13 +286,22 @@ class YahooFinanceBaseProvider(ABC):
                 "target_price_high": safe_extract_value(info, "targetHighPrice"),
                 "target_price_low": safe_extract_value(info, "targetLowPrice"),
                 "target_dispersion": (
-                    ((safe_extract_value(info, "targetHighPrice") - safe_extract_value(info, "targetLowPrice"))
-                     / safe_extract_value(info, "targetMedianPrice") * 100)
-                    if all(v is not None and v > 0 for v in [
-                        safe_extract_value(info, "targetHighPrice"),
-                        safe_extract_value(info, "targetLowPrice"),
-                        safe_extract_value(info, "targetMedianPrice"),
-                    ])
+                    (
+                        (
+                            safe_extract_value(info, "targetHighPrice")
+                            - safe_extract_value(info, "targetLowPrice")
+                        )
+                        / safe_extract_value(info, "targetMedianPrice")
+                        * 100
+                    )
+                    if all(
+                        v is not None and v > 0
+                        for v in [
+                            safe_extract_value(info, "targetHighPrice"),
+                            safe_extract_value(info, "targetLowPrice"),
+                            safe_extract_value(info, "targetMedianPrice"),
+                        ]
+                    )
                     else None
                 ),
                 "price_target_analyst_count": safe_extract_value(info, "numberOfAnalystOpinions"),
@@ -357,7 +368,9 @@ class YahooFinanceBaseProvider(ABC):
                 if earnings_dates and earnings_dates[0]:
                     result["earnings_date"] = earnings_dates[0]
                     result["last_earnings"] = earnings_dates[0]
-                    logger.debug(f"Successfully set earnings_date for {symbol}: {earnings_dates[0]}")
+                    logger.debug(
+                        f"Successfully set earnings_date for {symbol}: {earnings_dates[0]}"
+                    )
                 else:
                     logger.debug(f"No earnings dates found for {symbol}: {earnings_dates}")
             except Exception as earnings_error:
@@ -365,15 +378,19 @@ class YahooFinanceBaseProvider(ABC):
 
             # Apply earnings-aware price target filtering
             try:
-                from ...utils.data.price_target_utils import validate_price_target_data_with_earnings
-                
+                from ...utils.data.price_target_utils import (
+                    validate_price_target_data_with_earnings,
+                )
+
                 # Get earnings date for this ticker
                 earnings_date = result.get("last_earnings") or result.get("earnings_date")
-                
+
                 if earnings_date:
                     # Validate price targets against earnings date
-                    is_valid, validation_info = validate_price_target_data_with_earnings(result, earnings_date)
-                    
+                    is_valid, validation_info = validate_price_target_data_with_earnings(
+                        result, earnings_date
+                    )
+
                     if not is_valid and validation_info.get("post_earnings_filtering"):
                         # Price targets are stale (published before earnings) - clear them
                         result["target_price"] = None
@@ -381,13 +398,19 @@ class YahooFinanceBaseProvider(ABC):
                         result["target_price_median"] = None
                         result["target_price_high"] = None
                         result["target_price_low"] = None
-                        logger.debug(f"Cleared stale price targets for {symbol} (published before earnings {earnings_date})")
+                        logger.debug(
+                            f"Cleared stale price targets for {symbol} (published before earnings {earnings_date})"
+                        )
                     elif validation_info.get("post_earnings_filtering"):
-                        logger.debug(f"Using post-earnings price targets for {symbol} (published after earnings {earnings_date})")
-                        
+                        logger.debug(
+                            f"Using post-earnings price targets for {symbol} (published after earnings {earnings_date})"
+                        )
+
             except Exception as price_target_error:
                 # If price target filtering fails, continue with original data
-                logger.debug(f"Price target earnings filtering failed for {symbol}: {str(price_target_error)}")
+                logger.debug(
+                    f"Price target earnings filtering failed for {symbol}: {str(price_target_error)}"
+                )
 
             return result
 
@@ -423,7 +446,9 @@ class YahooFinanceBaseProvider(ABC):
             }
         except Exception as e:
             # Handle truly unexpected errors
-            logger.error(f"Unexpected error extracting info for {symbol}: {str(e)}. Returning minimal info.")
+            logger.error(
+                f"Unexpected error extracting info for {symbol}: {str(e)}. Returning minimal info."
+            )
             return {
                 "symbol": symbol,
                 "name": symbol.upper(),
@@ -435,7 +460,7 @@ class YahooFinanceBaseProvider(ABC):
     def _add_fallback_pe_ratios(self, result, info):
         """
         Add fallback logic for missing PE ratios by calculating from price and EPS.
-        
+
         Args:
             result: The result dictionary to update
             info: The raw info data from Yahoo Finance
@@ -445,7 +470,7 @@ class YahooFinanceBaseProvider(ABC):
             if result.get("pe_trailing") is None or result.get("pe_ratio") is None:
                 price = result.get("price")
                 eps = result.get("eps")
-                
+
                 if price is not None and eps is not None and eps > 0:
                     calculated_pe = price / eps
                     # Sanity check: PE should be positive and reasonable (0.1 to 1000)
@@ -454,13 +479,15 @@ class YahooFinanceBaseProvider(ABC):
                             result["pe_trailing"] = calculated_pe
                         if result.get("pe_ratio") is None:
                             result["pe_ratio"] = calculated_pe
-                        logger.debug(f"Calculated trailing PE for {result.get('symbol')}: {calculated_pe:.2f}")
-            
+                        logger.debug(
+                            f"Calculated trailing PE for {result.get('symbol')}: {calculated_pe:.2f}"
+                        )
+
             # If forward PE is missing, try to calculate from price and forward EPS
             if result.get("pe_forward") is None or result.get("forward_pe") is None:
                 price = result.get("price")
                 forward_eps = result.get("forward_eps")
-                
+
                 if price is not None and forward_eps is not None and forward_eps > 0:
                     calculated_forward_pe = price / forward_eps
                     # Sanity check: PE should be positive and reasonable (0.1 to 1000)
@@ -469,15 +496,19 @@ class YahooFinanceBaseProvider(ABC):
                             result["pe_forward"] = calculated_forward_pe
                         if result.get("forward_pe") is None:
                             result["forward_pe"] = calculated_forward_pe
-                        logger.debug(f"Calculated forward PE for {result.get('symbol')}: {calculated_forward_pe:.2f}")
-                        
+                        logger.debug(
+                            f"Calculated forward PE for {result.get('symbol')}: {calculated_forward_pe:.2f}"
+                        )
+
         except Exception as e:
-            logger.debug(f"Error in fallback PE calculation for {result.get('symbol', 'unknown')}: {e}")
+            logger.debug(
+                f"Error in fallback PE calculation for {result.get('symbol', 'unknown')}: {e}"
+            )
 
     def _calculate_upside_potential(self, current_price, target_price):
         """
         Calculate upside potential as a percentage.
-        
+
         Note: This method is deprecated. Upside is now calculated dynamically
         from price and target_price to ensure consistency.
 
@@ -494,7 +525,7 @@ class YahooFinanceBaseProvider(ABC):
         return ((target_price - current_price) / current_price) * 100
 
     @abstractmethod
-    def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
+    def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> dict[str, Any]:
         """
         Get comprehensive information for a ticker.
 
@@ -540,13 +571,14 @@ class YahooFinanceBaseProvider(ABC):
         """
         # Validate the ticker format
         validate_ticker(ticker)
-        
+
         # Apply ticker mapping for data fetching
         # Import here to avoid circular dependency
         from trade_modules.config_manager import get_config
+
         config = get_config()
         fetch_ticker = config.get_data_fetch_ticker(ticker)
-        
+
         if fetch_ticker != ticker:
             logger.debug(f"Mapping ticker {ticker} to {fetch_ticker} for data fetching")
 
@@ -659,7 +691,7 @@ class YahooFinanceBaseProvider(ABC):
             logger.error(f"Error fetching historical data for {ticker}: {str(e)}")
             raise e
 
-    def _get_price_data(self, ticker: str) -> Dict[str, Any]:
+    def _get_price_data(self, ticker: str) -> dict[str, Any]:
         """
         Get price data for a ticker.
 
@@ -701,7 +733,7 @@ class YahooFinanceBaseProvider(ABC):
 
     def _process_ticker_info(
         self, ticker: str, ticker_obj: yf.Ticker, skip_insider_metrics: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process ticker information to extract relevant fields.
 
@@ -754,7 +786,7 @@ class YahooFinanceBaseProvider(ABC):
             logger.error(f"Error processing ticker info for {ticker}: {str(e)}")
             raise e
 
-    def _get_analyst_consensus(self, ticker_obj: yf.Ticker, ticker: str) -> Dict[str, Any]:
+    def _get_analyst_consensus(self, ticker_obj: yf.Ticker, ticker: str) -> dict[str, Any]:
         """
         Get analyst consensus data.
 
@@ -827,7 +859,11 @@ class YahooFinanceBaseProvider(ABC):
                                 )
 
                 # If we got analyst count but no buy percentage, try to get it from recommendations
-                if isinstance(result["analyst_count"], int) and result["analyst_count"] > 0 and result["buy_percentage"] is None:
+                if (
+                    isinstance(result["analyst_count"], int)
+                    and result["analyst_count"] > 0
+                    and result["buy_percentage"] is None
+                ):
                     logger.debug(
                         f"Got analyst count but no buy percentage from info for {ticker}, trying recommendations"
                     )
@@ -854,41 +890,56 @@ class YahooFinanceBaseProvider(ABC):
                 # Try to filter recommendations after the most recent earnings date
                 # Initialize earnings filter type - default to "A" (all data)
                 earnings_filter_type = "A"
-                
+
                 try:
                     # Get earnings dates to filter recommendations after earnings announcement
                     earnings_dates = self.get_earnings_dates(ticker)  # type: ignore[attr-defined]
                     latest_earnings_date = earnings_dates[0] if earnings_dates[0] else None
-                    
+
                     if latest_earnings_date:
                         # Convert earnings date string to pandas timestamp for comparison
                         import pandas as pd
+
                         earnings_timestamp = pd.to_datetime(latest_earnings_date)
-                        
+
                         # Filter recommendations published after the latest earnings date
-                        post_earnings_recs = recommendations[recommendations.index > earnings_timestamp]
-                        
+                        post_earnings_recs = recommendations[
+                            recommendations.index > earnings_timestamp
+                        ]
+
                         if not post_earnings_recs.empty:
                             # Use recommendations after earnings
                             latest_recommendations = post_earnings_recs
                             earnings_filter_type = "E"  # Using post-earnings data
-                            logger.debug(f"Using {len(post_earnings_recs)} analyst recommendations after earnings date {latest_earnings_date} for {ticker}")
+                            logger.debug(
+                                f"Using {len(post_earnings_recs)} analyst recommendations after earnings date {latest_earnings_date} for {ticker}"
+                            )
                         else:
                             # Fallback to most recent recommendations if no post-earnings data
                             latest_date = recommendations.index.max()
-                            latest_recommendations = recommendations[recommendations.index == latest_date]
+                            latest_recommendations = recommendations[
+                                recommendations.index == latest_date
+                            ]
                             earnings_filter_type = "A"  # Using all available data
-                            logger.debug(f"No recommendations after earnings date {latest_earnings_date} for {ticker}, using most recent recommendations from {latest_date}")
+                            logger.debug(
+                                f"No recommendations after earnings date {latest_earnings_date} for {ticker}, using most recent recommendations from {latest_date}"
+                            )
                     else:
                         # No earnings date available, use most recent recommendations
                         latest_date = recommendations.index.max()
-                        latest_recommendations = recommendations[recommendations.index == latest_date]
+                        latest_recommendations = recommendations[
+                            recommendations.index == latest_date
+                        ]
                         earnings_filter_type = "A"  # Using all available data
-                        logger.debug(f"No earnings date available for {ticker}, using most recent recommendations from {latest_date}")
-                        
+                        logger.debug(
+                            f"No earnings date available for {ticker}, using most recent recommendations from {latest_date}"
+                        )
+
                 except Exception as earnings_error:
                     # If we can't get earnings dates, fall back to original logic
-                    logger.debug(f"Could not get earnings dates for {ticker}: {str(earnings_error)}, using most recent recommendations")
+                    logger.debug(
+                        f"Could not get earnings dates for {ticker}: {str(earnings_error)}, using most recent recommendations"
+                    )
                     latest_date = recommendations.index.max()
                     latest_recommendations = recommendations[recommendations.index == latest_date]
                     earnings_filter_type = "A"  # Using all available data
@@ -917,7 +968,7 @@ class YahooFinanceBaseProvider(ABC):
                     result["analyst_count"] = total_ratings
                     result["buy_percentage"] = buy_percentage
                     result["recommendations"] = recommendation_counts
-                    
+
                     # Set the earnings filter type (E = post-earnings, A = all data)
                     result["E"] = earnings_filter_type
 
@@ -928,7 +979,11 @@ class YahooFinanceBaseProvider(ABC):
                 logger.warning(f"Error getting recommendations for {ticker}: {str(e)}")
 
             # If we still don't have buy percentage but have total ratings, try one more approach
-            if isinstance(result["total_ratings"], int) and result["total_ratings"] > 0 and result["buy_percentage"] is None:
+            if (
+                isinstance(result["total_ratings"], int)
+                and result["total_ratings"] > 0
+                and result["buy_percentage"] is None
+            ):
                 try:
                     # Try to get upgrades_downgrades as a last resort
                     upgrades_downgrades = getattr(ticker_obj, "upgrades_downgrades", None)
@@ -968,7 +1023,7 @@ class YahooFinanceBaseProvider(ABC):
             # Return what we have so far rather than raising
             return result
 
-    def _get_empty_analyst_data(self, ticker: str) -> Dict[str, Any]:
+    def _get_empty_analyst_data(self, ticker: str) -> dict[str, Any]:
         """
         Get empty analyst data for tickers without analyst coverage.
 
@@ -991,7 +1046,7 @@ class YahooFinanceBaseProvider(ABC):
             "strong_sell": 0,
         }
 
-    def _process_error_for_batch(self, ticker: str, error: Exception) -> Dict[str, Any]:
+    def _process_error_for_batch(self, ticker: str, error: Exception) -> dict[str, Any]:
         """
         Process an error that occurred during batch processing.
 
@@ -1017,97 +1072,111 @@ class YahooFinanceBaseProvider(ABC):
             "data_source": "error",
         }
 
-    def _calculate_earnings_growth_safe(self, ticker: str) -> Optional[float]:
+    def _calculate_earnings_growth_safe(self, ticker: str) -> float | None:
         """Safe wrapper for earnings growth calculation that won't throw exceptions"""
         try:
             return self._calculate_earnings_growth(ticker)
         except Exception as e:
             logger.debug(f"Exception in earnings growth calculation for {ticker}: {e}")
             return None
-    
-    def _calculate_earnings_growth(self, ticker: str) -> Optional[float]:
+
+    def _calculate_earnings_growth(self, ticker: str) -> float | None:
         """
         Calculate earnings growth by comparing recent quarters.
-        
+
         Uses quarterly income statement data since quarterly_earnings is deprecated.
         Tries year-over-year growth first, falls back to quarter-over-quarter if needed.
-        
+
         Args:
             ticker: Stock ticker symbol
-            
+
         Returns:
             Earnings growth as percentage, or None if unable to calculate
         """
         try:
-            import yfinance as yf
             import pandas as pd
-            
+            import yfinance as yf
+
             yticker = yf.Ticker(ticker)
-            
+
             # Use quarterly income statement (quarterly_earnings is deprecated)
             quarterly_income = yticker.quarterly_income_stmt
             if quarterly_income is None or quarterly_income.empty:
                 logger.debug(f"No quarterly income statement data for {ticker}")
                 return None
-            
+
             # Look for net income fields in order of preference
             earnings_row = None
             potential_keys = [
-                'Net Income From Continuing Operation Net Minority Interest',
-                'Net Income Common Stockholders', 
-                'Net Income',
-                'Net Income Including Noncontrolling Interests',
-                'Net Income Continuous Operations'
+                "Net Income From Continuing Operation Net Minority Interest",
+                "Net Income Common Stockholders",
+                "Net Income",
+                "Net Income Including Noncontrolling Interests",
+                "Net Income Continuous Operations",
             ]
-            
+
             for potential_key in potential_keys:
                 if potential_key in quarterly_income.index:
                     earnings_row = quarterly_income.loc[potential_key]
                     logger.debug(f"Using earnings field '{potential_key}' for {ticker}")
                     break
-            
+
             if earnings_row is None:
                 logger.debug(f"No earnings row found in quarterly income statement for {ticker}")
                 return None
-            
+
             # Remove NaN values and sort by date descending (most recent first)
             earnings_data = earnings_row.dropna().sort_index(ascending=False)
-            
+
             if len(earnings_data) < 2:
-                logger.debug(f"Insufficient income statement data for {ticker} (only {len(earnings_data)} quarters)")
+                logger.debug(
+                    f"Insufficient income statement data for {ticker} (only {len(earnings_data)} quarters)"
+                )
                 return None
-            
+
             # Convert to numeric and handle any string/object types
-            earnings_data = pd.to_numeric(earnings_data, errors='coerce').dropna()
-            
+            earnings_data = pd.to_numeric(earnings_data, errors="coerce").dropna()
+
             if len(earnings_data) < 2:
                 logger.debug(f"Insufficient numeric earnings data for {ticker}")
                 return None
-            
+
             # Try year-over-year calculation first (preferred)
             if len(earnings_data) >= 4:
                 current_quarter = float(earnings_data.iloc[0])  # Most recent
                 year_ago_quarter = float(earnings_data.iloc[3])  # 4 quarters ago
-                
-                if year_ago_quarter != 0 and abs(year_ago_quarter) > 1000:  # Avoid division by small numbers
+
+                if (
+                    year_ago_quarter != 0 and abs(year_ago_quarter) > 1000
+                ):  # Avoid division by small numbers
                     # Year-over-year growth
-                    yoy_growth = ((current_quarter - year_ago_quarter) / abs(year_ago_quarter)) * 100
-                    logger.debug(f"Calculated YoY earnings growth for {ticker}: {yoy_growth:.1f}% (current: {current_quarter:,.0f}, year ago: {year_ago_quarter:,.0f})")
+                    yoy_growth = (
+                        (current_quarter - year_ago_quarter) / abs(year_ago_quarter)
+                    ) * 100
+                    logger.debug(
+                        f"Calculated YoY earnings growth for {ticker}: {yoy_growth:.1f}% (current: {current_quarter:,.0f}, year ago: {year_ago_quarter:,.0f})"
+                    )
                     return round(yoy_growth, 1)
-            
+
             # Fall back to quarter-over-quarter calculation
             current_quarter = float(earnings_data.iloc[0])  # Most recent
             previous_quarter = float(earnings_data.iloc[1])  # Previous quarter
-            
-            if previous_quarter != 0 and abs(previous_quarter) > 1000:  # Avoid division by small numbers
+
+            if (
+                previous_quarter != 0 and abs(previous_quarter) > 1000
+            ):  # Avoid division by small numbers
                 # Quarter-over-quarter growth (not annualized for display)
                 qoq_growth = ((current_quarter - previous_quarter) / abs(previous_quarter)) * 100
-                logger.debug(f"Calculated QoQ earnings growth for {ticker}: {qoq_growth:.1f}% (current: {current_quarter:,.0f}, previous: {previous_quarter:,.0f})")
+                logger.debug(
+                    f"Calculated QoQ earnings growth for {ticker}: {qoq_growth:.1f}% (current: {current_quarter:,.0f}, previous: {previous_quarter:,.0f})"
+                )
                 return round(qoq_growth, 1)
-            
-            logger.debug(f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings")
+
+            logger.debug(
+                f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings"
+            )
             return None
-                
+
         except Exception as e:
             logger.debug(f"Error calculating earnings growth for {ticker}: {e}")
             return None

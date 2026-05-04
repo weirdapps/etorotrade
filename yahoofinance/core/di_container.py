@@ -24,6 +24,7 @@ from ..analysis.analyzer_factory import (
 # Import necessary factories and providers
 from ..api.provider_registry import get_all_providers, get_default_provider, get_provider
 
+
 # Define a function to register all application components
 def setup_application():
     """
@@ -44,7 +45,7 @@ def setup_application():
         app_logger = logger_factory("application")
         app_logger.setLevel(logging.WARNING)  # Suppress INFO messages for clean display
         registry.register_instance("app_logger", app_logger)
-        
+
         logger.debug("Registered core services")
     except (ImportError, KeyError, ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to register core services: {str(e)}")
@@ -67,19 +68,19 @@ def setup_application():
 
         # Register rate limiter factory
         from ..utils.network.rate_limiter import RateLimiterFactory
-        
+
         rate_limiter_factory = RateLimiterFactory()
         registry.register_instance("rate_limiter_factory", rate_limiter_factory)
-        
+
         # Register circuit breaker registry
         from ..utils.network.circuit_breaker import CircuitBreakerRegistry
-        
+
         circuit_breaker_registry = CircuitBreakerRegistry()
         registry.register_instance("circuit_breaker_registry", circuit_breaker_registry)
-        
+
         # Register shared session manager
         from ..utils.network.session_manager import SharedSessionManager
-        
+
         session_manager = SharedSessionManager()
         registry.register_instance("session_manager", session_manager)
 
@@ -139,6 +140,7 @@ def setup_application():
 
     logger.info("Dependency injection container setup complete")
 
+
 # Factory for creating display instances
 @registry.register("create_display")
 def create_display(output_format: str = "console", **kwargs) -> Any:
@@ -176,6 +178,7 @@ def create_display(output_format: str = "console", **kwargs) -> Any:
         logger.error(f"Failed to create display: {str(e)}")
         raise ValidationError(f"Failed to create display: {str(e)}") from e
 
+
 # Initialize the dependency injection container
 @inject("app_logger")
 def initialize(app_logger=None):
@@ -205,6 +208,7 @@ def initialize(app_logger=None):
             logger.error(f"Failed to initialize dependency injection container: {str(e)}")
 
         return False
+
 
 # Auto-initialize when the module is imported
 initialized = initialize()

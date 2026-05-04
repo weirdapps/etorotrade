@@ -7,26 +7,25 @@ and display formatting for the trade analysis application.
 
 import logging
 import os
-import sys
+from typing import Any
+
 import pandas as pd
-from typing import Dict, Any, Optional, List, Tuple
 from tabulate import tabulate
+
+from yahoofinance.core.config import FILE_PATHS, PATHS, STANDARD_DISPLAY_COLUMNS
+from yahoofinance.presentation.formatter import DisplayFormatter
 
 # Import presentation and formatting utilities
 from yahoofinance.presentation.html import HTMLGenerator
-from yahoofinance.presentation.formatter import DisplayFormatter
-from yahoofinance.utils.data.format_utils import format_position_size
-from yahoofinance.utils.data.ticker_utils import (
-    normalize_ticker,
-    process_ticker_input,
-    get_ticker_for_display,
-)
 from yahoofinance.utils.data.asset_type_utils import (
     universal_sort_dataframe,
-    get_asset_type_summary,
-    format_asset_type_summary,
 )
-from yahoofinance.core.config import STANDARD_DISPLAY_COLUMNS, FILE_PATHS, PATHS
+from yahoofinance.utils.data.format_utils import format_position_size
+from yahoofinance.utils.data.ticker_utils import (
+    get_ticker_for_display,
+    process_ticker_input,
+)
+
 from .analysis.tiers import _parse_market_cap
 
 
@@ -44,7 +43,7 @@ def sort_by_market_cap_descending(df: pd.DataFrame) -> pd.DataFrame:
 
     # Find the market cap column (could be CAP or market_cap)
     cap_col = None
-    for col_name in ['CAP', 'cap', 'market_cap', 'MARKET_CAP']:
+    for col_name in ["CAP", "cap", "market_cap", "MARKET_CAP"]:
         if col_name in df.columns:
             cap_col = col_name
             break
@@ -54,11 +53,12 @@ def sort_by_market_cap_descending(df: pd.DataFrame) -> pd.DataFrame:
 
     # Parse market cap values for sorting
     df = df.copy()
-    df['_cap_numeric'] = df[cap_col].apply(_parse_market_cap)
-    df = df.sort_values('_cap_numeric', ascending=False)
-    df = df.drop(columns=['_cap_numeric'])
+    df["_cap_numeric"] = df[cap_col].apply(_parse_market_cap)
+    df = df.sort_values("_cap_numeric", ascending=False)
+    df = df.drop(columns=["_cap_numeric"])
 
     return df
+
 
 # Color constants for terminal output
 COLOR_GREEN = "\033[92m"
@@ -85,7 +85,7 @@ def ensure_output_directory(output_dir: str) -> None:
         logger.error(f"Error creating output directory {output_dir}: {str(e)}")
 
 
-def _setup_output_files(report_source: str) -> Tuple[str, str, str]:
+def _setup_output_files(report_source: str) -> tuple[str, str, str]:
     """
     Set up output file paths based on source type.
 
@@ -224,7 +224,7 @@ def _add_ranking_column(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
 
-def get_column_alignments(display_df: pd.DataFrame) -> List[str]:
+def get_column_alignments(display_df: pd.DataFrame) -> list[str]:
     """
     Get column alignments for tabulate display.
 
@@ -353,23 +353,23 @@ def display_and_save_results(display_df: pd.DataFrame, title: str, output_file: 
         # Generate HTML file with color coding
         html_file = output_file.replace(".csv", ".html")
         html_generator = HTMLGenerator()
-        
+
         # Convert DataFrame to list of dictionaries for generate_stock_table
-        stocks_data = csv_df.to_dict('records')
-        
+        stocks_data = csv_df.to_dict("records")
+
         # Extract base filename for output filename
         base_filename = os.path.splitext(os.path.basename(html_file))[0]
-        
+
         # Use generate_stock_table instead of generate_results_html for proper color coding
         html_generator.generate_stock_table(
             stocks_data=stocks_data,
             title=title,
             output_filename=base_filename,
-            include_columns=list(csv_df.columns)
+            include_columns=list(csv_df.columns),
         )
         print(f"🌐 HTML report saved to: {html_file}")
 
-    except (KeyError, TypeError, ValueError, OSError, IOError, AttributeError) as e:
+    except (KeyError, TypeError, ValueError, OSError, AttributeError) as e:
         logger.error(f"Error displaying and saving results: {str(e)}")
         print(f"❌ Error saving results: {str(e)}")
 
@@ -391,24 +391,24 @@ def create_empty_results_file(output_file: str) -> None:
         # Generate empty HTML
         html_file = output_file.replace(".csv", ".html")
         html_generator = HTMLGenerator()
-        
+
         # Convert empty DataFrame to list of dictionaries
-        stocks_data = empty_df.to_dict('records')
-        
+        stocks_data = empty_df.to_dict("records")
+
         # Extract base filename
         base_filename = os.path.splitext(os.path.basename(html_file))[0]
-        
+
         # Use generate_stock_table for consistency
         html_generator.generate_stock_table(
             stocks_data=stocks_data,
             title="No Results Found",
             output_filename=base_filename,
-            include_columns=list(empty_df.columns)
+            include_columns=list(empty_df.columns),
         )
 
         logger.debug(f"Created empty results files: {output_file}, {html_file}")
 
-    except (KeyError, OSError, IOError, AttributeError) as e:
+    except (KeyError, OSError, AttributeError) as e:
         logger.error(f"Error creating empty results file: {str(e)}")
 
 
@@ -441,7 +441,7 @@ def _sort_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
 
         # Apply universal sorting (asset type priority, then market cap descending)
         sorted_df = universal_sort_dataframe(display_df)
-        
+
         logger.debug(f"Applied universal sorting to dataframe: {len(sorted_df)} rows")
         return sorted_df
 
@@ -506,6 +506,7 @@ def format_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
 
         # Format ROE as percentage value with 1 decimal (no % sign, like EG and PP columns)
         if "ROE" in formatted_df.columns:
+
             def format_roe(x):
                 try:
                     if pd.notna(x) and x != "" and x != "--":
@@ -514,10 +515,12 @@ def format_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
                     return "--"
                 except:
                     return "--"
+
             formatted_df["ROE"] = formatted_df["ROE"].apply(format_roe)
 
         # Format DE with 1 decimal place for consistency
         if "DE" in formatted_df.columns:
+
             def format_de(x):
                 try:
                     if pd.notna(x) and x != "" and x != "--":
@@ -526,6 +529,7 @@ def format_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
                     return "--"
                 except:
                     return "--"
+
             formatted_df["DE"] = formatted_df["DE"].apply(format_de)
 
         # Format earnings date
@@ -774,8 +778,8 @@ def prepare_display_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def export_results_to_files(
-    results_dict: Dict[str, pd.DataFrame], report_source: str = "manual"
-) -> Dict[str, str]:
+    results_dict: dict[str, pd.DataFrame], report_source: str = "manual"
+) -> dict[str, str]:
     """
     Export analysis results to multiple output files.
 
@@ -813,7 +817,7 @@ def export_results_to_files(
         logger.info(f"Exported {len(output_files)} result files")
         return output_files
 
-    except (KeyError, TypeError, ValueError, OSError, IOError) as e:
+    except (KeyError, TypeError, ValueError, OSError) as e:
         logger.error(f"Error exporting results to files: {str(e)}")
         return {}
 
@@ -837,8 +841,8 @@ class OutputManager:
         ensure_output_directory(self.output_dir)
 
     def save_analysis_results(
-        self, results: Dict[str, Any], report_source: str = "manual"
-    ) -> Dict[str, str]:
+        self, results: dict[str, Any], report_source: str = "manual"
+    ) -> dict[str, str]:
         """
         Save complete analysis results to files.
 
@@ -863,12 +867,12 @@ class OutputManager:
             self.logger.info("✅ Analysis results saved successfully")
             return output_files
 
-        except (KeyError, TypeError, ValueError, OSError, IOError) as e:
+        except (KeyError, TypeError, ValueError, OSError) as e:
             error_msg = f"Failed to save analysis results: {str(e)}"
             self.logger.error(error_msg)
             raise RuntimeError(error_msg) from e
 
-    def generate_summary_report(self, results: Dict[str, Any]) -> str:
+    def generate_summary_report(self, results: dict[str, Any]) -> str:
         """
         Generate a text summary of analysis results.
 

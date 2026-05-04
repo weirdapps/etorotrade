@@ -18,7 +18,7 @@ Please report security vulnerabilities to the repository maintainers through Git
 - **Issue**: The `anthropics/claude-code-action@beta` cannot be pinned to a specific commit SHA as it's in beta
 - **Risk Level**: Medium (Unacceptable without SHA pinning)
 - **Status**: **DISABLED** - Workflow has been disabled to comply with security policy
-- **Resolution**: 
+- **Resolution**:
   - The workflow file has been disabled (claude.yml shows security notice only)
   - Original workflow preserved in `.github/workflows/claude.yml.disabled`
   - Will be re-enabled once a stable version with SHA pinning is available

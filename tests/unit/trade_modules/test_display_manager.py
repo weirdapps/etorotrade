@@ -5,8 +5,10 @@ Target: Test unified display formatting for console, CSV, and HTML
 File: trade_modules/display_manager.py (197 statements, 0% coverage)
 """
 
-import pandas as pd
 import os
+
+import pandas as pd
+
 
 class TestDisplayManagerInit:
     """Test DisplayManager initialization."""
@@ -29,6 +31,7 @@ class TestDisplayManagerInit:
         manager = DisplayManager(config=custom_config)
 
         assert manager.config is custom_config
+
 
 class TestPrepareDataFrame:
     """Test DataFrame preparation."""
@@ -57,6 +60,7 @@ class TestPrepareDataFrame:
 
         # Should only include available columns
         assert not result.empty
+
 
 class TestFormatMethods:
     """Test format convenience methods."""
@@ -94,13 +98,15 @@ class TestFormatMethods:
 
         assert isinstance(result, pd.DataFrame)
 
+
 class TestValueFormatting:
     """Test value formatting."""
 
     def test_format_value_na_returns_dash(self):
         """Format NA value returns '--'."""
-        from trade_modules.display_manager import DisplayManager
         import numpy as np
+
+        from trade_modules.display_manager import DisplayManager
 
         manager = DisplayManager()
 
@@ -128,6 +134,7 @@ class TestValueFormatting:
 
         assert result == "AAPL"
 
+
 class TestCurrencyFormatting:
     """Test currency formatting."""
 
@@ -151,7 +158,7 @@ class TestCurrencyFormatting:
             "type": "currency",
             "decimals": 4,
             "symbol": "$",
-            "threshold_high_decimals": 100
+            "threshold_high_decimals": 100,
         }
 
         result = manager._format_currency(1500.1234, format_rule, "console")
@@ -182,6 +189,7 @@ class TestCurrencyFormatting:
 
         assert result == "invalid"
 
+
 class TestPercentageFormatting:
     """Test percentage formatting."""
 
@@ -205,7 +213,7 @@ class TestPercentageFormatting:
             "type": "percentage",
             "decimals": 1,
             "suffix": "%",
-            "color_positive": "green"
+            "color_positive": "green",
         }
 
         result = manager._format_percentage(10.5, format_rule, "console")
@@ -219,12 +227,7 @@ class TestPercentageFormatting:
         from trade_modules.display_manager import DisplayManager
 
         manager = DisplayManager()
-        format_rule = {
-            "type": "percentage",
-            "decimals": 1,
-            "suffix": "%",
-            "color_negative": "red"
-        }
+        format_rule = {"type": "percentage", "decimals": 1, "suffix": "%", "color_negative": "red"}
 
         result = manager._format_percentage(-5.2, format_rule, "console")
 
@@ -241,13 +244,14 @@ class TestPercentageFormatting:
             "type": "percentage",
             "decimals": 1,
             "suffix": "%",
-            "color_positive": "green"
+            "color_positive": "green",
         }
 
         result = manager._format_percentage(10.5, format_rule, "csv")
 
         assert result == "10.5%"
         assert "\033[" not in result  # No color codes
+
 
 class TestMarketCapFormatting:
     """Test market cap formatting."""
@@ -296,6 +300,7 @@ class TestMarketCapFormatting:
 
         assert result == "500,000"
 
+
 class TestDecimalFormatting:
     """Test decimal formatting."""
 
@@ -321,6 +326,7 @@ class TestDecimalFormatting:
 
         assert result == "2.7183"
 
+
 class TestActionFormatting:
     """Test action formatting."""
 
@@ -329,12 +335,7 @@ class TestActionFormatting:
         from trade_modules.display_manager import DisplayManager
 
         manager = DisplayManager()
-        format_rule = {
-            "type": "action",
-            "colors": {
-                "BUY": {"name": "BUY", "console": "\033[92m"}
-            }
-        }
+        format_rule = {"type": "action", "colors": {"BUY": {"name": "BUY", "console": "\033[92m"}}}
 
         result = manager._format_action("buy", format_rule, "console")
 
@@ -348,9 +349,7 @@ class TestActionFormatting:
         manager = DisplayManager()
         format_rule = {
             "type": "action",
-            "colors": {
-                "SELL": {"name": "SELL", "console": "\033[91m"}
-            }
+            "colors": {"SELL": {"name": "SELL", "console": "\033[91m"}},
         }
 
         result = manager._format_action("sell", format_rule, "console")
@@ -363,12 +362,7 @@ class TestActionFormatting:
         from trade_modules.display_manager import DisplayManager
 
         manager = DisplayManager()
-        format_rule = {
-            "type": "action",
-            "colors": {
-                "BUY": {"name": "BUY", "console": "\033[92m"}
-            }
-        }
+        format_rule = {"type": "action", "colors": {"BUY": {"name": "BUY", "console": "\033[92m"}}}
 
         result = manager._format_action("buy", format_rule, "csv")
 
@@ -385,6 +379,7 @@ class TestActionFormatting:
         result = manager._format_action("unknown", format_rule, "console")
 
         assert result == "UNKNOWN"
+
 
 class TestSaveCSV:
     """Test CSV saving."""
@@ -427,6 +422,7 @@ class TestSaveCSV:
         saved_df = pd.read_csv(output_file)
         assert len(saved_df) == 2
 
+
 class TestSaveHTML:
     """Test HTML saving."""
 
@@ -453,7 +449,7 @@ class TestSaveHTML:
         manager.save_html(df, output_file, "p", title="Custom Title")
 
         # Read content and verify title
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             content = f.read()
         assert "Custom Title" in content
 
@@ -468,6 +464,7 @@ class TestSaveHTML:
         manager.save_html(df, output_file, "p")
 
         assert os.path.exists(output_file)
+
 
 class TestGenerateHTMLTable:
     """Test HTML table generation."""
@@ -500,13 +497,15 @@ class TestGenerateHTMLTable:
         assert "action-buy" in html
         assert "action-sell" in html
 
+
 class TestGetHTMLCSSClass:
     """Test HTML CSS class determination."""
 
     def test_get_css_class_action_buy(self):
         """Get CSS class for BUY action."""
-        from trade_modules.display_manager import DisplayManager
         from unittest.mock import Mock
+
+        from trade_modules.display_manager import DisplayManager
 
         manager = DisplayManager()
         # Mock config to return action format rule
@@ -518,8 +517,9 @@ class TestGetHTMLCSSClass:
 
     def test_get_css_class_action_sell(self):
         """Get CSS class for SELL action."""
-        from trade_modules.display_manager import DisplayManager
         from unittest.mock import Mock
+
+        from trade_modules.display_manager import DisplayManager
 
         manager = DisplayManager()
         # Mock config to return action format rule
@@ -531,8 +531,9 @@ class TestGetHTMLCSSClass:
 
     def test_get_css_class_positive_value(self):
         """Get CSS class for positive value."""
-        from trade_modules.display_manager import DisplayManager
         from unittest.mock import Mock
+
+        from trade_modules.display_manager import DisplayManager
 
         manager = DisplayManager()
         # Mock config to return non-action format rule
@@ -544,8 +545,9 @@ class TestGetHTMLCSSClass:
 
     def test_get_css_class_negative_value(self):
         """Get CSS class for negative value."""
-        from trade_modules.display_manager import DisplayManager
         from unittest.mock import Mock
+
+        from trade_modules.display_manager import DisplayManager
 
         manager = DisplayManager()
         # Mock config to return non-action format rule
@@ -554,6 +556,7 @@ class TestGetHTMLCSSClass:
         css_class = manager._get_html_css_class("UPSIDE", "-5.2%")
 
         assert css_class == "negative"
+
 
 class TestGetOptionTitle:
     """Test option title generation."""
@@ -607,4 +610,3 @@ class TestGetOptionTitle:
         title = manager.get_option_title("x")
 
         assert "Analysis" in title
-

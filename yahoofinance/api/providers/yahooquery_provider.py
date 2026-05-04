@@ -7,7 +7,7 @@ appropriate rate limiting, caching, and error handling.
 """
 
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 from yahooquery import Ticker
@@ -25,6 +25,7 @@ TOO_MANY_REQUESTS_ERROR_MESSAGE = "too many requests"
 from ...utils.network.rate_limiter import rate_limited
 
 logger = get_logger(__name__)
+
 
 class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
     """
@@ -60,7 +61,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         time.sleep(delay)
 
     @rate_limited
-    def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> Dict[str, Any]:
+    def get_ticker_info(self, ticker: str, skip_insider_metrics: bool = False) -> dict[str, Any]:
         """
         Get comprehensive information for a ticker.
 
@@ -104,9 +105,9 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 "price": price_data.get("regularMarketPrice", None),
                 "target_price": financial_data.get("targetMeanPrice", None),
                 "market_cap": (
-                    price_data.get("marketCap") or  # Regular stocks
-                    price_data.get("totalAssets") or  # ETFs
-                    price_data.get("netAssets")  # Alternative ETF field
+                    price_data.get("marketCap")  # Regular stocks
+                    or price_data.get("totalAssets")  # ETFs
+                    or price_data.get("netAssets")  # Alternative ETF field
                 ),
                 "beta": key_stats.get("beta", None),
                 "pe_trailing": key_stats.get("trailingPE", None),
@@ -131,7 +132,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Get analyst ratings and recommendations
             try:
                 recommendations = yq_ticker.recommendation_trend.get(ticker, {})
-                if recommendations and isinstance(recommendations, List) and recommendations:
+                if recommendations and isinstance(recommendations, list) and recommendations:
                     latest_rec = recommendations[0]  # Most recent period's data
 
                     # Calculate buy percentage
@@ -171,9 +172,9 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 earnings_dates = calendar.get("earnings_dates", [])
                 if earnings_dates and isinstance(earnings_dates, list) and len(earnings_dates) > 0:
                     # Filter for past earnings dates only
-                    today = pd.Timestamp.now(tz='UTC').date()
+                    today = pd.Timestamp.now(tz="UTC").date()
                     past_earnings = []
-                    
+
                     for earning in earnings_dates:
                         earnings_date = earning.get("earnings_date")
                         if earnings_date:
@@ -183,7 +184,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                                     past_earnings.append((earnings_date_obj, earning))
                             except:
                                 continue
-                    
+
                     # Sort by date descending to get the most recent past date
                     if past_earnings:
                         past_earnings.sort(key=lambda x: x[0], reverse=True)
@@ -245,8 +246,8 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             raise YFinanceError(f"Error fetching data for ticker {ticker}: {str(e)}")
 
     def _process_insider_transactions(
-        self, insider_data: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, insider_data: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         Process insider transactions data from yahooquery format.
 
@@ -277,7 +278,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
         return processed_transactions
 
     @rate_limited
-    def get_price_data(self, ticker: str) -> Dict[str, Any]:
+    def get_price_data(self, ticker: str) -> dict[str, Any]:
         """
         Get current price data for a ticker.
 
@@ -317,13 +318,22 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 "target_price_high": financial_data.get("targetHighPrice", None),
                 "target_price_low": financial_data.get("targetLowPrice", None),
                 "target_dispersion": (
-                    ((financial_data.get("targetHighPrice") - financial_data.get("targetLowPrice"))
-                     / financial_data.get("targetMedianPrice") * 100)
-                    if all(v is not None and v > 0 for v in [
-                        financial_data.get("targetHighPrice"),
-                        financial_data.get("targetLowPrice"),
-                        financial_data.get("targetMedianPrice"),
-                    ])
+                    (
+                        (
+                            financial_data.get("targetHighPrice")
+                            - financial_data.get("targetLowPrice")
+                        )
+                        / financial_data.get("targetMedianPrice")
+                        * 100
+                    )
+                    if all(
+                        v is not None and v > 0
+                        for v in [
+                            financial_data.get("targetHighPrice"),
+                            financial_data.get("targetLowPrice"),
+                            financial_data.get("targetMedianPrice"),
+                        ]
+                    )
                     else None
                 ),
                 "price_target_analyst_count": financial_data.get("numberOfAnalystOpinions", None),
@@ -419,7 +429,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             raise YFinanceError(f"Error fetching historical data for {ticker}: {str(e)}")
 
     @rate_limited
-    def get_earnings_dates(self, ticker: str) -> Tuple[Optional[str], Optional[str]]:
+    def get_earnings_dates(self, ticker: str) -> tuple[str | None, str | None]:
         """
         Get the last two earnings dates for a stock.
 
@@ -477,7 +487,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             raise YFinanceError(f"Error fetching earnings dates for {ticker}: {str(e)}")
 
     @rate_limited
-    def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
+    def get_analyst_ratings(self, ticker: str) -> dict[str, Any]:
         """
         Get analyst ratings for a ticker.
 
@@ -557,7 +567,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             raise YFinanceError(f"Error fetching analyst ratings for {ticker}: {str(e)}")
 
     @rate_limited
-    def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
+    def get_insider_transactions(self, ticker: str) -> list[dict[str, Any]]:
         """
         Get insider transactions for a ticker.
 
@@ -597,7 +607,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             raise YFinanceError(f"Error fetching insider transactions for {ticker}: {str(e)}")
 
     @rate_limited
-    def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_tickers(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Search for tickers matching a query.
 
@@ -634,8 +644,8 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
 
     @rate_limited
     def batch_get_ticker_info(
-        self, tickers: List[str], skip_insider_metrics: bool = False
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tickers: list[str], skip_insider_metrics: bool = False
+    ) -> dict[str, dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch.
 
@@ -696,26 +706,39 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                     "industry": ticker_price.get("industry", ""),
                     "price": ticker_price.get("regularMarketPrice", None),
                     # Price target fields - use median as primary, extract all for validation
-                    "target_price": ticker_financial.get("targetMedianPrice", None),  # Changed to median
+                    "target_price": ticker_financial.get(
+                        "targetMedianPrice", None
+                    ),  # Changed to median
                     "target_price_mean": ticker_financial.get("targetMeanPrice", None),
                     "target_price_median": ticker_financial.get("targetMedianPrice", None),
                     "target_price_high": ticker_financial.get("targetHighPrice", None),
                     "target_price_low": ticker_financial.get("targetLowPrice", None),
                     "target_dispersion": (
-                        ((ticker_financial.get("targetHighPrice") - ticker_financial.get("targetLowPrice"))
-                         / ticker_financial.get("targetMedianPrice") * 100)
-                        if all(v is not None and v > 0 for v in [
-                            ticker_financial.get("targetHighPrice"),
-                            ticker_financial.get("targetLowPrice"),
-                            ticker_financial.get("targetMedianPrice"),
-                        ])
+                        (
+                            (
+                                ticker_financial.get("targetHighPrice")
+                                - ticker_financial.get("targetLowPrice")
+                            )
+                            / ticker_financial.get("targetMedianPrice")
+                            * 100
+                        )
+                        if all(
+                            v is not None and v > 0
+                            for v in [
+                                ticker_financial.get("targetHighPrice"),
+                                ticker_financial.get("targetLowPrice"),
+                                ticker_financial.get("targetMedianPrice"),
+                            ]
+                        )
                         else None
                     ),
-                    "price_target_analyst_count": ticker_financial.get("numberOfAnalystOpinions", None),
+                    "price_target_analyst_count": ticker_financial.get(
+                        "numberOfAnalystOpinions", None
+                    ),
                     "market_cap": (
-                        ticker_price.get("marketCap") or  # Regular stocks
-                        ticker_price.get("totalAssets") or  # ETFs
-                        ticker_price.get("netAssets")  # Alternative ETF field
+                        ticker_price.get("marketCap")  # Regular stocks
+                        or ticker_price.get("totalAssets")  # ETFs
+                        or ticker_price.get("netAssets")  # Alternative ETF field
                     ),
                     "beta": ticker_stats.get("beta", None),
                     "pe_trailing": ticker_stats.get("trailingPE", None),
@@ -781,9 +804,9 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                 earnings_dates = ticker_calendar.get("earnings_dates", [])
                 if earnings_dates and isinstance(earnings_dates, list) and len(earnings_dates) > 0:
                     # Filter for past earnings dates only
-                    today = pd.Timestamp.now(tz='UTC').date()
+                    today = pd.Timestamp.now(tz="UTC").date()
                     past_earnings = []
-                    
+
                     for earning in earnings_dates:
                         earnings_date = earning.get("earnings_date")
                         if earnings_date:
@@ -793,7 +816,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                                     past_earnings.append((earnings_date_obj, earning))
                             except:
                                 continue
-                    
+
                     # Sort by date descending to get the most recent past date
                     if past_earnings:
                         past_earnings.sort(key=lambda x: x[0], reverse=True)
@@ -852,89 +875,110 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
             # Generic error handler
             raise YFinanceError(f"Error fetching batch ticker info: {str(e)}")
 
-    def _calculate_earnings_growth(self, ticker: str) -> Optional[float]:
+    def _calculate_earnings_growth(self, ticker: str) -> float | None:
         """
         Calculate earnings growth by comparing recent quarters.
-        
+
         Uses quarterly income statement data since quarterly_earnings is deprecated.
         Tries year-over-year growth first, falls back to quarter-over-quarter if needed.
-        
+
         Args:
             ticker: Stock ticker symbol
-            
+
         Returns:
             Earnings growth as percentage, or None if unable to calculate
         """
         try:
-            import yfinance as yf
             import pandas as pd
-            
+            import yfinance as yf
+
             yticker = yf.Ticker(ticker)
-            
+
             # Use quarterly income statement (quarterly_earnings is deprecated)
             quarterly_income = yticker.quarterly_income_stmt
             if quarterly_income is None or quarterly_income.empty:
                 logger.debug(f"No quarterly income statement data for {ticker}")
                 return None
-            
+
             # Look for net income fields in order of preference
             earnings_row = None
             potential_keys = [
-                'Net Income From Continuing Operation Net Minority Interest',
-                'Net Income Common Stockholders', 
-                'Net Income',
-                'Net Income Including Noncontrolling Interests',
-                'Net Income Continuous Operations'
+                "Net Income From Continuing Operation Net Minority Interest",
+                "Net Income Common Stockholders",
+                "Net Income",
+                "Net Income Including Noncontrolling Interests",
+                "Net Income Continuous Operations",
             ]
-            
+
             for potential_key in potential_keys:
                 if potential_key in quarterly_income.index:
                     earnings_row = quarterly_income.loc[potential_key]
                     logger.debug(f"Using earnings field '{potential_key}' for {ticker}")
                     break
-            
+
             if earnings_row is None:
                 logger.debug(f"No earnings row found in quarterly income statement for {ticker}")
                 return None
-            
+
             # Remove NaN values and sort by date descending (most recent first)
             earnings_data = earnings_row.dropna().sort_index(ascending=False)
-            
+
             if len(earnings_data) < 2:
-                logger.debug(f"Insufficient income statement data for {ticker} (only {len(earnings_data)} quarters)")
+                logger.debug(
+                    f"Insufficient income statement data for {ticker} (only {len(earnings_data)} quarters)"
+                )
                 return None
-            
+
             # Convert to numeric and handle any string/object types
-            earnings_data = pd.to_numeric(earnings_data, errors='coerce').dropna()
-            
+            earnings_data = pd.to_numeric(earnings_data, errors="coerce").dropna()
+
             if len(earnings_data) < 2:
                 logger.debug(f"Insufficient numeric earnings data for {ticker}")
                 return None
-            
+
             # Try year-over-year calculation first (preferred)
             if len(earnings_data) >= 4:
                 current_quarter = float(earnings_data.iloc[0])  # Most recent
                 year_ago_quarter = float(earnings_data.iloc[3])  # 4 quarters ago
-                
-                if year_ago_quarter != 0 and abs(year_ago_quarter) > 1000:  # Avoid division by small numbers
+
+                if (
+                    year_ago_quarter != 0 and abs(year_ago_quarter) > 1000
+                ):  # Avoid division by small numbers
                     # Year-over-year growth
-                    yoy_growth = ((current_quarter - year_ago_quarter) / abs(year_ago_quarter)) * 100
-                    logger.debug(f"Calculated YoY earnings growth for {ticker}: {yoy_growth:.1f}% (current: {current_quarter:,.0f}, year ago: {year_ago_quarter:,.0f})")
+                    yoy_growth = (
+                        (current_quarter - year_ago_quarter) / abs(year_ago_quarter)
+                    ) * 100
+                    logger.debug(
+                        f"Calculated YoY earnings growth for {ticker}: {yoy_growth:.1f}% (current: {current_quarter:,.0f}, year ago: {year_ago_quarter:,.0f})"
+                    )
                     return round(yoy_growth, 1)
-            
+
             # Fall back to quarter-over-quarter calculation
             current_quarter = float(earnings_data.iloc[0])  # Most recent
             previous_quarter = float(earnings_data.iloc[1])  # Previous quarter
-            
-            if previous_quarter != 0 and abs(previous_quarter) > 1000:  # Avoid division by small numbers
+
+            if (
+                previous_quarter != 0 and abs(previous_quarter) > 1000
+            ):  # Avoid division by small numbers
                 # Quarter-over-quarter growth (not annualized for display)
                 qoq_growth = ((current_quarter - previous_quarter) / abs(previous_quarter)) * 100
-                logger.debug(f"Calculated QoQ earnings growth for {ticker}: {qoq_growth:.1f}% (current: {current_quarter:,.0f}, previous: {previous_quarter:,.0f})")
+                logger.debug(
+                    f"Calculated QoQ earnings growth for {ticker}: {qoq_growth:.1f}% (current: {current_quarter:,.0f}, previous: {previous_quarter:,.0f})"
+                )
                 return round(qoq_growth, 1)
-            
-            logger.debug(f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings")
+
+            logger.debug(
+                f"Unable to calculate earnings growth for {ticker} - zero or insufficient base earnings"
+            )
             return None
-                
-        except (KeyError, ValueError, TypeError, AttributeError, IndexError, ZeroDivisionError) as e:
+
+        except (
+            KeyError,
+            ValueError,
+            TypeError,
+            AttributeError,
+            IndexError,
+            ZeroDivisionError,
+        ) as e:
             logger.debug(f"Error calculating earnings growth for {ticker}: {e}")
             return None

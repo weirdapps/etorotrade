@@ -8,16 +8,16 @@ compatibility with existing systems.
 
 from .ticker_service import (
     TickerService,
+    check_ticker_equivalence_safe,
     default_ticker_service,
-    normalize_ticker_safe,
     normalize_ticker_list_safe,
-    check_ticker_equivalence_safe
+    normalize_ticker_safe,
 )
 
 __all__ = [
-    'TickerService',
-    'default_ticker_service',
-    'normalize_ticker_safe',
-    'normalize_ticker_list_safe',
-    'check_ticker_equivalence_safe'
+    "TickerService",
+    "default_ticker_service",
+    "normalize_ticker_safe",
+    "normalize_ticker_list_safe",
+    "check_ticker_equivalence_safe",
 ]

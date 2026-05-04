@@ -48,7 +48,7 @@ The project features a sophisticated GitHub Actions pipeline with multiple jobs 
 
 The pipeline includes comprehensive code quality tools with optimized configuration:
 
-- **Flake8**: 
+- **Flake8**:
   - Max line length: 100 characters
   - Max complexity: 10
   - Critical errors halt build, warnings continue
@@ -202,7 +202,7 @@ Monitor key metrics during development:
    ```bash
    # Skip hooks temporarily (not recommended)
    git commit --no-verify
-   
+
    # Fix issues and retry
    pre-commit run --all-files
    ```
@@ -211,7 +211,7 @@ Monitor key metrics during development:
    ```bash
    # Clean Docker cache
    docker system prune -a
-   
+
    # Rebuild without cache
    docker-compose build --no-cache
    ```
@@ -220,7 +220,7 @@ Monitor key metrics during development:
    ```bash
    # Run specific test with verbose output
    pytest -vv tests/path/to/test.py::test_function
-   
+
    # Run with debugging
    pytest --pdb tests/path/to/test.py
    ```

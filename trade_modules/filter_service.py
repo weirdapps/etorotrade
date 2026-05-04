@@ -5,13 +5,10 @@ Contains filtering logic for buy, sell, hold opportunities and notrade tickers.
 """
 
 import logging
-from pathlib import Path
-from typing import Dict
 
 import pandas as pd
 
 from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
-from yahoofinance.core.errors import DataError
 
 
 class FilterService:
@@ -25,14 +22,14 @@ class FilterService:
         """Filter out tickers from the notrade list using ticker equivalence checking."""
         try:
             notrade_df = pd.read_csv(notrade_path)
-            
+
             # Look for ticker column with different possible names
             ticker_col = None
             for col in ["Ticker", "ticker", "TICKER", "symbol", "Symbol", "SYMBOL"]:
                 if col in notrade_df.columns:
                     ticker_col = col
                     break
-            
+
             if ticker_col:
                 notrade_tickers = set()
                 for ticker in notrade_df[ticker_col]:
@@ -95,10 +92,10 @@ class FilterService:
         if upside_col and len(filtered_df) > 0:
             # Parse upside values (handle percentage strings)
             def parse_upside(val):
-                if pd.isna(val) or val == '--':
+                if pd.isna(val) or val == "--":
                     return 0.0  # Default to 0 if missing
                 try:
-                    return float(str(val).rstrip('%'))
+                    return float(str(val).rstrip("%"))
                 except (ValueError, TypeError):
                     return 0.0
 

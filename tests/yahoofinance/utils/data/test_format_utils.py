@@ -18,6 +18,7 @@ from yahoofinance.utils.data.format_utils import (
     format_position_size,
 )
 
+
 class TestFormatUtilsFunctions(unittest.TestCase):
     """Test formatting utility functions for market data."""
 
@@ -134,7 +135,7 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         actual_result = calculate_position_size(2e12, exret_value, beta=beta_value)
         self.assertEqual(actual_result, 13500)  # Correct calculation result
 
-        # Test GROWTH tier ($5B-$100B) - 1.0% base = $5,000  
+        # Test GROWTH tier ($5B-$100B) - 1.0% base = $5,000
         # For market cap of 25B with EXRET of 15% and beta 1.2:
         # Base: $5,000 × Beta: 0.92x × EXRET: 1.25x = $5,750 → rounded to $6,000
         growth_cap = 25e9
@@ -155,7 +156,7 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         # Test beta scaling boundaries
         # High beta stock (beta 2.5) should hit 0.8x floor
         high_beta_size = calculate_position_size(200e9, 10, beta=2.5)  # VALUE tier
-        low_beta_size = calculate_position_size(200e9, 10, beta=0.5)   # VALUE tier
+        low_beta_size = calculate_position_size(200e9, 10, beta=0.5)  # VALUE tier
         # High beta should be smaller than low beta due to risk penalty
         self.assertLess(high_beta_size, low_beta_size)
 
@@ -304,6 +305,7 @@ class TestFormatUtilsFunctions(unittest.TestCase):
         # Test with empty data
         empty_csv = format_for_csv([])
         self.assertEqual(empty_csv, [])
+
 
 class TestFormatUtilsBackwardCompatibility(unittest.TestCase):
     """Test backward compatibility with the FormatUtils class."""

@@ -17,29 +17,31 @@ from yahoofinance.core.errors import RateLimitError, ValidationError
 from yahoofinance.utils.async_utils import (
     AsyncRateLimiter,
     async_rate_limited,
+    process_batch_async,
+    retry_async,
 )
 from yahoofinance.utils.async_utils import (
     gather_with_concurrency as gather_with_rate_limit,  # It was renamed
 )
 from yahoofinance.utils.async_utils import global_async_rate_limiter as global_async_limiter
-from yahoofinance.utils.async_utils import (
-    process_batch_async,
-    retry_async,
-)
+
 
 # Helper functions for testing
 async def async_identity(x):
     """Simple async function that returns its input."""
     return x
 
+
 async def async_sleep_and_return(x, delay=0.1):
     """Async function that sleeps and returns its input."""
     await asyncio.sleep(delay)
     return x
 
+
 async def async_error(error_type=Exception):
     """Async function that raises an error."""
     raise error_type("Test error")
+
 
 # Fixtures
 @pytest.fixture
@@ -50,6 +52,7 @@ def async_limiter():
     return AsyncRateLimiter(
         window_size=5, max_calls=20, base_delay=0.01, min_delay=0.005, max_delay=0.1
     )
+
 
 # Tests for AsyncRateLimiter
 class TestAsyncRateLimiter:
@@ -80,7 +83,9 @@ class TestAsyncRateLimiter:
     async def test_rate_limiting(self):
         """Test that rate limiting is enforced."""
         limiter = AsyncRateLimiter(
-            window_size=1, max_calls=3, base_delay=0.01  # 1-second window  # 3 calls per window
+            window_size=1,
+            max_calls=3,
+            base_delay=0.01,  # 1-second window  # 3 calls per window
         )
 
         # Make 3 calls to fill the window
@@ -95,6 +100,7 @@ class TestAsyncRateLimiter:
             # Should have called sleep at least once
             assert mock_sleep.called, "Sleep should have been called for rate limiting"
 
+
 # Tests for async_rate_limited decorator
 class TestAsyncRateLimitedDecorator:
     """Tests for the async_rate_limited decorator."""
@@ -105,11 +111,11 @@ class TestAsyncRateLimitedDecorator:
         limiter = AsyncRateLimiter(base_delay=0.01)
 
         # Patch the limiter methods to track calls
-        with patch.object(limiter, "wait", new_callable=AsyncMock) as mock_wait, patch.object(
-            limiter, "record_success", new_callable=AsyncMock
-        ) as mock_success, patch.object(
-            limiter, "record_failure", new_callable=AsyncMock
-        ) as mock_failure:
+        with (
+            patch.object(limiter, "wait", new_callable=AsyncMock) as mock_wait,
+            patch.object(limiter, "record_success", new_callable=AsyncMock) as mock_success,
+            patch.object(limiter, "record_failure", new_callable=AsyncMock) as mock_failure,
+        ):
 
             @async_rate_limited(rate_limiter=limiter)
             async def test_func(x):
@@ -129,11 +135,11 @@ class TestAsyncRateLimitedDecorator:
         limiter = AsyncRateLimiter(base_delay=0.01)
 
         # Patch the limiter methods to track calls
-        with patch.object(limiter, "wait", new_callable=AsyncMock) as mock_wait, patch.object(
-            limiter, "record_success", new_callable=AsyncMock
-        ) as mock_success, patch.object(
-            limiter, "record_failure", new_callable=AsyncMock
-        ) as mock_failure:
+        with (
+            patch.object(limiter, "wait", new_callable=AsyncMock) as mock_wait,
+            patch.object(limiter, "record_success", new_callable=AsyncMock) as mock_success,
+            patch.object(limiter, "record_failure", new_callable=AsyncMock) as mock_failure,
+        ):
 
             @async_rate_limited(rate_limiter=limiter)
             async def error_func():
@@ -158,11 +164,11 @@ class TestAsyncRateLimitedDecorator:
         limiter = AsyncRateLimiter(base_delay=0.01)
 
         # Patch the limiter methods to track calls
-        with patch.object(limiter, "wait", new_callable=AsyncMock) as mock_wait, patch.object(
-            limiter, "record_success", new_callable=AsyncMock
-        ) as mock_success, patch.object(
-            limiter, "record_failure", new_callable=AsyncMock
-        ) as mock_failure:
+        with (
+            patch.object(limiter, "wait", new_callable=AsyncMock) as mock_wait,
+            patch.object(limiter, "record_success", new_callable=AsyncMock) as mock_success,
+            patch.object(limiter, "record_failure", new_callable=AsyncMock) as mock_failure,
+        ):
 
             @async_rate_limited(rate_limiter=limiter)
             async def rate_limit_func():
@@ -180,6 +186,7 @@ class TestAsyncRateLimitedDecorator:
             # and sets is_rate_limit=True
             mock_failure.assert_called_once()
             mock_failure.assert_called_once_with(is_rate_limit=True, ticker=None)
+
 
 # Tests for gather_with_concurrency (formerly gather_with_rate_limit)
 class TestGatherWithConcurrency:
@@ -249,6 +256,7 @@ class TestGatherWithConcurrency:
         except Exception:
             pytest.fail("Should not have raised with return_exceptions=True")
 
+
 # Tests for process_batch_async
 class TestProcessBatchAsync:
     """Tests for the process_batch_async function."""
@@ -308,15 +316,18 @@ class TestProcessBatchAsync:
 
         # Mock sleep to verify behavior
         with patch("asyncio.sleep", AsyncMock()) as mock_sleep:
-            results = await process_batch_async(items, process, batch_size=3, delay_between_batches=0.5)
+            results = await process_batch_async(
+                items, process, batch_size=3, delay_between_batches=0.5
+            )
 
             # Verify processing completed successfully
             assert len(results) == 10
             assert results == {i: i * 10 for i in items}
-            
+
             # Note: Batch delays are disabled for performance optimization
             # So we don't expect any sleep calls for batch delays
             # The test verifies that processing works correctly without delays
+
 
 # Tests for retry_async
 class TestRetryAsync:
@@ -370,10 +381,12 @@ class TestRetryAsync:
         # Should be called 3 times total (initial + 2 retries)
         assert func_mock.call_count == 3
 
+
 # Test global instance
 def test_global_async_limiter():
     """Test the global async rate limiter instance."""
     assert isinstance(global_async_limiter, AsyncRateLimiter)
+
 
 # Test import compatibility
 def test_import_compatibility():

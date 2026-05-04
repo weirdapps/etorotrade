@@ -4,50 +4,40 @@ Core trading engine module extracted from trade.py.
 Contains business logic for trading decisions, calculations, and analysis.
 """
 
-import logging
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
 import pandas as pd
 
-from yahoofinance.core.errors import APIError, DataError, ValidationError, YFinanceError
-from .errors import TradingEngineError
+from yahoofinance.core.errors import ValidationError
 from yahoofinance.core.logging import get_logger
+
+from .errors import TradingEngineError
+
 # Import AsyncHybridProvider lazily to avoid circular imports
 AsyncHybridProvider = None
+
 
 def get_async_hybrid_provider():
     global AsyncHybridProvider
     if AsyncHybridProvider is None:
-        from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider as _AsyncHybridProvider
+        from yahoofinance.api.providers.async_hybrid_provider import (
+            AsyncHybridProvider as _AsyncHybridProvider,
+        )
+
         AsyncHybridProvider = _AsyncHybridProvider
     return AsyncHybridProvider
-from yahoofinance.presentation import MarketDisplay
-from yahoofinance.utils.data.ticker_utils import (
-    normalize_ticker,
-    are_equivalent_tickers,
-)
 
-from .utils import (
-    get_file_paths,
-    clean_ticker_symbol,
-    validate_dataframe,
-    normalize_ticker_for_display,
-    normalize_ticker_list_for_processing,
-)
-from .analysis_engine import calculate_exret, calculate_action
+
+from .analysis_service import AnalysisService
+from .data_processing_service import DataProcessingService
 from .data_processor import (
     process_market_data,
-    format_company_names,
-    format_numeric_columns,
-    calculate_expected_return,
 )
-from .data_processing_service import DataProcessingService
-from .analysis_service import AnalysisService
 from .filter_service import FilterService
 from .portfolio_service import PortfolioService
+from .utils import (
+    validate_dataframe,
+)
 
 logger = get_logger(__name__)
 
@@ -57,7 +47,7 @@ class TradingEngine:
 
     def __init__(self, provider_or_config=None, config=None, **kwargs):
         """Initialize trading engine with provider and configuration.
-        
+
         Args:
             provider_or_config: Either a provider instance or a config dict (for backward compatibility)
             config: Configuration dict (only used if first param is a provider)
@@ -65,21 +55,28 @@ class TradingEngine:
         """
         # Import here to avoid circular imports
         from yahoofinance.core.config import get_max_concurrent_requests
+
         max_concurrent = get_max_concurrent_requests()
         _AsyncHybridProvider = get_async_hybrid_provider()
-        
+
         # Check if provider was passed as keyword argument
-        if 'provider' in kwargs:
+        if "provider" in kwargs:
             # New signature with keyword: TradingEngine(provider=provider, config=config)
-            self.provider = kwargs['provider'] or _AsyncHybridProvider(max_concurrency=max_concurrent)
-            self.config = provider_or_config if isinstance(provider_or_config, dict) else config or {}
+            self.provider = kwargs["provider"] or _AsyncHybridProvider(
+                max_concurrency=max_concurrent
+            )
+            self.config = (
+                provider_or_config if isinstance(provider_or_config, dict) else config or {}
+            )
         elif isinstance(provider_or_config, dict):
             # Old signature: TradingEngine(config)
             self.config = provider_or_config
             self.provider = _AsyncHybridProvider(max_concurrency=max_concurrent)
         else:
             # New signature: TradingEngine(provider, config)
-            self.provider = provider_or_config or _AsyncHybridProvider(max_concurrency=max_concurrent)
+            self.provider = provider_or_config or _AsyncHybridProvider(
+                max_concurrency=max_concurrent
+            )
             self.config = config or {}
         self.logger = logger
         self.data_processing_service = DataProcessingService(self.provider, self.logger)
@@ -89,7 +86,7 @@ class TradingEngine:
 
     async def analyze_market_opportunities(
         self, market_df: pd.DataFrame, portfolio_df: pd.DataFrame = None, notrade_path: str = None
-    ) -> Dict[str, pd.DataFrame]:
+    ) -> dict[str, pd.DataFrame]:
         """
         Analyze market data for trading opportunities.
 
@@ -117,7 +114,9 @@ class TradingEngine:
 
             # Filter out notrade tickers if specified
             if notrade_path and Path(notrade_path).exists():
-                processed_market = self.filter_service.filter_notrade_tickers(processed_market, notrade_path)
+                processed_market = self.filter_service.filter_notrade_tickers(
+                    processed_market, notrade_path
+                )
 
             # ALWAYS recalculate signals to ensure latest criteria are applied
             # This prevents stale signals from persisted CSV files from being used
@@ -126,9 +125,15 @@ class TradingEngine:
             processed_market = self.analysis_service.calculate_trading_signals(processed_market)
 
             # Categorize opportunities
-            results["buy_opportunities"] = self.filter_service.filter_buy_opportunities(processed_market)
-            results["sell_opportunities"] = self.filter_service.filter_sell_opportunities(processed_market)
-            results["hold_opportunities"] = self.filter_service.filter_hold_opportunities(processed_market)
+            results["buy_opportunities"] = self.filter_service.filter_buy_opportunities(
+                processed_market
+            )
+            results["sell_opportunities"] = self.filter_service.filter_sell_opportunities(
+                processed_market
+            )
+            results["hold_opportunities"] = self.filter_service.filter_hold_opportunities(
+                processed_market
+            )
 
             # Apply portfolio filters if available
             if portfolio_df is not None and not portfolio_df.empty:
@@ -149,10 +154,10 @@ class TradingEngine:
 
         return results
 
-    async def process_ticker_batch(self, tickers: List[str], batch_size: int = 50) -> pd.DataFrame:
+    async def process_ticker_batch(self, tickers: list[str], batch_size: int = 50) -> pd.DataFrame:
         """Process a batch of tickers for market data."""
         return await self.data_processing_service.process_ticker_batch(tickers, batch_size)
-    
+
     # NOTE: Sync wrapper methods removed as part of architecture cleanup.
     # Use the async methods directly:
     #   - await analyze_market_opportunities(market_df, portfolio_df, notrade_path)
@@ -188,7 +193,6 @@ class TradingEngine:
         return self.analysis_service.calculate_trading_signals(df)
 
 
-
 # TradingEngineError is now imported from .errors module for consolidated error hierarchy
 
 
@@ -208,7 +212,7 @@ class PositionSizer:
         self.logger = logger
 
     def calculate_position_size(
-        self, ticker: str, market_data: Dict, portfolio_value: float, risk_level: str = "medium"
+        self, ticker: str, market_data: dict, portfolio_value: float, risk_level: str = "medium"
     ) -> float:
         """
         Calculate appropriate position size for a ticker.
@@ -226,9 +230,13 @@ class PositionSizer:
             # Base position size based on risk level
             # Start with different base sizes for each risk level to ensure differentiation
             if risk_level == "low":
-                base_size = self.min_position_size + (self.max_position_size - self.min_position_size) * 0.3
+                base_size = (
+                    self.min_position_size + (self.max_position_size - self.min_position_size) * 0.3
+                )
             elif risk_level == "medium":
-                base_size = self.min_position_size + (self.max_position_size - self.min_position_size) * 0.6
+                base_size = (
+                    self.min_position_size + (self.max_position_size - self.min_position_size) * 0.6
+                )
             else:  # high
                 base_size = self.max_position_size
 
@@ -284,7 +292,6 @@ class PositionSizer:
             return portfolio_value * self.min_position_size
 
 
-
 def create_trading_engine(provider=None, config=None, **kwargs) -> TradingEngine:
     """Factory function to create a trading engine instance."""
     # Support both ways of passing provider
@@ -300,16 +307,17 @@ def create_position_sizer(max_position: float = 0.05, min_position: float = 0.01
 
 
 # Backward compatibility function
-def process_ticker_input(ticker_input: str) -> List[str]:
+def process_ticker_input(ticker_input: str) -> list[str]:
     """Process ticker input string into a list of tickers."""
     if not ticker_input:
         return []
-    
+
     # Handle various input formats
     if isinstance(ticker_input, list):
         return ticker_input
-    
+
     # Split by comma, space, or newline
     import re
-    tickers = re.split(r'[,\s\n]+', ticker_input.strip())
+
+    tickers = re.split(r"[,\s\n]+", ticker_input.strip())
     return [t.strip().upper() for t in tickers if t.strip()]

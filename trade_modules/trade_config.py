@@ -9,15 +9,18 @@ Author: EtoroTrade System
 Version: 1.0.0 (Production)
 """
 
-from typing import ClassVar, Dict, List, Any, Optional, Union
 from enum import Enum
 from pathlib import Path
+from typing import Any, ClassVar
+
 import yaml
+
 from .yaml_config_loader import get_yaml_config
 
 
 class TradeOption(Enum):
     """Trading analysis options."""
+
     PORTFOLIO = "p"
     MARKET = "m"
     ETORO = "e"
@@ -27,6 +30,7 @@ class TradeOption(Enum):
 
 class TradeAction(Enum):
     """Trading actions."""
+
     BUY = "B"
     SELL = "S"
     HOLD = "H"
@@ -36,7 +40,7 @@ class TradeAction(Enum):
 class TradeConfig:
     """
     Centralized configuration for all trading parameters and display settings.
-    
+
     CRITICAL: This is the SINGLE SOURCE OF TRUTH.
     Modify ANY threshold or display setting HERE and ONLY HERE.
     """
@@ -55,9 +59,9 @@ class TradeConfig:
         "small_cap_min_analysts": 6,  # $2-5B needs more coverage
         "max_processing_time": 300,  # 5 minutes max
     }
-    
+
     @classmethod
-    def get_universal_thresholds(cls) -> Dict[str, Any]:
+    def get_universal_thresholds(cls) -> dict[str, Any]:
         """Get universal thresholds, preferring YAML config over hardcoded values."""
         yaml_config = get_yaml_config()
         if yaml_config.is_config_available():
@@ -69,15 +73,15 @@ class TradeConfig:
     # Market cap tier definitions
     # These will be overridden by YAML config if available
     TIER_THRESHOLDS = {
-        "mega_tier_min": 500_000_000_000,    # $500B+
-        "large_tier_min": 100_000_000_000,   # $100B-500B
-        "mid_tier_min": 10_000_000_000,      # $10B-100B
-        "small_tier_min": 2_000_000_000,     # $2B-10B
+        "mega_tier_min": 500_000_000_000,  # $500B+
+        "large_tier_min": 100_000_000_000,  # $100B-500B
+        "mid_tier_min": 10_000_000_000,  # $10B-100B
+        "small_tier_min": 2_000_000_000,  # $2B-10B
         # Below $2B = MICRO tier
     }
-    
+
     @classmethod
-    def get_tier_definitions(cls) -> Dict[str, Any]:
+    def get_tier_definitions(cls) -> dict[str, Any]:
         """Get tier threshold definitions, preferring YAML config over hardcoded values."""
         yaml_config = get_yaml_config()
         if yaml_config.is_config_available():
@@ -87,7 +91,7 @@ class TradeConfig:
         return cls.TIER_THRESHOLDS
 
     # Option-specific trading thresholds
-    THRESHOLDS: ClassVar[Dict[str, Dict[str, Dict[str, Any]]]] = {
+    THRESHOLDS: ClassVar[dict[str, dict[str, dict[str, Any]]]] = {
         # Portfolio Analysis (option: p)
         "portfolio": {
             "buy": {
@@ -119,9 +123,8 @@ class TradeConfig:
             "inconclusive": {
                 "insufficient_analyst_coverage": True,
                 "missing_key_data": True,
-            }
+            },
         },
-
         # Market Analysis (option: m)
         "market": {
             "buy": {
@@ -146,9 +149,8 @@ class TradeConfig:
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
-            }
+            },
         },
-
         # eToro Analysis (option: e)
         "etoro": {
             "buy": {
@@ -173,9 +175,8 @@ class TradeConfig:
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
-            }
+            },
         },
-
         # Trade Opportunities (option: t)
         "trade": {
             "buy": {
@@ -200,9 +201,8 @@ class TradeConfig:
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
-            }
+            },
         },
-
         # Manual Input (option: i)
         "input": {
             "buy": {
@@ -227,8 +227,8 @@ class TradeConfig:
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
-            }
-        }
+            },
+        },
     }
 
     # ============================================
@@ -237,79 +237,92 @@ class TradeConfig:
     # These rules override standard ROE/DE thresholds for specific sectors
     # where different capital structures are normal/expected
 
-    SECTOR_RULES: ClassVar[Dict[str, Dict[str, Any]]] = {
-        'FINANCIAL': {
-            'description': 'Banks, Asset Managers, Insurance - Leverage is their business model',
-            'min_roe_buy': 6.0,  # Lower threshold for mature financials
-            'min_roe_sell': 3.0,  # SELL if drops below 3%
-            'max_debt_equity_buy': 500.0,  # Much higher - banks typically 500-1500%
-            'max_debt_equity_sell': 800.0,  # SELL if exceeds 800%
-            'tickers': ['C', 'STT', 'WBS', 'RITM', 'MET', 'GL', 'SCHW', 'BAC', 'JPM', 'WFC', 'GS', 'MS'],
+    SECTOR_RULES: ClassVar[dict[str, dict[str, Any]]] = {
+        "FINANCIAL": {
+            "description": "Banks, Asset Managers, Insurance - Leverage is their business model",
+            "min_roe_buy": 6.0,  # Lower threshold for mature financials
+            "min_roe_sell": 3.0,  # SELL if drops below 3%
+            "max_debt_equity_buy": 500.0,  # Much higher - banks typically 500-1500%
+            "max_debt_equity_sell": 800.0,  # SELL if exceeds 800%
+            "tickers": [
+                "C",
+                "STT",
+                "WBS",
+                "RITM",
+                "MET",
+                "GL",
+                "SCHW",
+                "BAC",
+                "JPM",
+                "WFC",
+                "GS",
+                "MS",
+            ],
         },
-        'REIT': {
-            'description': 'REITs - Negative ROE/FCF due to depreciation is normal',
-            'skip_roe': True,  # Ignore ROE entirely for REITs
-            'skip_fcf': True,  # FCF is meaningless for REITs - use FFO instead
-            'max_debt_equity_buy': 300.0,
-            'max_debt_equity_sell': 400.0,
-            'tickers': ['CCI', 'AMT', 'SBAC', 'EQIX', 'DLR', 'PLD'],
+        "REIT": {
+            "description": "REITs - Negative ROE/FCF due to depreciation is normal",
+            "skip_roe": True,  # Ignore ROE entirely for REITs
+            "skip_fcf": True,  # FCF is meaningless for REITs - use FFO instead
+            "max_debt_equity_buy": 300.0,
+            "max_debt_equity_sell": 400.0,
+            "tickers": ["CCI", "AMT", "SBAC", "EQIX", "DLR", "PLD"],
         },
-        'MLP': {
-            'description': 'Master Limited Partnerships - Energy infrastructure with extreme leverage',
-            'min_roe_buy': 15.0,  # Should have high ROE to justify the leverage
-            'min_roe_sell': 8.0,
-            'max_debt_equity_buy': 800.0,  # Very high leverage is structural
-            'max_debt_equity_sell': 1000.0,
-            'tickers': ['TRGP', 'EPD', 'ET', 'MMP', 'MPLX'],
+        "MLP": {
+            "description": "Master Limited Partnerships - Energy infrastructure with extreme leverage",
+            "min_roe_buy": 15.0,  # Should have high ROE to justify the leverage
+            "min_roe_sell": 8.0,
+            "max_debt_equity_buy": 800.0,  # Very high leverage is structural
+            "max_debt_equity_sell": 1000.0,
+            "tickers": ["TRGP", "EPD", "ET", "MMP", "MPLX"],
         },
-        'PHARMA_HIGH_LEVERAGE': {
-            'description': 'Pharma companies with strategic R&D/acquisition leverage',
-            'min_roe_buy': 20.0,  # Must have excellent ROE to justify leverage
-            'min_roe_sell': 12.0,
-            'max_debt_equity_buy': 300.0,  # Allow higher for R&D financing
-            'max_debt_equity_sell': 400.0,
-            'tickers': ['LLY', 'BMY', 'ABBV', 'GILD'],
+        "PHARMA_HIGH_LEVERAGE": {
+            "description": "Pharma companies with strategic R&D/acquisition leverage",
+            "min_roe_buy": 20.0,  # Must have excellent ROE to justify leverage
+            "min_roe_sell": 12.0,
+            "max_debt_equity_buy": 300.0,  # Allow higher for R&D financing
+            "max_debt_equity_sell": 400.0,
+            "tickers": ["LLY", "BMY", "ABBV", "GILD"],
         },
-        'EQUIPMENT_FINANCING': {
-            'description': 'Equipment manufacturers with captive financing arms',
-            'min_roe_buy': 12.0,
-            'min_roe_sell': 8.0,
-            'max_debt_equity_buy': 300.0,  # Financing operations inflate DE
-            'max_debt_equity_sell': 400.0,
-            'tickers': ['DE', 'CAT', 'CNH'],
+        "EQUIPMENT_FINANCING": {
+            "description": "Equipment manufacturers with captive financing arms",
+            "min_roe_buy": 12.0,
+            "min_roe_sell": 8.0,
+            "max_debt_equity_buy": 300.0,  # Financing operations inflate DE
+            "max_debt_equity_sell": 400.0,
+            "tickers": ["DE", "CAT", "CNH"],
         },
-        'UTILITY': {
-            'description': 'Utilities and infrastructure - Capital intensive with stable cash flows',
-            'min_roe_buy': 8.0,  # Stable but lower ROE is normal
-            'min_roe_sell': 5.0,
-            'max_debt_equity_buy': 250.0,  # Higher leverage for infrastructure
-            'max_debt_equity_sell': 350.0,
-            'min_fcf_yield_buy': -10.0,  # Utilities often have negative FCF due to infrastructure capex
-            'tickers': ['VIE.PA', 'NEE', 'DUK', 'SO', 'D'],
+        "UTILITY": {
+            "description": "Utilities and infrastructure - Capital intensive with stable cash flows",
+            "min_roe_buy": 8.0,  # Stable but lower ROE is normal
+            "min_roe_sell": 5.0,
+            "max_debt_equity_buy": 250.0,  # Higher leverage for infrastructure
+            "max_debt_equity_sell": 350.0,
+            "min_fcf_yield_buy": -10.0,  # Utilities often have negative FCF due to infrastructure capex
+            "tickers": ["VIE.PA", "NEE", "DUK", "SO", "D"],
         },
-        'PAYMENT_PROCESSORS': {
-            'description': 'Asset-light payment networks with operating leverage from share buybacks',
-            'min_roe_buy': 30.0,  # Must have excellent ROE to justify leverage
-            'min_roe_sell': 20.0,
-            'max_debt_equity_buy': 250.0,  # Higher threshold - leverage from buybacks, not operational debt
-            'max_debt_equity_sell': 400.0,
-            'max_pe_vs_sector_buy': 1.8,  # Payment networks trade at premium to fin services (tech moat)
-            'tickers': ['V', 'MA', 'AXP', 'PYPL'],
+        "PAYMENT_PROCESSORS": {
+            "description": "Asset-light payment networks with operating leverage from share buybacks",
+            "min_roe_buy": 30.0,  # Must have excellent ROE to justify leverage
+            "min_roe_sell": 20.0,
+            "max_debt_equity_buy": 250.0,  # Higher threshold - leverage from buybacks, not operational debt
+            "max_debt_equity_sell": 400.0,
+            "max_pe_vs_sector_buy": 1.8,  # Payment networks trade at premium to fin services (tech moat)
+            "tickers": ["V", "MA", "AXP", "PYPL"],
         },
-        'TELECOM': {
-            'description': 'Telecommunications - Capital intensive with stable recurring revenues',
-            'min_roe_buy': 10.0,  # Lower ROE threshold - infrastructure heavy
-            'min_roe_sell': 5.0,
-            'max_debt_equity_buy': 220.0,  # Higher leverage for spectrum/infrastructure
-            'max_debt_equity_sell': 350.0,
-            'max_short_interest_buy': 4.0,  # Higher SI tolerance - often shorted for yield
-            'min_fcf_yield_buy': -5.0,  # Telecom capex can depress FCF
-            'tickers': ['TMUS', 'VZ', 'T', 'VOD', 'ORAN'],
+        "TELECOM": {
+            "description": "Telecommunications - Capital intensive with stable recurring revenues",
+            "min_roe_buy": 10.0,  # Lower ROE threshold - infrastructure heavy
+            "min_roe_sell": 5.0,
+            "max_debt_equity_buy": 220.0,  # Higher leverage for spectrum/infrastructure
+            "max_debt_equity_sell": 350.0,
+            "max_short_interest_buy": 4.0,  # Higher SI tolerance - often shorted for yield
+            "min_fcf_yield_buy": -5.0,  # Telecom capex can depress FCF
+            "tickers": ["TMUS", "VZ", "T", "VOD", "ORAN"],
         },
-        'TECHNOLOGY_HARDWARE': {
-            'description': 'Tech hardware/semiconductors - Heavy capex cycles, FCF data quality issues with ADRs',
-            'min_fcf_yield_buy': -15.0,  # Allow lower FCF during capex cycles
-            'tickers': ['SMSN.L', 'TSM', 'INTC', 'QCOM', 'MU', 'ASML'],
+        "TECHNOLOGY_HARDWARE": {
+            "description": "Tech hardware/semiconductors - Heavy capex cycles, FCF data quality issues with ADRs",
+            "min_fcf_yield_buy": -15.0,  # Allow lower FCF during capex cycles
+            "tickers": ["SMSN.L", "TSM", "INTC", "QCOM", "MU", "ASML"],
         },
     }
 
@@ -319,87 +332,76 @@ class TradeConfig:
     # Maps yfinance sector/industry names to our SECTOR_RULES categories
     # Enables automatic sector detection without hardcoded ticker lists
 
-    YFINANCE_SECTOR_MAP: ClassVar[Dict[str, str]] = {
+    YFINANCE_SECTOR_MAP: ClassVar[dict[str, str]] = {
         # Financial Services - Banks, Insurance, Asset Management
-        'Financial Services': 'FINANCIAL',
-        'Financial': 'FINANCIAL',
-
+        "Financial Services": "FINANCIAL",
+        "Financial": "FINANCIAL",
         # Real Estate - REITs and property
-        'Real Estate': 'REIT',
-
+        "Real Estate": "REIT",
         # Utilities - Regulated utilities
-        'Utilities': 'UTILITY',
-
+        "Utilities": "UTILITY",
         # Communication Services (Telecom handled via industry)
         # 'Communication Services': handled by industry check
     }
 
-    YFINANCE_INDUSTRY_MAP: ClassVar[Dict[str, str]] = {
+    YFINANCE_INDUSTRY_MAP: ClassVar[dict[str, str]] = {
         # Banks and Financial Institutions
-        'Banks—Regional': 'FINANCIAL',
-        'Banks—Diversified': 'FINANCIAL',
-        'Insurance—Life': 'FINANCIAL',
-        'Insurance—Property & Casualty': 'FINANCIAL',
-        'Insurance—Diversified': 'FINANCIAL',
-        'Insurance—Specialty': 'FINANCIAL',
-        'Asset Management': 'FINANCIAL',
-        'Capital Markets': 'FINANCIAL',
-        'Savings & Cooperative Banks': 'FINANCIAL',
-        'Banks - Regional': 'FINANCIAL',  # Alternative naming
-
+        "Banks—Regional": "FINANCIAL",
+        "Banks—Diversified": "FINANCIAL",
+        "Insurance—Life": "FINANCIAL",
+        "Insurance—Property & Casualty": "FINANCIAL",
+        "Insurance—Diversified": "FINANCIAL",
+        "Insurance—Specialty": "FINANCIAL",
+        "Asset Management": "FINANCIAL",
+        "Capital Markets": "FINANCIAL",
+        "Savings & Cooperative Banks": "FINANCIAL",
+        "Banks - Regional": "FINANCIAL",  # Alternative naming
         # REITs - Multiple types
-        'REIT—Industrial': 'REIT',
-        'REIT—Residential': 'REIT',
-        'REIT—Retail': 'REIT',
-        'REIT—Healthcare Facilities': 'REIT',
-        'REIT—Specialty': 'REIT',
-        'REIT—Office': 'REIT',
-        'REIT—Diversified': 'REIT',
-        'REIT—Mortgage': 'REIT',
-        'REIT—Hotel & Motel': 'REIT',
-        'Real Estate Services': 'REIT',
-
+        "REIT—Industrial": "REIT",
+        "REIT—Residential": "REIT",
+        "REIT—Retail": "REIT",
+        "REIT—Healthcare Facilities": "REIT",
+        "REIT—Specialty": "REIT",
+        "REIT—Office": "REIT",
+        "REIT—Diversified": "REIT",
+        "REIT—Mortgage": "REIT",
+        "REIT—Hotel & Motel": "REIT",
+        "Real Estate Services": "REIT",
         # Utilities
-        'Utilities—Regulated Electric': 'UTILITY',
-        'Utilities—Diversified': 'UTILITY',
-        'Utilities—Regulated Gas': 'UTILITY',
-        'Utilities—Regulated Water': 'UTILITY',
-        'Utilities—Independent Power Producers': 'UTILITY',
-        'Utilities—Renewable': 'UTILITY',
-
+        "Utilities—Regulated Electric": "UTILITY",
+        "Utilities—Diversified": "UTILITY",
+        "Utilities—Regulated Gas": "UTILITY",
+        "Utilities—Regulated Water": "UTILITY",
+        "Utilities—Independent Power Producers": "UTILITY",
+        "Utilities—Renewable": "UTILITY",
         # Telecom
-        'Telecom Services': 'TELECOM',
-        'Wireless Telecommunications Services': 'TELECOM',
-        'Integrated Telecommunications Services': 'TELECOM',
-        'Alternative Telecommunications Services': 'TELECOM',
-
+        "Telecom Services": "TELECOM",
+        "Wireless Telecommunications Services": "TELECOM",
+        "Integrated Telecommunications Services": "TELECOM",
+        "Alternative Telecommunications Services": "TELECOM",
         # Technology Hardware / Semiconductors
-        'Semiconductor Equipment & Materials': 'TECHNOLOGY_HARDWARE',
-        'Semiconductors': 'TECHNOLOGY_HARDWARE',
-        'Computer Hardware': 'TECHNOLOGY_HARDWARE',
-        'Electronic Components': 'TECHNOLOGY_HARDWARE',
-        'Scientific & Technical Instruments': 'TECHNOLOGY_HARDWARE',
-
+        "Semiconductor Equipment & Materials": "TECHNOLOGY_HARDWARE",
+        "Semiconductors": "TECHNOLOGY_HARDWARE",
+        "Computer Hardware": "TECHNOLOGY_HARDWARE",
+        "Electronic Components": "TECHNOLOGY_HARDWARE",
+        "Scientific & Technical Instruments": "TECHNOLOGY_HARDWARE",
         # Payment Processors
-        'Credit Services': 'PAYMENT_PROCESSORS',
-        'Financial Data & Stock Exchanges': 'PAYMENT_PROCESSORS',
-
+        "Credit Services": "PAYMENT_PROCESSORS",
+        "Financial Data & Stock Exchanges": "PAYMENT_PROCESSORS",
         # Pharma with high leverage
-        'Drug Manufacturers—General': 'PHARMA_HIGH_LEVERAGE',
-        'Drug Manufacturers—Specialty & Generic': 'PHARMA_HIGH_LEVERAGE',
-        'Biotechnology': 'PHARMA_HIGH_LEVERAGE',
-
+        "Drug Manufacturers—General": "PHARMA_HIGH_LEVERAGE",
+        "Drug Manufacturers—Specialty & Generic": "PHARMA_HIGH_LEVERAGE",
+        "Biotechnology": "PHARMA_HIGH_LEVERAGE",
         # Equipment Financing (Captive Finance Arms)
-        'Farm & Heavy Construction Machinery': 'EQUIPMENT_FINANCING',
-        'Industrial Distribution': 'EQUIPMENT_FINANCING',
-
+        "Farm & Heavy Construction Machinery": "EQUIPMENT_FINANCING",
+        "Industrial Distribution": "EQUIPMENT_FINANCING",
         # MLPs - Energy infrastructure
-        'Oil & Gas Midstream': 'MLP',
-        'Oil & Gas Pipelines': 'MLP',
+        "Oil & Gas Midstream": "MLP",
+        "Oil & Gas Pipelines": "MLP",
     }
 
     @classmethod
-    def get_sector_from_ticker(cls, ticker: str) -> Optional[str]:
+    def get_sector_from_ticker(cls, ticker: str) -> str | None:
         """
         Detect which sector a ticker belongs to based on SECTOR_RULES.
 
@@ -415,7 +417,7 @@ class TradeConfig:
         ticker_upper = ticker.upper()
 
         for sector_name, sector_config in cls.SECTOR_RULES.items():
-            if ticker_upper in sector_config.get('tickers', []):
+            if ticker_upper in sector_config.get("tickers", []):
                 return sector_name
 
         return None
@@ -424,9 +426,9 @@ class TradeConfig:
     def get_sector_from_ticker_dynamic(
         cls,
         ticker: str,
-        sector: Optional[str] = None,
-        industry: Optional[str] = None,
-    ) -> Optional[str]:
+        sector: str | None = None,
+        industry: str | None = None,
+    ) -> str | None:
         """
         Detect sector category using dynamic sector/industry from API.
 
@@ -458,7 +460,7 @@ class TradeConfig:
         return None
 
     @classmethod
-    def get_all_sector_categories(cls) -> List[str]:
+    def get_all_sector_categories(cls) -> list[str]:
         """
         Get list of all sector categories defined in SECTOR_RULES.
 
@@ -468,7 +470,9 @@ class TradeConfig:
         return list(cls.SECTOR_RULES.keys())
 
     @classmethod
-    def get_sector_adjusted_thresholds(cls, ticker: str, action: str, base_criteria: Dict[str, Any]) -> Dict[str, Any]:
+    def get_sector_adjusted_thresholds(
+        cls, ticker: str, action: str, base_criteria: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Get sector-adjusted ROE and DE thresholds for a specific ticker.
 
@@ -490,38 +494,38 @@ class TradeConfig:
         adjusted_criteria = base_criteria.copy()
 
         # Apply sector-specific ROE thresholds
-        if action == 'buy':
-            if 'skip_roe' in sector_config and sector_config['skip_roe']:
+        if action == "buy":
+            if "skip_roe" in sector_config and sector_config["skip_roe"]:
                 # Remove ROE requirement entirely (for REITs)
-                adjusted_criteria.pop('min_roe', None)
-            elif 'min_roe_buy' in sector_config:
-                adjusted_criteria['min_roe'] = sector_config['min_roe_buy']
+                adjusted_criteria.pop("min_roe", None)
+            elif "min_roe_buy" in sector_config:
+                adjusted_criteria["min_roe"] = sector_config["min_roe_buy"]
 
-            if 'max_debt_equity_buy' in sector_config:
-                adjusted_criteria['max_debt_equity'] = sector_config['max_debt_equity_buy']
+            if "max_debt_equity_buy" in sector_config:
+                adjusted_criteria["max_debt_equity"] = sector_config["max_debt_equity_buy"]
 
-            if 'max_short_interest_buy' in sector_config:
-                adjusted_criteria['max_short_interest'] = sector_config['max_short_interest_buy']
+            if "max_short_interest_buy" in sector_config:
+                adjusted_criteria["max_short_interest"] = sector_config["max_short_interest_buy"]
 
-            if 'max_pe_vs_sector_buy' in sector_config:
-                adjusted_criteria['max_pe_vs_sector'] = sector_config['max_pe_vs_sector_buy']
+            if "max_pe_vs_sector_buy" in sector_config:
+                adjusted_criteria["max_pe_vs_sector"] = sector_config["max_pe_vs_sector_buy"]
 
             # FCF adjustments: skip or lower threshold based on sector
-            if 'skip_fcf' in sector_config and sector_config['skip_fcf']:
+            if "skip_fcf" in sector_config and sector_config["skip_fcf"]:
                 # Remove FCF requirement entirely (for REITs)
-                adjusted_criteria.pop('min_fcf_yield', None)
-            elif 'min_fcf_yield_buy' in sector_config:
-                adjusted_criteria['min_fcf_yield'] = sector_config['min_fcf_yield_buy']
+                adjusted_criteria.pop("min_fcf_yield", None)
+            elif "min_fcf_yield_buy" in sector_config:
+                adjusted_criteria["min_fcf_yield"] = sector_config["min_fcf_yield_buy"]
 
-        elif action == 'sell':
-            if 'skip_roe' in sector_config and sector_config['skip_roe']:
+        elif action == "sell":
+            if "skip_roe" in sector_config and sector_config["skip_roe"]:
                 # Remove ROE requirement entirely (for REITs)
-                adjusted_criteria.pop('min_roe', None)
-            elif 'min_roe_sell' in sector_config:
-                adjusted_criteria['min_roe'] = sector_config['min_roe_sell']
+                adjusted_criteria.pop("min_roe", None)
+            elif "min_roe_sell" in sector_config:
+                adjusted_criteria["min_roe"] = sector_config["min_roe_sell"]
 
-            if 'max_debt_equity_sell' in sector_config:
-                adjusted_criteria['max_debt_equity'] = sector_config['max_debt_equity_sell']
+            if "max_debt_equity_sell" in sector_config:
+                adjusted_criteria["max_debt_equity"] = sector_config["max_debt_equity_sell"]
 
         return adjusted_criteria
 
@@ -530,10 +534,10 @@ class TradeConfig:
     # ============================================
     # Used for sector-relative valuations (PE vs sector median)
 
-    _sector_benchmarks_cache: ClassVar[Optional[Dict[str, Any]]] = None
+    _sector_benchmarks_cache: ClassVar[dict[str, Any] | None] = None
 
     @classmethod
-    def load_sector_benchmarks(cls) -> Dict[str, Any]:
+    def load_sector_benchmarks(cls) -> dict[str, Any]:
         """Load sector benchmark valuations from YAML file."""
         if cls._sector_benchmarks_cache is not None:
             return cls._sector_benchmarks_cache
@@ -541,7 +545,7 @@ class TradeConfig:
         benchmark_path = Path(__file__).parent / "sector_benchmarks.yaml"
         if benchmark_path.exists():
             try:
-                with open(benchmark_path, 'r') as f:
+                with open(benchmark_path) as f:
                     cls._sector_benchmarks_cache = yaml.safe_load(f)
                     return cls._sector_benchmarks_cache
             except Exception:
@@ -552,7 +556,7 @@ class TradeConfig:
         return cls._sector_benchmarks_cache
 
     @classmethod
-    def get_sector_benchmarks(cls, sector: str) -> Dict[str, float]:
+    def get_sector_benchmarks(cls, sector: str) -> dict[str, float]:
         """
         Get benchmark valuations for a GICS sector.
 
@@ -569,7 +573,9 @@ class TradeConfig:
         # Get sector mapping
         mapping = benchmarks.get("sector_mapping", {})
         sectors = benchmarks.get("sectors", {})
-        default = benchmarks.get("default", {"median_pe": 20.0, "median_roe": 15.0, "median_de": 80.0})
+        default = benchmarks.get(
+            "default", {"median_pe": 20.0, "median_roe": 15.0, "median_de": 80.0}
+        )
 
         # Apply mapping if sector name needs normalization
         mapped_sector = mapping.get(sector, sector) if sector else None
@@ -585,7 +591,7 @@ class TradeConfig:
         return default
 
     @classmethod
-    def calculate_pe_vs_sector(cls, pe_forward: Optional[float], sector: str) -> Optional[float]:
+    def calculate_pe_vs_sector(cls, pe_forward: float | None, sector: str) -> float | None:
         """
         Calculate PE relative to sector median.
 
@@ -611,47 +617,119 @@ class TradeConfig:
     # SECTION 2: DISPLAY COLUMN PROFILES
     # ============================================
 
-    DISPLAY_PROFILES: ClassVar[Dict[str, Dict[str, Any]]] = {
+    DISPLAY_PROFILES: ClassVar[dict[str, dict[str, Any]]] = {
         # Portfolio Analysis (option: p)
         "portfolio": {
-            "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "BETA", "PEF", "PP", "ROE", "DE", "EXRET", "BS"],
+            "console": [
+                "#",
+                "TICKER",
+                "COMPANY",
+                "CAP",
+                "PRICE",
+                "TARGET",
+                "UPSIDE",
+                "EXRET",
+                "BS",
+            ],
+            "csv": [
+                "TICKER",
+                "COMPANY",
+                "CAP",
+                "PRICE",
+                "TARGET",
+                "UPSIDE",
+                "%BUY",
+                "BETA",
+                "PEF",
+                "PP",
+                "ROE",
+                "DE",
+                "EXRET",
+                "BS",
+            ],
             "html": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
             "sort_by": "EXRET",
             "sort_order": "desc",
             "max_rows": 50,
         },
-
         # Market Analysis (option: m)
         "market": {
             "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "UPSIDE", "%BUY", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "BETA", "PEF", "PP", "ROE", "DE", "EXRET", "BS"],
+            "csv": [
+                "TICKER",
+                "COMPANY",
+                "CAP",
+                "PRICE",
+                "TARGET",
+                "UPSIDE",
+                "%BUY",
+                "BETA",
+                "PEF",
+                "PP",
+                "ROE",
+                "DE",
+                "EXRET",
+                "BS",
+            ],
             "html": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "UPSIDE", "%BUY", "EXRET", "BS"],
             "sort_by": "UPSIDE",
             "sort_order": "desc",
             "max_rows": 100,
         },
-
         # eToro Analysis (option: e)
         "etoro": {
-            "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "PP", "ROE", "DE", "EXRET", "BS"],
+            "console": [
+                "#",
+                "TICKER",
+                "COMPANY",
+                "CAP",
+                "PRICE",
+                "TARGET",
+                "UPSIDE",
+                "EXRET",
+                "BS",
+            ],
+            "csv": [
+                "TICKER",
+                "COMPANY",
+                "CAP",
+                "PRICE",
+                "TARGET",
+                "UPSIDE",
+                "%BUY",
+                "PP",
+                "ROE",
+                "DE",
+                "EXRET",
+                "BS",
+            ],
             "html": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
             "sort_by": "EXRET",
             "sort_order": "desc",
             "max_rows": 30,
         },
-
         # Trade Opportunities - Buy (option: t, sub: b)
         "trade_buy": {
             "console": ["#", "TICKER", "COMPANY", "UPSIDE", "%BUY", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "PP", "ROE", "DE", "EXRET", "BS"],
+            "csv": [
+                "TICKER",
+                "COMPANY",
+                "CAP",
+                "PRICE",
+                "TARGET",
+                "UPSIDE",
+                "%BUY",
+                "PP",
+                "ROE",
+                "DE",
+                "EXRET",
+                "BS",
+            ],
             "html": ["#", "TICKER", "COMPANY", "UPSIDE", "%BUY", "EXRET", "BS"],
             "sort_by": "UPSIDE",
             "sort_order": "desc",
             "max_rows": 20,
         },
-
         # Trade Opportunities - Sell (option: t, sub: s)
         "trade_sell": {
             "console": ["#", "TICKER", "COMPANY", "PRICE", "UPSIDE", "BS", "REASON"],
@@ -661,7 +739,6 @@ class TradeConfig:
             "sort_order": "asc",
             "max_rows": 20,
         },
-
         # Trade Opportunities - Hold (option: t, sub: h)
         "trade_hold": {
             "console": ["#", "TICKER", "COMPANY", "PRICE", "UPSIDE", "%BUY", "BS"],
@@ -671,23 +748,45 @@ class TradeConfig:
             "sort_order": "desc",
             "max_rows": 30,
         },
-
         # Manual Input (option: i)
         "input": {
-            "console": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
-            "csv": ["TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "%BUY", "PP", "ROE", "DE", "EXRET", "BS"],
+            "console": [
+                "#",
+                "TICKER",
+                "COMPANY",
+                "CAP",
+                "PRICE",
+                "TARGET",
+                "UPSIDE",
+                "EXRET",
+                "BS",
+            ],
+            "csv": [
+                "TICKER",
+                "COMPANY",
+                "CAP",
+                "PRICE",
+                "TARGET",
+                "UPSIDE",
+                "%BUY",
+                "PP",
+                "ROE",
+                "DE",
+                "EXRET",
+                "BS",
+            ],
             "html": ["#", "TICKER", "COMPANY", "CAP", "PRICE", "TARGET", "UPSIDE", "EXRET", "BS"],
             "sort_by": "EXRET",
             "sort_order": "desc",
             "max_rows": 10,
-        }
+        },
     }
 
     # ============================================
     # SECTION 3: FORMATTING RULES
     # ============================================
 
-    FORMAT_RULES: ClassVar[Dict[str, Dict[str, Any]]] = {
+    FORMAT_RULES: ClassVar[dict[str, dict[str, Any]]] = {
         "PRICE": {
             "type": "currency",
             "decimals": 2,
@@ -759,25 +858,25 @@ class TradeConfig:
                 "B": {
                     "console": "\033[92m",  # Green
                     "html": "#28a745",
-                    "name": "BUY"
+                    "name": "BUY",
                 },
                 "S": {
                     "console": "\033[91m",  # Red
                     "html": "#dc3545",
-                    "name": "SELL"
+                    "name": "SELL",
                 },
                 "H": {
                     "console": "",  # No color
                     "html": "#6c757d",
-                    "name": "HOLD"
+                    "name": "HOLD",
                 },
                 "I": {
                     "console": "\033[93m",  # Yellow
                     "html": "#ffc107",
-                    "name": "INCONCLUSIVE"
-                }
-            }
-        }
+                    "name": "INCONCLUSIVE",
+                },
+            },
+        },
     }
 
     # ============================================
@@ -785,7 +884,9 @@ class TradeConfig:
     # ============================================
 
     @classmethod
-    def get_thresholds(cls, option: str, action: str, ticker: str = None, market_cap: float = None) -> Dict[str, Any]:
+    def get_thresholds(
+        cls, option: str, action: str, ticker: str = None, market_cap: float = None
+    ) -> dict[str, Any]:
         """
         Get trading thresholds based on geographic region and market cap tier.
 
@@ -812,17 +913,11 @@ class TradeConfig:
                 return region_tier_criteria.get(action, {})
 
         # Fallback to old system if YAML not configured
-        option_map = {
-            "p": "portfolio",
-            "m": "market",
-            "e": "etoro",
-            "t": "trade",
-            "i": "input"
-        }
+        option_map = {"p": "portfolio", "m": "market", "e": "etoro", "t": "trade", "i": "input"}
 
         option_key = option_map.get(option, option)
         return cls.THRESHOLDS.get(option_key, {}).get(action, {})
-    
+
     @classmethod
     def get_region_from_ticker(cls, ticker: str) -> str:
         """
@@ -844,8 +939,25 @@ class TradeConfig:
             return "hk"
 
         # European stocks
-        eu_suffixes = [".L", ".CO", ".DE", ".PA", ".AS", ".BR", ".MI", ".MC", ".LI",
-                       ".OL", ".ST", ".HE", ".WA", ".PR", ".AT", ".IR", ".IC"]
+        eu_suffixes = [
+            ".L",
+            ".CO",
+            ".DE",
+            ".PA",
+            ".AS",
+            ".BR",
+            ".MI",
+            ".MC",
+            ".LI",
+            ".OL",
+            ".ST",
+            ".HE",
+            ".WA",
+            ".PR",
+            ".AT",
+            ".IR",
+            ".IC",
+        ]
         if any(ticker.endswith(suffix) for suffix in eu_suffixes):
             return "eu"
 
@@ -885,7 +997,7 @@ class TradeConfig:
             return "micro"
 
     @classmethod
-    def get_tier_thresholds(cls, tier: str, action: str) -> Dict[str, Any]:
+    def get_tier_thresholds(cls, tier: str, action: str) -> dict[str, Any]:
         """Legacy method for backward compatibility."""
         # Map old tier names to new system
         tier_map = {"V": "large", "G": "mid", "B": "small"}
@@ -895,86 +1007,88 @@ class TradeConfig:
         if yaml_config.is_config_available():
             # Default to US region for legacy calls
             return yaml_config.get_region_tier_criteria("us", new_tier).get(action, {})
-        
+
         # Fallback to hardcoded values if YAML not available
         if action == "buy":
             if new_tier == "large":
                 return {
-                    "min_upside": 15.0,              # Reasonable upside for large-caps
-                    "min_buy_percentage": 70.0,      # Strong analyst consensus required
-                    "min_beta": 0.25,                # Minimum beta allowed
-                    "max_beta": 3.0,                 # Maximum beta allowed
-                    "min_forward_pe": 0.5,           # Minimum forward PE
-                    "max_forward_pe": 65.0,          # Maximum forward PE
-                    "min_trailing_pe": 0.5,          # Minimum trailing PE
-                    "max_trailing_pe": 85.0,         # Higher trailing PE allowed for stability
-                    "max_peg": 2.5,                  # PEG requirement
-                    "max_short_interest": 2.0,       # Short interest tolerance
+                    "min_upside": 15.0,  # Reasonable upside for large-caps
+                    "min_buy_percentage": 70.0,  # Strong analyst consensus required
+                    "min_beta": 0.25,  # Minimum beta allowed
+                    "max_beta": 3.0,  # Maximum beta allowed
+                    "min_forward_pe": 0.5,  # Minimum forward PE
+                    "max_forward_pe": 65.0,  # Maximum forward PE
+                    "min_trailing_pe": 0.5,  # Minimum trailing PE
+                    "max_trailing_pe": 85.0,  # Higher trailing PE allowed for stability
+                    "max_peg": 2.5,  # PEG requirement
+                    "max_short_interest": 2.0,  # Short interest tolerance
                 }
             elif new_tier == "mid":
                 return {
-                    "min_upside": 20.0,              # Standard upside requirement
-                    "min_buy_percentage": 75.0,      # Standard analyst consensus
-                    "min_beta": 0.25,                # Standard beta range
-                    "max_beta": 3.0,                 # Higher beta limit
-                    "min_forward_pe": 0.5,           # Standard PE requirements
-                    "max_forward_pe": 60.0,          # Standard forward PE limit
-                    "min_trailing_pe": 0.5,          # Standard trailing PE minimum
-                    "max_trailing_pe": 75.0,         # Standard trailing PE limit
-                    "max_peg": 2.0,                  # Standard PEG requirement
-                    "max_short_interest": 2.0,       # Standard short interest
+                    "min_upside": 20.0,  # Standard upside requirement
+                    "min_buy_percentage": 75.0,  # Standard analyst consensus
+                    "min_beta": 0.25,  # Standard beta range
+                    "max_beta": 3.0,  # Higher beta limit
+                    "min_forward_pe": 0.5,  # Standard PE requirements
+                    "max_forward_pe": 60.0,  # Standard forward PE limit
+                    "min_trailing_pe": 0.5,  # Standard trailing PE minimum
+                    "max_trailing_pe": 75.0,  # Standard trailing PE limit
+                    "max_peg": 2.0,  # Standard PEG requirement
+                    "max_short_interest": 2.0,  # Standard short interest
                 }
             else:  # small
                 return {
-                    "min_upside": 25.0,              # Higher upside for small caps
-                    "min_buy_percentage": 80.0,      # Strong consensus required
-                    "min_beta": 0.25,                # Standard beta minimum
-                    "max_beta": 3.0,                 # Allow higher volatility
-                    "min_forward_pe": 0.5,           # Standard PE requirements
-                    "max_forward_pe": 50.0,          # Lower PE limit for speculation
-                    "min_trailing_pe": 0.5,          # Standard trailing PE minimum
-                    "max_trailing_pe": 60.0,         # Lower trailing PE limit
-                    "max_peg": 1.5,                  # Stricter PEG for small caps
-                    "max_short_interest": 1.5,       # Lower short interest tolerance
+                    "min_upside": 25.0,  # Higher upside for small caps
+                    "min_buy_percentage": 80.0,  # Strong consensus required
+                    "min_beta": 0.25,  # Standard beta minimum
+                    "max_beta": 3.0,  # Allow higher volatility
+                    "min_forward_pe": 0.5,  # Standard PE requirements
+                    "max_forward_pe": 50.0,  # Lower PE limit for speculation
+                    "min_trailing_pe": 0.5,  # Standard trailing PE minimum
+                    "max_trailing_pe": 60.0,  # Lower trailing PE limit
+                    "max_peg": 1.5,  # Stricter PEG for small caps
+                    "max_short_interest": 1.5,  # Lower short interest tolerance
                 }
         elif action == "sell":
             if new_tier == "large":
                 return {
-                    "max_upside": 8.0,               # Modest upside trigger for large caps
-                    "min_buy_percentage": 60.0,      # Lower consensus for sell
-                    "max_forward_pe": 70.0,          # Higher PE tolerance for value
-                    "min_short_interest": 3.5,       # Higher short interest tolerance
-                    "min_beta": 3.5,                 # Higher beta for sell
+                    "max_upside": 8.0,  # Modest upside trigger for large caps
+                    "min_buy_percentage": 60.0,  # Lower consensus for sell
+                    "max_forward_pe": 70.0,  # Higher PE tolerance for value
+                    "min_short_interest": 3.5,  # Higher short interest tolerance
+                    "min_beta": 3.5,  # Higher beta for sell
                 }
             elif new_tier == "mid":
                 return {
-                    "max_upside": 5.0,               # Lower upside trigger for growth
-                    "min_buy_percentage": 65.0,      # Standard sell consensus
-                    "max_forward_pe": 65.0,          # Standard PE limit
-                    "min_short_interest": 3.0,       # Standard short interest
-                    "min_beta": 3.0,                 # Standard beta for sell
+                    "max_upside": 5.0,  # Lower upside trigger for growth
+                    "min_buy_percentage": 65.0,  # Standard sell consensus
+                    "max_forward_pe": 65.0,  # Standard PE limit
+                    "min_short_interest": 3.0,  # Standard short interest
+                    "min_beta": 3.0,  # Standard beta for sell
                 }
             else:  # small
                 return {
-                    "max_upside": 3.0,               # Very low upside trigger for speculation
-                    "min_buy_percentage": 70.0,      # Higher consensus needed for sell
-                    "max_forward_pe": 50.0,          # Lower PE tolerance
-                    "min_short_interest": 2.5,       # Lower short interest tolerance
-                    "min_beta": 2.5,                 # Lower beta for sell
+                    "max_upside": 3.0,  # Very low upside trigger for speculation
+                    "min_buy_percentage": 70.0,  # Higher consensus needed for sell
+                    "max_forward_pe": 50.0,  # Lower PE tolerance
+                    "min_short_interest": 2.5,  # Lower short interest tolerance
+                    "min_beta": 2.5,  # Lower beta for sell
                 }
-        
+
         return {}
 
     @classmethod
-    def get_display_columns(cls, option: str, sub_option: str = None, output_type: str = "console") -> List[str]:
+    def get_display_columns(
+        cls, option: str, sub_option: str = None, output_type: str = "console"
+    ) -> list[str]:
         """
         Get display columns for a specific option and output type.
-        
+
         Args:
             option: Trading option (p, m, e, t, i)
             sub_option: Sub-option for trade analysis (b, s, h)
             output_type: Output type (console, csv, html)
-            
+
         Returns:
             List of column names
         """
@@ -983,70 +1097,63 @@ class TradeConfig:
         return profile.get(output_type, [])
 
     @classmethod
-    def get_sort_config(cls, option: str, sub_option: str = None) -> Dict[str, str]:
+    def get_sort_config(cls, option: str, sub_option: str = None) -> dict[str, str]:
         """Get sorting configuration for an option."""
         profile_key = cls._get_profile_key(option, sub_option)
         profile = cls.DISPLAY_PROFILES.get(profile_key, {})
         return {
             "sort_by": profile.get("sort_by", ""),
             "sort_order": profile.get("sort_order", "desc"),
-            "max_rows": profile.get("max_rows", 50)
+            "max_rows": profile.get("max_rows", 50),
         }
 
     @classmethod
-    def get_format_rule(cls, column: str) -> Dict[str, Any]:
+    def get_format_rule(cls, column: str) -> dict[str, Any]:
         """Get formatting rule for a column."""
         return cls.FORMAT_RULES.get(column, {"type": "text"})
 
     @classmethod
     def _get_profile_key(cls, option: str, sub_option: str = None) -> str:
         """Get the profile key for display configuration."""
-        option_map = {
-            "p": "portfolio",
-            "m": "market",
-            "e": "etoro", 
-            "t": "trade",
-            "i": "input"
-        }
-        
+        option_map = {"p": "portfolio", "m": "market", "e": "etoro", "t": "trade", "i": "input"}
+
         base_key = option_map.get(option, option)
-        
+
         if option == "t" and sub_option:
             sub_map = {"b": "buy", "s": "sell", "h": "hold"}
             sub_key = sub_map.get(sub_option, sub_option)
             return f"trade_{sub_key}"
-        
+
         return base_key
 
     @classmethod
     def modify_threshold(cls, option: str, action: str, parameter: str, value: Any) -> None:
         """
         Modify a threshold value.
-        
+
         Args:
             option: Trading option (p, m, e, t, i)
             action: Trading action (buy, sell)
             parameter: Parameter name
             value: New value
         """
-        option_map = {
-            "p": "portfolio",
-            "m": "market",
-            "e": "etoro", 
-            "t": "trade",
-            "i": "input"
-        }
-        
+        option_map = {"p": "portfolio", "m": "market", "e": "etoro", "t": "trade", "i": "input"}
+
         option_key = option_map.get(option, option)
         if option_key in cls.THRESHOLDS and action in cls.THRESHOLDS[option_key]:
             cls.THRESHOLDS[option_key][action][parameter] = value
 
     @classmethod
-    def modify_display_columns(cls, option: str, sub_option: str = None, 
-                             output_type: str = "console", columns: List[str] = None) -> None:
+    def modify_display_columns(
+        cls,
+        option: str,
+        sub_option: str = None,
+        output_type: str = "console",
+        columns: list[str] = None,
+    ) -> None:
         """
         Modify display columns for an option.
-        
+
         Args:
             option: Trading option
             sub_option: Sub-option if applicable

@@ -189,21 +189,20 @@ class TestModuleMetadata:
         """Test __version__ is set."""
         import trade_modules
 
-        assert hasattr(trade_modules, '__version__')
+        assert hasattr(trade_modules, "__version__")
         assert trade_modules.__version__ == "1.0.0"
 
     def test_author(self):
         """Test __author__ is set."""
         import trade_modules
 
-        assert hasattr(trade_modules, '__author__')
+        assert hasattr(trade_modules, "__author__")
         assert trade_modules.__author__ == "etorotrade"
 
     def test_all_exports(self):
         """Test __all__ is set correctly."""
         import trade_modules
 
-        assert hasattr(trade_modules, '__all__')
+        assert hasattr(trade_modules, "__all__")
         assert isinstance(trade_modules.__all__, list)
         assert len(trade_modules.__all__) > 0
-

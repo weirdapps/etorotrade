@@ -7,34 +7,34 @@ It provides improved performance and reliability with advanced async features.
 """
 
 import time
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, TypeVar
 
 import aiohttp
 import pandas as pd
 
 from yahoofinance.core.errors import APIError, ValidationError, YFinanceError
-from ...utils.error_handling import with_retry
 
 from ...core.logging import get_logger
+from ...utils.error_handling import with_retry
 
 # Define constants for repeated strings
 DEFAULT_ERROR_MESSAGE = "An error occurred"
-EARNINGS_DATE_COL = 'Earnings Date'
+EARNINGS_DATE_COL = "Earnings Date"
 
 # Use relative imports
 from ...core.errors import APIError, NetworkError, RateLimitError, ValidationError, YFinanceError
-from ...utils.async_utils.enhanced import AsyncRateLimiter, enhanced_async_rate_limited
-from ...utils.market.ticker_utils import validate_ticker, is_stock_ticker  # Keep this import
-from ...utils.network.circuit_breaker import CircuitOpenError
-from .base_provider import AsyncFinanceDataProvider
-from ...utils.network.session_manager import get_shared_session
 from ...data.cache_compatibility import LRUCache
+from ...utils.async_utils.enhanced import AsyncRateLimiter, enhanced_async_rate_limited
+from ...utils.market.ticker_utils import is_stock_ticker, validate_ticker  # Keep this import
+from ...utils.network.circuit_breaker import CircuitOpenError
+from ...utils.network.session_manager import get_shared_session
 
 # Import from split modules
 from .async_modules import (
+    POSITIVE_GRADES,
     calculate_analyst_momentum,
-    calculate_pe_vs_sector,
     calculate_earnings_growth,
+    calculate_pe_vs_sector,
     calculate_upside_potential,
     format_date,
     format_market_cap,
@@ -42,12 +42,13 @@ from .async_modules import (
     has_post_earnings_ratings,
     is_us_ticker,
     parse_analyst_recommendations,
-    POSITIVE_GRADES,
 )
+from .base_provider import AsyncFinanceDataProvider
 
 logger = get_logger(__name__)
 
 T = TypeVar("T")  # Return type for async functions
+
 
 class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
     """
@@ -88,10 +89,16 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         self.enable_circuit_breaker = enable_circuit_breaker
         # Smart cache with timestamps for TTL-based expiration
         # Using LRU cache to prevent unbounded memory growth (max 1000 tickers)
-        self._ticker_cache: LRUCache[str, Dict[str, Any]] = LRUCache(max_size=1000)  # {ticker: {data: {...}, timestamp: float}}
+        self._ticker_cache: LRUCache[str, dict[str, Any]] = LRUCache(
+            max_size=1000
+        )  # {ticker: {data: {...}, timestamp: float}}
         self._rate_limiter = AsyncRateLimiter()
-        self._ratings_cache: LRUCache[str, Dict[str, Any]] = LRUCache(max_size=500)  # Cache for post-earnings ratings
-        self._stock_cache: LRUCache[str, Any] = LRUCache(max_size=500)  # Cache for yf.Ticker objects
+        self._ratings_cache: LRUCache[str, dict[str, Any]] = LRUCache(
+            max_size=500
+        )  # Cache for post-earnings ratings
+        self._stock_cache: LRUCache[str, Any] = LRUCache(
+            max_size=500
+        )  # Cache for yf.Ticker objects
 
         # Backward compatibility: expose POSITIVE_GRADES as instance attribute
         self.POSITIVE_GRADES = POSITIVE_GRADES
@@ -101,15 +108,29 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
         # Price-sensitive fields that should NEVER be cached (always fresh)
         self._never_cache_fields = {
-            "price", "current_price", "regularMarketPrice",
-            "target_price", "targetMeanPrice",
-            "upside", "pe_trailing", "trailingPE",
-            "pe_forward", "forwardPE", "peg_ratio", "pegRatio",
-            "price_performance", "twelve_month_performance",
-            "expected_return", "EXRET",
-            "pct_from_52w_high", "fiftyTwoWeekHighChangePercent",
-            "above_200dma", "volume", "regularMarketVolume",
-            "action", "signal",
+            "price",
+            "current_price",
+            "regularMarketPrice",
+            "target_price",
+            "targetMeanPrice",
+            "upside",
+            "pe_trailing",
+            "trailingPE",
+            "pe_forward",
+            "forwardPE",
+            "peg_ratio",
+            "pegRatio",
+            "price_performance",
+            "twelve_month_performance",
+            "expected_return",
+            "EXRET",
+            "pct_from_52w_high",
+            "fiftyTwoWeekHighChangePercent",
+            "above_200dma",
+            "volume",
+            "regularMarketVolume",
+            "action",
+            "signal",
         }
 
         # Cache TTL for non-price fields (4 hours = 14400 seconds)
@@ -122,9 +143,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         return await get_shared_session()
 
     @with_retry
-    async def _fetch_json(
-        self, url: str, params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    async def _fetch_json(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """
         Fetch JSON data from a URL with proper error handling.
         """
@@ -134,7 +153,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             max_retries=self.max_retries,
             rate_limiter=self._rate_limiter,
         )
-        async def _do_fetch() -> Dict[str, Any]:
+        async def _do_fetch() -> dict[str, Any]:
             session = await self._ensure_session()
             try:
                 async with session.get(url, params=params) as response:
@@ -165,7 +184,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
     @enhanced_async_rate_limited(max_retries=0)
     async def get_ticker_info(
         self, ticker: str, skip_insider_metrics: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive information for a ticker asynchronously.
 
@@ -189,19 +208,22 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 cached_static_data = cached_entry.get("data", {})
                 logger.debug(f"Using cached static data for {ticker} (age: {cache_age:.0f}s)")
             else:
-                logger.debug(f"Cache expired for {ticker} (age: {cache_age:.0f}s > {self._cache_ttl_seconds}s)")
+                logger.debug(
+                    f"Cache expired for {ticker} (age: {cache_age:.0f}s > {self._cache_ttl_seconds}s)"
+                )
 
         try:
             import yfinance as yf
 
             # Apply ticker mapping for data fetching
             from trade_modules.config_manager import get_config
+
             config = get_config()
             fetch_ticker = config.get_data_fetch_ticker(ticker)
-            
+
             if fetch_ticker != ticker:
                 logger.debug(f"Mapping ticker {ticker} to {fetch_ticker} for data fetching")
-            
+
             # Create ticker object temporarily - don't store it in cache to prevent memory leaks
             try:
                 # Use safe_create_ticker from yfinance_utils if available
@@ -227,7 +249,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 )
                 ticker_info = {}
 
-            info: Dict[str, Any] = {"symbol": ticker, "ticker": ticker}
+            info: dict[str, Any] = {"symbol": ticker, "ticker": ticker}
 
             # Extract key fields
             info["name"] = ticker_info.get("longName", ticker_info.get("shortName", ""))
@@ -238,18 +260,18 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["website"] = ticker_info.get("website", "")
             # Try multiple price fields in order of preference
             price = (
-                ticker_info.get("regularMarketPrice") or
-                ticker_info.get("currentPrice") or
-                ticker_info.get("lastPrice") or
-                ticker_info.get("previousClose")
+                ticker_info.get("regularMarketPrice")
+                or ticker_info.get("currentPrice")
+                or ticker_info.get("lastPrice")
+                or ticker_info.get("previousClose")
             )
             info["current_price"] = price
             info["price"] = price
             info["currency"] = ticker_info.get("currency", "")
             info["market_cap"] = (
-                ticker_info.get("marketCap") or  # Regular stocks
-                ticker_info.get("totalAssets") or  # ETFs
-                ticker_info.get("netAssets")  # Alternative ETF field
+                ticker_info.get("marketCap")  # Regular stocks
+                or ticker_info.get("totalAssets")  # ETFs
+                or ticker_info.get("netAssets")  # Alternative ETF field
             )
             info["exchange"] = ticker_info.get("exchange", "")
             info["quote_type"] = ticker_info.get("quoteType", "")
@@ -295,7 +317,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
             # Calculate momentum metrics
             if info["current_price"] and info["fifty_two_week_high"]:
-                info["pct_from_52w_high"] = (info["current_price"] / info["fifty_two_week_high"]) * 100
+                info["pct_from_52w_high"] = (
+                    info["current_price"] / info["fifty_two_week_high"]
+                ) * 100
             else:
                 info["pct_from_52w_high"] = None
 
@@ -322,8 +346,14 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
             # Determine Rating Type ('A' or 'E')
             # Only check post-earnings ratings for stock tickers, not ETFs/commodities/crypto
-            if is_us_ticker(ticker) and is_stock_ticker(ticker) and info.get("total_ratings", 0) > 0:
-                post_earnings_result = has_post_earnings_ratings(ticker, yticker, True, POSITIVE_GRADES)
+            if (
+                is_us_ticker(ticker)
+                and is_stock_ticker(ticker)
+                and info.get("total_ratings", 0) > 0
+            ):
+                post_earnings_result = has_post_earnings_ratings(
+                    ticker, yticker, True, POSITIVE_GRADES
+                )
                 if post_earnings_result["has_ratings"]:
                     ratings_data = post_earnings_result["ratings_data"]
                     info["buy_percentage"] = ratings_data["buy_percentage"]
@@ -347,8 +377,12 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 try:
                     last_earnings_date = get_last_earnings_date(yticker)
                     info["last_earnings"] = last_earnings_date
-                    info["earnings_date"] = last_earnings_date  # Also set earnings_date for console display
-                    logger.debug(f"Set earnings_date for {ticker} to LAST earnings: {last_earnings_date}")
+                    info["earnings_date"] = (
+                        last_earnings_date  # Also set earnings_date for console display
+                    )
+                    logger.debug(
+                        f"Set earnings_date for {ticker} to LAST earnings: {last_earnings_date}"
+                    )
                 except YFinanceError as e:
                     logger.warning(
                         f"Failed to get earnings date for {ticker}: {str(e)}", exc_info=False
@@ -392,10 +426,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             # Smart caching: store static (non-price) fields with timestamp
             # Price fields are always fresh - we don't need to cache them
             static_data = {k: v for k, v in info.items() if k not in self._never_cache_fields}
-            self._ticker_cache[ticker] = {
-                "data": static_data,
-                "timestamp": time.time()
-            }
+            self._ticker_cache[ticker] = {"data": static_data, "timestamp": time.time()}
             logger.debug(f"Cached {len(static_data)} static fields for {ticker}")
             return info
 
@@ -473,7 +504,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             MemoryError,
         ) as e:
             raise e
-        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+        except (OSError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(
                 f"Network error when fetching historical data for {ticker}: {str(e)}"
             )
@@ -481,7 +512,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             raise exc
 
     @enhanced_async_rate_limited(max_retries=0)
-    async def get_earnings_data(self, ticker: str) -> Dict[str, Any]:
+    async def get_earnings_data(self, ticker: str) -> dict[str, Any]:
         """
         Get earnings data for a ticker asynchronously.
         """
@@ -490,7 +521,11 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             import yfinance as yf
 
             yticker = yf.Ticker(ticker)
-            earnings_data: Dict[str, Any] = {"symbol": ticker, "earnings_dates": [], "earnings_history": []}
+            earnings_data: dict[str, Any] = {
+                "symbol": ticker,
+                "earnings_dates": [],
+                "earnings_history": [],
+            }
             # Get calendar for earnings dates
             try:
                 calendar = yticker.calendar
@@ -547,14 +582,14 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             MemoryError,
         ):
             raise
-        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+        except (OSError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when fetching earnings data for {ticker}: {str(e)}")
         except (APIError, ValidationError, RateLimitError):
             raise YFinanceError(DEFAULT_ERROR_MESSAGE)
             raise
 
     @enhanced_async_rate_limited(max_retries=0)
-    async def get_earnings_dates(self, ticker: str) -> List[str]:
+    async def get_earnings_dates(self, ticker: str) -> list[str]:
         """Get earnings dates (uses get_earnings_data)."""
         validate_ticker(ticker)
         try:
@@ -572,7 +607,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             return []
 
     @enhanced_async_rate_limited(max_retries=0)
-    async def get_analyst_ratings(self, ticker: str) -> Dict[str, Any]:
+    async def get_analyst_ratings(self, ticker: str) -> dict[str, Any]:
         """
         Get analyst ratings for a ticker asynchronously.
         """
@@ -591,7 +626,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         }
 
     @enhanced_async_rate_limited(max_retries=0)
-    async def get_insider_transactions(self, ticker: str) -> List[Dict[str, Any]]:
+    async def get_insider_transactions(self, ticker: str) -> list[dict[str, Any]]:
         """
         Get insider transactions for a ticker asynchronously.
         """
@@ -624,9 +659,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                         "name": transaction.get("filerName", ""),
                         "title": transaction.get("filerRelation", ""),
                         "date": (
-                            format_date(
-                                pd.to_datetime(transaction["startDate"]["raw"], unit="s")
-                            )
+                            format_date(pd.to_datetime(transaction["startDate"]["raw"], unit="s"))
                             if "startDate" in transaction and "raw" in transaction["startDate"]
                             else None
                         ),
@@ -655,7 +688,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             MemoryError,
         ):
             raise
-        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+        except (OSError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(
                 f"Network error when fetching insider transactions for {ticker}: {str(e)}"
             )
@@ -663,7 +696,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             raise
 
     @enhanced_async_rate_limited(max_retries=0)
-    async def search_tickers(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def search_tickers(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """
         Search for tickers matching a query asynchronously.
         """
@@ -702,13 +735,13 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             MemoryError,
         ) as e:
             raise e
-        except (IOError, ConnectionError, aiohttp.ClientError) as e:
+        except (OSError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when searching tickers for '{query}': {str(e)}")
         except (APIError, ValidationError, RateLimitError, NetworkError) as exc:
             raise exc
 
     @enhanced_async_rate_limited(max_retries=0)
-    async def get_price_data(self, ticker: str) -> Dict[str, Any]:
+    async def get_price_data(self, ticker: str) -> dict[str, Any]:
         """Get price data for a ticker asynchronously."""
         logger.debug(f"Getting price data for {ticker} via Enhanced provider")
         info = await self.get_ticker_info(ticker)
@@ -727,8 +760,8 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         }
 
     async def batch_get_ticker_info(
-        self, tickers: List[str], skip_insider_metrics: bool = False
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tickers: list[str], skip_insider_metrics: bool = False
+    ) -> dict[str, dict[str, Any]]:
         """
         Get ticker information for multiple tickers in a batch asynchronously.
         Uses optimized async processing with prioritization and proper error handling.
@@ -752,7 +785,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 if ticker in vip_tickers and ticker not in priority_set:
                     high_priority_tickers.append(ticker)
 
-        async def get_info_for_ticker(ticker: str) -> Dict[str, Any]:
+        async def get_info_for_ticker(ticker: str) -> dict[str, Any]:
             """Wrapper to fetch info for a single ticker and handle errors."""
             try:
                 return await self.get_ticker_info(ticker, skip_insider_metrics)
@@ -793,14 +826,14 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         """Close the provider and clean up resources."""
         # No longer need to close session directly since we use SharedSessionManager
         # Just clear internal caches and let SharedSessionManager handle session lifecycle
-        
+
         # Clear all caches to prevent memory leaks
         self.clear_cache()
 
         # OPTIMIZED: Skip heavy memory cleanup for faster shutdown
         # Python's garbage collector will handle cleanup automatically
         # Heavy cleanup moved to background or eliminated for better UX
-        
+
         logger.debug("Async provider resources cleaned up (optimized for speed).")
 
     def clear_cache(self) -> None:
@@ -835,7 +868,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
         logger.info("Async provider internal caches cleared and memory freed.")
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> dict[str, Any]:
         """Get information about the internal caches including LRU stats."""
         # Note: This only reflects the simple instance cache, not CacheManager
         info = {
@@ -844,11 +877,11 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             "ratings_cache_size": len(self._ratings_cache),
         }
         # Add LRU cache stats if available
-        if hasattr(self._ticker_cache, 'get_stats'):
+        if hasattr(self._ticker_cache, "get_stats"):
             info["ticker_cache_stats"] = self._ticker_cache.get_stats()
-        if hasattr(self._ratings_cache, 'get_stats'):
+        if hasattr(self._ratings_cache, "get_stats"):
             info["ratings_cache_stats"] = self._ratings_cache.get_stats()
-        if hasattr(self._stock_cache, 'get_stats'):
+        if hasattr(self._stock_cache, "get_stats"):
             info["stock_cache_stats"] = self._stock_cache.get_stats()
         return info
 
@@ -863,10 +896,11 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
         """Cleanup resources when the object is garbage collected."""
         # Check if Python is shutting down to avoid import errors
         import sys
+
         if sys.meta_path is None:
             # Python is shutting down, skip cleanup to avoid errors
             return
-            
+
         try:
             # Clear all caches
             if hasattr(self, "_ticker_cache"):
@@ -881,6 +915,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             # Use memory_utils if available for efficient cleanup
             try:
                 from ...utils.memory_utils import clean_memory
+
                 clean_memory()
             except (ImportError, AttributeError):
                 # Fallback to manual cleanup if memory_utils not available
@@ -896,7 +931,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                                     module._abc_registry, dict
                                 ):
                                     module._abc_registry.clear()
-                                if hasattr(module, "_abc_cache") and isinstance(module._abc_cache, dict):
+                                if hasattr(module, "_abc_cache") and isinstance(
+                                    module._abc_cache, dict
+                                ):
                                     module._abc_cache.clear()
                             except (AttributeError, KeyError, TypeError):
                                 pass
@@ -904,10 +941,10 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 # Force garbage collection
                 try:
                     import gc
+
                     gc.collect()
                 except (ImportError, AttributeError):
                     pass
-        except (RuntimeError, ValueError, TypeError, OSError, IOError, AttributeError):
+        except (RuntimeError, ValueError, TypeError, OSError, AttributeError):
             # Silently ignore any errors during cleanup to prevent issues during shutdown
             pass
-

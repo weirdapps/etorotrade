@@ -9,16 +9,18 @@ import logging
 import logging.config
 import os
 import sys
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 # Lazy import to avoid circular dependency
 PATHS = None
+
 
 def _get_paths():
     """Lazy load PATHS to avoid circular imports."""
     global PATHS
     if PATHS is None:
         from .config import PATHS as _PATHS
+
         PATHS = _PATHS
     return PATHS
 
@@ -29,30 +31,33 @@ DEBUG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)
 CONSOLE_FORMAT = "%(levelname)s - %(message)s"
 
 # Type for log record attributes
-LogRecordAttrs = Dict[str, Any]
+LogRecordAttrs = dict[str, Any]
 
 
 class YFinanceErrorFilter(logging.Filter):
     """Filter to suppress noisy yfinance/network error messages."""
-    
+
     def filter(self, record):
         # Suppress delisting, earnings, and HTTP error messages
-        if hasattr(record, 'msg'):
+        if hasattr(record, "msg"):
             msg = str(record.msg)
-            if any(pattern in msg.lower() for pattern in [
-                'possibly delisted',
-                'no earnings dates found',
-                'earnings date',
-                'delisted',
-                'no earnings',
-                'http error 404',
-                'http error 400',
-                'http error 403',
-                'http error 500',
-                'connection error',
-                'timeout error',
-                'request failed'
-            ]):
+            if any(
+                pattern in msg.lower()
+                for pattern in [
+                    "possibly delisted",
+                    "no earnings dates found",
+                    "earnings date",
+                    "delisted",
+                    "no earnings",
+                    "http error 404",
+                    "http error 400",
+                    "http error 403",
+                    "http error 500",
+                    "connection error",
+                    "timeout error",
+                    "request failed",
+                ]
+            ):
                 return False
         return True
 
@@ -60,23 +65,22 @@ class YFinanceErrorFilter(logging.Filter):
 def suppress_yfinance_noise():
     """Apply filter to suppress yfinance delisting/earnings/HTTP error messages."""
     import warnings
-    
+
     # Suppress yfinance deprecation warnings about earnings
     warnings.filterwarnings("ignore", category=DeprecationWarning, module="yfinance")
     warnings.filterwarnings("ignore", message=".*Ticker.earnings.*")
     warnings.filterwarnings("ignore", message=".*Net Income.*")
-    
+
     # Apply filter to multiple loggers that might generate noise
-    logger_names = ['yfinance', 'urllib3', 'requests', 'yahooquery']
-    
+    logger_names = ["yfinance", "urllib3", "requests", "yahooquery"]
+
     for logger_name in logger_names:
         logger = logging.getLogger(logger_name)
         # Check if filter is already applied
         filter_already_applied = any(
-            isinstance(filter_obj, YFinanceErrorFilter) 
-            for filter_obj in logger.filters
+            isinstance(filter_obj, YFinanceErrorFilter) for filter_obj in logger.filters
         )
-        
+
         if not filter_already_applied:
             # Apply the filter
             error_filter = YFinanceErrorFilter()
@@ -85,10 +89,11 @@ def suppress_yfinance_noise():
 
 # ===== Basic Logging Functions =====
 
+
 def setup_logging(
-    log_level: Union[int, str] = logging.INFO,
-    log_file: Optional[str] = None,
-    log_format: Optional[str] = None,
+    log_level: int | str = logging.INFO,
+    log_file: str | None = None,
+    log_format: str | None = None,
     console: bool = True,
 ) -> None:
     """
@@ -113,18 +118,14 @@ def setup_logging(
 
     # Configure handlers
     handlers = []
-    
+
     if console:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(logging.Formatter(CONSOLE_FORMAT))
         handlers.append(console_handler)
 
     # Configure root logger
-    logging.basicConfig(
-        level=log_level,
-        format=log_format,
-        handlers=handlers if handlers else None
-    )
+    logging.basicConfig(level=log_level, format=log_format, handlers=handlers if handlers else None)
 
     # Create file handler if log file is specified
     if log_file:
@@ -140,7 +141,7 @@ def setup_logging(
         logging.root.addHandler(file_handler)
 
     # Add filter to suppress yfinance delisting errors
-    yfinance_logger = logging.getLogger('yfinance')
+    yfinance_logger = logging.getLogger("yfinance")
     yfinance_filter = YFinanceErrorFilter()
     yfinance_logger.addFilter(yfinance_filter)
 
@@ -152,11 +153,11 @@ def setup_logging(
 
 
 def configure_logging(
-    level: Union[int, str] = logging.INFO,
-    log_file: Optional[str] = None,
+    level: int | str = logging.INFO,
+    log_file: str | None = None,
     console: bool = True,
-    console_level: Optional[Union[int, str]] = None,
-    format_string: Optional[str] = None,
+    console_level: int | str | None = None,
+    format_string: str | None = None,
     debug: bool = False,
 ) -> None:
     """
@@ -193,7 +194,7 @@ def configure_logging(
             format_string = DEFAULT_FORMAT
 
     # Set up a basic configuration
-    handlers: List[Dict[str, Any]] = []
+    handlers: list[dict[str, Any]] = []
 
     # Add console handler if requested
     if console:
@@ -290,7 +291,7 @@ def configure_logging(
         logging.config.dictConfig(logging_config)
 
         # Add filter to suppress yfinance delisting errors
-        yfinance_logger = logging.getLogger('yfinance')
+        yfinance_logger = logging.getLogger("yfinance")
         yfinance_filter = YFinanceErrorFilter()
         yfinance_logger.addFilter(yfinance_filter)
 
@@ -336,7 +337,7 @@ def get_ticker_logger(logger: logging.Logger, ticker: str) -> logging.Logger:
     return logging.getLogger(f"{logger.name}.{ticker}")
 
 
-def set_log_level(level: Union[int, str], logger_name: Optional[str] = None) -> None:
+def set_log_level(level: int | str, logger_name: str | None = None) -> None:
     """
     Set the log level for a specific logger or the root logger.
 
