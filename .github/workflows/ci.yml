@@ -38,9 +38,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements-dev.txt
-        pip install pytest-xdist safety bandit
+        python -m pip install --only-binary :all: --upgrade pip
+        pip install --only-binary :all: -r requirements-dev.txt
+        pip install --only-binary :all: pytest-xdist safety bandit
 
     - name: Security check with bandit
       continue-on-error: true
@@ -122,8 +122,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements-dev.txt
+        python -m pip install --only-binary :all: --upgrade pip
+        pip install --only-binary :all: -r requirements-dev.txt
 
     - name: Run integration tests
       continue-on-error: true  # Don't block CI on integration test failures (API rate limits, etc.)
@@ -147,9 +147,9 @@ jobs:
     # undeclared upstream transitive deps before they break a fresh prod install.
     - name: Install production deps only
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-rerunfailures
+        python -m pip install --only-binary :all: --upgrade pip
+        pip install --only-binary :all: -r requirements.txt
+        pip install --only-binary :all: pytest pytest-rerunfailures
 
     # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
     # isn't installed in this minimal job and the smoke test doesn't need coverage.
@@ -174,9 +174,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements-dev.txt
-        pip install radon autoflake detect-secrets
+        python -m pip install --only-binary :all: --upgrade pip
+        pip install --only-binary :all: -r requirements-dev.txt
+        pip install --only-binary :all: radon autoflake detect-secrets
 
     - name: Check code complexity
       continue-on-error: true
