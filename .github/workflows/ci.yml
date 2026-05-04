@@ -39,7 +39,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: -r requirements-dev.txt
+        pip install --only-binary :all: --require-hashes -r requirements-dev.lock
         pip install --only-binary :all: pytest-xdist==3.8.0 safety==3.7.0 bandit==1.9.4
 
     - name: Security check with bandit
@@ -123,7 +123,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: -r requirements-dev.txt
+        pip install --only-binary :all: --require-hashes -r requirements-dev.lock
 
     - name: Run integration tests
       continue-on-error: true  # Don't block CI on integration test failures (API rate limits, etc.)
@@ -148,7 +148,7 @@ jobs:
     - name: Install production deps only
       run: |
         python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: -r requirements.txt
+        pip install --only-binary :all: --require-hashes -r requirements.lock
         pip install --only-binary :all: pytest==9.0.3 pytest-rerunfailures==16.1
 
     # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
@@ -175,7 +175,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: -r requirements-dev.txt
+        pip install --only-binary :all: --require-hashes -r requirements-dev.lock
         pip install --only-binary :all: radon==6.0.1 autoflake==2.3.3 detect-secrets==1.5.0
 
     - name: Check code complexity
@@ -238,3 +238,35 @@ jobs:
                 print(f'{module} import failed: {e}')
                 sys.exit(1)
         "
+
+  lockfile-sync:
+    name: lockfile sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+      with:
+        version: '0.10.4'
+
+    - name: Verify requirements.lock matches requirements.txt
+      run: |
+        uv pip compile requirements.txt -o /tmp/check.lock --generate-hashes --quiet
+        if ! diff -q requirements.lock /tmp/check.lock > /dev/null; then
+          echo "::error::requirements.lock is out of sync with requirements.txt"
+          echo "Run: uv pip compile requirements.txt -o requirements.lock --generate-hashes"
+          diff requirements.lock /tmp/check.lock | head -40
+          exit 1
+        fi
+
+    - name: Verify requirements-dev.lock matches requirements-dev.txt
+      run: |
+        uv pip compile requirements-dev.txt -o /tmp/check-dev.lock --generate-hashes --quiet
+        if ! diff -q requirements-dev.lock /tmp/check-dev.lock > /dev/null; then
+          echo "::error::requirements-dev.lock is out of sync with requirements-dev.txt"
+          echo "Run: uv pip compile requirements-dev.txt -o requirements-dev.lock --generate-hashes"
+          diff requirements-dev.lock /tmp/check-dev.lock | head -40
+          exit 1
+        fi
