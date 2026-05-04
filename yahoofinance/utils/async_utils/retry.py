@@ -32,7 +32,7 @@ async def retry_async_with_backoff(
     base_delay: float = 1.0,
     max_delay: float = 30.0,
     circuit_name: str | None = None,
-    retry_exceptions: tuple[type, ...] | None = None,
+    retry_exceptions: tuple[type[BaseException], ...] | None = None,
     **kwargs,
 ) -> T:
     """

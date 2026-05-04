@@ -71,14 +71,17 @@ def _conviction_to_prior(conviction: float) -> float:
 
 
 def _prior_to_conviction(p: float) -> int:
-    """Inverse: posterior probability → conviction 0-100."""
+    """Inverse: posterior probability → conviction 0-100.
+
+    Defensive bounds checks: probabilities should be in (0, 1) but caller
+    types are float so we guard the edges to avoid log(0) / log(1) errors.
+    """
     if p <= 0:
         return 0
-    elif p >= 1:
+    if p >= 1:
         return 100
-    else:
-        z = _logit(p)
-        return int(round(50 + z / _logit(0.95) * 50))
+    z = _logit(p)
+    return int(round(50 + z / _logit(0.95) * 50))
 
 
 # ── Likelihood table builder ────────────────────────────────────────────
