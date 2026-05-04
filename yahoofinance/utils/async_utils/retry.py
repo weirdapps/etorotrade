@@ -59,9 +59,8 @@ async def retry_async_with_backoff(
         # Retry all exceptions except CircuitOpenError
         retry_exceptions = (Exception,)
 
-    # Re-bind to a local name with the narrower type so the `except` line
-    # below tells SonarCloud (and mypy) we have a tuple of exception classes.
-    retry_exc: tuple[type[BaseException], ...] = retry_exceptions
+    # Assertion narrows the type for SonarCloud's flow analysis.
+    assert all(isinstance(e, type) and issubclass(e, BaseException) for e in retry_exceptions)
 
     # Create retry exclusion set - never retry these
     no_retry_exceptions = (CircuitOpenError, asyncio.CancelledError, KeyboardInterrupt)
@@ -107,7 +106,7 @@ async def retry_async_with_backoff(
             # Never retry these exceptions
             raise e
 
-        except retry_exc as e:
+        except retry_exceptions as e:
             attempt += 1
             last_exception = e
 
