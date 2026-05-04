@@ -35,7 +35,7 @@ jobs:
           fi
           if [ -f requirements.txt ]; then pip install --only-binary :all: -r requirements.txt || true; fi
           if [ -f requirements-dev.txt ]; then pip install --only-binary :all: -r requirements-dev.txt || true; fi
-          pip install --only-binary :all: pytest pytest-cov
+          pip install --only-binary :all: pytest==9.0.3 pytest-cov==7.1.0
 
       - name: Check for tests
         id: check-tests
