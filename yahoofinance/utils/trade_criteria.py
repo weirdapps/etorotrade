@@ -6,12 +6,12 @@ and calculating buy/sell/hold recommendations using the centralized
 TradeConfig configuration.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import pandas as pd
 
-from yahoofinance.core.config import COLUMN_NAMES
 from trade_modules.trade_config import TradeConfig
+from yahoofinance.core.config import COLUMN_NAMES
 
 # Trading action constants
 BUY_ACTION = "B"
@@ -21,7 +21,6 @@ INCONCLUSIVE_ACTION = "I"
 NO_ACTION = ""
 
 from ..core.logging import get_logger
-
 
 # Constants for column names from config
 BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]  # Column name for buy percentage
@@ -53,10 +52,10 @@ logger = get_logger(__name__)
 
 
 def calculate_action_for_row(
-    row: Union[pd.Series, Dict[str, Any]], 
-    criteria: Dict[str, Any], 
-    short_field: str = DEFAULT_SHORT_FIELD
-) -> Tuple[str, str]:
+    row: pd.Series | dict[str, Any],
+    criteria: dict[str, Any],
+    short_field: str = DEFAULT_SHORT_FIELD,
+) -> tuple[str, str]:
     """
     Calculate action (BUY/SELL/HOLD) for a single row, along with reason.
 
@@ -70,21 +69,21 @@ def calculate_action_for_row(
     """
     # Use the new centralized analysis engine
     from trade_modules.analysis_engine import calculate_action
-    
+
     # Convert row to DataFrame for analysis engine
     df = pd.DataFrame([row])
     df = calculate_action(df)
-    
+
     # Return action and reason for this row
     action = df.iloc[0]["BS"] if not df.empty else "H"
     return action, "Calculated using centralized TradeConfig"
 
 
 # Backward compatibility functions
-def check_confidence_criteria(row: Union[pd.Series, Dict[str, Any]], criteria: Dict[str, Any]) -> bool:
+def check_confidence_criteria(row: pd.Series | dict[str, Any], criteria: dict[str, Any]) -> bool:
     """
     Check if a row meets confidence criteria for making trade decisions.
-    
+
     This function is kept for backward compatibility but delegates to
     the centralized TradeConfig.
 
@@ -100,26 +99,26 @@ def check_confidence_criteria(row: Union[pd.Series, Dict[str, Any]], criteria: D
     config = TradeConfig()
     min_analysts = config.UNIVERSAL_THRESHOLDS.get("min_analyst_count", 5)
     min_targets = config.UNIVERSAL_THRESHOLDS.get("min_price_targets", 5)
-    
+
     # Convert to numeric and handle None values
     analyst_count = float(analyst_count) if analyst_count is not None else 0
     total_ratings = float(total_ratings) if total_ratings is not None else 0
-    
+
     return analyst_count >= min_analysts and total_ratings >= min_targets
 
 
-def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_row_for_criteria(row: dict[str, Any]) -> dict[str, Any]:
     """
     Normalize a row's data for criteria evaluation.
-    
+
     Args:
         row: Dictionary with row data
-        
+
     Returns:
         Dictionary with normalized values
     """
     normalized = {}
-    
+
     # Normalize key fields for criteria evaluation
     normalized[UPSIDE] = row.get("UPSIDE", row.get("upside"))
     normalized[BUY_PERCENTAGE_COL] = row.get("% BUY", row.get("buy_percentage"))
@@ -129,22 +128,21 @@ def normalize_row_for_criteria(row: Dict[str, Any]) -> Dict[str, Any]:
     normalized[BETA] = row.get("BETA", row.get("beta"))
     normalized[ANALYST_COUNT] = row.get("# A", row.get("analyst_count"))
     normalized[TOTAL_RATINGS] = row.get("# T", row.get("total_ratings"))
-    
+
     # Include all other fields as-is
     for key, value in row.items():
         if key not in normalized:
             normalized[key] = value
-            
+
     return normalized
 
 
 def normalize_row_columns(
-    row: Union[pd.Series, Dict[str, Any]], 
-    column_mapping: Optional[Dict[str, str]] = None
-) -> Dict[str, Any]:
+    row: pd.Series | dict[str, Any], column_mapping: dict[str, str] | None = None
+) -> dict[str, Any]:
     """
     Normalize a row's column names and values.
-    
+
     This function is kept for backward compatibility.
 
     Args:
@@ -158,39 +156,40 @@ def normalize_row_columns(
         return normalize_row_for_criteria(row)
     else:
         # Convert to dict if it's a pandas Series or similar
-        return normalize_row_for_criteria(row.to_dict() if hasattr(row, 'to_dict') else dict(row))
+        return normalize_row_for_criteria(row.to_dict() if hasattr(row, "to_dict") else dict(row))
 
 
-def calculate_action(ticker_data: Dict[str, Any]) -> str:
+def calculate_action(ticker_data: dict[str, Any]) -> str:
     """
     Simple wrapper to calculate action for a ticker's data.
-    
+
     Args:
         ticker_data: Dictionary with ticker metrics
-        
+
     Returns:
         Action string ('B', 'S', 'H', or 'I')
     """
     # Use the calculate_action_for_row function
     from ..core.config import TRADING_CRITERIA
+
     action, _ = calculate_action_for_row(ticker_data, TRADING_CRITERIA)
     return action
 
 
-def evaluate_trade_criteria(ticker_data: Dict[str, Any]) -> str:
+def evaluate_trade_criteria(ticker_data: dict[str, Any]) -> str:
     """
     Evaluate trade criteria for backward compatibility.
-    
+
     Args:
         ticker_data: Dictionary with ticker metrics
-        
+
     Returns:
         Action string ('B', 'S', 'H', or 'I')
     """
     return calculate_action(ticker_data)
 
 
-def format_numeric_values(df: pd.DataFrame, numeric_columns: List[str]) -> pd.DataFrame:
+def format_numeric_values(df: pd.DataFrame, numeric_columns: list[str]) -> pd.DataFrame:
     """
     Format numeric values in a DataFrame, handling percentage strings and missing values.
 
@@ -209,9 +208,7 @@ def format_numeric_values(df: pd.DataFrame, numeric_columns: List[str]) -> pd.Da
             # Handle percentage strings
             if result_df[col].dtype == "object":
                 result_df[col] = result_df[col].apply(
-                    lambda x: (
-                        float(x.replace("%", "")) if isinstance(x, str) and "%" in x else x
-                    )
+                    lambda x: (float(x.replace("%", "")) if isinstance(x, str) and "%" in x else x)
                 )
             # Convert to numeric, coerce errors to NaN
             result_df[col] = pd.to_numeric(result_df[col], errors="coerce")

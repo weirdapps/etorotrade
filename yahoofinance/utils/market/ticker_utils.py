@@ -6,12 +6,12 @@ to ensure they are properly formatted for API calls.
 """
 
 import re
-from typing import List, Optional, Set
 
 from yahoofinance.core.errors import ValidationError
 
 from ...core.config import SPECIAL_TICKERS
 from ...core.errors import ValidationError
+
 
 def validate_ticker(ticker: str) -> bool:
     """
@@ -39,82 +39,88 @@ def validate_ticker(ticker: str) -> bool:
 
     return True
 
+
 def is_etf_or_commodity(ticker: str) -> bool:
     """
     Identify if a ticker is an ETF or commodity.
-    
+
     ETFs and commodities typically don't have:
     - Analyst price targets
     - PEG ratios (since they track indexes/commodities, not growth)
     - Traditional financial metrics
-    
+
     Args:
         ticker: Ticker symbol to check
-        
+
     Returns:
         True if likely an ETF or commodity, False otherwise
     """
     if not ticker:
         return False
-        
+
     ticker_upper = ticker.upper()
-    
+
     # Common ETF patterns
     etf_patterns = [
         # Specific ETF name patterns (more precise than exchange suffixes)
-        r'^LYX',        # Lyxor ETFs (LYXGRE.DE etc) - moved up for specificity
-        
+        r"^LYX",  # Lyxor ETFs (LYXGRE.DE etc) - moved up for specificity
         # US ETF patterns
-        r'^VOO$', r'^VTI$', r'^SPY$', r'^QQQ$',     # US ETFs
-        r'^VGK$', r'^FXI$', r'^EWJ$', r'^INDA$',    # Regional ETFs
-        r'^SPDR',       # SPDR ETFs
-        r'ETF$',        # Ends with ETF
-        r'^I[A-Z]{2,3}$',  # iShares pattern (IVV, etc)
-        r'^VX[A-Z]',    # VXX, VXN volatility ETFs
-        
+        r"^VOO$",
+        r"^VTI$",
+        r"^SPY$",
+        r"^QQQ$",  # US ETFs
+        r"^VGK$",
+        r"^FXI$",
+        r"^EWJ$",
+        r"^INDA$",  # Regional ETFs
+        r"^SPDR",  # SPDR ETFs
+        r"ETF$",  # Ends with ETF
+        r"^I[A-Z]{2,3}$",  # iShares pattern (IVV, etc)
+        r"^VX[A-Z]",  # VXX, VXN volatility ETFs
         # Cryptocurrency ETFs/instruments
-        r'-USD$',       # BTC-USD, ETH-USD, XRP-USD
+        r"-USD$",  # BTC-USD, ETH-USD, XRP-USD
     ]
-    
+
     # Cryptocurrency patterns (individual cryptos)
     crypto_patterns = [
-        r'^SOL$',       # Solana
-        r'^BTC$',       # Bitcoin (if not BTC-USD)
-        r'^ETH$',       # Ethereum (if not ETH-USD) 
-        r'^XRP$',       # Ripple (if not XRP-USD)
-        r'^ADA$',       # Cardano
-        r'^DOT$',       # Polkadot
-        r'^DOGE$',      # Dogecoin
-        r'^MATIC$',     # Polygon
-        r'^AVAX$',      # Avalanche
+        r"^SOL$",  # Solana
+        r"^BTC$",  # Bitcoin (if not BTC-USD)
+        r"^ETH$",  # Ethereum (if not ETH-USD)
+        r"^XRP$",  # Ripple (if not XRP-USD)
+        r"^ADA$",  # Cardano
+        r"^DOT$",  # Polkadot
+        r"^DOGE$",  # Dogecoin
+        r"^MATIC$",  # Polygon
+        r"^AVAX$",  # Avalanche
     ]
-    
+
     # Commodity patterns
     commodity_patterns = [
-        r'^GC=F$',      # Gold futures
-        r'^SI=F$',      # Silver futures  
-        r'^CL=F$',      # Oil futures
-        r'^GOLD$',      # Gold commodity
-        r'^OIL$',       # Oil commodity
-        r'^SILVER$',    # Silver commodity
+        r"^GC=F$",  # Gold futures
+        r"^SI=F$",  # Silver futures
+        r"^CL=F$",  # Oil futures
+        r"^GOLD$",  # Gold commodity
+        r"^OIL$",  # Oil commodity
+        r"^SILVER$",  # Silver commodity
     ]
-    
+
     # Check ETF patterns
     for pattern in etf_patterns:
         if re.search(pattern, ticker_upper):
             return True
-    
+
     # Check cryptocurrency patterns
     for pattern in crypto_patterns:
         if re.search(pattern, ticker_upper):
             return True
-            
-    # Check commodity patterns  
+
+    # Check commodity patterns
     for pattern in commodity_patterns:
         if re.search(pattern, ticker_upper):
             return True
-            
+
     return False
+
 
 def is_us_ticker(ticker: str) -> bool:
     """
@@ -190,6 +196,7 @@ def is_us_ticker(ticker: str) -> bool:
     # Default to assuming US if no other patterns matched
     return True
 
+
 def normalize_hk_ticker(ticker: str) -> str:
     """
     Normalize Hong Kong ticker format.
@@ -221,11 +228,12 @@ def normalize_hk_ticker(ticker: str) -> str:
     # For non-zero starting tickers, keep as is
     return ticker
 
+
 def is_stock_ticker(ticker: str) -> bool:
     """
     Check if a ticker represents a stock (as opposed to ETF, commodity, or cryptocurrency).
-    
-    Stocks have insider trading data available, while ETFs, commodities, and 
+
+    Stocks have insider trading data available, while ETFs, commodities, and
     cryptocurrencies typically do not.
 
     Args:
@@ -235,45 +243,79 @@ def is_stock_ticker(ticker: str) -> bool:
         True if likely a stock ticker, False for ETFs/commodities/crypto
     """
     ticker_upper = ticker.upper()
-    
+
     # Cryptocurrency patterns
     if ticker_upper.endswith("-USD") or ticker_upper.endswith("-EUR"):
         return False
-    
+
     # Individual cryptocurrency tickers
-    crypto_tickers = {
-        "SOL", "BTC", "ETH", "XRP", "ADA", "DOT", "DOGE", "MATIC", "AVAX"
-    }
-    
+    crypto_tickers = {"SOL", "BTC", "ETH", "XRP", "ADA", "DOT", "DOGE", "MATIC", "AVAX"}
+
     if ticker_upper in crypto_tickers:
         return False
-    
+
     # Common ETF patterns (many ETFs are 3-4 letters)
     # This is a heuristic - not all 3-letter tickers are ETFs
     common_etf_tickers = {
-        "TLT", "FXI", "INDA", "SPY", "QQQ", "IWM", "EFA", "EEM", "VTI", "VEA",
-        "VWO", "AGG", "LQD", "HYG", "GLD", "SLV", "OIL", "USO", "UNG", "GDXJ",
-        "XLF", "XLE", "XLI", "XLK", "XLP", "XLU", "XLV", "XLY", "XLB", "XLRE",
-        "SQQQ", "TQQQ", "UVXY", "VXX", "VIXY"
+        "TLT",
+        "FXI",
+        "INDA",
+        "SPY",
+        "QQQ",
+        "IWM",
+        "EFA",
+        "EEM",
+        "VTI",
+        "VEA",
+        "VWO",
+        "AGG",
+        "LQD",
+        "HYG",
+        "GLD",
+        "SLV",
+        "OIL",
+        "USO",
+        "UNG",
+        "GDXJ",
+        "XLF",
+        "XLE",
+        "XLI",
+        "XLK",
+        "XLP",
+        "XLU",
+        "XLV",
+        "XLY",
+        "XLB",
+        "XLRE",
+        "SQQQ",
+        "TQQQ",
+        "UVXY",
+        "VXX",
+        "VIXY",
     }
-    
+
     if ticker_upper in common_etf_tickers:
         return False
-    
+
     # Common commodity/futures patterns
     commodity_patterns = {
-        "GC=F", "SI=F", "CL=F", "NG=F", "ZC=F", "ZS=F", "ZW=F"  # Futures contracts
+        "GC=F",
+        "SI=F",
+        "CL=F",
+        "NG=F",
+        "ZC=F",
+        "ZS=F",
+        "ZW=F",  # Futures contracts
     }
-    
+
     if ticker_upper in commodity_patterns:
         return False
-    
+
     # Default to assuming it's a stock if we can't definitively classify it
     return True
 
-def filter_valid_tickers(
-    tickers: List[str], excluded_tickers: Optional[Set[str]] = None
-) -> List[str]:
+
+def filter_valid_tickers(tickers: list[str], excluded_tickers: set[str] | None = None) -> list[str]:
     """
     Filter out invalid tickers and excluded tickers.
 

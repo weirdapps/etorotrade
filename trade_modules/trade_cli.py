@@ -12,18 +12,18 @@ from pathlib import Path
 
 import pandas as pd
 
+from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+from yahoofinance.core.config import get_max_concurrent_requests
 from yahoofinance.core.di_container import with_logger
 from yahoofinance.core.errors import YFinanceError
 from yahoofinance.core.logging import get_logger
-from yahoofinance.utils.dependency_injection import registry
-from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
-from yahoofinance.core.config import get_max_concurrent_requests
 from yahoofinance.presentation import MarketDisplay
 from yahoofinance.utils.data.ticker_utils import are_equivalent_tickers
+from yahoofinance.utils.dependency_injection import registry
 
+from .analysis.tiers import _parse_market_cap
 from .cli import get_user_source_choice
 from .utils import get_file_paths
-from .analysis.tiers import _parse_market_cap
 
 
 def sort_by_market_cap_descending(df: pd.DataFrame) -> pd.DataFrame:
@@ -40,7 +40,7 @@ def sort_by_market_cap_descending(df: pd.DataFrame) -> pd.DataFrame:
 
     # Find the market cap column (could be CAP or market_cap)
     cap_col = None
-    for col_name in ['CAP', 'cap', 'market_cap', 'MARKET_CAP']:
+    for col_name in ["CAP", "cap", "market_cap", "MARKET_CAP"]:
         if col_name in df.columns:
             cap_col = col_name
             break
@@ -50,9 +50,9 @@ def sort_by_market_cap_descending(df: pd.DataFrame) -> pd.DataFrame:
 
     # Parse market cap values for sorting
     df = df.copy()
-    df['_cap_numeric'] = df[cap_col].apply(_parse_market_cap)
-    df = df.sort_values('_cap_numeric', ascending=False)
-    df = df.drop(columns=['_cap_numeric'])
+    df["_cap_numeric"] = df[cap_col].apply(_parse_market_cap)
+    df = df.sort_values("_cap_numeric", ascending=False)
+    df = df.drop(columns=["_cap_numeric"])
 
     return df
 
@@ -81,7 +81,22 @@ Examples:
     parser.add_argument(
         "-o",
         "--operation",
-        choices=["p", "portfolio", "m", "market", "e", "etoro", "t", "trade", "i", "input", "b", "backtest", "sc", "scorecard"],
+        choices=[
+            "p",
+            "portfolio",
+            "m",
+            "market",
+            "e",
+            "etoro",
+            "t",
+            "trade",
+            "i",
+            "input",
+            "b",
+            "backtest",
+            "sc",
+            "scorecard",
+        ],
         help="Operation mode: (p)ortfolio, (m)arket, (e)toro, (t)rade analysis, (i)nput manual, (b)acktest, (sc)orecard",
     )
 
@@ -346,19 +361,21 @@ async def generate_trade_opportunities_from_etoro(
 
         # Find the ticker and BS columns (handle different column names)
         ticker_col = None
-        for col in ['TKR', 'TICKER', 'ticker', 'symbol', 'Symbol']:
+        for col in ["TKR", "TICKER", "ticker", "symbol", "Symbol"]:
             if col in etoro_df.columns:
                 ticker_col = col
                 break
 
         bs_col = None
-        for col in ['BS', 'ACTION', 'action', 'Act']:
+        for col in ["BS", "ACTION", "action", "Act"]:
             if col in etoro_df.columns:
                 bs_col = col
                 break
 
         if ticker_col is None or bs_col is None:
-            print(f"  [trade-filter] ERROR: Required columns not found. Ticker col: {ticker_col}, BS col: {bs_col}")
+            print(
+                f"  [trade-filter] ERROR: Required columns not found. Ticker col: {ticker_col}, BS col: {bs_col}"
+            )
             print(f"  [trade-filter] Available columns: {list(etoro_df.columns)}")
             return
 
@@ -366,21 +383,26 @@ async def generate_trade_opportunities_from_etoro(
         portfolio_tickers = set()
         if os.path.exists(portfolio_file):
             portfolio_df = pd.read_csv(portfolio_file)
-            print(f"  [trade-filter] Portfolio file loaded: {len(portfolio_df)} rows, columns: {list(portfolio_df.columns)[:5]}")
+            print(
+                f"  [trade-filter] Portfolio file loaded: {len(portfolio_df)} rows, columns: {list(portfolio_df.columns)[:5]}"
+            )
             # Find ticker column in portfolio
-            for col in ['TKR', 'TICKER', 'ticker', 'symbol', 'Symbol']:
+            for col in ["TKR", "TICKER", "ticker", "symbol", "Symbol"]:
                 if col in portfolio_df.columns:
                     raw_tickers = set(portfolio_df[col].astype(str).str.upper())
                     # Expand portfolio tickers to include all equivalent forms
                     # (e.g., 6758.T -> also add SONY, NOVO-B.CO -> also add NVO)
                     # This ensures dual-listed stocks are properly excluded
                     from yahoofinance.utils.ticker_mappings import get_all_equivalent_tickers
+
                     for ticker in raw_tickers:
                         portfolio_tickers.add(ticker)
                         equivalents = get_all_equivalent_tickers(ticker)
                         portfolio_tickers.update(eq.upper() for eq in equivalents)
                     break
-            print(f"  [trade-filter] Portfolio tickers ({len(portfolio_tickers)}): {sorted(portfolio_tickers)}")
+            print(
+                f"  [trade-filter] Portfolio tickers ({len(portfolio_tickers)}): {sorted(portfolio_tickers)}"
+            )
         else:
             print(f"  [trade-filter] WARNING: Portfolio file not found: {portfolio_file}")
 
@@ -391,21 +413,25 @@ async def generate_trade_opportunities_from_etoro(
         # Filter by trade choice
         if trade_choice == "B":
             # BUY: Filter for B signals, exclude portfolio holdings
-            filtered_df = etoro_df[etoro_df[bs_col] == 'B'].copy()
+            filtered_df = etoro_df[etoro_df[bs_col] == "B"].copy()
             if portfolio_tickers:
-                filtered_df = filtered_df[~filtered_df[ticker_col].str.upper().isin(portfolio_tickers)]
+                filtered_df = filtered_df[
+                    ~filtered_df[ticker_col].str.upper().isin(portfolio_tickers)
+                ]
             output_file = os.path.join(output_dir, "buy.csv")
             signal_name = "BUY"
 
         elif trade_choice == "S":
             # SELL: Portfolio holdings with S signal (from etoro.csv or portfolio.csv)
-            filtered_df = etoro_df[etoro_df[bs_col] == 'S'].copy()
+            filtered_df = etoro_df[etoro_df[bs_col] == "S"].copy()
             print(f"  [trade-filter] Stocks with S signal in etoro: {len(filtered_df)}")
             if portfolio_tickers:
                 s_tickers = set(filtered_df[ticker_col].str.upper())
                 matching = s_tickers & portfolio_tickers
                 print(f"  [trade-filter] S-signal tickers matching portfolio: {sorted(matching)}")
-                filtered_df = filtered_df[filtered_df[ticker_col].str.upper().isin(portfolio_tickers)]
+                filtered_df = filtered_df[
+                    filtered_df[ticker_col].str.upper().isin(portfolio_tickers)
+                ]
 
                 # Also include portfolio stocks with S signal not in etoro.csv
                 # (e.g., crypto like BTC-USD, ETH-USD)
@@ -414,21 +440,31 @@ async def generate_trade_opportunities_from_etoro(
                     port_bs_col = bs_col if bs_col in port_df.columns else None
                     port_tkr_col = ticker_col if ticker_col in port_df.columns else None
                     if port_bs_col and port_tkr_col:
-                        port_sells = port_df[port_df[port_bs_col] == 'S'].copy()
+                        port_sells = port_df[port_df[port_bs_col] == "S"].copy()
                         # Only add those not already captured from etoro.csv
-                        existing = set(filtered_df[ticker_col].str.upper()) if not filtered_df.empty else set()
-                        port_sells = port_sells[~port_sells[port_tkr_col].str.upper().isin(existing)]
+                        existing = (
+                            set(filtered_df[ticker_col].str.upper())
+                            if not filtered_df.empty
+                            else set()
+                        )
+                        port_sells = port_sells[
+                            ~port_sells[port_tkr_col].str.upper().isin(existing)
+                        ]
                         if not port_sells.empty:
-                            print(f"  [trade-filter] Adding {len(port_sells)} SELL signals from portfolio.csv: {list(port_sells[port_tkr_col])}")
+                            print(
+                                f"  [trade-filter] Adding {len(port_sells)} SELL signals from portfolio.csv: {list(port_sells[port_tkr_col])}"
+                            )
                             filtered_df = pd.concat([filtered_df, port_sells], ignore_index=True)
             output_file = os.path.join(output_dir, "sell.csv")
             signal_name = "SELL"
 
         elif trade_choice == "H":
             # HOLD: Filter for H signals, exclude portfolio holdings (show market HOLD opportunities)
-            filtered_df = etoro_df[etoro_df[bs_col] == 'H'].copy()
+            filtered_df = etoro_df[etoro_df[bs_col] == "H"].copy()
             if portfolio_tickers:
-                filtered_df = filtered_df[~filtered_df[ticker_col].str.upper().isin(portfolio_tickers)]
+                filtered_df = filtered_df[
+                    ~filtered_df[ticker_col].str.upper().isin(portfolio_tickers)
+                ]
             output_file = os.path.join(output_dir, "hold.csv")
             signal_name = "HOLD"
         else:
@@ -512,7 +548,9 @@ async def generate_trade_opportunities_from_market(
                 sell_opps = sort_by_market_cap_descending(sell_opps)
                 sell_opps.to_csv(output_file)
                 if app_logger:
-                    app_logger.info(f"Generated {len(sell_opps)} sell opportunities -> {output_file}")
+                    app_logger.info(
+                        f"Generated {len(sell_opps)} sell opportunities -> {output_file}"
+                    )
             else:
                 pd.DataFrame().to_csv(output_file)
                 if app_logger:
@@ -525,7 +563,9 @@ async def generate_trade_opportunities_from_market(
                 hold_opps = sort_by_market_cap_descending(hold_opps)
                 hold_opps.to_csv(output_file)
                 if app_logger:
-                    app_logger.info(f"Generated {len(hold_opps)} hold opportunities -> {output_file}")
+                    app_logger.info(
+                        f"Generated {len(hold_opps)} hold opportunities -> {output_file}"
+                    )
             else:
                 pd.DataFrame().to_csv(output_file)
                 if app_logger:
@@ -540,17 +580,18 @@ async def generate_trade_opportunities_from_market(
 def _display_empty_results(columns, title, output_filename, app_logger):
     """Display a header-only table in console and generate header-only HTML."""
     from yahoofinance.presentation.console_modules.table_renderer import display_empty_table
+
     display_empty_table(columns, title)
 
     try:
-        from yahoofinance.presentation.html import HTMLGenerator
         from trade_modules.utils import get_file_paths
+        from yahoofinance.presentation.html import HTMLGenerator
 
         output_dir, _, _, _, _ = get_file_paths()
-        html_filename = output_filename.replace('.csv', '.html')
+        html_filename = output_filename.replace(".csv", ".html")
         base_filename = os.path.splitext(html_filename)[0]
 
-        html_columns = ['ACTION' if c == 'BS' else c for c in columns]
+        html_columns = ["ACTION" if c == "BS" else c for c in columns]
 
         html_generator = HTMLGenerator()
         html_generator.generate_empty_stock_table(
@@ -638,15 +679,15 @@ async def display_existing_csv_data(
         # Since we're using pre-filtered files, just display the data directly
         if not df.empty:
             # Reset index to make ticker a regular column if it's the index
-            if df.index.name == 'TICKER' or (df.index.name and 'ticker' in df.index.name.lower()):
+            if df.index.name == "TICKER" or (df.index.name and "ticker" in df.index.name.lower()):
                 df = df.reset_index()
-            
+
             # Convert DataFrame to list of dicts for display
             all_data = df.to_dict("records")
-            
+
             # Use MarketDisplay to show the data
-            from yahoofinance.presentation.console import MarketDisplay
             from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
+            from yahoofinance.presentation.console import MarketDisplay
 
             # Create a minimal provider (won't be used for API calls)
             provider = AsyncHybridProvider(max_concurrency=1)
@@ -659,41 +700,41 @@ async def display_existing_csv_data(
 
             # Generate HTML file using the same pattern as regular analysis
             try:
-                from yahoofinance.presentation.html import HTMLGenerator
                 from trade_modules.utils import get_file_paths
-                
+                from yahoofinance.presentation.html import HTMLGenerator
+
                 # Get output directory
                 output_dir, _, _, _, _ = get_file_paths()
-                
+
                 # Generate HTML filename
-                html_filename = output_filename.replace('.csv', '.html')
+                html_filename = output_filename.replace(".csv", ".html")
                 html_path = f"{output_dir}/{html_filename}"
-                
+
                 # Ensure df has TICKER as a column (not index) for HTML generation
                 df_for_html = df.copy()
-                
+
                 # Rename BS column to ACTION for proper color coding (if it exists)
-                if 'BS' in df_for_html.columns:
-                    df_for_html = df_for_html.rename(columns={'BS': 'ACTION'})
-                elif 'ACT' in df_for_html.columns:
-                    df_for_html = df_for_html.rename(columns={'ACT': 'ACTION'})
-                
+                if "BS" in df_for_html.columns:
+                    df_for_html = df_for_html.rename(columns={"BS": "ACTION"})
+                elif "ACT" in df_for_html.columns:
+                    df_for_html = df_for_html.rename(columns={"ACT": "ACTION"})
+
                 # Convert to stocks_data for HTML generation
-                stocks_data = df_for_html.to_dict('records')
+                stocks_data = df_for_html.to_dict("records")
                 base_filename = os.path.splitext(html_filename)[0]
-                
+
                 # Generate HTML file
                 html_generator = HTMLGenerator()
                 html_generator.generate_stock_table(
                     stocks_data=stocks_data,
                     title=title,
                     output_filename=base_filename,
-                    include_columns=list(df_for_html.columns)
+                    include_columns=list(df_for_html.columns),
                 )
-                
+
                 if app_logger:
                     app_logger.info(f"Generated HTML file: {html_path}")
-                    
+
             except Exception as e:
                 if app_logger:
                     app_logger.warning(f"Failed to generate HTML file: {str(e)}")
@@ -834,16 +875,12 @@ def display_portfolio_risk_warnings(output_dir: str, app_logger=None):
         portfolio_beta = analyzer.calculate_portfolio_beta(portfolio_df)
         if portfolio_beta is not None:
             risk_level = (
-                "LOW" if portfolio_beta < 0.8
-                else "MODERATE" if portfolio_beta < 1.2
-                else "HIGH"
+                "LOW" if portfolio_beta < 0.8 else "MODERATE" if portfolio_beta < 1.2 else "HIGH"
             )
             print(f"Portfolio Beta: {portfolio_beta:.2f} ({risk_level} volatility)")
 
         if app_logger:
-            app_logger.info(
-                f"Portfolio risk analysis: {len(concentration_warnings)} warnings"
-            )
+            app_logger.info(f"Portfolio risk analysis: {len(concentration_warnings)} warnings")
 
     except ImportError:
         if app_logger:
@@ -1064,6 +1101,7 @@ async def main_async_with_args(args, app_logger=None):
             if app_logger:
                 app_logger.info("Running backtest analysis")
             from trade_modules.backtest_engine import run_backtest
+
             run_backtest()
             return
 
@@ -1072,6 +1110,7 @@ async def main_async_with_args(args, app_logger=None):
             if app_logger:
                 app_logger.info("Running signal scorecard")
             from trade_modules.signal_scorecard import run_scorecard
+
             run_scorecard()
             return
 
@@ -1142,7 +1181,7 @@ def main(app_logger=None):
         # Handle legacy argument formats (e.g., "python trade.py p" or "python trade.py p n")
         if not args.operation and args.legacy_args:
             legacy_arg = args.legacy_args[0].lower()
-            if legacy_arg in ['p', 'm', 'e', 't', 'i', 'b', 'sc']:
+            if legacy_arg in ["p", "m", "e", "t", "i", "b", "sc"]:
                 args.operation = legacy_arg
                 if len(args.legacy_args) >= 2 and not args.target:
                     args.target = args.legacy_args[1]

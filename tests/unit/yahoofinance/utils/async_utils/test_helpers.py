@@ -5,8 +5,10 @@ Target: Test async utility functions and helpers
 File: yahoofinance/utils/async_utils/helpers.py (105 statements, 35% coverage)
 """
 
-import pytest
 import asyncio
+
+import pytest
+
 
 class TestGatherWithSemaphore:
     """Test gather_with_semaphore function."""
@@ -22,12 +24,7 @@ class TestGatherWithSemaphore:
             await asyncio.sleep(0.01)
             return n * 2
 
-        results = await gather_with_semaphore(
-            semaphore,
-            task(1),
-            task(2),
-            task(3)
-        )
+        results = await gather_with_semaphore(semaphore, task(1), task(2), task(3))
 
         assert results == [2, 4, 6]
 
@@ -45,14 +42,12 @@ class TestGatherWithSemaphore:
             return "success"
 
         results = await gather_with_semaphore(
-            semaphore,
-            success_task(),
-            failing_task(),
-            return_exceptions=True
+            semaphore, success_task(), failing_task(), return_exceptions=True
         )
 
         assert results[0] == "success"
         assert isinstance(results[1], ValueError)
+
 
 class TestTypeVars:
     """Test type variable definitions."""
@@ -68,6 +63,7 @@ class TestTypeVars:
         from yahoofinance.utils.async_utils.helpers import R
 
         assert R is not None
+
 
 class TestEnhancedImports:
     """Test re-exported enhanced implementations."""
@@ -108,6 +104,7 @@ class TestEnhancedImports:
 
         assert global_priority_rate_limiter is not None
 
+
 class TestAsyncErrorHandling:
     """Test async error handling utilities."""
 
@@ -115,10 +112,11 @@ class TestAsyncErrorHandling:
         """Error handling utilities are available."""
         from yahoofinance.utils.async_utils import helpers
 
-        assert hasattr(helpers, 'safe_operation')
-        assert hasattr(helpers, 'translate_error')
-        assert hasattr(helpers, 'enrich_error_context')
-        assert hasattr(helpers, 'with_retry')
+        assert hasattr(helpers, "safe_operation")
+        assert hasattr(helpers, "translate_error")
+        assert hasattr(helpers, "enrich_error_context")
+        assert hasattr(helpers, "with_retry")
+
 
 class TestModuleStructure:
     """Test module structure and backward compatibility."""
@@ -127,7 +125,7 @@ class TestModuleStructure:
         """Module has logger."""
         from yahoofinance.utils.async_utils import helpers
 
-        assert hasattr(helpers, 'logger')
+        assert hasattr(helpers, "logger")
         assert helpers.logger is not None
 
     def test_module_docstring_exists(self):
@@ -136,6 +134,7 @@ class TestModuleStructure:
 
         assert helpers.__doc__ is not None
         assert "Asynchronous helpers" in helpers.__doc__
+
 
 class TestBackwardCompatibility:
     """Test backward compatibility exports."""
@@ -151,6 +150,7 @@ class TestBackwardCompatibility:
         from yahoofinance.utils.async_utils.helpers import enhanced_async_rate_limited
 
         assert callable(enhanced_async_rate_limited)
+
 
 class TestAsyncSemaphoreEdgeCases:
     """Test edge cases for async semaphore operations."""
@@ -203,6 +203,7 @@ class TestAsyncSemaphoreEdgeCases:
         assert max_concurrent <= 2
         assert len(results) == 5
 
+
 class TestAsyncBulkFetch:
     """Test async_bulk_fetch function."""
 
@@ -237,9 +238,7 @@ class TestAsyncBulkFetch:
         items = ["a", "b", "c", "d"]
         priority_items = ["c", "d"]
 
-        await async_bulk_fetch(
-            items, fetch_func, max_concurrency=1, priority_items=priority_items
-        )
+        await async_bulk_fetch(items, fetch_func, max_concurrency=1, priority_items=priority_items)
 
         # Priority items should be processed first
         assert order[:2] == ["c", "d"] or "c" in order[:2] and "d" in order[:2]
@@ -266,11 +265,10 @@ class TestAsyncBulkFetch:
             return item
 
         items = [1, 2, 3]
-        results = await async_bulk_fetch(
-            items, fetch_func, timeout_per_batch=10.0
-        )
+        results = await async_bulk_fetch(items, fetch_func, timeout_per_batch=10.0)
 
         assert len(results) == 3
+
 
 class TestAsyncRetry:
     """Test async_retry function."""
@@ -290,8 +288,8 @@ class TestAsyncRetry:
     @pytest.mark.asyncio
     async def test_async_retry_success_after_failures(self):
         """Succeed after initial failures."""
-        from yahoofinance.utils.async_utils.helpers import async_retry
         from yahoofinance.core.errors import YFinanceError
+        from yahoofinance.utils.async_utils.helpers import async_retry
 
         attempt_count = 0
 
@@ -302,9 +300,7 @@ class TestAsyncRetry:
                 raise YFinanceError("Temporary failure")
             return "success"
 
-        result = await async_retry(
-            flaky_func, max_retries=3, retry_delay=0.01
-        )
+        result = await async_retry(flaky_func, max_retries=3, retry_delay=0.01)
 
         assert result == "success"
         assert attempt_count == 3
@@ -312,22 +308,20 @@ class TestAsyncRetry:
     @pytest.mark.asyncio
     async def test_async_retry_all_attempts_fail(self):
         """Raise exception when all attempts fail."""
-        from yahoofinance.utils.async_utils.helpers import async_retry
         from yahoofinance.core.errors import YFinanceError
+        from yahoofinance.utils.async_utils.helpers import async_retry
 
         async def always_fail():
             raise YFinanceError("Always fails")
 
         with pytest.raises(YFinanceError):
-            await async_retry(
-                always_fail, max_retries=2, retry_delay=0.01
-            )
+            await async_retry(always_fail, max_retries=2, retry_delay=0.01)
 
     @pytest.mark.asyncio
     async def test_async_retry_with_jitter(self):
         """Retry with jitter enabled."""
-        from yahoofinance.utils.async_utils.helpers import async_retry
         from yahoofinance.core.errors import YFinanceError
+        from yahoofinance.utils.async_utils.helpers import async_retry
 
         attempt_count = 0
 
@@ -338,17 +332,15 @@ class TestAsyncRetry:
                 raise YFinanceError("Temporary failure")
             return "success"
 
-        result = await async_retry(
-            flaky_func, max_retries=2, retry_delay=0.01, jitter=True
-        )
+        result = await async_retry(flaky_func, max_retries=2, retry_delay=0.01, jitter=True)
 
         assert result == "success"
 
     @pytest.mark.asyncio
     async def test_async_retry_without_jitter(self):
         """Retry without jitter."""
-        from yahoofinance.utils.async_utils.helpers import async_retry
         from yahoofinance.core.errors import YFinanceError
+        from yahoofinance.utils.async_utils.helpers import async_retry
 
         attempt_count = 0
 
@@ -359,11 +351,10 @@ class TestAsyncRetry:
                 raise YFinanceError("Temporary failure")
             return "success"
 
-        result = await async_retry(
-            flaky_func, max_retries=2, retry_delay=0.01, jitter=False
-        )
+        result = await async_retry(flaky_func, max_retries=2, retry_delay=0.01, jitter=False)
 
         assert result == "success"
+
 
 class TestPrioritizedBatchProcess:
     """Test prioritized_batch_process function."""
@@ -378,9 +369,7 @@ class TestPrioritizedBatchProcess:
             return item.upper()
 
         items = ["a", "b", "c", "d"]
-        results = await prioritized_batch_process(
-            items, processor, show_progress=False
-        )
+        results = await prioritized_batch_process(items, processor, show_progress=False)
 
         assert results["a"] == "A"
         assert results["b"] == "B"
@@ -400,10 +389,7 @@ class TestPrioritizedBatchProcess:
         high_priority = ["high1"]
 
         await prioritized_batch_process(
-            items, processor,
-            high_priority_items=high_priority,
-            concurrency=1,
-            show_progress=False
+            items, processor, high_priority_items=high_priority, concurrency=1, show_progress=False
         )
 
         # High priority item should be first
@@ -425,15 +411,17 @@ class TestPrioritizedBatchProcess:
         medium_priority = ["medium"]
 
         await prioritized_batch_process(
-            items, processor,
+            items,
+            processor,
             high_priority_items=high_priority,
             medium_priority_items=medium_priority,
             concurrency=1,
-            show_progress=False
+            show_progress=False,
         )
 
         # Order should be high, medium, low
         assert order == ["high", "medium", "low"]
+
 
 class TestAdaptiveFetch:
     """Test adaptive_fetch function."""
@@ -480,9 +468,7 @@ class TestAdaptiveFetch:
         priority_items = ["c"]
 
         await adaptive_fetch(
-            items, fetch_func,
-            initial_concurrency=1,
-            priority_items=priority_items
+            items, fetch_func, initial_concurrency=1, priority_items=priority_items
         )
 
         # Priority item should be first
@@ -500,11 +486,11 @@ class TestAdaptiveFetch:
         # Process enough items to trigger adaptation
         items = list(range(25))
         results = await adaptive_fetch(
-            items, fetch_func,
+            items,
+            fetch_func,
             initial_concurrency=2,
             max_concurrency=10,
-            performance_monitor_interval=5
+            performance_monitor_interval=5,
         )
 
         assert len(results) == 25
-

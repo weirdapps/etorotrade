@@ -5,9 +5,11 @@ Target: Test data downloading utilities and helper functions
 File: yahoofinance/data/download.py (526 statements, 9% coverage)
 """
 
-import pytest
 import os
+
 import pandas as pd
+import pytest
+
 
 class TestProcessEToroPortfolioData:
     """Test eToro portfolio data processing."""
@@ -28,22 +30,24 @@ class TestProcessEToroPortfolioData:
         from yahoofinance.data.download import _process_etoro_portfolio_data
 
         portfolio = {
-            "positions": [{
-                "instrumentId": 123,
-                "investmentPct": 10.5,
-                "netProfit": 150.0,
-                "openRate": 50.0,
-                "openTimestamp": "2024-01-01",
-                "isBuy": True,
-                "leverage": 1
-            }]
+            "positions": [
+                {
+                    "instrumentId": 123,
+                    "investmentPct": 10.5,
+                    "netProfit": 150.0,
+                    "openRate": 50.0,
+                    "openTimestamp": "2024-01-01",
+                    "isBuy": True,
+                    "leverage": 1,
+                }
+            ]
         }
         metadata = {
             123: {
                 "symbolFull": "AAPL",
                 "instrumentDisplayName": "Apple Inc.",
                 "instrumentTypeID": "Stocks",
-                "exchangeID": "NASDAQ"
+                "exchangeID": "NASDAQ",
             }
         }
 
@@ -67,7 +71,7 @@ class TestProcessEToroPortfolioData:
                     "openRate": 50.0,
                     "openTimestamp": "2024-01-01",
                     "isBuy": True,
-                    "leverage": 1
+                    "leverage": 1,
                 },
                 {
                     "instrumentId": 123,
@@ -76,16 +80,11 @@ class TestProcessEToroPortfolioData:
                     "openRate": 55.0,
                     "openTimestamp": "2024-01-02",
                     "isBuy": True,
-                    "leverage": 1
-                }
+                    "leverage": 1,
+                },
             ]
         }
-        metadata = {
-            123: {
-                "symbolFull": "AAPL",
-                "instrumentDisplayName": "Apple Inc."
-            }
-        }
+        metadata = {123: {"symbolFull": "AAPL", "instrumentDisplayName": "Apple Inc."}}
 
         result = _process_etoro_portfolio_data(portfolio, metadata, "test_run")
 
@@ -93,6 +92,7 @@ class TestProcessEToroPortfolioData:
         assert result[0]["numPositions"] == 2
         assert result[0]["totalInvestmentPct"] == pytest.approx(15.0)
         assert result[0]["totalNetProfit"] == pytest.approx(150.0)
+
 
 class TestSaveEToroPortfolioCsv:
     """Test CSV saving functionality."""
@@ -110,24 +110,26 @@ class TestSaveEToroPortfolioCsv:
         """Save single row to CSV."""
         from yahoofinance.data.download import _save_etoro_portfolio_csv
 
-        data = [{
-            "symbol": "AAPL",
-            "instrumentDisplayName": "Apple Inc.",
-            "instrumentId": "123",
-            "numPositions": 1,
-            "totalInvestmentPct": 10.5,
-            "avgOpenRate": 50.0,
-            "totalNetProfit": 150.0,
-            "totalNetProfitPct": 14.29,
-            "earliestOpenTimestamp": "2024-01-01",
-            "isBuy": True,
-            "leverage": 1,
-            "instrumentTypeId": "Stocks",
-            "exchangeId": "NASDAQ",
-            "exchangeName": "NASDAQ",
-            "stocksIndustryId": "123",
-            "isInternalInstrument": False
-        }]
+        data = [
+            {
+                "symbol": "AAPL",
+                "instrumentDisplayName": "Apple Inc.",
+                "instrumentId": "123",
+                "numPositions": 1,
+                "totalInvestmentPct": 10.5,
+                "avgOpenRate": 50.0,
+                "totalNetProfit": 150.0,
+                "totalNetProfitPct": 14.29,
+                "earliestOpenTimestamp": "2024-01-01",
+                "isBuy": True,
+                "leverage": 1,
+                "instrumentTypeId": "Stocks",
+                "exchangeId": "NASDAQ",
+                "exchangeName": "NASDAQ",
+                "stocksIndustryId": "123",
+                "isInternalInstrument": False,
+            }
+        ]
 
         output_file = str(tmp_path / "portfolio.csv")
         _save_etoro_portfolio_csv(data, output_file, "test_run")
@@ -144,30 +146,33 @@ class TestSaveEToroPortfolioCsv:
         """Save creates directory if not exists."""
         from yahoofinance.data.download import _save_etoro_portfolio_csv
 
-        data = [{
-            "symbol": "AAPL",
-            "instrumentDisplayName": "Apple",
-            "instrumentId": "123",
-            "numPositions": 1,
-            "totalInvestmentPct": 10.0,
-            "avgOpenRate": 50.0,
-            "totalNetProfit": 100.0,
-            "totalNetProfitPct": 10.0,
-            "earliestOpenTimestamp": "2024-01-01",
-            "isBuy": True,
-            "leverage": 1,
-            "instrumentTypeId": "Stocks",
-            "exchangeId": "NASDAQ",
-            "exchangeName": "NASDAQ",
-            "stocksIndustryId": "123",
-            "isInternalInstrument": False
-        }]
+        data = [
+            {
+                "symbol": "AAPL",
+                "instrumentDisplayName": "Apple",
+                "instrumentId": "123",
+                "numPositions": 1,
+                "totalInvestmentPct": 10.0,
+                "avgOpenRate": 50.0,
+                "totalNetProfit": 100.0,
+                "totalNetProfitPct": 10.0,
+                "earliestOpenTimestamp": "2024-01-01",
+                "isBuy": True,
+                "leverage": 1,
+                "instrumentTypeId": "Stocks",
+                "exchangeId": "NASDAQ",
+                "exchangeName": "NASDAQ",
+                "stocksIndustryId": "123",
+                "isInternalInstrument": False,
+            }
+        ]
 
         # Non-existent nested directory
         output_file = str(tmp_path / "nested" / "dir" / "portfolio.csv")
         _save_etoro_portfolio_csv(data, output_file, "test_run")
 
         assert os.path.exists(output_file)
+
 
 class TestDownloadMarketData:
     """Test market data download function."""
@@ -189,6 +194,7 @@ class TestDownloadMarketData:
         result = download_market_data([])
         assert isinstance(result, dict)
 
+
 class TestBatchConstants:
     """Test batch processing constants."""
 
@@ -203,6 +209,7 @@ class TestBatchConstants:
         from yahoofinance.data.download import MAX_WORKERS
 
         assert MAX_WORKERS == 5
+
 
 class TestHelperFunctions:
     """Test helper functions."""
@@ -225,6 +232,7 @@ class TestHelperFunctions:
 
         assert callable(wait_and_find_element)
 
+
 class TestProcessPortfolio:
     """Test process_portfolio function."""
 
@@ -234,6 +242,7 @@ class TestProcessPortfolio:
 
         assert callable(process_portfolio)
 
+
 class TestEToroDataProcessing:
     """Test eToro data processing edge cases."""
 
@@ -242,15 +251,17 @@ class TestEToroDataProcessing:
         from yahoofinance.data.download import _process_etoro_portfolio_data
 
         portfolio = {
-            "positions": [{
-                "instrumentId": 999,
-                "investmentPct": 5.0,
-                "netProfit": 50.0,
-                "openRate": 100.0,
-                "openTimestamp": "2024-01-01",
-                "isBuy": True,
-                "leverage": 1
-            }]
+            "positions": [
+                {
+                    "instrumentId": 999,
+                    "investmentPct": 5.0,
+                    "netProfit": 50.0,
+                    "openRate": 100.0,
+                    "openTimestamp": "2024-01-01",
+                    "isBuy": True,
+                    "leverage": 1,
+                }
+            ]
         }
         metadata = {}  # No metadata for this instrument
 
@@ -272,7 +283,7 @@ class TestEToroDataProcessing:
                     "openRate": 50.0,
                     "openTimestamp": "2024-01-01",
                     "isBuy": True,
-                    "leverage": 1
+                    "leverage": 1,
                 },
                 {
                     "instrumentId": 123,
@@ -281,13 +292,11 @@ class TestEToroDataProcessing:
                     "openRate": 60.0,
                     "openTimestamp": "2024-01-02",
                     "isBuy": True,
-                    "leverage": 1
-                }
+                    "leverage": 1,
+                },
             ]
         }
-        metadata = {
-            123: {"symbolFull": "AAPL"}
-        }
+        metadata = {123: {"symbolFull": "AAPL"}}
 
         result = _process_etoro_portfolio_data(portfolio, metadata, "test_run")
 
@@ -307,7 +316,7 @@ class TestEToroDataProcessing:
                     "openRate": 50.0,
                     "openTimestamp": "2024-01-01",
                     "isBuy": True,
-                    "leverage": 1
+                    "leverage": 1,
                 },
                 {
                     "instrumentId": 456,
@@ -316,20 +325,18 @@ class TestEToroDataProcessing:
                     "openRate": 60.0,
                     "openTimestamp": "2024-01-02",
                     "isBuy": True,
-                    "leverage": 1
-                }
+                    "leverage": 1,
+                },
             ]
         }
-        metadata = {
-            123: {"symbolFull": "AAPL"},
-            456: {"symbolFull": "MSFT"}
-        }
+        metadata = {123: {"symbolFull": "AAPL"}, 456: {"symbolFull": "MSFT"}}
 
         result = _process_etoro_portfolio_data(portfolio, metadata, "test_run")
 
         # Should be sorted by investment descending
         assert result[0]["symbol"] == "MSFT"
         assert result[1]["symbol"] == "AAPL"
+
 
 class TestAsyncDownloadFunctions:
     """Test async download functions."""
@@ -355,6 +362,7 @@ class TestAsyncDownloadFunctions:
 
         assert callable(download_portfolio)
 
+
 class TestCsvSaveEdgeCases:
     """Test CSV saving edge cases."""
 
@@ -362,24 +370,26 @@ class TestCsvSaveEdgeCases:
         """Save data with unicode characters."""
         from yahoofinance.data.download import _save_etoro_portfolio_csv
 
-        data = [{
-            "symbol": "AAPL",
-            "instrumentDisplayName": "Apple™ Inc. ® €",
-            "instrumentId": "123",
-            "numPositions": 1,
-            "totalInvestmentPct": 10.0,
-            "avgOpenRate": 50.0,
-            "totalNetProfit": 100.0,
-            "totalNetProfitPct": 10.0,
-            "earliestOpenTimestamp": "2024-01-01",
-            "isBuy": True,
-            "leverage": 1,
-            "instrumentTypeId": "Stocks",
-            "exchangeId": "NASDAQ",
-            "exchangeName": "NASDAQ",
-            "stocksIndustryId": "123",
-            "isInternalInstrument": False
-        }]
+        data = [
+            {
+                "symbol": "AAPL",
+                "instrumentDisplayName": "Apple™ Inc. ® €",
+                "instrumentId": "123",
+                "numPositions": 1,
+                "totalInvestmentPct": 10.0,
+                "avgOpenRate": 50.0,
+                "totalNetProfit": 100.0,
+                "totalNetProfitPct": 10.0,
+                "earliestOpenTimestamp": "2024-01-01",
+                "isBuy": True,
+                "leverage": 1,
+                "instrumentTypeId": "Stocks",
+                "exchangeId": "NASDAQ",
+                "exchangeName": "NASDAQ",
+                "stocksIndustryId": "123",
+                "isInternalInstrument": False,
+            }
+        ]
 
         output_file = str(tmp_path / "portfolio.csv")
         _save_etoro_portfolio_csv(data, output_file, "test_run")
@@ -387,4 +397,3 @@ class TestCsvSaveEdgeCases:
         # Should handle unicode
         df = pd.read_csv(output_file)
         assert "™" in df.iloc[0]["instrumentDisplayName"]
-

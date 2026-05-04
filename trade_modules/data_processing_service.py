@@ -4,18 +4,16 @@ Data processing service for handling ticker batch processing.
 Extracted from TradingEngine for better separation of concerns.
 """
 
-import asyncio
-import math
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
-from tqdm import tqdm
+
+from yahoofinance.utils.data.ticker_utils import (
+    get_ticker_for_display,
+    process_ticker_input,
+)
 
 from .utils import safe_float_conversion
-from yahoofinance.utils.data.ticker_utils import (
-    process_ticker_input,
-    get_ticker_for_display,
-)
 
 
 class DataProcessingService:
@@ -26,16 +24,18 @@ class DataProcessingService:
         self.provider = provider
         self.logger = logger
 
-    async def process_ticker_batch(self, tickers: List[str], batch_size: int = None) -> pd.DataFrame:
+    async def process_ticker_batch(
+        self, tickers: list[str], batch_size: int = None
+    ) -> pd.DataFrame:
         """Process a batch of tickers for market data with smooth progress updates."""
-        from yahoofinance.utils.async_utils.enhanced import process_batch_async
-        from yahoofinance.core.config import get_max_concurrent_requests
         from trade_modules.config_manager import get_config
+        from yahoofinance.core.config import get_max_concurrent_requests
+        from yahoofinance.utils.async_utils.enhanced import process_batch_async
 
         # Use config values if not provided
         if batch_size is None:
             config = get_config()
-            batch_size = config.get('performance.batch_size', 25)
+            batch_size = config.get("performance.batch_size", 25)
 
         # Use enhanced async processing with smooth progress updates
         results_dict = await process_batch_async(
@@ -44,7 +44,7 @@ class DataProcessingService:
             batch_size=batch_size,
             concurrency=get_max_concurrent_requests(),
             show_progress=True,
-            description="Processing tickers"
+            description="Processing tickers",
         )
 
         # Convert results dict to list format, filtering out None values
@@ -56,8 +56,7 @@ class DataProcessingService:
         else:
             return pd.DataFrame()
 
-
-    async def _process_single_ticker(self, ticker: str) -> Optional[Dict]:
+    async def _process_single_ticker(self, ticker: str) -> dict | None:
         """Process a single ticker and return market data with normalized ticker."""
         try:
             # Normalize ticker symbol using the centralized system
@@ -108,9 +107,9 @@ class DataProcessingService:
             # Catch-all for unexpected API errors (network libs can raise various exceptions)
             self.logger.debug(f"Unexpected error processing ticker {ticker}: {str(e)}")
             return None
-    
+
     # Backward compatibility method
-    async def _process_batch(self, tickers: List[str], *args, **kwargs) -> Dict[str, Any]:
+    async def _process_batch(self, tickers: list[str], *args, **kwargs) -> dict[str, Any]:
         """Backward compatibility wrapper for process_ticker_batch."""
         # Ignore extra arguments from old API
         return await self.process_ticker_batch(tickers)

@@ -6,25 +6,21 @@ operations while maintaining backward compatibility with existing
 ticker utilities throughout the codebase.
 """
 
-from typing import List, Dict, Any, Optional, Set
-import pandas as pd
 import logging
+
+import pandas as pd
 
 # Import existing ticker utilities - maintain all existing functionality
 from yahoofinance.utils.data.ticker_utils import (
+    check_equivalent_tickers,
+    get_geographic_region,
+    get_ticker_equivalents,
+    get_ticker_for_display,
+    get_ticker_info_summary,
+    is_ticker_dual_listed,
     normalize_ticker,
     process_ticker_input,
-    get_ticker_for_display,
-    standardize_ticker_format,
     validate_ticker_format,
-    get_ticker_exchange_suffix,
-    get_all_ticker_variants,
-    get_ticker_info_summary,
-    check_equivalent_tickers,
-    get_ticker_equivalents,
-    is_ticker_dual_listed,
-    get_geographic_region,
-    get_ticker_for_data_fetch
 )
 
 # Import error types
@@ -36,23 +32,23 @@ logger = logging.getLogger(__name__)
 class TickerService:
     """
     Unified service for ticker operations across trade modules.
-    
+
     This service consolidates ticker-related operations while maintaining
     full backward compatibility with existing ticker utilities. It acts
     as a facade over the existing ticker_utils system.
     """
-    
+
     def __init__(self):
         """Initialize the ticker service."""
         pass
-    
+
     def normalize(self, ticker: str) -> str:
         """
         Normalize a ticker symbol to its canonical form.
-        
+
         Args:
             ticker: Input ticker symbol
-            
+
         Returns:
             Normalized ticker symbol
         """
@@ -61,14 +57,14 @@ class TickerService:
         except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error normalizing ticker {ticker}: {e}")
             raise DataProcessingError(f"Failed to normalize ticker {ticker}") from e
-    
+
     def process_input(self, ticker: str) -> str:
         """
         Process ticker input through complete normalization pipeline.
-        
+
         Args:
             ticker: Raw ticker input
-            
+
         Returns:
             Processed and normalized ticker symbol
         """
@@ -77,14 +73,14 @@ class TickerService:
         except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error processing ticker input {ticker}: {e}")
             raise DataProcessingError(f"Failed to process ticker input {ticker}") from e
-    
+
     def get_display_format(self, ticker: str) -> str:
         """
         Get ticker formatted for display purposes.
-        
+
         Args:
             ticker: Input ticker symbol
-            
+
         Returns:
             Display-formatted ticker symbol
         """
@@ -93,14 +89,14 @@ class TickerService:
         except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error formatting ticker for display {ticker}: {e}")
             raise DataProcessingError(f"Failed to format ticker for display {ticker}") from e
-    
+
     def validate_format(self, ticker: str) -> bool:
         """
         Validate ticker format.
-        
+
         Args:
             ticker: Ticker symbol to validate
-            
+
         Returns:
             True if format is valid, False otherwise
         """
@@ -109,14 +105,14 @@ class TickerService:
         except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error validating ticker format {ticker}: {e}")
             return False
-    
-    def normalize_list(self, tickers: List[str]) -> List[str]:
+
+    def normalize_list(self, tickers: list[str]) -> list[str]:
         """
         Normalize a list of ticker symbols.
-        
+
         Args:
             tickers: List of ticker symbols to normalize
-            
+
         Returns:
             List of normalized ticker symbols
         """
@@ -132,21 +128,23 @@ class TickerService:
                 except (ValueError, TypeError, AttributeError) as e:
                     logger.warning(f"Failed to normalize ticker {ticker}: {e}")
         return normalized
-    
-    def normalize_dataframe_column(self, df: pd.DataFrame, ticker_column: str = 'ticker') -> pd.DataFrame:
+
+    def normalize_dataframe_column(
+        self, df: pd.DataFrame, ticker_column: str = "ticker"
+    ) -> pd.DataFrame:
         """
         Normalize ticker symbols in a DataFrame column.
-        
+
         Args:
             df: DataFrame containing ticker symbols
             ticker_column: Name of the ticker column
-            
+
         Returns:
             DataFrame with normalized ticker symbols
         """
         if df is None or df.empty or ticker_column not in df.columns:
             return df
-        
+
         try:
             df = df.copy()
             df[ticker_column] = df[ticker_column].apply(
@@ -155,15 +153,17 @@ class TickerService:
             return df
         except (KeyError, TypeError, ValueError, AttributeError) as e:
             logger.error(f"Error normalizing DataFrame ticker column {ticker_column}: {e}")
-            raise DataProcessingError(f"Failed to normalize DataFrame ticker column {ticker_column}") from e
-    
-    def get_equivalents(self, ticker: str) -> Set[str]:
+            raise DataProcessingError(
+                f"Failed to normalize DataFrame ticker column {ticker_column}"
+            ) from e
+
+    def get_equivalents(self, ticker: str) -> set[str]:
         """
         Get all equivalent ticker variants for the same underlying asset.
-        
+
         Args:
             ticker: Input ticker symbol
-            
+
         Returns:
             Set of equivalent ticker symbols
         """
@@ -172,15 +172,15 @@ class TickerService:
         except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Error getting ticker equivalents for {ticker}: {e}")
             raise DataProcessingError(f"Failed to get ticker equivalents for {ticker}") from e
-    
+
     def are_equivalent(self, ticker1: str, ticker2: str) -> bool:
         """
         Check if two tickers represent the same underlying asset.
-        
+
         Args:
             ticker1: First ticker symbol
             ticker2: Second ticker symbol
-            
+
         Returns:
             True if tickers are equivalent, False otherwise
         """
@@ -189,14 +189,14 @@ class TickerService:
         except (ValueError, TypeError, AttributeError) as e:
             logger.error(f"Error checking ticker equivalence {ticker1} vs {ticker2}: {e}")
             return False
-    
-    def get_info_summary(self, ticker: str) -> Dict[str, str]:
+
+    def get_info_summary(self, ticker: str) -> dict[str, str]:
         """
         Get comprehensive summary information about a ticker.
-        
+
         Args:
             ticker: Input ticker symbol
-            
+
         Returns:
             Dictionary with ticker information
         """
@@ -205,14 +205,14 @@ class TickerService:
         except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Error getting ticker info summary for {ticker}: {e}")
             raise DataProcessingError(f"Failed to get ticker info summary for {ticker}") from e
-    
+
     def get_geographic_region(self, ticker: str) -> str:
         """
         Get the geographic region for a ticker symbol.
-        
+
         Args:
             ticker: Input ticker symbol
-            
+
         Returns:
             Geographic region code
         """
@@ -221,14 +221,14 @@ class TickerService:
         except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Error getting geographic region for {ticker}: {e}")
             raise DataProcessingError(f"Failed to get geographic region for {ticker}") from e
-    
+
     def is_dual_listed(self, ticker: str) -> bool:
         """
         Check if a ticker has dual listings on multiple exchanges.
-        
+
         Args:
             ticker: Input ticker symbol
-            
+
         Returns:
             True if ticker has dual listings, False otherwise
         """
@@ -242,14 +242,17 @@ class TickerService:
 # Create a default instance for convenience
 default_ticker_service = TickerService()
 
+
 # Convenience functions that use the default service instance
 def normalize_ticker_safe(ticker: str) -> str:
     """Safely normalize a ticker using the default service."""
     return default_ticker_service.normalize(ticker)
 
-def normalize_ticker_list_safe(tickers: List[str]) -> List[str]:
+
+def normalize_ticker_list_safe(tickers: list[str]) -> list[str]:
     """Safely normalize a list of tickers using the default service."""
     return default_ticker_service.normalize_list(tickers)
+
 
 def check_ticker_equivalence_safe(ticker1: str, ticker2: str) -> bool:
     """Safely check ticker equivalence using the default service."""

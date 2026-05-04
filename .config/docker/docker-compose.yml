@@ -15,7 +15,7 @@ services:
     ports:
       - "8000:8000"  # For potential web dashboard in the future
     command: python trade.py
-  
+
   tests:
     build:
       context: ../..

@@ -7,7 +7,7 @@ recommendations, and price targets for stocks.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 
 # Constants
 DEFAULT_ERROR_MESSAGE = "Error fetching analyst data"
+
 
 # The AnalystData class below is used for modern API
 # The legacy CompatAnalystData class is provided for backward compatibility
@@ -41,7 +42,7 @@ class CompatAnalystData:
         """
         self.client = client
 
-    def _validate_date(self, date_str: Optional[str]) -> None:
+    def _validate_date(self, date_str: str | None) -> None:
         """
         Validate date string format.
 
@@ -59,7 +60,7 @@ class CompatAnalystData:
         except ValueError:
             raise YFinanceError(DEFAULT_ERROR_MESSAGE)
 
-    def _safe_float_conversion(self, value: Any) -> Optional[float]:
+    def _safe_float_conversion(self, value: Any) -> float | None:
         """
         Safely convert value to float.
 
@@ -80,9 +81,7 @@ class CompatAnalystData:
         except (ValueError, TypeError):
             return None
 
-    def fetch_ratings_data(
-        self, ticker: str, start_date: Optional[str] = None
-    ) -> Optional[pd.DataFrame]:
+    def fetch_ratings_data(self, ticker: str, start_date: str | None = None) -> pd.DataFrame | None:
         """
         Fetch analyst ratings data for a ticker.
 
@@ -121,8 +120,8 @@ class CompatAnalystData:
             raise YFinanceError(f"Error fetching ratings data for {ticker}: {str(e)}")
 
     def get_ratings_summary(
-        self, ticker: str, start_date: Optional[str] = None, use_earnings_date: bool = False
-    ) -> Dict[str, Any]:
+        self, ticker: str, start_date: str | None = None, use_earnings_date: bool = False
+    ) -> dict[str, Any]:
         """
         Get summary of analyst ratings.
 
@@ -181,7 +180,7 @@ class CompatAnalystData:
             logger.error(f"Error getting ratings summary for {ticker}: {str(e)}")
             return {"positive_percentage": None, "total_ratings": None, "ratings_type": None}
 
-    def get_recent_changes(self, ticker: str, days: int = 30) -> List[Dict[str, str]]:
+    def get_recent_changes(self, ticker: str, days: int = 30) -> list[dict[str, str]]:
         """
         Get recent rating changes.
 
@@ -224,18 +223,21 @@ class CompatAnalystData:
             recent_df["GradeDate"] = recent_df["GradeDate"].dt.strftime("%Y-%m-%d")
 
             # Convert to records and rename columns
-            changes = recent_df.rename(columns={
-                "GradeDate": "date",
-                "Firm": "firm",
-                "FromGrade": "from_grade",
-                "ToGrade": "to_grade",
-                "Action": "action"
-            })[["date", "firm", "from_grade", "to_grade", "action"]].to_dict('records')
+            changes = recent_df.rename(
+                columns={
+                    "GradeDate": "date",
+                    "Firm": "firm",
+                    "FromGrade": "from_grade",
+                    "ToGrade": "to_grade",
+                    "Action": "action",
+                }
+            )[["date", "firm", "from_grade", "to_grade", "action"]].to_dict("records")
 
             return changes
         except YFinanceError as e:
             logger.error(f"Error getting recent changes for {ticker}: {str(e)}")
             return []
+
 
 @dataclass
 class AnalystData:
@@ -258,21 +260,23 @@ class AnalystData:
         analyst_count: Number of analysts with price targets
     """
 
-    buy_percentage: Optional[float] = None
-    total_ratings: Optional[int] = None
+    buy_percentage: float | None = None
+    total_ratings: int | None = None
     strong_buy: int = 0
     buy: int = 0
     hold: int = 0
     sell: int = 0
     strong_sell: int = 0
-    date: Optional[str] = None
-    average_price_target: Optional[float] = None
-    median_price_target: Optional[float] = None
-    highest_price_target: Optional[float] = None
-    lowest_price_target: Optional[float] = None
-    analyst_count: Optional[int] = None
+    date: str | None = None
+    average_price_target: float | None = None
+    median_price_target: float | None = None
+    highest_price_target: float | None = None
+    lowest_price_target: float | None = None
+    analyst_count: int | None = None
+
 
 from .base_analysis import BaseAnalysisService
+
 
 class AnalystRatingsService(BaseAnalysisService):
     """
@@ -354,7 +358,7 @@ class AnalystRatingsService(BaseAnalysisService):
             logger.error(f"Error fetching analyst ratings for {ticker}: {str(e)}")
             return AnalystData()
 
-    def get_ratings_batch(self, tickers: List[str]) -> Dict[str, AnalystData]:
+    def get_ratings_batch(self, tickers: list[str]) -> dict[str, AnalystData]:
         """
         Get analyst ratings for multiple tickers.
 
@@ -384,7 +388,7 @@ class AnalystRatingsService(BaseAnalysisService):
 
         return results
 
-    async def get_ratings_batch_async(self, tickers: List[str]) -> Dict[str, AnalystData]:
+    async def get_ratings_batch_async(self, tickers: list[str]) -> dict[str, AnalystData]:
         """
         Get analyst ratings for multiple tickers asynchronously.
 
@@ -415,8 +419,8 @@ class AnalystRatingsService(BaseAnalysisService):
         results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        results: Dict[str, AnalystData] = {}
-        for ticker, result in zip(us_tickers, results_list):
+        results: dict[str, AnalystData] = {}
+        for ticker, result in zip(us_tickers, results_list, strict=False):
             if isinstance(result, Exception):
                 logger.error(f"Error fetching analyst ratings for {ticker}: {str(result)}")
                 results[ticker] = AnalystData()
@@ -430,7 +434,7 @@ class AnalystRatingsService(BaseAnalysisService):
 
         return results
 
-    def _process_ratings_data(self, ratings_data: Dict[str, Any]) -> AnalystData:
+    def _process_ratings_data(self, ratings_data: dict[str, Any]) -> AnalystData:
         """
         Process analyst ratings data into AnalystData object.
 
@@ -460,7 +464,7 @@ class AnalystRatingsService(BaseAnalysisService):
             analyst_count=ratings_data.get("analyst_count"),
         )
 
-    def get_recent_changes(self, ticker: str, days: int = 30) -> List[Dict[str, str]]:
+    def get_recent_changes(self, ticker: str, days: int = 30) -> list[dict[str, str]]:
         """
         Get recent rating changes for a stock.
 
@@ -500,7 +504,7 @@ class AnalystRatingsService(BaseAnalysisService):
             logger.error(f"Error fetching recent changes for {ticker}: {str(e)}")
             return []
 
-    async def get_recent_changes_async(self, ticker: str, days: int = 30) -> List[Dict[str, str]]:
+    async def get_recent_changes_async(self, ticker: str, days: int = 30) -> list[dict[str, str]]:
         """
         Get recent rating changes for a stock asynchronously.
 
@@ -540,7 +544,7 @@ class AnalystRatingsService(BaseAnalysisService):
             logger.error(f"Error fetching recent changes for {ticker}: {str(e)}")
             return []
 
-    def _process_changes_data(self, changes_data: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    def _process_changes_data(self, changes_data: list[dict[str, Any]]) -> list[dict[str, str]]:
         """
         Process rating changes data.
 
@@ -566,57 +570,85 @@ class AnalystRatingsService(BaseAnalysisService):
 
         return processed_changes
 
+
 def main():
     """
     Main entry point for running analyst module functionality.
     Example usage of the analyst module.
     """
     import sys
-    
+
     # Example usage
     if len(sys.argv) > 1:
         ticker = sys.argv[1]
     else:
         ticker = "AAPL"  # Default ticker
-    
+
     print(f"Fetching analyst data for {ticker}...")
-    
+
     try:
         # Create the analyst ratings service
         service = AnalystRatingsService()
-        
+
         # Get analyst ratings
         ratings = service.get_ratings(ticker)
-        
+
         # Display results
         print(f"\nAnalyst Ratings for {ticker}:")
-        print(f"Buy Percentage: {ratings.buy_percentage:.1f}%" if ratings.buy_percentage else "Buy Percentage: N/A")
-        print(f"Total Ratings: {ratings.total_ratings}" if ratings.total_ratings else "Total Ratings: N/A")
+        print(
+            f"Buy Percentage: {ratings.buy_percentage:.1f}%"
+            if ratings.buy_percentage
+            else "Buy Percentage: N/A"
+        )
+        print(
+            f"Total Ratings: {ratings.total_ratings}"
+            if ratings.total_ratings
+            else "Total Ratings: N/A"
+        )
         print("\nRating Breakdown:")
         print(f"  Strong Buy: {ratings.strong_buy}")
         print(f"  Buy: {ratings.buy}")
         print(f"  Hold: {ratings.hold}")
         print(f"  Sell: {ratings.sell}")
         print(f"  Strong Sell: {ratings.strong_sell}")
-        
+
         if ratings.average_price_target:
             print("\nPrice Targets:")
             print(f"  Average: ${ratings.average_price_target:.2f}")
-            print(f"  Median: ${ratings.median_price_target:.2f}" if ratings.median_price_target else "  Median: N/A")
-            print(f"  Highest: ${ratings.highest_price_target:.2f}" if ratings.highest_price_target else "  Highest: N/A")
-            print(f"  Lowest: ${ratings.lowest_price_target:.2f}" if ratings.lowest_price_target else "  Lowest: N/A")
-            print(f"  Analyst Count: {ratings.analyst_count}" if ratings.analyst_count else "  Analyst Count: N/A")
-        
+            print(
+                f"  Median: ${ratings.median_price_target:.2f}"
+                if ratings.median_price_target
+                else "  Median: N/A"
+            )
+            print(
+                f"  Highest: ${ratings.highest_price_target:.2f}"
+                if ratings.highest_price_target
+                else "  Highest: N/A"
+            )
+            print(
+                f"  Lowest: ${ratings.lowest_price_target:.2f}"
+                if ratings.lowest_price_target
+                else "  Lowest: N/A"
+            )
+            print(
+                f"  Analyst Count: {ratings.analyst_count}"
+                if ratings.analyst_count
+                else "  Analyst Count: N/A"
+            )
+
         # Get recent changes
         recent_changes = service.get_recent_changes(ticker)
         if recent_changes:
             print("\nRecent Rating Changes (last 30 days):")
             for change in recent_changes[:5]:  # Show first 5 changes
-                print(f"  {change['date']}: {change['firm']} - {change['from_grade']} → {change['to_grade']} ({change['action']})")
-        
-    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError, OSError, IOError) as e:
+                print(
+                    f"  {change['date']}: {change['firm']} - {change['from_grade']} → {change['to_grade']} ({change['action']})"
+                )
+
+    except (KeyError, ValueError, TypeError, AttributeError, RuntimeError, OSError) as e:
         print(f"Error: {str(e)}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -5,6 +5,7 @@ Target: Test advanced market cap formatting utilities
 File: yahoofinance/utils/data/market_cap_formatter.py (56 statements, 18% coverage)
 """
 
+
 class TestFormatMarketCapAdvanced:
     """Test advanced market cap formatting."""
 
@@ -76,10 +77,7 @@ class TestFormatMarketCapAdvanced:
         """Format with custom configuration."""
         from yahoofinance.utils.data.market_cap_formatter import format_market_cap_advanced
 
-        config = {
-            "billion_suffix": "Bn",
-            "small_billion_precision": 3
-        }
+        config = {"billion_suffix": "Bn", "small_billion_precision": 3}
 
         result = format_market_cap_advanced(5_000_000_000, config)
 
@@ -91,7 +89,7 @@ class TestFormatMarketCapAdvanced:
 
         config = {
             "billion_threshold": 500_000_000,  # Lower threshold
-            "billion_suffix": "B"
+            "billion_suffix": "B",
         }
 
         result = format_market_cap_advanced(600_000_000, config)
@@ -123,6 +121,7 @@ class TestFormatMarketCapAdvanced:
 
         # Should still format (absolute value logic not in formatter)
         assert result is not None
+
 
 class TestGetScaleInfo:
     """Test scale info determination."""
@@ -187,15 +186,13 @@ class TestGetScaleInfo:
         """Get scale info with custom config."""
         from yahoofinance.utils.data.market_cap_formatter import _get_scale_info
 
-        config = {
-            "trillion_suffix": "Tn",
-            "small_trillion_precision": 3
-        }
+        config = {"trillion_suffix": "Tn", "small_trillion_precision": 3}
 
         scale_info = _get_scale_info(2_000_000_000_000, config)
 
         assert scale_info["suffix"] == "Tn"
         assert scale_info["precision"] == 3
+
 
 class TestFormatWithScale:
     """Test formatting with scale info."""
@@ -208,7 +205,7 @@ class TestFormatWithScale:
             "scale": "trillion",
             "divisor": 1_000_000_000_000,
             "suffix": "T",
-            "precision": 2
+            "precision": 2,
         }
 
         result = _format_with_scale(2_500_000_000_000, scale_info)
@@ -219,12 +216,7 @@ class TestFormatWithScale:
         """Format with billion scale."""
         from yahoofinance.utils.data.market_cap_formatter import _format_with_scale
 
-        scale_info = {
-            "scale": "billion",
-            "divisor": 1_000_000_000,
-            "suffix": "B",
-            "precision": 2
-        }
+        scale_info = {"scale": "billion", "divisor": 1_000_000_000, "suffix": "B", "precision": 2}
 
         result = _format_with_scale(5_000_000_000, scale_info)
 
@@ -234,12 +226,7 @@ class TestFormatWithScale:
         """Format with raw scale (no suffix)."""
         from yahoofinance.utils.data.market_cap_formatter import _format_with_scale
 
-        scale_info = {
-            "scale": "raw",
-            "divisor": 1,
-            "suffix": "",
-            "precision": 0
-        }
+        scale_info = {"scale": "raw", "divisor": 1, "suffix": "", "precision": 0}
 
         result = _format_with_scale(500_000, scale_info)
 
@@ -249,16 +236,12 @@ class TestFormatWithScale:
         """Format with custom precision."""
         from yahoofinance.utils.data.market_cap_formatter import _format_with_scale
 
-        scale_info = {
-            "scale": "billion",
-            "divisor": 1_000_000_000,
-            "suffix": "B",
-            "precision": 3
-        }
+        scale_info = {"scale": "billion", "divisor": 1_000_000_000, "suffix": "B", "precision": 3}
 
         result = _format_with_scale(5_123_456_789, scale_info)
 
         assert result == "5.123B"
+
 
 class TestEdgeCases:
     """Test edge cases."""
@@ -312,4 +295,3 @@ class TestEdgeCases:
         result = format_market_cap_advanced(5.5e9)
 
         assert "5.50B" in result
-

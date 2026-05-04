@@ -6,51 +6,53 @@ tables, HTML, CSV, and other formats.
 """
 
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ...core.logging import get_logger
 from .price_target_utils import get_preferred_price_target
-from .ticker_utils import normalize_ticker, get_ticker_for_display, get_geographic_region
+from .ticker_utils import get_geographic_region, get_ticker_for_display, normalize_ticker
 
 # Set up logging
 logger = get_logger(__name__)
 
-def calculate_upside(price: Any, target_price: Any) -> Optional[float]:
+
+def calculate_upside(price: Any, target_price: Any) -> float | None:
     """
     Calculate upside potential as a percentage from price and target price.
-    
+
     Args:
         price: Current stock price
         target_price: Target price
-        
+
     Returns:
         Upside potential as a percentage, or None if calculation not possible
     """
     try:
         if price is None or target_price is None:
             return None
-            
+
         # Convert to float if they're strings
         if isinstance(price, str):
             price = float(price)
         if isinstance(target_price, str):
             target_price = float(target_price)
-            
+
         if price == 0:
             return None
-            
+
         return ((target_price - price) / price) * 100
-        
+
     except (ValueError, TypeError, ZeroDivisionError):
         return None
 
-def calculate_validated_upside(ticker_data: Dict[str, Any]) -> Tuple[Optional[float], str]:
+
+def calculate_validated_upside(ticker_data: dict[str, Any]) -> tuple[float | None, str]:
     """
     Calculate upside using the most reliable price target available.
-    
+
     Args:
         ticker_data: Dict containing ticker information with price target fields
-        
+
     Returns:
         Tuple of (upside_percentage, quality_description)
     """
@@ -58,16 +60,16 @@ def calculate_validated_upside(ticker_data: Dict[str, Any]) -> Tuple[Optional[fl
         price = ticker_data.get("price")
         if not price:
             return None, "no_current_price"
-            
+
         # Get the preferred price target based on quality
         preferred_target, source_desc = get_preferred_price_target(ticker_data)
-        
+
         if preferred_target is None:
             return None, source_desc
-            
+
         # Calculate upside
         upside = calculate_upside(price, preferred_target)
-        
+
         if upside is not None:
             return upside, source_desc
         else:
@@ -76,6 +78,7 @@ def calculate_validated_upside(ticker_data: Dict[str, Any]) -> Tuple[Optional[fl
     except (KeyError, ValueError, TypeError, ZeroDivisionError) as e:
         logger.warning(f"Error calculating validated upside: {e}")
         return None, "error_occurred"
+
 
 def format_number(
     value: Any,
@@ -128,6 +131,7 @@ def format_number(
 
     return formatted
 
+
 def _abbreviate_number(value: float, precision: int = 2) -> str:
     """
     Abbreviate a large number with K, M, B, T suffix.
@@ -153,7 +157,8 @@ def _abbreviate_number(value: float, precision: int = 2) -> str:
     else:
         return f"{value:.{precision}f}"
 
-def format_market_cap(value: Optional[float]) -> Optional[str]:
+
+def format_market_cap(value: float | None) -> str | None:
     """
     Format market cap value with appropriate suffix.
 
@@ -191,44 +196,48 @@ def format_market_cap(value: Optional[float]) -> Optional[str]:
     else:
         return f"{int(value):,}"
 
+
 def calculate_position_size(
-    market_cap: Optional[float], exret: Optional[float] = None, ticker: Optional[str] = None,
-    earnings_growth: Optional[float] = None, three_month_perf: Optional[float] = None,
-    beta: Optional[float] = None
-) -> Optional[float]:
+    market_cap: float | None,
+    exret: float | None = None,
+    ticker: str | None = None,
+    earnings_growth: float | None = None,
+    three_month_perf: float | None = None,
+    beta: float | None = None,
+) -> float | None:
     """
     Calculate position size using market cap-centric approach with risk adjustment.
 
     UPDATED 2024 POSITION SIZING METHODOLOGY:
     =======================================
-    
+
     Portfolio Configuration:
     - Portfolio Value: $500,000
     - Position Limits: $1,000 min (0.2%) to $40,000 max (8.0%)
-    
+
     Step 1: Tier-Based Base Allocation (Primary Driver)
     - VALUE (≥$100B): 2.0% base = $10,000 (large-cap stability premium)
     - GROWTH ($5B-$100B): 1.0% base = $5,000 (standard allocation)
     - BETS (<$5B): 0.2% base = $1,000 (small-cap risk management)
-    
+
     Step 2: Linear Beta Risk Adjustment (Secondary Driver)
     - Formula: multiplier = 1.4 - (beta × 0.4)
     - Range: 1.2x (beta ≤0.5) to 0.8x (beta ≥2.5)
     - Smooth linear scaling replaces stepped tiers
-    
+
     Step 3: Linear EXRET Tilt (Tertiary Driver)
     - Formula: multiplier = 1.0 + (exret × 0.0167)
     - Range: 1.0x (0% EXRET) to 1.5x (30%+ EXRET)
     - Conservative approach minimizes estimation error
-    
+
     Step 4: Geographic Risk Adjustment
     - Hong Kong (.HK): 0.75x multiplier (concentration risk)
     - All other markets: 1.0x multiplier
-    
+
     Final Calculation:
     Position = Base × Beta Risk × EXRET Tilt × Geographic Risk
     Result rounded to nearest $500, capped at min/max limits
-    
+
     Academic Rationale:
     - Modern Portfolio Theory: Size effect and systematic risk optimization
     - Kelly Criterion: Risk-based position sizing principles
@@ -246,16 +255,16 @@ def calculate_position_size(
 
     Returns:
         Position size in USD or None if below threshold, ETF/commodity, or invalid data
-        
+
     Examples:
         >>> # VALUE tier example: AAPL-like stock
         >>> calculate_position_size(3e12, 10.0, "AAPL", beta=1.2)
         10500  # $10K base × 0.92 beta × 1.167 EXRET = $10,728 → $10,500
-        
+
         >>> # GROWTH tier example: Mid-cap growth
-        >>> calculate_position_size(25e9, 15.0, "GROWTH", beta=1.0) 
+        >>> calculate_position_size(25e9, 15.0, "GROWTH", beta=1.0)
         6000   # $5K base × 1.0 beta × 1.25 EXRET = $6,250 → $6,000
-        
+
         >>> # BETS tier example: Small-cap speculation
         >>> calculate_position_size(2e9, 25.0, "SMALL", beta=1.8)
         1000   # $1K base × 0.68 beta × 1.42 EXRET = $966 → $1,000 (minimum)
@@ -264,15 +273,16 @@ def calculate_position_size(
     try:
         # Try new config system first
         from ...core.config import PORTFOLIO_CONFIG
+
         if not PORTFOLIO_CONFIG:  # If empty, fall back to hardcoded values
             raise ImportError("PORTFOLIO_CONFIG is empty")
     except (ImportError, KeyError):
         # Fallback to hardcoded configuration to ensure position sizing works
         PORTFOLIO_CONFIG = {
             "PORTFOLIO_VALUE": 550_000,  # Updated to $550K
-            "MIN_POSITION_USD": 1_000,   # 0.2% of portfolio minimum
+            "MIN_POSITION_USD": 1_000,  # 0.2% of portfolio minimum
             "MAX_POSITION_USD": 40_000,  # 7.3% of portfolio maximum
-            "MAX_POSITION_PCT": 8.0,     # 8% max position size
+            "MAX_POSITION_PCT": 8.0,  # 8% max position size
             "BASE_POSITION_PCT": 0.5,
             "HIGH_CONVICTION_PCT": 8.0,  # Updated to match max position
             "SMALL_CAP_THRESHOLD": 2_000_000_000,
@@ -283,12 +293,12 @@ def calculate_position_size(
 
     if market_cap is None:
         return None
-    
+
     # Normalize ticker once at the beginning for all ticker-related operations
     normalized_ticker = None
     if ticker:
         normalized_ticker = normalize_ticker(ticker)
-        
+
         # Exclude ETFs and commodities from position sizing
         if is_etf_or_commodity(normalized_ticker):
             return None
@@ -305,7 +315,7 @@ def calculate_position_size(
     min_position = PORTFOLIO_CONFIG["MIN_POSITION_USD"]
     max_position = PORTFOLIO_CONFIG["MAX_POSITION_USD"]
     base_pct = PORTFOLIO_CONFIG["BASE_POSITION_PCT"]
-    
+
     # Market cap thresholds
     small_cap = PORTFOLIO_CONFIG["SMALL_CAP_THRESHOLD"]
     mid_cap = PORTFOLIO_CONFIG["MID_CAP_THRESHOLD"]
@@ -314,30 +324,31 @@ def calculate_position_size(
     # NEW APPROACH: YAML-Based Position Sizing
     try:
         from trade_modules.yaml_config_loader import get_yaml_config
+
         yaml_config = get_yaml_config()
-        
+
         if yaml_config.is_config_available():
             # Get position sizing config from YAML
             position_config = yaml_config.get_position_sizing_config()
-            base_size = position_config.get('base_position_size', 2500)
-            tier_multipliers = position_config.get('tier_multipliers', {})
-            
+            base_size = position_config.get("base_position_size", 2500)
+            tier_multipliers = position_config.get("tier_multipliers", {})
+
             # Get tier thresholds from YAML
             tier_thresholds = yaml_config.get_tier_thresholds()
-            value_min = tier_thresholds.get('value_tier_min', 100_000_000_000)  # $100B
-            growth_min = tier_thresholds.get('growth_tier_min', 5_000_000_000)   # $5B
-            
+            value_min = tier_thresholds.get("value_tier_min", 100_000_000_000)  # $100B
+            growth_min = tier_thresholds.get("growth_tier_min", 5_000_000_000)  # $5B
+
             # Step 1: Determine tier-based position size (YAML-driven)
             if market_cap >= value_min:  # VALUE tier (≥$100B)
-                multiplier = tier_multipliers.get('value', 4)
+                multiplier = tier_multipliers.get("value", 4)
                 tier_name = "VALUE"
             elif market_cap >= growth_min:  # GROWTH tier ($5B-$100B)
-                multiplier = tier_multipliers.get('growth', 2)
+                multiplier = tier_multipliers.get("growth", 2)
                 tier_name = "GROWTH"
             else:  # BETS tier (<$5B)
-                multiplier = tier_multipliers.get('bets', 1)
+                multiplier = tier_multipliers.get("bets", 1)
                 tier_name = "BETS"
-            
+
             # Calculate base position using YAML configuration
             base_position = base_size * multiplier
         else:
@@ -351,7 +362,7 @@ def calculate_position_size(
             else:  # BETS (<$5B)
                 base_position = 2500 * 1  # $2,500
                 tier_name = "BETS"
-    except (KeyError, ValueError, TypeError, OSError, IOError):
+    except (KeyError, ValueError, TypeError, OSError):
         # If YAML loading fails, use hardcoded fallback
         if market_cap >= 100_000_000_000:  # VALUE (≥$100B)
             base_position = 2500 * 4  # $10,000
@@ -362,7 +373,7 @@ def calculate_position_size(
         else:  # BETS (<$5B)
             base_position = 2500 * 1  # $2,500
             tier_name = "BETS"
-    
+
     # Step 2: Linear beta risk adjustment (secondary driver)
     risk_multiplier = 1.0
     if beta is not None and beta > 0:
@@ -370,10 +381,10 @@ def calculate_position_size(
         # Formula: multiplier = 1.4 - (beta * 0.4)
         # Academic approach: smooth risk adjustment based on volatility
         risk_multiplier = 1.4 - (beta * 0.4)
-        
+
         # Apply bounds: minimum 0.8x, maximum 1.2x
         risk_multiplier = max(0.8, min(1.2, risk_multiplier))
-    
+
     # Step 3: Linear EXRET tilt (tertiary driver - conservative approach)
     exret_multiplier = 1.0
     if not use_fallback and exret is not None:
@@ -381,19 +392,19 @@ def calculate_position_size(
         # Formula: multiplier = 1.0 + (exret * 0.0167)
         # Conservative approach: reduces estimation error from expected return forecasts
         exret_multiplier = 1.0 + (exret * 0.0167)
-        
+
         # Apply bounds: minimum 1.0x, maximum 1.5x
         exret_multiplier = max(1.0, min(1.5, exret_multiplier))
-    
+
     # Calculate position size with new methodology
     position_size = base_position * risk_multiplier * exret_multiplier
-    
+
     # Apply geographic risk adjustment for non-US markets
     if normalized_ticker:
         geo_region = get_geographic_region(normalized_ticker)
-        
+
         # Apply geographic risk multiplier based on region
-        if geo_region == 'HK':
+        if geo_region == "HK":
             position_size *= 0.75  # Hong Kong concentration risk adjustment
         # All other regions use 1.0x multiplier (no adjustment)
 
@@ -406,7 +417,8 @@ def calculate_position_size(
 
     return result
 
-def format_position_size(value: Optional[float]) -> str:
+
+def format_position_size(value: float | None) -> str:
     """
     Format position size value with 'k' suffix for thousands.
 
@@ -440,9 +452,10 @@ def format_position_size(value: Optional[float]) -> str:
     except (ValueError, TypeError):
         return "--"
 
+
 def format_market_metrics(
-    metrics: Dict[str, Any], include_pct_signs: bool = True
-) -> Dict[str, str]:
+    metrics: dict[str, Any], include_pct_signs: bool = True
+) -> dict[str, str]:
     """
     Format market metrics for display.
 
@@ -488,7 +501,8 @@ def format_market_metrics(
 
     return formatted
 
-def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> str:
+
+def _apply_formatter(value: Any, formatter: dict[str, Any] | None = None) -> str:
     """
     Apply formatter rules to a value.
 
@@ -521,23 +535,26 @@ def _apply_formatter(value: Any, formatter: Optional[Dict[str, Any]] = None) -> 
     # Note: value is guaranteed to be not None at this point due to early return above
     return str(value)
 
-def normalize_ticker_data(data: List[Dict[str, Any]], ticker_column: str = 'ticker') -> List[Dict[str, Any]]:
+
+def normalize_ticker_data(
+    data: list[dict[str, Any]], ticker_column: str = "ticker"
+) -> list[dict[str, Any]]:
     """
     Normalize ticker symbols in a list of data dictionaries.
-    
+
     This function ensures all ticker symbols are normalized using the centralized
     ticker mapping system for consistent processing throughout the application.
-    
+
     Args:
         data: List of data dictionaries containing ticker information
         ticker_column: Name of the column containing ticker symbols (default: 'ticker')
-        
+
     Returns:
         List of data dictionaries with normalized ticker symbols
     """
     if not data:
         return data
-    
+
     normalized_data = []
     for item in data:
         if ticker_column in item and item[ticker_column]:
@@ -547,32 +564,34 @@ def normalize_ticker_data(data: List[Dict[str, Any]], ticker_column: str = 'tick
             normalized_data.append(normalized_item)
         else:
             normalized_data.append(item)
-    
+
     return normalized_data
+
 
 def format_ticker_for_display(ticker: str) -> str:
     """
     Format a ticker symbol for display purposes.
-    
+
     This function uses the centralized ticker mapping system to ensure
     consistent ticker display throughout the application.
-    
+
     Args:
         ticker: Input ticker symbol
-        
+
     Returns:
         Formatted ticker symbol for display
     """
     if not ticker:
         return ticker
-    
+
     return get_ticker_for_display(ticker)
 
+
 def process_tabular_data(
-    data: List[Dict[str, Any]],
-    columns: Optional[List[str]] = None,
-    formatters: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> Tuple[List[str], List[List[Any]]]:
+    data: list[dict[str, Any]],
+    columns: list[str] | None = None,
+    formatters: dict[str, dict[str, Any]] | None = None,
+) -> tuple[list[str], list[list[Any]]]:
     """
     Process tabular data with column formatting.
 
@@ -609,11 +628,12 @@ def process_tabular_data(
 
     return columns, rows
 
+
 def format_table(
-    data: List[Dict[str, Any]],
-    columns: List[str],
-    formatters: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> List[List[str]]:
+    data: list[dict[str, Any]],
+    columns: list[str],
+    formatters: dict[str, dict[str, Any]] | None = None,
+) -> list[list[str]]:
     """
     Format tabular data with column-specific formatting.
 
@@ -634,11 +654,12 @@ def format_table(
     # Add header row
     return [cols] + rows
 
+
 def generate_market_html(
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     title: str,
-    columns: List[str] = None,
-    formatters: Dict[str, Dict[str, Any]] = None,
+    columns: list[str] = None,
+    formatters: dict[str, dict[str, Any]] = None,
 ) -> str:
     """
     Generate HTML table for market data.
@@ -678,7 +699,8 @@ def generate_market_html(
     html += "</table>\n"
     return html
 
-def format_for_csv(data: List[Dict[str, Any]], columns: List[str] = None) -> List[List[str]]:
+
+def format_for_csv(data: list[dict[str, Any]], columns: list[str] = None) -> list[list[str]]:
     """
     Format data for CSV export.
 

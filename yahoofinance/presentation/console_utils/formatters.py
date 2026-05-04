@@ -1,5 +1,7 @@
 """Console output formatters"""
+
 from typing import Any
+
 
 class ConsoleFormatter:
     @staticmethod
@@ -12,7 +14,7 @@ class ConsoleFormatter:
             return str(value)
         except:
             return "--"
-    
+
     @staticmethod
     def format_percentage(value: Any) -> str:
         if value is None or value == "--":

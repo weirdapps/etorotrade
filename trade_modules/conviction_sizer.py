@@ -40,23 +40,47 @@ REGIME_POSITION_MULTIPLIERS = {
 }
 
 
+# CIO v36 / M2 — Empirical Refoundation
+#
+# v17 review documented Spearman ρ(conviction, α30) ≈ −0.002. The
+# conviction score has zero rank-order predictive power on the user's 30-day
+# horizon. Conviction-weighted sizing is therefore Kelly-on-noise — it
+# concentrates capital in 4.74% bets on stocks with no demonstrated edge.
+#
+# Until per-cell ρ proves > 0.05 out-of-sample (M11 calibrator), the
+# conviction multiplier returns 1.0 (= equal-weight at tier baseline). When
+# evidence accumulates, flip to False. Backtest the flip before promoting.
+CONVICTION_CLAMP_TO_UNITY = True
+
+# Uniform expected α used in Kelly when the clamp is on. Equal to the
+# conviction-table value at the highest threshold so positions are sized as
+# if every BUY had top conviction — matching the equal-weight philosophy
+# while preserving the Kelly variance scaling.
+CLAMPED_EXPECTED_ALPHA_HORIZON_PCT = 4.74
+
+
 def get_conviction_multiplier(conviction_score: float) -> float:
     """
     Get position size multiplier based on BUY conviction score.
 
-    Uses continuous function instead of discrete buckets:
+    With CONVICTION_CLAMP_TO_UNITY=True (the default since v36), this
+    returns 1.0 for every input — equal-weighting all BUYs at their tier
+    baseline. The legacy continuous curve below activates only when the
+    flag is flipped off.
+
+    Legacy (clamp off):
     - 0 score: 0.35 multiplier (35% position)
     - 100 score: 1.00 multiplier (full position)
     - Linear interpolation in between
-
-    Task #4: Replaced discrete CONVICTION_MULTIPLIERS dict with continuous function.
 
     Args:
         conviction_score: BUY conviction score (0-100)
 
     Returns:
-        Multiplier between 0.35 and 1.0
+        1.0 when clamped (default), otherwise 0.35–1.0 by linear interp.
     """
+    if CONVICTION_CLAMP_TO_UNITY:
+        return 1.0
     score = max(0, min(100, conviction_score))
     return 0.35 + (score / 100) * 0.65
 
@@ -119,21 +143,30 @@ def quarter_kelly_size_pct(
     Returns dict with `size_pct`, `kelly_f_full`, `expected_alpha`,
     `realized_vol_horizon`, `cap_active` so the caller can audit the sizing.
     """
-    table = expected_return_table or {
-        70: 4.74,   # ≥70 conviction
-        60: 2.14,   # 60-69
-        55: 1.51,   # 55-59
-        45: 0.04,   # 45-54
-        0: 0.0,     # <45
-    }
+    # CIO v36 / M2: When CONVICTION_CLAMP_TO_UNITY is True, ignore the
+    # conviction-bucket lookup entirely and use a flat μ across all BUYs.
+    # The buckets were calibrated from v17 backtest (n=219 T+30) but
+    # ρ(conviction, α30) ≈ −0.002 means the rank order is noise. Flat μ
+    # under clamp keeps Kelly's variance scaling intact while removing the
+    # noise-driven concentration.
+    if CONVICTION_CLAMP_TO_UNITY and expected_return_table is None:
+        mu = CLAMPED_EXPECTED_ALPHA_HORIZON_PCT
+    else:
+        table = expected_return_table or {
+            70: 4.74,   # ≥70 conviction
+            60: 2.14,   # 60-69
+            55: 1.51,   # 55-59
+            45: 0.04,   # 45-54
+            0: 0.0,     # <45
+        }
 
-    # Look up expected α from the table (largest threshold ≤ conviction).
-    keys_desc = sorted(table.keys(), reverse=True)
-    mu = 0.0
-    for k in keys_desc:
-        if conviction >= k:
-            mu = table[k]
-            break
+        # Look up expected α from the table (largest threshold ≤ conviction).
+        keys_desc = sorted(table.keys(), reverse=True)
+        mu = 0.0
+        for k in keys_desc:
+            if conviction >= k:
+                mu = table[k]
+                break
 
     sigma = max(0.01, atr_pct_daily * math.sqrt(horizon_days))
     rf_horizon = risk_free_apr * 100 * (horizon_days / 365)
@@ -206,7 +239,7 @@ def apply_small_cap_cap(
     ]
     pending_total = sum(p.get("position_size", 0.0) for p in pending)
     if pending_total <= 0:
-        return new_positions
+        return new_positions  # NOSONAR S3516: in-place mutation pattern, return preserves caller chaining
 
     available = max(0.0, cap_pct - max(0.0, current_small_cap_pct))
     if pending_total <= available:
@@ -222,7 +255,7 @@ def apply_small_cap_cap(
             p["small_cap_cap_applied"] = True
             p["small_cap_cap_pct"] = cap_pct
             p["small_cap_cap_scale"] = round(scale, 3)
-    return new_positions
+    return new_positions  # NOSONAR S3516: in-place mutation pattern, return preserves caller chaining
 
 
 def get_regime_multiplier(regime: str = "normal") -> float:

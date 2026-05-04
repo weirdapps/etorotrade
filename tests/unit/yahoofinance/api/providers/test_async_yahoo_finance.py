@@ -5,8 +5,10 @@ Target: Test async provider for maximum coverage gain
 File: yahoofinance/api/providers/async_yahoo_finance.py (742 statements, 46% coverage)
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+
 from yahoofinance.api.providers.async_yahoo_finance import AsyncYahooFinanceProvider
 from yahoofinance.core.errors import (
     APIError,
@@ -15,6 +17,7 @@ from yahoofinance.core.errors import (
     ValidationError,
     YFinanceError,
 )
+
 
 class TestAsyncYahooFinanceProvider:
     """Test AsyncYahooFinanceProvider initialization and basic methods."""
@@ -34,10 +37,7 @@ class TestAsyncYahooFinanceProvider:
     def test_init_custom_params(self):
         """Initialize with custom parameters."""
         provider = AsyncYahooFinanceProvider(
-            max_retries=5,
-            retry_delay=2.0,
-            max_concurrency=10,
-            enable_circuit_breaker=False
+            max_retries=5, retry_delay=2.0, max_concurrency=10, enable_circuit_breaker=False
         )
         assert provider.max_retries == 5
         assert provider.retry_delay == pytest.approx(2.0)
@@ -54,6 +54,7 @@ class TestAsyncYahooFinanceProvider:
     def test_caches_initialized(self, provider):
         """Internal caches are initialized (dict or LRUCache)."""
         from yahoofinance.data.cache_compatibility import LRUCache
+
         assert isinstance(provider._ticker_cache, (dict, LRUCache))
         assert isinstance(provider._ratings_cache, (dict, LRUCache))
         assert isinstance(provider._stock_cache, (dict, LRUCache))
@@ -65,11 +66,14 @@ class TestAsyncYahooFinanceProvider:
     @pytest.mark.asyncio
     async def test_ensure_session(self, provider):
         """Get or create aiohttp session."""
-        with patch('yahoofinance.api.providers.async_yahoo_finance.get_shared_session') as mock_session:
+        with patch(
+            "yahoofinance.api.providers.async_yahoo_finance.get_shared_session"
+        ) as mock_session:
             mock_session.return_value = AsyncMock()
             session = await provider._ensure_session()
             assert session is not None
             mock_session.assert_called_once()
+
 
 class TestFetchJSON:
     """Test _fetch_json method."""
@@ -91,7 +95,7 @@ class TestFetchJSON:
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
-        with patch.object(provider, '_ensure_session', return_value=mock_session):
+        with patch.object(provider, "_ensure_session", return_value=mock_session):
             # The actual test would require proper async context manager setup
             # For now, just verify method exists and is callable
             assert callable(provider._fetch_json)
@@ -113,6 +117,7 @@ class TestFetchJSON:
         """Handle network errors."""
         # Verify network error handling exists
         assert NetworkError is not None
+
 
 class TestCacheOperations:
     """Test cache-related operations."""
@@ -150,6 +155,7 @@ class TestCacheOperations:
         provider._stock_cache["GOOGL"] = {"info": {}}
         assert "GOOGL" in provider._stock_cache
 
+
 class TestRateLimiter:
     """Test rate limiter integration."""
 
@@ -165,7 +171,9 @@ class TestRateLimiter:
     def test_rate_limiter_type(self, provider):
         """Rate limiter has correct type."""
         from yahoofinance.utils.async_utils.enhanced import AsyncRateLimiter
+
         assert isinstance(provider._rate_limiter, AsyncRateLimiter)
+
 
 class TestCircuitBreakerConfig:
     """Test circuit breaker configuration."""
@@ -185,6 +193,7 @@ class TestCircuitBreakerConfig:
         provider1 = AsyncYahooFinanceProvider()
         provider2 = AsyncYahooFinanceProvider()
         assert provider1._circuit_name == provider2._circuit_name
+
 
 class TestProviderConfiguration:
     """Test various provider configurations."""
@@ -209,6 +218,7 @@ class TestProviderConfiguration:
         # Should not raise
         provider = AsyncYahooFinanceProvider(extra_param="test")
         assert provider is not None
+
 
 class TestPositiveGrades:
     """Test positive grade classification."""
@@ -238,6 +248,7 @@ class TestPositiveGrades:
         """Positive grades list is not empty."""
         assert len(provider.POSITIVE_GRADES) > 0
 
+
 class TestErrorHandling:
     """Test error handling patterns."""
 
@@ -260,4 +271,3 @@ class TestErrorHandling:
     def test_validation_error_imported(self):
         """ValidationError is available."""
         assert ValidationError is not None
-

@@ -5,21 +5,22 @@ This module provides functions for validating price target quality and
 identifying stocks with unreliable analyst coverage, including earnings-aware filtering.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
+from typing import Any
 
 from ...core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 def calculate_price_target_robustness(
-    mean: Optional[float],
-    median: Optional[float],
-    high: Optional[float],
-    low: Optional[float],
-    current_price: Optional[float],
-    analyst_count: Optional[int] = None,
-) -> Dict[str, Any]:
+    mean: float | None,
+    median: float | None,
+    high: float | None,
+    low: float | None,
+    current_price: float | None,
+    analyst_count: int | None = None,
+) -> dict[str, Any]:
     """
     Calculate price target robustness metrics.
 
@@ -34,8 +35,8 @@ def calculate_price_target_robustness(
     Returns:
         Dict containing robustness metrics and flags
     """
-    warning_flags: List[str] = []
-    result: Dict[str, Any] = {
+    warning_flags: list[str] = []
+    result: dict[str, Any] = {
         "is_robust": False,
         "robustness_score": 0.0,  # 0-100 scale
         "spread_percent": None,
@@ -88,9 +89,7 @@ def calculate_price_target_robustness(
         # Penalize mean-median skewness (>10% indicates outliers)
         if mean_median_diff_percent > 20:
             score -= 25
-            warning_flags.append(
-                f"High mean-median difference ({mean_median_diff_percent:.1f}%)"
-            )
+            warning_flags.append(f"High mean-median difference ({mean_median_diff_percent:.1f}%)")
         elif mean_median_diff_percent > 10:
             score -= 15
         elif mean_median_diff_percent > 5:
@@ -99,9 +98,7 @@ def calculate_price_target_robustness(
         # Penalize extreme outliers (>100% deviation from mean)
         if max_deviation > 200:
             score -= 25
-            warning_flags.append(
-                f"Extreme outlier price targets ({max_deviation:.1f}% deviation)"
-            )
+            warning_flags.append(f"Extreme outlier price targets ({max_deviation:.1f}% deviation)")
         elif max_deviation > 100:
             score -= 15
         elif max_deviation > 50:
@@ -159,7 +156,8 @@ def calculate_price_target_robustness(
 
     return result
 
-def validate_price_target_data(ticker_data: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+
+def validate_price_target_data(ticker_data: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
     """
     Validate price target data quality for a ticker.
 
@@ -231,7 +229,8 @@ def validate_price_target_data(ticker_data: Dict[str, Any]) -> Tuple[bool, Dict[
 
     return is_valid, validation_info
 
-def get_preferred_price_target(ticker_data: Dict[str, Any]) -> Tuple[Optional[float], str]:
+
+def get_preferred_price_target(ticker_data: dict[str, Any]) -> tuple[float | None, str]:
     """
     Get the preferred price target based on data quality.
 
@@ -258,13 +257,13 @@ def get_preferred_price_target(ticker_data: Dict[str, Any]) -> Tuple[Optional[fl
     else:
         return None, "no_valid_price_targets"
 
+
 def validate_price_target_data_with_earnings(
-    ticker_data: Dict[str, Any], 
-    latest_earnings_date: Optional[str] = None
-) -> Tuple[bool, Dict[str, Any]]:
+    ticker_data: dict[str, Any], latest_earnings_date: str | None = None
+) -> tuple[bool, dict[str, Any]]:
     """
     Validate price target data quality with earnings-date awareness.
-    
+
     This function extends the standard validation to consider whether price targets
     were published after the most recent earnings announcement.
 
@@ -277,19 +276,21 @@ def validate_price_target_data_with_earnings(
     """
     # Start with standard validation
     is_valid, validation_info = validate_price_target_data(ticker_data)
-    
+
     # Add earnings-aware information
     validation_info["earnings_date"] = latest_earnings_date
     validation_info["post_earnings_filtering"] = False
-    
+
     if latest_earnings_date and is_valid:
         try:
             # Convert earnings date to datetime for comparison
             earnings_dt = datetime.strptime(latest_earnings_date, "%Y-%m-%d")
-            
+
             # Check if we have price target date information
-            target_date = ticker_data.get("target_price_date") or ticker_data.get("price_target_date")
-            
+            target_date = ticker_data.get("target_price_date") or ticker_data.get(
+                "price_target_date"
+            )
+
             if target_date:
                 # Handle different date formats
                 if isinstance(target_date, str):
@@ -308,24 +309,24 @@ def validate_price_target_data_with_earnings(
                     except (ValueError, TypeError, AttributeError) as e:
                         logger.debug(f"Error parsing price target date: {e}")
                         return is_valid, validation_info
-                elif hasattr(target_date, 'date'):
+                elif hasattr(target_date, "date"):
                     # Handle datetime objects
                     target_dt = target_date
                 else:
                     # Unknown date format
                     return is_valid, validation_info
-                
+
                 # Check if price targets are after earnings
                 if target_dt <= earnings_dt:
                     # Price targets are stale (published before earnings)
                     validation_info["post_earnings_filtering"] = True
                     validation_info["recommended_action"] = "exclude"
                     validation_info["confidence_level"] = "low"
-                    
+
                     logger.debug(
                         f"Price targets excluded: published {target_date} before earnings {latest_earnings_date}"
                     )
-                    
+
                     return False, validation_info
                 else:
                     # Price targets are fresh (published after earnings)
@@ -340,5 +341,5 @@ def validate_price_target_data_with_earnings(
         except (KeyError, ValueError, TypeError, AttributeError) as e:
             logger.debug(f"Error in earnings-aware price target validation: {e}")
             # Fall back to standard validation on error
-    
+
     return is_valid, validation_info

@@ -5,15 +5,18 @@ Target: Test console display utilities for maximum coverage gain
 File: yahoofinance/presentation/console.py (707 statements, 8% coverage)
 """
 
-import pytest
-import pandas as pd
 import time
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
+
+import pandas as pd
+import pytest
+
 from yahoofinance.presentation.console import (
-    RateLimitTracker,
     MarketDisplay,
+    RateLimitTracker,
 )
-from yahoofinance.presentation.formatter import DisplayFormatter, DisplayConfig
+from yahoofinance.presentation.formatter import DisplayConfig, DisplayFormatter
+
 
 class TestRateLimitTracker:
     """Test RateLimitTracker rate limiting logic."""
@@ -129,6 +132,7 @@ class TestRateLimitTracker:
         # Verify old calls removed
         assert all(t >= time.time() - tracker.window_size for t in tracker.calls)
 
+
 class TestMarketDisplay:
     """Test MarketDisplay console utilities."""
 
@@ -192,11 +196,13 @@ class TestMarketDisplay:
 
     def test_sort_market_data_with_data(self, display):
         """Sort dataframe with market data."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "SPY", "BTC-USD"],
-            "asset_type": ["stock", "etf", "crypto"],
-            "market_cap": [3000000000000, 500000000000, 1000000000000]
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL", "SPY", "BTC-USD"],
+                "asset_type": ["stock", "etf", "crypto"],
+                "market_cap": [3000000000000, 500000000000, 1000000000000],
+            }
+        )
         result = display._sort_market_data(df)
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 3
@@ -209,35 +215,31 @@ class TestMarketDisplay:
 
     def test_format_dataframe_basic_columns(self, display):
         """Format dataframe with basic columns."""
-        df = pd.DataFrame({
-            "symbol": ["AAPL"],
-            "company": ["Apple Inc."],
-            "current_price": [150.0]
-        })
+        df = pd.DataFrame({"symbol": ["AAPL"], "company": ["Apple Inc."], "current_price": [150.0]})
         result = display._format_dataframe(df)
         # Should have mapped columns
         assert isinstance(result, pd.DataFrame)
 
     def test_format_dataframe_column_mapping(self, display):
         """Column names are mapped correctly."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL"],
-            "name": ["Apple Inc."],
-            "price": [150.0],
-            "market_cap": [3000000000000]
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL"],
+                "name": ["Apple Inc."],
+                "price": [150.0],
+                "market_cap": [3000000000000],
+            }
+        )
         result = display._format_dataframe(df)
         # Check for expected display column names
         assert isinstance(result, pd.DataFrame)
 
     def test_format_dataframe_preserves_index(self, display):
         """Formatting preserves dataframe index."""
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"],
-            "price": [150.0, 300.0]
-        })
+        df = pd.DataFrame({"ticker": ["AAPL", "MSFT"], "price": [150.0, 300.0]})
         result = display._format_dataframe(df)
         assert len(result.index) == len(df.index)
+
 
 class TestRateLimitEdgeCases:
     """Test edge cases in rate limiting."""
@@ -281,32 +283,32 @@ class TestRateLimitEdgeCases:
         # Batch delay should have increased
         assert tracker.batch_delay >= initial_batch_delay
 
+
 class TestMarketDisplayFormatting:
     """Test MarketDisplay formatting utilities."""
 
     def test_format_multiple_column_types(self):
         """Format dataframe with various column types."""
         display = MarketDisplay()
-        df = pd.DataFrame({
-            "ticker": ["AAPL"],
-            "current_price": [150.0],
-            "target_price": [180.0],
-            "upside": [20.0],
-            "market_cap": [3000000000000],
-            "pe_trailing": [25.0],
-            "pe_forward": [23.0]
-        })
+        df = pd.DataFrame(
+            {
+                "ticker": ["AAPL"],
+                "current_price": [150.0],
+                "target_price": [180.0],
+                "upside": [20.0],
+                "market_cap": [3000000000000],
+                "pe_trailing": [25.0],
+                "pe_forward": [23.0],
+            }
+        )
         result = display._format_dataframe(df)
         assert isinstance(result, pd.DataFrame)
 
     def test_sort_with_missing_columns(self):
         """Sort dataframe with missing columns."""
         display = MarketDisplay()
-        df = pd.DataFrame({
-            "ticker": ["AAPL", "MSFT"]
-        })
+        df = pd.DataFrame({"ticker": ["AAPL", "MSFT"]})
         result = display._sort_market_data(df)
         # Should handle gracefully
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
-

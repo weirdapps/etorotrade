@@ -7,7 +7,8 @@ error translation, and recovery strategies throughout the application.
 
 import functools
 import time
-from typing import Any, Callable, Dict, Optional, Set, Type, TypeVar, Union, overload
+from collections.abc import Callable
+from typing import Any, TypeVar, overload
 
 from ..core.errors import (
     ConnectionError,
@@ -27,7 +28,8 @@ logger = get_logger(__name__)
 T = TypeVar("T")
 R = TypeVar("R")
 
-def enrich_error_context(error: YFinanceError, context: Dict[str, Any]) -> YFinanceError:
+
+def enrich_error_context(error: YFinanceError, context: dict[str, Any]) -> YFinanceError:
     """
     Enrich an error with additional context information.
 
@@ -68,10 +70,11 @@ def enrich_error_context(error: YFinanceError, context: Dict[str, Any]) -> YFina
 
     return error
 
+
 def translate_error(
     error: Exception,
     default_message: str = "An error occurred",
-    context: Optional[Dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
 ) -> YFinanceError:
     """
     Translate a standard Python exception into our custom error hierarchy.
@@ -126,8 +129,9 @@ def translate_error(
     # For unknown errors, use the base YFinanceError
     return YFinanceError(f"Unexpected error: {error_message}", context)
 
+
 def with_error_context(
-    context_provider: Callable[..., Dict[str, Any]],
+    context_provider: Callable[..., dict[str, Any]],
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to add context information to errors raised by a function.
@@ -183,25 +187,28 @@ def with_error_context(
 
     return decorator
 
+
 @overload
 def with_retry(
     max_retries: Callable[..., T],
 ) -> Callable[..., T]: ...
+
 
 @overload
 def with_retry(
     max_retries: int = ...,
     retry_delay: float = ...,
     backoff_factor: float = ...,
-    retryable_errors: Optional[Set[Type[Exception]]] = ...,
+    retryable_errors: set[type[Exception]] | None = ...,
 ) -> Callable[[Callable[..., T]], Callable[..., T]]: ...
 
+
 def with_retry(
-    max_retries: Union[int, Callable[..., T]] = 3,
+    max_retries: int | Callable[..., T] = 3,
     retry_delay: float = 1.0,
     backoff_factor: float = 2.0,
-    retryable_errors: Optional[Set[Type[Exception]]] = None,
-) -> Union[Callable[..., T], Callable[[Callable[..., T]], Callable[..., T]]]:
+    retryable_errors: set[type[Exception]] | None = None,
+) -> Callable[..., T] | Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to automatically retry a function on certain errors.
 
@@ -270,7 +277,7 @@ def with_retry(
 
                     # Increase the delay for the next retry
                     delay *= backoff_factor
-                except YFinanceError as e:
+                except YFinanceError:
                     # For non-retryable errors, re-raise immediately
                     raise
 
@@ -278,11 +285,12 @@ def with_retry(
 
     return decorator
 
+
 def safe_operation(
-    default_value: Optional[R] = None,
+    default_value: R | None = None,
     log_errors: bool = True,
     reraise: bool = False,
-) -> Callable[[Callable[..., R]], Callable[..., Optional[R]]]:
+) -> Callable[[Callable[..., R]], Callable[..., R | None]]:
     """
     Decorator to safely execute an operation with fallback to a default value.
 
@@ -306,9 +314,9 @@ def safe_operation(
         ```
     """
 
-    def decorator(func: Callable[..., R]) -> Callable[..., Optional[R]]:
+    def decorator(func: Callable[..., R]) -> Callable[..., R | None]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Optional[R]:
+        def wrapper(*args, **kwargs) -> R | None:
             try:
                 return func(*args, **kwargs)
             except YFinanceError as e:
@@ -321,6 +329,7 @@ def safe_operation(
         return wrapper
 
     return decorator
+
 
 # User-friendly error handling functions
 def handle_file_not_found(file_path: str) -> str:
@@ -335,6 +344,7 @@ def handle_file_not_found(file_path: str) -> str:
         )
     return f"❌ File not found: {file_path}\n\n💡 Check the file path and permissions"
 
+
 def handle_csv_error(file_path: str, error_msg: str) -> str:
     """Generate user-friendly message for CSV parsing errors."""
     return (
@@ -345,6 +355,7 @@ def handle_csv_error(file_path: str, error_msg: str) -> str:
         "• Try opening in Excel/Numbers to verify\n"
         "• Re-export from eToro if corrupted"
     )
+
 
 def handle_api_error(api_name: str, error_msg: str) -> str:
     """Generate user-friendly message for API errors."""
@@ -357,11 +368,12 @@ def handle_api_error(api_name: str, error_msg: str) -> str:
         "• Reduce number of tickers if analyzing large portfolio"
     )
 
+
 def format_user_error(error: Exception) -> str:
     """Format any error as a user-friendly message."""
     error_type = type(error).__name__
     error_msg = str(error)
-    
+
     if "FileNotFoundError" in error_type:
         return handle_file_not_found(error_msg)
     elif "ConnectionError" in error_type or "Timeout" in error_type:

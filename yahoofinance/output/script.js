@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Add any interactive behaviors here
     console.log('Dashboard loaded');
-    
+
     // Example: Add click animation to metric cards
     const metricCards = document.querySelectorAll('.metric-card');
     metricCards.forEach(card => {

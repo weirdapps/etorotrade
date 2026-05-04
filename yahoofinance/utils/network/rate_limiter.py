@@ -13,8 +13,9 @@ For asynchronous rate limiting, use yahoofinance.utils.async.rate_limiter.
 import secrets
 import threading
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from ...core.config import RATE_LIMIT
 from ...core.errors import RateLimitError, YFinanceError
@@ -24,6 +25,7 @@ logger = get_logger(__name__)
 
 # Define a generic type variable for the return type
 T = TypeVar("T")
+
 
 class RateLimiter:
     """
@@ -52,12 +54,12 @@ class RateLimiter:
 
     def __init__(
         self,
-        window_size: Optional[int] = None,
-        max_calls: Optional[int] = None,
-        base_delay: Optional[float] = None,
-        min_delay: Optional[float] = None,
-        max_delay: Optional[float] = None,
-        cache_aware: Optional[bool] = None,
+        window_size: int | None = None,
+        max_calls: int | None = None,
+        base_delay: float | None = None,
+        min_delay: float | None = None,
+        max_delay: float | None = None,
+        cache_aware: bool | None = None,
     ):
         """
         Initialize the rate limiter with advanced adaptive capabilities.
@@ -133,11 +135,11 @@ class RateLimiter:
         self.lock = threading.RLock()
 
         # Initialize ticker-specific state
-        self.ticker_specific_delays: Dict[str, float] = {}
-        self.ticker_priorities: Dict[str, str] = {}  # Maps ticker to priority level
-        self.ticker_cache_hits: Dict[str, int] = {}  # Track cache hits per ticker
-        self.ticker_success_counts: Dict[str, int] = {}  # Track successful API calls per ticker
-        self.ticker_error_counts: Dict[str, int] = {}  # Track failed API calls per ticker
+        self.ticker_specific_delays: dict[str, float] = {}
+        self.ticker_priorities: dict[str, str] = {}  # Maps ticker to priority level
+        self.ticker_cache_hits: dict[str, int] = {}  # Track cache hits per ticker
+        self.ticker_success_counts: dict[str, int] = {}  # Track successful API calls per ticker
+        self.ticker_error_counts: dict[str, int] = {}  # Track failed API calls per ticker
 
         # Special ticker sets
         self.slow_tickers = set(RATE_LIMIT.get("SLOW_TICKERS", set()))
@@ -145,7 +147,7 @@ class RateLimiter:
 
         # Market hours detection
         self.is_market_hours = True
-        
+
         # Flag to suppress warnings during progress display
         self.suppress_warnings = False
         self.last_market_hours_check = 0
@@ -179,7 +181,7 @@ class RateLimiter:
             f"max_calls={self.max_calls}, base_delay={self.base_delay}, jitter={self.jitter_factor}"
         )
 
-    def get_ticker_region(self, ticker: Optional[str] = None) -> str:
+    def get_ticker_region(self, ticker: str | None = None) -> str:
         """
         Determine the market region for a ticker.
 
@@ -205,7 +207,7 @@ class RateLimiter:
             # Default to US market if unknown
             return "US"
 
-    def is_market_open(self, ticker: Optional[str] = None) -> bool:
+    def is_market_open(self, ticker: str | None = None) -> bool:
         """
         Check if the market is currently open for a given ticker.
         Supports US, European, and Asian markets with different trading hours.
@@ -274,7 +276,14 @@ class RateLimiter:
 
                     # Collect metrics and maybe adapt strategy
                     self._adapt_rate_limiting_strategy()
-                except (RuntimeError, ValueError, TypeError, KeyError, ZeroDivisionError, OSError) as e:
+                except (
+                    RuntimeError,
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    ZeroDivisionError,
+                    OSError,
+                ) as e:
                     # Don't let any error stop the monitoring thread
                     logger.error(f"Error in adaptive monitoring: {str(e)}")
 
@@ -361,7 +370,7 @@ class RateLimiter:
                 }
             )
 
-    def get_ticker_priority(self, ticker: Optional[str] = None) -> str:
+    def get_ticker_priority(self, ticker: str | None = None) -> str:
         """
         Determine the priority level for a ticker.
 
@@ -392,7 +401,7 @@ class RateLimiter:
         self.ticker_priorities[ticker] = priority
         return priority
 
-    def update_market_hours_status(self, ticker: Optional[str] = None) -> None:
+    def update_market_hours_status(self, ticker: str | None = None) -> None:
         """
         Update the market hours status with throttling to reduce overhead.
 
@@ -405,7 +414,7 @@ class RateLimiter:
             self.is_market_hours = self.is_market_open(ticker)
             self.last_market_hours_check = int(now)
 
-    def get_delay_for_ticker(self, ticker: Optional[str] = None) -> float:
+    def get_delay_for_ticker(self, ticker: str | None = None) -> float:
         """
         Get the appropriate delay for a ticker using enhanced prioritization.
 
@@ -500,7 +509,7 @@ class RateLimiter:
         with self.lock:
             return len(self.call_timestamps) >= self.max_calls
 
-    def wait_if_needed(self, ticker: Optional[str] = None) -> float:
+    def wait_if_needed(self, ticker: str | None = None) -> float:
         """
         Wait if needed to avoid exceeding the rate limit.
 
@@ -552,7 +561,7 @@ class RateLimiter:
         # Return actual wait time for performance tracking
         return actual_wait
 
-    def record_call(self, start_time: Optional[float] = None) -> None:
+    def record_call(self, start_time: float | None = None) -> None:
         """
         Record that a call was made with optional timing metrics.
 
@@ -580,7 +589,7 @@ class RateLimiter:
                     self.metrics["max_response_time"], response_time
                 )
 
-    def record_success(self, ticker: Optional[str] = None) -> None:
+    def record_success(self, ticker: str | None = None) -> None:
         """
         Record a successful call and adjust delay based on success patterns.
 
@@ -619,7 +628,7 @@ class RateLimiter:
                     self.delay * 0.8,  # Can go slightly below global delay for specific tickers
                 )
 
-    def record_cache_hit(self, ticker: Optional[str] = None) -> None:
+    def record_cache_hit(self, ticker: str | None = None) -> None:
         """
         Record a cache hit and adjust delay if cache-aware rate limiting is enabled.
 
@@ -669,7 +678,7 @@ class RateLimiter:
                 # Reset cache hit streak
                 self.cache_hit_streak = 0
 
-    def record_cache_miss(self, ticker: Optional[str] = None) -> None:
+    def record_cache_miss(self, ticker: str | None = None) -> None:
         """
         Record a cache miss and reset cache hit streak.
 
@@ -688,7 +697,7 @@ class RateLimiter:
             if ticker is not None:
                 self.ticker_cache_hits[ticker] = 0
 
-    def record_failure(self, ticker: Optional[str] = None, is_rate_limit: bool = False) -> None:
+    def record_failure(self, ticker: str | None = None, is_rate_limit: bool = False) -> None:
         """
         Record a failed call with enhanced error tracking and adaptive delay adjustment.
 
@@ -827,7 +836,7 @@ class RateLimiter:
 
         logger.info(f"Rate limiter reset to initial state (base_delay={self.base_delay:.3f}s)")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get current rate limiter statistics and metrics.
 
@@ -889,29 +898,32 @@ class RateLimiter:
                 "is_market_hours": self.is_market_hours,
             }
 
+
 # Rate limiter factory for dependency injection
 class RateLimiterFactory:
     """Factory for creating rate limiter instances with dependency injection support."""
-    
-    def __init__(self, default_config: Optional[Dict[str, Any]] = None):
+
+    def __init__(self, default_config: dict[str, Any] | None = None):
         """
         Initialize the rate limiter factory.
-        
+
         Args:
             default_config: Default configuration for rate limiters
         """
         self.default_config = default_config or RATE_LIMIT
-        self._instances: Dict[str, RateLimiter] = {}
+        self._instances: dict[str, RateLimiter] = {}
         self._lock = threading.Lock()
-    
-    def get_rate_limiter(self, name: str = "default", config: Optional[Dict[str, Any]] = None) -> RateLimiter:
+
+    def get_rate_limiter(
+        self, name: str = "default", config: dict[str, Any] | None = None
+    ) -> RateLimiter:
         """
         Get or create a rate limiter instance.
-        
+
         Args:
             name: Name/identifier for the rate limiter
             config: Optional configuration overrides
-            
+
         Returns:
             RateLimiter instance
         """
@@ -921,7 +933,7 @@ class RateLimiterFactory:
                 final_config = self.default_config.copy()
                 if config:
                     final_config.update(config)
-                
+
                 # Map configuration keys to constructor parameters
                 constructor_args = {
                     "window_size": final_config.get("WINDOW_SIZE"),
@@ -931,29 +943,31 @@ class RateLimiterFactory:
                     "max_delay": final_config.get("MAX_DELAY"),
                     "cache_aware": final_config.get("CACHE_AWARE_RATE_LIMITING"),
                 }
-                
+
                 # Remove None values
                 constructor_args = {k: v for k, v in constructor_args.items() if v is not None}
-                
+
                 self._instances[name] = RateLimiter(**constructor_args)
-                logger.debug(f"Created rate limiter instance '{name}' with config: {constructor_args}")
-            
+                logger.debug(
+                    f"Created rate limiter instance '{name}' with config: {constructor_args}"
+                )
+
             return self._instances[name]
-    
-    def create_rate_limiter(self, config: Optional[Dict[str, Any]] = None) -> RateLimiter:
+
+    def create_rate_limiter(self, config: dict[str, Any] | None = None) -> RateLimiter:
         """
         Create a new rate limiter instance (not cached).
-        
+
         Args:
             config: Configuration for the rate limiter
-            
+
         Returns:
             New RateLimiter instance
         """
         final_config = self.default_config.copy()
         if config:
             final_config.update(config)
-        
+
         # Map configuration keys to constructor parameters
         constructor_args = {
             "window_size": final_config.get("WINDOW_SIZE"),
@@ -963,17 +977,18 @@ class RateLimiterFactory:
             "max_delay": final_config.get("MAX_DELAY"),
             "cache_aware": final_config.get("CACHE_AWARE_RATE_LIMITING"),
         }
-        
+
         # Remove None values
         constructor_args = {k: v for k, v in constructor_args.items() if v is not None}
-        
+
         return RateLimiter(**constructor_args)
-    
+
     def clear_instances(self) -> None:
         """Clear all cached rate limiter instances (useful for testing)."""
         with self._lock:
             self._instances.clear()
             logger.debug("Cleared all rate limiter instances")
+
 
 # Create a default rate limiter factory
 _default_rate_limiter_factory = RateLimiterFactory()
@@ -981,11 +996,12 @@ _default_rate_limiter_factory = RateLimiterFactory()
 # Create a global rate limiter instance for backward compatibility
 global_rate_limiter = _default_rate_limiter_factory.get_rate_limiter("global")
 
+
 def rate_limited(
-    func: Optional[Callable[..., T]] = None,
+    func: Callable[..., T] | None = None,
     *,
-    limiter: Optional[RateLimiter] = None,
-    ticker_arg: Optional[str] = None,
+    limiter: RateLimiter | None = None,
+    ticker_arg: str | None = None,
     cache_aware: bool = True,
     track_metrics: bool = True,
 ) -> Callable[..., T]:

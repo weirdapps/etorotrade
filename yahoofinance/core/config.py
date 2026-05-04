@@ -6,12 +6,11 @@ ConfigManager. It redirects all configuration access to the new system.
 """
 
 import os
-from typing import Any, Dict
+from typing import Any
 
 # Import from new unified config
 from trade_modules.config_manager import (
     get_config as _get_config,
-    get_max_concurrent_requests,
 )
 
 # Get config instance for module-level constants
@@ -179,85 +178,101 @@ CACHE_CONFIG = {
 FIELD_CACHE_CONFIG = {
     # Core control
     "ENABLED": True,  # Enabled for performance optimization
-
     # User-defined field classifications
     # PRICE FIELDS - NEVER CACHED (always fresh from API)
     "NEVER_CACHE_FIELDS": {
         # Price-sensitive fields - always fetch fresh
-        "PRICE", "price", "current_price", "regularMarketPrice",
-        "TARGET", "target_price", "targetMeanPrice",
-        "UPSIDE", "upside",
-        "PET", "pe_trailing", "trailingPE",
-        "PEF", "pe_forward", "forwardPE",
-        "PEG", "peg_ratio", "pegRatio",
-        "PP", "price_performance", "twelve_month_performance",
-        "EXRET", "expected_return",
-        "52W", "pct_from_52w_high", "fiftyTwoWeekHighChangePercent",
-        "2H", "above_200dma",
-        "volume", "regularMarketVolume",
-        "BS", "action", "signal",
+        "PRICE",
+        "price",
+        "current_price",
+        "regularMarketPrice",
+        "TARGET",
+        "target_price",
+        "targetMeanPrice",
+        "UPSIDE",
+        "upside",
+        "PET",
+        "pe_trailing",
+        "trailingPE",
+        "PEF",
+        "pe_forward",
+        "forwardPE",
+        "PEG",
+        "peg_ratio",
+        "pegRatio",
+        "PP",
+        "price_performance",
+        "twelve_month_performance",
+        "EXRET",
+        "expected_return",
+        "52W",
+        "pct_from_52w_high",
+        "fiftyTwoWeekHighChangePercent",
+        "2H",
+        "above_200dma",
+        "volume",
+        "regularMarketVolume",
+        "BS",
+        "action",
+        "signal",
     },
-
     # 4-HOUR CACHE FIELDS (14400 seconds) - stable data
     "DAILY_CACHE_FIELDS": {
-        "TICKER": 14400,        # 4 hours
+        "TICKER": 14400,  # 4 hours
         "ticker": 14400,
-        "COMPANY": 14400,       # 4 hours
+        "COMPANY": 14400,  # 4 hours
         "company": 14400,
         "company_name": 14400,
         "shortName": 14400,
         "longName": 14400,
-        "CAP": 14400,           # 4 hours (market cap changes slowly)
+        "CAP": 14400,  # 4 hours (market cap changes slowly)
         "market_cap": 14400,
         "marketCap": 14400,
-        "BETA": 14400,          # 4 hours
+        "BETA": 14400,  # 4 hours
         "beta": 14400,
-        "SI": 14400,            # 4 hours
+        "SI": 14400,  # 4 hours
         "short_percent": 14400,
         "shortPercentOfFloat": 14400,
-        "DIV%": 14400,          # 4 hours
+        "DIV%": 14400,  # 4 hours
         "dividend_yield": 14400,
         "dividendYield": 14400,
-        "EARNINGS": 14400,      # 4 hours
+        "EARNINGS": 14400,  # 4 hours
         "earnings_date": 14400,
-        "EG": 14400,            # 4 hours
+        "EG": 14400,  # 4 hours
         "earnings_growth": 14400,
-        "ROE": 14400,           # 4 hours
+        "ROE": 14400,  # 4 hours
         "return_on_equity": 14400,
         "returnOnEquity": 14400,
-        "DE": 14400,            # 4 hours
+        "DE": 14400,  # 4 hours
         "debt_to_equity": 14400,
         "debtToEquity": 14400,
-        "FCF": 14400,           # 4 hours
+        "FCF": 14400,  # 4 hours
         "fcf_yield": 14400,
         "freeCashflow": 14400,
-        "#T": 14400,            # 4 hours (analyst counts)
+        "#T": 14400,  # 4 hours (analyst counts)
         "analyst_count": 14400,
         "numberOfAnalystOpinions": 14400,
-        "#A": 14400,            # 4 hours
+        "#A": 14400,  # 4 hours
         "total_ratings": 14400,
-        "%BUY": 14400,          # 4 hours (analyst ratings)
+        "%BUY": 14400,  # 4 hours (analyst ratings)
         "buy_percentage": 14400,
-        "AM": 14400,            # 4 hours (analyst momentum)
+        "AM": 14400,  # 4 hours (analyst momentum)
         "analyst_momentum": 14400,
         "sector": 14400,
         "industry": 14400,
     },
-    
     # Performance and reliability settings
-    "MAX_CACHE_SIZE": 10000,               # Maximum cached entries
-    "ENABLE_DETAILED_LOGGING": False,      # Detailed cache operation logging
-    "ENABLE_PERFORMANCE_METRICS": True,    # Performance metrics collection
-    "FALLBACK_ON_CACHE_ERROR": True,       # Always fallback to API on errors
-    "THREAD_SAFE": True,                   # Thread-safe operations
-    
+    "MAX_CACHE_SIZE": 10000,  # Maximum cached entries
+    "ENABLE_DETAILED_LOGGING": False,  # Detailed cache operation logging
+    "ENABLE_PERFORMANCE_METRICS": True,  # Performance metrics collection
+    "FALLBACK_ON_CACHE_ERROR": True,  # Always fallback to API on errors
+    "THREAD_SAFE": True,  # Thread-safe operations
     # Cache management
-    "CLEANUP_INTERVAL": 3600,              # Cache cleanup every hour
-    "STATS_LOGGING_INTERVAL": 300,         # Log stats every 5 minutes
-    
+    "CLEANUP_INTERVAL": 3600,  # Cache cleanup every hour
+    "STATS_LOGGING_INTERVAL": 300,  # Log stats every 5 minutes
     # Error handling
-    "CACHE_ERROR_RETRY_COUNT": 3,          # Retries on cache errors
-    "LOCK_TIMEOUT": 5.0,                   # Maximum cache lock wait time
+    "CACHE_ERROR_RETRY_COUNT": 3,  # Retries on cache errors
+    "LOCK_TIMEOUT": 5.0,  # Maximum cache lock wait time
 }
 
 # Risk metrics configuration
@@ -291,6 +306,7 @@ PAGINATION = {
 # NOTE: Trading criteria configuration has been moved to yahoofinance.core.trade_criteria_config
 # to provide a single source of truth for all trading logic
 
+
 # Temporary compatibility import to support existing code
 def get_trading_criteria():
     """Get trading criteria in legacy format for backward compatibility."""
@@ -322,6 +338,7 @@ def get_trading_criteria():
             "BUY_MIN_EXRET": 0.10,
         },
     }
+
 
 # Create a module-level TRADING_CRITERIA for backward compatibility
 TRADING_CRITERIA = get_trading_criteria()
@@ -463,38 +480,38 @@ SPECIAL_TICKERS = {
 COLUMN_NAMES = {
     # Display column names - kept short to minimize table width
     "EARNINGS_DATE": "Earnings Date",
-    "BUY_PERCENTAGE": "%B",      # Shortened from %BUY
+    "BUY_PERCENTAGE": "%B",  # Shortened from %BUY
     "DIVIDEND_YIELD_DISPLAY": "DV",  # Shortened from DIV%
-    "COMPANY_NAME": "NAME",      # Shortened from COMPANY
-    "TICKER": "TKR",             # Shortened from TICKER
+    "COMPANY_NAME": "NAME",  # Shortened from COMPANY
+    "TICKER": "TKR",  # Shortened from TICKER
     "MARKET_CAP": "CAP",
-    "PRICE": "PRC",              # Shortened from PRICE
-    "TARGET_PRICE": "TGT",       # Shortened from TARGET
-    "UPSIDE": "UP%",             # Shortened from UPSIDE
+    "PRICE": "PRC",  # Shortened from PRICE
+    "TARGET_PRICE": "TGT",  # Shortened from TARGET
+    "UPSIDE": "UP%",  # Shortened from UPSIDE
     "ANALYST_COUNT": "#T",
     "TOTAL_RATINGS": "#A",
     "ACTION": "BS",
-    "POSITION_SIZE": "SZ",       # Shortened from SIZE
+    "POSITION_SIZE": "SZ",  # Shortened from SIZE
     "RATING_TYPE": "A",
     "EARNINGS_FILTER": "E",
-    "EXPECTED_RETURN": "EXR",    # Shortened from EXRET
-    "BETA": "B",                 # Shortened from BETA
+    "EXPECTED_RETURN": "EXR",  # Shortened from EXRET
+    "BETA": "B",  # Shortened from BETA
     "PE_TRAILING": "PET",
     "PE_FORWARD": "PEF",
     "PEG_RATIO": "PEG",
     "SHORT_INTEREST": "SI",
-    "EARNINGS": "ERN",           # Shortened from EARNINGS
+    "EARNINGS": "ERN",  # Shortened from EARNINGS
     "EARNINGS_GROWTH": "EG",
     "PRICE_PERFORMANCE": "PP",
     "RETURN_ON_EQUITY": "ROE",
     "DEBT_TO_EQUITY": "DE",
     "RANKING": "#",
     # New momentum metrics
-    "ANALYST_MOMENTUM": "AM",    # Shortened from AMOM
+    "ANALYST_MOMENTUM": "AM",  # Shortened from AMOM
     "PCT_FROM_52W_HIGH": "52W",  # Shortened from 52W%
-    "ABOVE_200DMA": "2H",        # Shortened from >200D (2 Hundred day)
-    "PE_VS_SECTOR": "P/S",       # Shortened from PE/S
-    "TARGET_DISPERSION": "TD",   # Analyst price target dispersion (high-low)/median %
+    "ABOVE_200DMA": "2H",  # Shortened from >200D (2 Hundred day)
+    "PE_VS_SECTOR": "P/S",  # Shortened from PE/S
+    "TARGET_DISPERSION": "TD",  # Analyst price target dispersion (high-low)/median %
 }
 
 # Compact display columns for console (fits ~160 chars width)
@@ -522,41 +539,42 @@ COMPACT_DISPLAY_COLUMNS = [
 # Uses short column names for compact display
 STANDARD_DISPLAY_COLUMNS = [
     "#",
-    "TKR",       # Ticker symbol
-    "NAME",      # Company name
-    "CAP",       # Market cap
-    "PRC",       # Current price
-    "TGT",       # Target price
-    "UP%",       # Upside percentage
-    "#T",        # Number of price targets
-    "%B",        # Buy percentage
-    "#A",        # Number of analysts
-    "AM",        # Analyst momentum
-    "A",         # Rating type
-    "E",         # Earnings filter
-    "EXR",       # Expected return
-    "B",         # Beta
-    "52W",       # Percent from 52-week high
-    "2H",        # Above 200-day MA
-    "PET",       # PE trailing
-    "PEF",       # PE forward
-    "TD",        # Target dispersion
-    "P/S",       # PE vs sector
-    "PEG",       # PEG ratio
-    "DV",        # Dividend yield
-    "SI",        # Short interest
-    "EG",        # Earnings growth
-    "PP",        # Price performance
-    "ROE",       # Return on equity
-    "DE",        # Debt to equity
-    "FCF",       # Free cash flow yield
-    "ERN",       # Earnings date
-    "SZ",        # Position size
-    "BS",        # Buy/Sell signal
+    "TKR",  # Ticker symbol
+    "NAME",  # Company name
+    "CAP",  # Market cap
+    "PRC",  # Current price
+    "TGT",  # Target price
+    "UP%",  # Upside percentage
+    "#T",  # Number of price targets
+    "%B",  # Buy percentage
+    "#A",  # Number of analysts
+    "AM",  # Analyst momentum
+    "A",  # Rating type
+    "E",  # Earnings filter
+    "EXR",  # Expected return
+    "B",  # Beta
+    "52W",  # Percent from 52-week high
+    "2H",  # Above 200-day MA
+    "PET",  # PE trailing
+    "PEF",  # PE forward
+    "TD",  # Target dispersion
+    "P/S",  # PE vs sector
+    "PEG",  # PEG ratio
+    "DV",  # Dividend yield
+    "SI",  # Short interest
+    "EG",  # Earnings growth
+    "PP",  # Price performance
+    "ROE",  # Return on equity
+    "DE",  # Debt to equity
+    "FCF",  # Free cash flow yield
+    "ERN",  # Earnings date
+    "SZ",  # Position size
+    "BS",  # Buy/Sell signal
 ]
 
+
 # Load environment variables if needed
-def load_env_config() -> Dict[str, Any]:
+def load_env_config() -> dict[str, Any]:
     """
     Load configuration from environment variables.
 
@@ -585,11 +603,13 @@ def load_env_config() -> Dict[str, Any]:
 
     return config
 
+
 # Apply environment variable configuration
 ENV_CONFIG = load_env_config()
 
+
 # Update configuration with environment variables
-def apply_env_config(env_config: Dict[str, Any]) -> None:
+def apply_env_config(env_config: dict[str, Any]) -> None:
     """
     Apply environment variable configuration.
 
@@ -602,6 +622,7 @@ def apply_env_config(env_config: Dict[str, Any]) -> None:
             module_name, setting_name = parts
             if module_name in globals() and setting_name in globals()[module_name]:
                 globals()[module_name][setting_name] = value
+
 
 # Apply environment configuration
 apply_env_config(ENV_CONFIG)
@@ -644,7 +665,8 @@ PERFORMANCE_CONFIG = {
     },
 }
 
-def get_display_config() -> Dict[str, Any]:
+
+def get_display_config() -> dict[str, Any]:
     """Get display configuration.
 
     Returns:
@@ -653,18 +675,19 @@ def get_display_config() -> Dict[str, Any]:
     # Return a config structure that includes both DISPLAY constants
     # and the formatting settings expected by ConfigBoundary
     return {
-        'decimal_places': 2,
-        'currency_symbol': '$',
-        'percentage_format': '%.2f%%',
-        'date_format': '%Y-%m-%d',
-        'number_format': '{:,.2f}',
-        'table_max_rows': 50,
-        'max_company_name_length': DISPLAY.get('MAX_COMPANY_NAME_LENGTH', 14),
-        'default_columns': DISPLAY.get('DEFAULT_COLUMNS', []),
-        'formatters': DISPLAY.get('FORMATTERS', {}),
+        "decimal_places": 2,
+        "currency_symbol": "$",
+        "percentage_format": "%.2f%%",
+        "date_format": "%Y-%m-%d",
+        "number_format": "{:,.2f}",
+        "table_max_rows": 50,
+        "max_company_name_length": DISPLAY.get("MAX_COMPANY_NAME_LENGTH", 14),
+        "default_columns": DISPLAY.get("DEFAULT_COLUMNS", []),
+        "formatters": DISPLAY.get("FORMATTERS", {}),
     }
 
-def get_file_paths_config() -> Dict[str, Any]:
+
+def get_file_paths_config() -> dict[str, Any]:
     """Get file paths configuration.
 
     Returns:

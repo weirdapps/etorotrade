@@ -6,16 +6,17 @@ using the centralized TradeConfig configuration.
 """
 
 import pandas as pd
-from typing import Dict
 
 from trade_modules.analysis_engine import calculate_action_vectorized
 from yahoofinance.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 def normalize_row_for_criteria(row_dict):
     """Simple row normalization for backward compatibility."""
     return row_dict  # For now, just return the row as-is
+
 
 def filter_buy_opportunities_v2(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -45,13 +46,16 @@ def filter_buy_opportunities_v2(market_df: pd.DataFrame) -> pd.DataFrame:
         auss_mask = market_df[ticker_col] == "AUSS.OL"
         if auss_mask.any():
             auss_idx = market_df[auss_mask].index[0]
-            logger.info(f"DEBUG: AUSS.OL action = {actions.loc[auss_idx]}, reason = Calculated using centralized TradeConfig")
+            logger.info(
+                f"DEBUG: AUSS.OL action = {actions.loc[auss_idx]}, reason = Calculated using centralized TradeConfig"
+            )
 
     # Filter for BUY actions (VECTORIZED)
     buy_mask = actions == "B"
 
     # Return filtered dataframe
     return market_df[buy_mask].copy()
+
 
 def filter_sell_candidates_v2(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -78,6 +82,7 @@ def filter_sell_candidates_v2(portfolio_df: pd.DataFrame) -> pd.DataFrame:
     # Return filtered dataframe
     return portfolio_df[sell_mask].copy()
 
+
 def add_action_column(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add ACT column to dataframe using centralized trading criteria.
@@ -102,6 +107,7 @@ def add_action_column(df: pd.DataFrame) -> pd.DataFrame:
     result_df["ACT"] = actions
 
     return result_df
+
 
 def filter_hold_candidates_v2(market_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -133,24 +139,25 @@ def filter_hold_candidates_v2(market_df: pd.DataFrame) -> pd.DataFrame:
     # Return filtered dataframe
     return market_df[hold_mask].copy()
 
-def get_action_stats(df: pd.DataFrame) -> Dict[str, int]:
+
+def get_action_stats(df: pd.DataFrame) -> dict[str, int]:
     """
     Get statistics about action distribution in dataframe.
-    
+
     Args:
         df: DataFrame with ACT column
-        
+
     Returns:
         Dictionary with counts for each action type
     """
     if "ACT" not in df.columns:
         return {"B": 0, "S": 0, "H": 0, "I": 0}
-    
+
     action_counts = df["ACT"].value_counts().to_dict()
-    
+
     # Ensure all action types are represented
     for action in ["B", "S", "H", "I"]:
         if action not in action_counts:
             action_counts[action] = 0
-    
+
     return action_counts

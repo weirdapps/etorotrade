@@ -116,11 +116,11 @@ h2 {
     .metrics-grid {
         grid-template-columns: repeat(2, 1fr) !important;
     }
-    
+
     .metric-card {
         padding: 12px;
     }
-    
+
     .metric-value {
         font-size: 1.2rem;
     }

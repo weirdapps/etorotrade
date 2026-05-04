@@ -6,18 +6,21 @@ Tests the full API stack including:
 - Error handling and retry logic
 """
 
-import pytest
 import asyncio
+
+import pytest
 
 from yahoofinance.api.providers.async_hybrid_provider import AsyncHybridProvider
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
 
+
 @pytest.fixture
 def hybrid_provider():
     """Create AsyncHybridProvider instance."""
     return AsyncHybridProvider()
+
 
 class TestAsyncHybridProviderIntegration:
     """Integration tests for AsyncHybridProvider with real API calls."""
@@ -31,7 +34,9 @@ class TestAsyncHybridProviderIntegration:
         assert result is not None
         assert "symbol" in result or "ticker" in result
         # Provider returns normalized data with various price fields
-        assert any(k in result for k in ["price", "current_price", "currentPrice", "regularMarketPrice"])
+        assert any(
+            k in result for k in ["price", "current_price", "currentPrice", "regularMarketPrice"]
+        )
 
     @pytest.mark.asyncio
     async def test_fetch_multiple_tickers(self, hybrid_provider):
@@ -55,13 +60,15 @@ class TestAsyncHybridProviderIntegration:
         assert "symbol" in result or "error" in result
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Network-dependent test - may fail due to API rate limits or timeouts")
+    @pytest.mark.xfail(
+        reason="Network-dependent test - may fail due to API rate limits or timeouts"
+    )
     async def test_performance_concurrent_requests(self, hybrid_provider):
         """Test performance with many concurrent requests."""
-        tickers = ["AAPL", "MSFT", "GOOGL", "NVDA", "TSLA",
-                   "META", "AMZN", "NFLX", "DIS", "UBER"]
+        tickers = ["AAPL", "MSFT", "GOOGL", "NVDA", "TSLA", "META", "AMZN", "NFLX", "DIS", "UBER"]
 
         import time
+
         start = time.perf_counter()
 
         tasks = [hybrid_provider.get_ticker_info(ticker) for ticker in tickers]
@@ -84,4 +91,3 @@ class TestAsyncHybridProviderIntegration:
         # All should succeed or fail gracefully
         for result in results:
             assert not isinstance(result, Exception) or "rate limit" in str(result).lower()
-
