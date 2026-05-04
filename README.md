@@ -39,11 +39,11 @@ That's it! You'll see color-coded recommendations (🟢 BUY, 🔴 SELL, ⚪ HOLD
 ### For All Investors
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+# 1. Install dependencies (Poetry creates the venv + pins via poetry.lock)
+poetry install --only main
 
 # 2. Analyze specific stocks
-python trade.py -o i -t AAPL,MSFT,GOOGL
+poetry run python trade.py -o i -t AAPL,MSFT,GOOGL
 
 # 3. Screen market opportunities
 python trade.py -o m
@@ -57,12 +57,14 @@ python trade.py -o t -t b
 ## Technical Specifications
 
 ### Data Processing Capabilities
+
 - **Throughput**: ~100 securities per second (vectorized operations)
 - **Batch Processing**: 5,544 securities in approximately 15 minutes
 - **API Optimization**: 48-hour cache layer reducing redundant API calls by ~80%
 - **Concurrency**: 15 parallel request threads with adaptive rate limiting
 
 ### Data Sources
+
 - **Primary**: Yahoo Finance API (yfinance)
 - **Supplementary**: YahooQuery API (PEG ratios, missing metrics)
 - **Coverage**: 20+ investment bank analyst recommendations
@@ -84,6 +86,7 @@ The framework employs a sophisticated five-tier classification with region-speci
 > **Note**: Stocks below $2B market cap are automatically marked as INCONCLUSIVE due to insufficient institutional coverage. Small caps ($2-5B) require 6+ analysts, while larger caps require 4+ analysts.
 
 **Regional Adjustments:**
+
 - **US**: Baseline criteria for NYSE/NASDAQ securities
 - **EU**: Modified thresholds for European exchanges (.L, .PA, .AS)
 - **HK**: Adjusted parameters for Hong Kong/Asian markets (.HK)
@@ -100,6 +103,7 @@ Trading signals are generated through a systematic evaluation process:
 ### Position Sizing Algorithm
 
 Position sizes are calculated using a risk-adjusted framework:
+
 - Base position scaled by market capitalization tier
 - Adjustments for expected return (EXRET)
 - Beta-weighted volatility adjustments
@@ -112,12 +116,11 @@ Position sizes are calculated using a risk-adjusted framework:
 git clone https://github.com/weirdapps/etorotrade
 cd etorotrade
 
-# Create virtual environment
-python -m venv myenv
-source myenv/bin/activate  # Windows: myenv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Install Poetry if you don't have it (https://python-poetry.org/docs/#installation)
+# Then install dependencies — Poetry will create and manage a venv automatically.
+poetry install                # production + dev (tests, lint, type-check)
+# Or production-only:
+# poetry install --only main
 ```
 
 ## Usage
@@ -182,6 +185,7 @@ python trade.py -o i -t AAPL,MSFT,GOOGL
 ### Output Files
 
 The system generates both CSV and HTML reports in `yahoofinance/output/`:
+
 - `portfolio.csv/html` - Current holdings analysis
 - `market.csv/html` - Market screening results
 - `buy.csv/html` - Securities meeting buy criteria
@@ -192,6 +196,7 @@ The system generates both CSV and HTML reports in `yahoofinance/output/`:
 ### Portfolio Input Format
 
 Create `yahoofinance/input/portfolio.csv`:
+
 ```csv
 symbol,totalInvestmentPct,totalNetProfitPct,instrumentDisplayName
 AAPL,5.2,12.5,Apple Inc
@@ -201,6 +206,7 @@ MSFT,4.8,8.3,Microsoft Corporation
 ### Threshold Customization
 
 Trading thresholds can be modified in `config.yaml`:
+
 - Tier-specific buy/sell criteria
 - Regional adjustments
 - Position size parameters
@@ -209,18 +215,21 @@ Trading thresholds can be modified in `config.yaml`:
 ## Architecture
 
 ### Performance Optimizations
+
 - Vectorized pandas operations for efficient data processing
 - Set-based filtering algorithms (O(n) vs O(n²))
 - Asynchronous API requests with connection pooling
 - Memory-efficient streaming for large datasets
 
 ### Error Handling
+
 - Automatic retry with exponential backoff
 - Graceful degradation for missing data
 - Comprehensive logging for debugging
 - Circuit breaker pattern for API failures
 
 ### Code Quality
+
 - Type hints throughout codebase
 - Comprehensive test coverage
 - Continuous integration pipeline
@@ -236,6 +245,7 @@ python trade.py -o b
 ```
 
 **Output includes:**
+
 - Per-signal accuracy (BUY vs SELL vs HOLD performance)
 - Tier and region breakdowns
 - Comparison against SPY benchmark
@@ -244,6 +254,7 @@ python trade.py -o b
 ## ETF Analysis
 
 The tool provides transparency into ETF holdings:
+
 - Geographic exposure decomposition
 - Sector allocation analysis
 - Underlying asset classification
@@ -252,12 +263,14 @@ The tool provides transparency into ETF holdings:
 ## Risk Considerations
 
 ### Limitations
+
 - Analysis based on publicly available data
 - No intraday trading signals
 - No derivative strategies
 - Historical performance not indicative of future results
 
 ### Important Disclaimers
+
 - This tool provides analysis only, not investment advice
 - All investment decisions should incorporate multiple sources
 - Past signals do not guarantee future performance
@@ -266,6 +279,7 @@ The tool provides transparency into ETF holdings:
 ## Development
 
 ### Testing
+
 ```bash
 # Run all tests
 pytest tests/
@@ -284,7 +298,9 @@ pytest --cov=yahoofinance --cov=trade_modules --cov-report=html
 ```
 
 ### Contributing
+
 Contributions are welcome. Please ensure:
+
 - All tests pass (`pytest tests/`)
 - Code follows PEP 8 style guidelines
 - Type hints are included for new functions

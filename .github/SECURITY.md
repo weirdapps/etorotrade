@@ -15,6 +15,7 @@ Please report security vulnerabilities to the repository maintainers through Git
 ### GitHub Actions
 
 #### Claude Code Action (Beta) - CURRENTLY DISABLED
+
 - **Issue**: The `anthropics/claude-code-action@beta` cannot be pinned to a specific commit SHA as it's in beta
 - **Risk Level**: Medium (Unacceptable without SHA pinning)
 - **Status**: **DISABLED** - Workflow has been disabled to comply with security policy
@@ -29,7 +30,9 @@ Please report security vulnerabilities to the repository maintainers through Git
 - **Tracking**: Monitor for stable releases at https://github.com/anthropics/claude-code-action/releases
 
 #### All Other Actions
+
 All other GitHub Actions are pinned to specific commit SHAs for security:
+
 - `actions/checkout`: SHA `08c6903cd8c0fde910a37f88322edcfb5dd907a8` (v5.0.0)
 - `actions/setup-python`: SHA `f677139bbe7f9c59b41e40162b753c062f5d49a3` (v5.2.0)
 - `actions/cache`: SHA `0400d5f644dc74513175e3cd8d07132dd4860809` (v4.2.4)
@@ -39,6 +42,7 @@ All other GitHub Actions are pinned to specific commit SHAs for security:
 ### Docker Security
 
 The Docker container implements multiple security layers:
+
 1. **Non-root execution**: Runs as `appuser`
 2. **Read-only filesystem**: Application code is immutable (chmod 444/555)
 3. **No embedded secrets**: Configuration must be mounted externally
@@ -47,7 +51,7 @@ The Docker container implements multiple security layers:
 
 ### Dependencies
 
-- All Python dependencies are specified with exact versions in `requirements.txt`
+- All Python dependencies are specified with exact versions in `poetry.lock` (managed via Poetry, declared in `pyproject.toml`)
 - Regular dependency updates are performed
 - Security scanning via Dependabot is enabled
 
@@ -62,6 +66,7 @@ The Docker container implements multiple security layers:
 ## Compliance
 
 This project uses SonarCloud for continuous security analysis. Current security posture:
+
 - Security hotspots are reviewed and addressed regularly
 - Known issues are documented with risk assessments
 - Mitigations are implemented where direct fixes aren't possible

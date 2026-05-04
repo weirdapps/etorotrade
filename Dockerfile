@@ -12,12 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user for running the application
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Copy requirements first for better caching (root owns, read-only for others)
-COPY --chmod=444 requirements.txt .
-
-# Install Python dependencies as root (for system-wide installation)
-RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt && \
-    rm -f requirements.txt
+# Install Poetry (pinned), then install pinned production deps directly into
+# system Python via virtualenvs.create=false. Poetry is removed afterwards to
+# keep the runtime image lean (no Poetry CLI needed at runtime).
+COPY --chmod=444 pyproject.toml poetry.lock ./
+RUN pip install --no-cache-dir poetry==2.4.0 && \
+    poetry config virtualenvs.create false && \
+    poetry install --only main --no-root --no-interaction --no-ansi && \
+    pip uninstall -y poetry && \
+    rm -f pyproject.toml poetry.lock
 
 # Copy only necessary application code with read-only permissions
 # Files are owned by root but readable by appuser

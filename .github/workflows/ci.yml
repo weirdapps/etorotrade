@@ -32,14 +32,19 @@ jobs:
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
         restore-keys: |
-          ${{ runner.os }}-pip-
+          ${{ runner.os }}-pip-py${{ matrix.python-version }}-
 
-    - name: Install dependencies
+    - name: Install Poetry
+      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+      with:
+        version: '2.4.0'
+        virtualenvs-create: false  # Install into system Python (faster CI, simpler PATH)
+
+    - name: Install dependencies (production + dev)
       run: |
-        python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: -r requirements-dev.lock
+        poetry install --extras dev --no-root --no-interaction --no-ansi
         pip install --only-binary :all: pytest-xdist==3.8.0 safety==3.7.0 bandit==1.9.4
 
     - name: Security check with bandit
@@ -120,10 +125,14 @@ jobs:
       with:
         python-version: 3.11
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: -r requirements-dev.lock
+    - name: Install Poetry
+      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+      with:
+        version: '2.4.0'
+        virtualenvs-create: false
+
+    - name: Install dependencies (production + dev)
+      run: poetry install --extras dev --no-root --no-interaction --no-ansi
 
     - name: Run integration tests
       continue-on-error: true  # Don't block CI on integration test failures (API rate limits, etc.)
@@ -143,12 +152,17 @@ jobs:
       with:
         python-version: 3.11
 
-    # Install ONLY declared production deps (not requirements-dev.txt) to detect
-    # undeclared upstream transitive deps before they break a fresh prod install.
+    - name: Install Poetry
+      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+      with:
+        version: '2.4.0'
+        virtualenvs-create: false
+
+    # Install ONLY declared production deps (no extras) to detect undeclared
+    # upstream transitive deps before they break a fresh prod install.
     - name: Install production deps only
       run: |
-        python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: -r requirements.lock
+        poetry install --only main --no-root --no-interaction --no-ansi
         pip install --only-binary :all: pytest==9.0.3 pytest-rerunfailures==16.1
 
     # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
@@ -172,10 +186,15 @@ jobs:
       with:
         python-version: 3.11
 
-    - name: Install dependencies
+    - name: Install Poetry
+      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+      with:
+        version: '2.4.0'
+        virtualenvs-create: false
+
+    - name: Install dependencies (production + dev)
       run: |
-        python -m pip install --only-binary :all: --upgrade pip
-        pip install --only-binary :all: -r requirements-dev.lock
+        poetry install --extras dev --no-root --no-interaction --no-ansi
         pip install --only-binary :all: radon==6.0.1 autoflake==2.3.3 detect-secrets==1.5.0
 
     - name: Check code complexity
@@ -246,29 +265,22 @@ jobs:
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+    - name: Set up Python 3.11
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
-        version: '0.10.4'
+        python-version: 3.11
 
-    - name: Verify requirements.lock matches requirements.txt
-      run: |
-        cp requirements.lock /tmp/orig.lock
-        uv pip compile requirements.txt -o requirements.lock --universal --quiet
-        if ! diff -q /tmp/orig.lock requirements.lock > /dev/null; then
-          echo "::error::requirements.lock is out of sync with requirements.txt"
-          echo "Run: uv pip compile requirements.txt -o requirements.lock --universal"
-          diff /tmp/orig.lock requirements.lock | head -40
-          exit 1
-        fi
+    - name: Install Poetry
+      uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+      with:
+        version: '2.4.0'
 
-    - name: Verify requirements-dev.lock matches requirements-dev.txt
+    # Poetry validates that poetry.lock matches pyproject.toml — content hash
+    # comparison against [project] dependencies. Fails the job if drift is detected.
+    - name: Verify poetry.lock matches pyproject.toml
       run: |
-        cp requirements-dev.lock /tmp/orig-dev.lock
-        uv pip compile requirements-dev.txt -o requirements-dev.lock --universal --quiet
-        if ! diff -q /tmp/orig-dev.lock requirements-dev.lock > /dev/null; then
-          echo "::error::requirements-dev.lock is out of sync with requirements-dev.txt"
-          echo "Run: uv pip compile requirements-dev.txt -o requirements-dev.lock --universal"
-          diff /tmp/orig-dev.lock requirements-dev.lock | head -40
+        if ! poetry check --lock --no-interaction; then
+          echo "::error::poetry.lock is out of sync with pyproject.toml"
+          echo "Run locally: poetry lock"
           exit 1
         fi
