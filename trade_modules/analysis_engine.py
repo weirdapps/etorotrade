@@ -19,10 +19,15 @@ from yahoofinance.core.config import TRADING_CRITERIA
 from yahoofinance.core.errors import YFinanceError
 
 # Import everything from the new analysis submodules for backward compatibility
+# These are re-exports — listed in __all__ at the bottom to satisfy ruff F401
 from .analysis import (
+    calculate_action,
+    calculate_action_vectorized,
+    calculate_exret,
     filter_buy_opportunities_wrapper,
     filter_hold_candidates_wrapper,
     filter_sell_candidates_wrapper,
+    process_buy_opportunities,
 )
 
 # Get logger for this module
@@ -141,3 +146,16 @@ class AnalysisEngine:
         except (KeyError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error generating market summary: {str(e)}")
             return {}
+
+
+# Re-exports from .analysis (declare here so ruff F401 doesn't strip them)
+__all__ = [
+    "AnalysisEngine",
+    "calculate_action",
+    "calculate_action_vectorized",
+    "calculate_exret",
+    "filter_buy_opportunities_wrapper",
+    "filter_hold_candidates_wrapper",
+    "filter_sell_candidates_wrapper",
+    "process_buy_opportunities",
+]
