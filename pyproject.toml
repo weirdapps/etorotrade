@@ -54,10 +54,20 @@ ml = [
     "torch>=2.0.0",
     "scikit-learn>=1.3.0",
 ]
+# Minimal "production + smoke test" extra used by the yfinance-compat CI job:
+# we want production deps installed against a clean lockfile, plus only the
+# bare minimum to RUN pytest on the smoke test. Keeps undeclared transitive
+# regressions visible by NOT pulling in the full dev tooling.
+smoketest = [
+    "pytest>=9.0.3",
+    "pytest-rerunfailures>=16.1",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=2.12.0",
     "pytest-asyncio>=1.3.0",
+    "pytest-xdist>=3.8.0",          # parallel test execution in CI
+    "pytest-rerunfailures>=16.1",   # yfinance-compat smoke test retries
     "mypy>=0.910",
     "types-requests>=2.25.0",
     "types-setuptools>=80.7.0",
@@ -66,6 +76,12 @@ dev = [
     "black>=22.3.0",
     "isort>=5.9.0",
     "flake8>=3.9.0",
+    # Security + quality scanners (in lockfile so CI install gets pinned hashes)
+    "safety>=3.7.0",
+    "bandit>=1.9.4",
+    "radon>=6.0.1",
+    "autoflake>=2.3.3",
+    "detect-secrets>=1.5.0",
 ]
 
 [project.scripts]
