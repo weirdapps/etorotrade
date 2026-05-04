@@ -8,7 +8,7 @@ to improve performance by reusing HTTP connections across multiple API requests.
 import asyncio
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
 import aiohttp
 
@@ -28,7 +28,7 @@ class SharedSessionManager:
     overhead and improve API response times.
     """
 
-    _instance: Optional["SharedSessionManager"] = None
+    _instance: "SharedSessionManager | None" = None
     _lock = threading.Lock()
 
     def __new__(cls) -> "SharedSessionManager":

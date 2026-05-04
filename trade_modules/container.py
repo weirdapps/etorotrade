@@ -14,7 +14,7 @@ Usage:
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from .protocols import (
     FinanceDataProviderProtocol,
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 # Singleton container instance
-_container: Optional["Container"] = None
+_container: "Container | None" = None
 
 
 class Container:
