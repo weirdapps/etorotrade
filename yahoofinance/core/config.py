@@ -105,6 +105,12 @@ CIRCUIT_BREAKER = {
     ),
 }
 
+
+def get_max_concurrent_requests() -> int:
+    """Get maximum concurrent requests from rate limit config."""
+    return RATE_LIMIT["MAX_CONCURRENT_CALLS"]
+
+
 # Caching configuration - OPTIMIZED WITH SMART TTLs
 # Disk cache enabled for persistence across runs, with field-specific TTLs
 CACHE_CONFIG = {
