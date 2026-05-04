@@ -16,7 +16,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 COPY --chmod=444 requirements.txt .
 
 # Install Python dependencies as root (for system-wide installation)
-RUN pip install --no-cache-dir -r requirements.txt && \
+RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt && \
     rm -f requirements.txt
 
 # Copy only necessary application code with read-only permissions

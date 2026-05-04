@@ -15,7 +15,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt
 
 # Copy only necessary files for production (security best practice)
 # Using explicit COPY commands instead of recursive copy to minimize security risk
