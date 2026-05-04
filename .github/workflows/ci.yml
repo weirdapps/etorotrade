@@ -254,10 +254,10 @@ jobs:
     - name: Verify requirements.lock matches requirements.txt
       run: |
         cp requirements.lock /tmp/orig.lock
-        uv pip compile requirements.txt -o requirements.lock --python-version 3.10 --generate-hashes --quiet
+        uv pip compile requirements.txt -o requirements.lock --universal --generate-hashes --quiet
         if ! diff -q /tmp/orig.lock requirements.lock > /dev/null; then
           echo "::error::requirements.lock is out of sync with requirements.txt"
-          echo "Run: uv pip compile requirements.txt -o requirements.lock --python-version 3.10 --generate-hashes"
+          echo "Run: uv pip compile requirements.txt -o requirements.lock --universal --generate-hashes"
           diff /tmp/orig.lock requirements.lock | head -40
           exit 1
         fi
@@ -265,10 +265,10 @@ jobs:
     - name: Verify requirements-dev.lock matches requirements-dev.txt
       run: |
         cp requirements-dev.lock /tmp/orig-dev.lock
-        uv pip compile requirements-dev.txt -o requirements-dev.lock --python-version 3.10 --generate-hashes --quiet
+        uv pip compile requirements-dev.txt -o requirements-dev.lock --universal --generate-hashes --quiet
         if ! diff -q /tmp/orig-dev.lock requirements-dev.lock > /dev/null; then
           echo "::error::requirements-dev.lock is out of sync with requirements-dev.txt"
-          echo "Run: uv pip compile requirements-dev.txt -o requirements-dev.lock --python-version 3.10 --generate-hashes"
+          echo "Run: uv pip compile requirements-dev.txt -o requirements-dev.lock --universal --generate-hashes"
           diff /tmp/orig-dev.lock requirements-dev.lock | head -40
           exit 1
         fi
