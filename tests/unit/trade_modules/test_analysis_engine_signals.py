@@ -96,9 +96,9 @@ class TestMegaUSTierSignals:
         result = calculate_action(df)
 
         # Assert - should SELL due to hard trigger (negative upside + weak sentiment)
-        assert (
-            result.loc["AAPL", "BS"] == "S"
-        ), "Should generate SELL for negative upside with weak sentiment"
+        assert result.loc["AAPL", "BS"] == "S", (
+            "Should generate SELL for negative upside with weak sentiment"
+        )
 
     def test_mega_us_sell_signal_low_buy_percentage(self, mega_us_base_data):
         """SELL signal with enhanced scoring: very low buy% (hard trigger)."""
@@ -134,9 +134,9 @@ class TestMegaUSTierSignals:
         result = calculate_action(df)
 
         # Assert - should SELL (hard trigger: negative upside + weak sentiment)
-        assert (
-            result.loc["AAPL", "BS"] == "S"
-        ), "Should SELL with negative upside and weak sentiment"
+        assert result.loc["AAPL", "BS"] == "S", (
+            "Should SELL with negative upside and weak sentiment"
+        )
 
     def test_mega_us_hold_signal_between_buy_sell(self, mega_us_base_data):
         """HOLD signal when between BUY and SELL thresholds.
@@ -233,9 +233,9 @@ class TestMegaUSTierSignals:
         result = calculate_action(df)
 
         # Assert - SELL wins (hard trigger: negative upside + weak sentiment)
-        assert (
-            result.loc["AAPL", "BS"] == "S"
-        ), "Multi-factor SELL should override when hard trigger is met"
+        assert result.loc["AAPL", "BS"] == "S", (
+            "Multi-factor SELL should override when hard trigger is met"
+        )
 
 
 class TestExretCalculation:
@@ -248,9 +248,9 @@ class TestExretCalculation:
         )
 
         result = calculate_exret(df)
-        assert result.loc["TEST", "EXRET"] == pytest.approx(
-            7.0, rel=1e-2
-        ), "EXRET should be 10.0 * 70.0 / 100 = 7.0"
+        assert result.loc["TEST", "EXRET"] == pytest.approx(7.0, rel=1e-2), (
+            "EXRET should be 10.0 * 70.0 / 100 = 7.0"
+        )
 
     def test_exret_zero_buy_percentage(self):
         """EXRET = 0 when no analysts recommend buy."""
@@ -259,9 +259,9 @@ class TestExretCalculation:
         )
 
         result = calculate_exret(df)
-        assert result.loc["TEST", "EXRET"] == pytest.approx(
-            0.0
-        ), "EXRET should be 0 with 0% buy recommendations"
+        assert result.loc["TEST", "EXRET"] == pytest.approx(0.0), (
+            "EXRET should be 0 with 0% buy recommendations"
+        )
 
     def test_exret_negative_upside(self):
         """EXRET is negative when price is below target."""

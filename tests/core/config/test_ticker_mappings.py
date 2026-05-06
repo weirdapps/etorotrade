@@ -100,9 +100,9 @@ class TestTickerNormalization:
 
         for input_ticker, expected_normalized in test_cases:
             result = get_normalized_ticker(input_ticker)
-            assert (
-                result == expected_normalized
-            ), f"Failed for {input_ticker}: got {result}, expected {expected_normalized}"
+            assert result == expected_normalized, (
+                f"Failed for {input_ticker}: got {result}, expected {expected_normalized}"
+            )
 
     def test_get_normalized_ticker_non_dual_listed(self):
         """Test normalization of non-dual-listed tickers."""
@@ -116,9 +116,9 @@ class TestTickerNormalization:
 
         for input_ticker, expected in test_cases:
             result = get_normalized_ticker(input_ticker)
-            assert (
-                result == expected
-            ), f"Failed for {input_ticker}: got {result}, expected {expected}"
+            assert result == expected, (
+                f"Failed for {input_ticker}: got {result}, expected {expected}"
+            )
 
     def test_get_normalized_ticker_edge_cases(self):
         """Test normalization with edge cases."""
@@ -150,9 +150,9 @@ class TestTickerNormalization:
 
         for input_ticker, expected_us in test_cases:
             result = get_us_ticker(input_ticker)
-            assert (
-                result == expected_us
-            ), f"Failed for {input_ticker}: got {result}, expected {expected_us}"
+            assert result == expected_us, (
+                f"Failed for {input_ticker}: got {result}, expected {expected_us}"
+            )
 
     def test_get_us_ticker_non_mapped(self):
         """Test getting US ticker for non-mapped tickers."""
@@ -230,9 +230,9 @@ class TestTickerEquivalence:
         for input_ticker, expected_set in test_cases:
             result = get_all_equivalent_tickers(input_ticker)
             assert isinstance(result, set)
-            assert (
-                result == expected_set
-            ), f"Failed for {input_ticker}: got {result}, expected {expected_set}"
+            assert result == expected_set, (
+                f"Failed for {input_ticker}: got {result}, expected {expected_set}"
+            )
 
 
 class TestGeographicMapping:
@@ -275,9 +275,9 @@ class TestGeographicMapping:
 
         for ticker, expected_region in test_cases:
             result = get_ticker_geography(ticker)
-            assert (
-                result == expected_region
-            ), f"Failed for {ticker}: got {result}, expected {expected_region}"
+            assert result == expected_region, (
+                f"Failed for {ticker}: got {result}, expected {expected_region}"
+            )
 
 
 class TestDisplayAndDataFetch:

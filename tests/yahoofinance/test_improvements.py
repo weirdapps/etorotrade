@@ -19,6 +19,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("test_improvements")
 
+
 def test_market_utils():
     """Test the centralized market utilities."""
     logger.info("Testing market utilities...")
@@ -35,6 +36,7 @@ def test_market_utils():
     assert normalize_hk_ticker("AAPL") == "AAPL"  # Non-HK, no change
 
     logger.info("✅ Market utilities test passed")
+
 
 def test_config_values():
     """Test config values are properly loaded."""
@@ -55,6 +57,7 @@ def test_config_values():
     assert "Strong Buy" in POSITIVE_GRADES
 
     logger.info("✅ Config values test passed")
+
 
 def test_cache_implementation():
     """Test the improved cache implementation."""
@@ -118,6 +121,7 @@ def test_cache_implementation():
 
     logger.info("✅ Cache implementation test passed")
 
+
 def main():
     """Run all tests."""
     try:
@@ -129,6 +133,7 @@ def main():
         logger.error(f"❌ Test failed: {str(e)}")
     except YFinanceError as e:
         logger.error(f"❌ Unexpected error: {str(e)}")
+
 
 if __name__ == "__main__":
     # Run from the project root directory

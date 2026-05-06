@@ -275,11 +275,11 @@ class YahooFinanceBoundary(IYahooFinanceBoundary):
         def format_large_number_fallback(value: float) -> str:
             """Fallback large number formatting."""
             if value >= 1e9:
-                return f"{value/1e9:.1f}B"
+                return f"{value / 1e9:.1f}B"
             elif value >= 1e6:
-                return f"{value/1e6:.1f}M"
+                return f"{value / 1e6:.1f}M"
             elif value >= 1e3:
-                return f"{value/1e3:.1f}K"
+                return f"{value / 1e3:.1f}K"
             else:
                 return f"{value:.0f}"
 

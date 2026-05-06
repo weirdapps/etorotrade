@@ -81,9 +81,9 @@ class TestMidUSTierSignals:
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
 
-        assert (
-            result.loc["ROKU", "BS"] == "S"
-        ), "Should SELL with severe negative upside + weak sentiment"
+        assert result.loc["ROKU", "BS"] == "S", (
+            "Should SELL with severe negative upside + weak sentiment"
+        )
 
     def test_mid_us_hold_signal(self, mid_us_base_data):
         """HOLD signal for MID-US tier."""
@@ -145,9 +145,9 @@ class TestMidEUTierSignals:
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
 
-        assert (
-            result.loc["ASML.DE", "BS"] == "S"
-        ), "Should SELL with negative upside + weak sentiment"
+        assert result.loc["ASML.DE", "BS"] == "S", (
+            "Should SELL with negative upside + weak sentiment"
+        )
 
     def test_mid_eu_hold_signal(self, mid_eu_base_data):
         """HOLD signal for MID-EU tier."""
@@ -209,9 +209,9 @@ class TestMidHKTierSignals:
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
 
-        assert (
-            result.loc["BIDU.HK", "BS"] == "S"
-        ), "Should SELL with severe negative upside + weak sentiment"
+        assert result.loc["BIDU.HK", "BS"] == "S", (
+            "Should SELL with severe negative upside + weak sentiment"
+        )
 
     def test_mid_hk_hold_signal(self, mid_hk_base_data):
         """HOLD signal for MID-HK tier."""

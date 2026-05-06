@@ -36,7 +36,7 @@ from yahoofinance.utils.network.circuit_breaker import (
 @pytest.fixture
 def temp_state_file():
     """Create a secure temporary file for circuit breaker state"""
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tmp_file:
         path = tmp_file.name
     yield path
     if os.path.exists(path):
@@ -186,7 +186,6 @@ class TestCircuitBreakerIntegration:
             "yahoofinance.utils.network.circuit_breaker.get_circuit_breaker",
             return_value=circuit_breaker,
         ):
-
             # Test successful execution
             result = test_function(success=True)
             assert result == "success"
@@ -234,7 +233,6 @@ class TestCircuitBreakerIntegration:
             "yahoofinance.utils.network.circuit_breaker.get_async_circuit_breaker",
             return_value=async_circuit_breaker,
         ):
-
             # Test successful execution
             result = await test_async_function(success=True)
             assert result == "async success"

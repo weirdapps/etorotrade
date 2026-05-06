@@ -511,7 +511,7 @@ def format_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
                 try:
                     if pd.notna(x) and x != "" and x != "--":
                         # Convert to percentage value with 1 decimal place (no % sign)
-                        return f"{float(x)*100:.1f}"
+                        return f"{float(x) * 100:.1f}"
                     return "--"
                 except:
                     return "--"

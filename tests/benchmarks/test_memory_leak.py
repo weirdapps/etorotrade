@@ -58,7 +58,7 @@ class TestMemoryLeaks(unittest.TestCase):
             cache.set(f"key_{i}", {"data": f"value_{i}" * 100})
             if i % 100 == 0:
                 # Periodically get items
-                cache.get(f"key_{i-50}")
+                cache.get(f"key_{i - 50}")
 
         # Clear cache
         cache.clear()

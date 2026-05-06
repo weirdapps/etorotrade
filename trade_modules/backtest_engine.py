@@ -1197,9 +1197,7 @@ class ThresholdAnalyzer:
                     "section": "threshold_suggestion",
                     "item": f"{s['tier_region']}_{s['signal_type']}_{s['config_key']}",
                     "value": s["suggested_value"],
-                    "detail": (
-                        f"current={s['current_value']}, " f"improvement=+{s['improvement']}%"
-                    ),
+                    "detail": (f"current={s['current_value']}, improvement=+{s['improvement']}%"),
                     "coverage": None,
                     "sample_size": s["sample_size"],
                 }

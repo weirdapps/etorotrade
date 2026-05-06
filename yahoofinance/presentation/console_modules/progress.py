@@ -59,7 +59,7 @@ def process_tickers_with_progress(
             # Format the description with comprehensive information using fixed width
             ticker_info = batch[-1] if batch else ""  # Get the last processed ticker
             ticker_str = f"{ticker_info:<10}" if ticker_info else ""
-            description = f"⚡ {ticker_str} Batch {batch_num+1:2d}/{total_batches:2d}"
+            description = f"⚡ {ticker_str} Batch {batch_num + 1:2d}/{total_batches:2d}"
             pbar.set_description(description)
 
             # Also update postfix with ETA

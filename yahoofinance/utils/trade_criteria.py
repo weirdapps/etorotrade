@@ -12,6 +12,7 @@ import pandas as pd
 
 from trade_modules.trade_config import TradeConfig
 from yahoofinance.core.config import COLUMN_NAMES
+from yahoofinance.core.logging import get_logger
 
 # Trading action constants
 BUY_ACTION = "B"
@@ -19,8 +20,6 @@ SELL_ACTION = "S"
 HOLD_ACTION = "H"
 INCONCLUSIVE_ACTION = "I"
 NO_ACTION = ""
-
-from ..core.logging import get_logger
 
 # Constants for column names from config
 BUY_PERCENTAGE = COLUMN_NAMES["BUY_PERCENTAGE"]  # Column name for buy percentage
@@ -208,7 +207,7 @@ def format_numeric_values(df: pd.DataFrame, numeric_columns: list[str]) -> pd.Da
             # Handle percentage strings
             if result_df[col].dtype == "object":
                 result_df[col] = result_df[col].apply(
-                    lambda x: (float(x.replace("%", "")) if isinstance(x, str) and "%" in x else x)
+                    lambda x: float(x.replace("%", "")) if isinstance(x, str) and "%" in x else x
                 )
             # Convert to numeric, coerce errors to NaN
             result_df[col] = pd.to_numeric(result_df[col], errors="coerce")

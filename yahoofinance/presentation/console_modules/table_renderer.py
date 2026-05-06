@@ -153,9 +153,9 @@ def format_dataframe(df: pd.DataFrame, truncate_name: bool = True) -> pd.DataFra
             if target_col == "TICKER":
                 # Apply ticker normalization for dual-listed stock display
                 new_df[target_col] = df[source_col].apply(
-                    lambda x: get_ticker_for_display(process_ticker_input(x))
-                    if pd.notna(x) and x
-                    else x
+                    lambda x: (
+                        get_ticker_for_display(process_ticker_input(x)) if pd.notna(x) and x else x
+                    )
                 )
             else:
                 new_df[target_col] = df[source_col]

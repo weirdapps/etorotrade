@@ -2741,12 +2741,12 @@ def generate_kill_thesis(
     def _stop_below(pct: float) -> str:
         if price <= 0:
             return f"price drops {pct:.0f}% from entry"
-        return f"price closes below ${price * (1 - pct/100):.2f} ({-pct:.0f}% stop)"
+        return f"price closes below ${price * (1 - pct / 100):.2f} ({-pct:.0f}% stop)"
 
     def _stop_above(pct: float) -> str:
         if price <= 0:
             return f"price rises {pct:.0f}% from entry"
-        return f"price closes above ${price * (1 + pct/100):.2f} (+{pct:.0f}%)"
+        return f"price closes above ${price * (1 + pct / 100):.2f} (+{pct:.0f}%)"
 
     if action in ("BUY", "BUY NEW", "ADD"):
         # Price stop

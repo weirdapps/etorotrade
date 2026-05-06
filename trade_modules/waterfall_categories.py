@@ -165,7 +165,7 @@ def render_category_summary(
         total = v["total"]
         color = "#2e7d32" if total > 0 else "#c62828" if total < 0 else "#666"
         sign = "+" if total > 0 else ""
-        parts.append(f'<span style="color:{color};font-weight:600;">' f"{cat} {sign}{total}</span>")
+        parts.append(f'<span style="color:{color};font-weight:600;">{cat} {sign}{total}</span>')
     return (
         '<div style="font-size:10px;color:#666;margin-top:4px;'
         'font-family:Menlo,Consolas,monospace;">' + " · ".join(parts) + "</div>"

@@ -9,6 +9,7 @@ Run before/after any yfinance version bump:
 Each test asserts shape/type only — never specific market values.
 Tests skip (not fail) on network errors so a flaky Yahoo doesn't break CI.
 """
+
 from __future__ import annotations
 
 import socket
@@ -109,9 +110,7 @@ def test_upgrades_downgrades(ticker):
 
 def test_download_bulk():
     _skip_if_no_network()
-    data = yf.download(
-        BULK_TICKERS, period="5d", progress=False, auto_adjust=True
-    )
+    data = yf.download(BULK_TICKERS, period="5d", progress=False, auto_adjust=True)
     assert isinstance(data, pd.DataFrame)
     assert not data.empty
 

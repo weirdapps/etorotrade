@@ -100,9 +100,9 @@ class TestDynamicBasePosition:
             sizes_pct.append(conc[0]["size_pct"])
 
         # Allow 0.05pp tolerance for rounding at boundaries
-        assert (
-            max(sizes_pct) - min(sizes_pct) < 0.05
-        ), f"size_pct should be NAV-invariant under dynamic base; got {sizes_pct}"
+        assert max(sizes_pct) - min(sizes_pct) < 0.05, (
+            f"size_pct should be NAV-invariant under dynamic base; got {sizes_pct}"
+        )
 
     def test_static_fallback_when_pct_not_provided(self):
         """Backward-compat: omit base_position_pct → use legacy static base_position_size."""

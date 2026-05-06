@@ -70,11 +70,13 @@ async def test_ensure_session():
     mock_session.closed = False
 
     # Mock the shared session manager since the provider now uses it
-    with patch("yahoofinance.api.providers.async_yahoo_finance.get_shared_session", return_value=mock_session):
+    with patch(
+        "yahoofinance.api.providers.async_yahoo_finance.get_shared_session",
+        return_value=mock_session,
+    ):
         provider = MockableAsyncYahooFinanceProvider()
         session = await provider._ensure_session()
         assert session is mock_session
-
 
 
 @pytest.mark.asyncio

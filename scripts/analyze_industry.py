@@ -365,7 +365,7 @@ def analyze_portfolio_sectors(portfolio_size=None):
             percentage = (data["total_value"] / portfolio_size) * 100
             holdings = ", ".join(data["tickers"][:3])
             if len(data["tickers"]) > 3:
-                holdings += f" (+{len(data['tickers'])-3})"
+                holdings += f" (+{len(data['tickers']) - 3})"
             print(
                 f"{asset_type:<15} {data['count']:<8} ${data['total_value']:<14,.0f} {percentage:<7.1f}% {holdings}"
             )
@@ -408,7 +408,7 @@ def analyze_portfolio_sectors(portfolio_size=None):
         percentage = (data["total_value"] / portfolio_size) * 100
         top_holdings = ", ".join(data["tickers"][:3])
         if len(data["tickers"]) > 3:
-            top_holdings += f" (+{len(data['tickers'])-3} more)"
+            top_holdings += f" (+{len(data['tickers']) - 3} more)"
 
         print(
             f"{sector:<25} {data['count']:^10} ${data['total_value']:>13,.0f} {percentage:>8.1f}%  {top_holdings}"

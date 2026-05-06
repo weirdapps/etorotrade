@@ -213,8 +213,8 @@ class PortfolioRiskAnalyzer:
         for sector, weight in sorted(sector_weights.items(), key=lambda x: x[1], reverse=True):
             if weight > self.max_sector_concentration:
                 warnings.append(
-                    f"CONCENTRATION WARNING: {sector} at {weight*100:.1f}% "
-                    f"(max: {self.max_sector_concentration*100:.0f}%)"
+                    f"CONCENTRATION WARNING: {sector} at {weight * 100:.1f}% "
+                    f"(max: {self.max_sector_concentration * 100:.0f}%)"
                 )
 
         return warnings
@@ -964,7 +964,7 @@ class PortfolioRiskAnalyzer:
             if var_99:
                 var_line += f", {var_99:.2f}% at 99%"
             if portfolio_vol:
-                var_line += f" (annual vol: {portfolio_vol*100:.1f}%)"
+                var_line += f" (annual vol: {portfolio_vol * 100:.1f}%)"
             lines.append(var_line)
 
             # Expected Shortfall (CIO v3 F7)
@@ -1030,7 +1030,7 @@ class PortfolioRiskAnalyzer:
         if actions:
             lines.append(f"Drawdown Actions ({len(actions)} recommendations):")
             for action in actions:
-                lines.append(f"  {action['ticker']} ({action['severity']}): " f"{action['action']}")
+                lines.append(f"  {action['ticker']} ({action['severity']}): {action['action']}")
                 lines.append(f"    → {action['recommendation']}")
                 if action.get("threshold_adjustment"):
                     lines.append(

@@ -325,7 +325,7 @@ def _tn_cell(ticker, names):
         f'<div style="font-size:9px;color:{_C["text_muted"]};line-height:1.2;'
         f'white-space:nowrap;">{e(n)}</div>'
         f'<div style="{_MONO}font-weight:700;font-size:11px;color:{_C["text_dark"]};">'
-        f'{e(ticker)}</div>'
+        f"{e(ticker)}</div>"
     )
 
 
@@ -555,7 +555,7 @@ def _stock_kill_thesis(act, tkr, sec, rsi, exret, beta, buy_pct, macro_fit, tech
 
 def _section_open(title, subtitle=None, border=None):
     """Consistent section wrapper opening — Swiss: no padding sides (container handles it)."""
-    brd = border or f'1px solid {_C["border"]}'
+    brd = border or f"1px solid {_C['border']}"
     parts = [f'<div style="padding:28px 0;border-bottom:{brd};">']
     parts.append(f'<h2 style="{_SECTION_H2}">{title}</h2>')
     if subtitle:
@@ -600,7 +600,7 @@ def _card(content, accent_color, bg=None):
     card_bg = bg or _C["bg_white"]
     return (
         f'<div style="background:{card_bg};border:1px solid {_C["border"]};'
-        f'border-left:4px solid {accent_color};'
+        f"border-left:4px solid {accent_color};"
         f'padding:16px 20px;margin-bottom:12px;">{content}</div>'
     )
 
@@ -632,7 +632,7 @@ def _act_header(label, subtitle):
         f'<div style="color:{_C["text_muted"]};font-size:10px;font-weight:600;'
         f'letter-spacing:3px;text-transform:uppercase;">{label}</div>'
         f'<div style="color:{_C["text_light"]};font-size:11px;margin-top:2px;">{subtitle}</div>'
-        f'</div>'
+        f"</div>"
     )
 
 
@@ -971,7 +971,7 @@ def generate_report_html(
     )
     h.append(
         f'<body style="margin:0;padding:0;background:{_C["bg_page"]};'
-        f'font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;color:{_C["text_body"]};'
+        f"font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:{_C['text_body']};"
         f'line-height:1.55;-webkit-font-smoothing:antialiased;">'
     )
     h.append('<div class="container" style="max-width:880px;margin:0 auto;padding:0 48px;">')
@@ -986,8 +986,8 @@ def generate_report_html(
         f'<h1 style="margin:8px 0 0 0;font-size:32px;font-weight:300;'
         f'color:{_C["text_dark"]};letter-spacing:-0.5px;">{e(verdict)}</h1>'
         f'<div style="margin-top:8px;font-size:13px;color:{_C["text_muted"]};">'
-        f'{today_long} &nbsp;&middot;&nbsp; Signals {e(signal_date)} &nbsp;&middot;&nbsp; '
-        f'Census {e(census_date)} &nbsp;&middot;&nbsp; {mode_label}</div></div>'
+        f"{today_long} &nbsp;&middot;&nbsp; Signals {e(signal_date)} &nbsp;&middot;&nbsp; "
+        f"Census {e(census_date)} &nbsp;&middot;&nbsp; {mode_label}</div></div>"
     )
 
     # ══════════════════════════════════════════════════════════════════
@@ -1044,7 +1044,7 @@ def generate_report_html(
         pnl_pct = acct.get("profit_pct")
         h.append(
             f'<table cellpadding="0" cellspacing="0" style="width:100%;'
-            f'border-collapse:collapse;border:1px solid {_C["border"]};'
+            f"border-collapse:collapse;border:1px solid {_C['border']};"
             f'margin-bottom:20px;"><tr>'
         )
         h.append(
@@ -1088,7 +1088,7 @@ def generate_report_html(
     # Narrative
     h.append(
         f'<div style="border-left:4px solid {_C["border_heavy"]};'
-        f'padding:14px 18px;margin-bottom:16px;font-size:13px;color:{_C["text_body"]};'
+        f"padding:14px 18px;margin-bottom:16px;font-size:13px;color:{_C['text_body']};"
         f'line-height:1.6;">{e(narrative)}</div>'
     )
     # Risk dilution warning
@@ -1097,8 +1097,8 @@ def generate_report_html(
         h.append(
             f'<div style="border-left:4px solid {_C["warn"]};'
             f'padding:10px 18px;margin-bottom:16px;font-size:11px;color:{_C["warn_text"]};">'
-            f'<b>Risk Warning Dilution:</b> {warned}/{len(concordance)} stocks flagged '
-            f'({warned * 100 // max(len(concordance), 1)}%) -- systemic, not stock-specific.</div>'
+            f"<b>Risk Warning Dilution:</b> {warned}/{len(concordance)} stocks flagged "
+            f"({warned * 100 // max(len(concordance), 1)}%) -- systemic, not stock-specific.</div>"
         )
     # Stress scenarios — compact row (table layout for Outlook)
     if stress:
@@ -1136,7 +1136,7 @@ def generate_report_html(
                 or "?"
             )
             imp_str = f"{float(imp):.1f}" if isinstance(imp, (int, float)) else str(imp)
-            brd = f'border-right:1px solid {_C["border"]};' if i < len(_stress_items) - 1 else ""
+            brd = f"border-right:1px solid {_C['border']};" if i < len(_stress_items) - 1 else ""
             mech = sd.get("mechanism", "")
             mech_html = (
                 f'<div style="font-size:9px;color:{_C["text_muted"]};margin-top:2px;">{e(mech[:40])}</div>'
@@ -1152,8 +1152,8 @@ def generate_report_html(
                 f'<div style="font-size:9px;font-weight:600;letter-spacing:1.5px;'
                 f'text-transform:uppercase;color:{_C["text_muted"]};">{title}</div>'
                 f'<div style="font-size:16px;font-weight:600;color:{vc};margin-top:2px;">{imp_str}%</div>'
-                f'{usd_imp}'
-                f'{mech_html}</td>'
+                f"{usd_imp}"
+                f"{mech_html}</td>"
             )
         if _stress_items:
             h.append("</tr></table>")
@@ -1206,13 +1206,12 @@ def generate_report_html(
         if avg_alpha is not None:
             color = _C["bull"] if avg_alpha > 0 else _C["bear"]
             bits.append(
-                f'avg α(T+30) <span style="color:{color};font-weight:700;">'
-                f"{avg_alpha:+.2f}%</span>"
+                f'avg α(T+30) <span style="color:{color};font-weight:700;">{avg_alpha:+.2f}%</span>'
             )
         if avg_alpha_net is not None:
             color = _C["bull"] if avg_alpha_net > 0 else _C["bear"]
             bits.append(
-                f'net <span style="color:{color};font-weight:700;">' f"{avg_alpha_net:+.2f}%</span>"
+                f'net <span style="color:{color};font-weight:700;">{avg_alpha_net:+.2f}%</span>'
             )
         if ir is not None:
             bits.append(f"IR {ir:+.2f}")
@@ -1225,14 +1224,13 @@ def generate_report_html(
                 else (_C["warn"] if abs(spearman) < 0.15 else _C["bear"])
             )
             bits.append(
-                f'ρ(conv,α) <span style="color:{sp_color};font-weight:700;">'
-                f"{spearman:+.3f}</span>"
+                f'ρ(conv,α) <span style="color:{sp_color};font-weight:700;">{spearman:+.3f}</span>'
             )
         h.append(
             f'<div style="margin-top:14px;padding:10px 14px;'
-            f'background:{_C["bg_alt"]};border-left:4px solid {_C["border_heavy"]};'
+            f"background:{_C['bg_alt']};border-left:4px solid {_C['border_heavy']};"
             f'font-size:11px;color:{_C["text_body"]};line-height:1.5;">'
-            f'<b>BUY/ADD calibration (last 60d, T+30)</b> &middot; '
+            f"<b>BUY/ADD calibration (last 60d, T+30)</b> &middot; "
             + " &middot; ".join(bits)
             + ' &nbsp; <span style="color:#666;">'
             + "ρ&nbsp;&lt;0.15 means conviction has weak ranking power "
@@ -1247,24 +1245,24 @@ def generate_report_html(
         f'<div style="font-size:11px;font-weight:600;color:{_C["text_dark"]};margin-bottom:8px;'
         f'letter-spacing:0.3px;">HOW TO READ THIS REPORT</div>'
         f'<div style="font-size:11px;color:{_C["text_body"]};line-height:1.7;">'
-        f'This report is produced by <b>7 AI analysts</b> examining your portfolio '
-        f'from different angles &mdash; fundamentals, technicals, macro, census (crowd behavior), '
-        f'news, opportunities, and risk. Each stock receives a <b>conviction score (0&ndash;100)</b>: '
-        f'the higher the number, the more confident the committee is in its recommendation.'
+        f"This report is produced by <b>7 AI analysts</b> examining your portfolio "
+        f"from different angles &mdash; fundamentals, technicals, macro, census (crowd behavior), "
+        f"news, opportunities, and risk. Each stock receives a <b>conviction score (0&ndash;100)</b>: "
+        f"the higher the number, the more confident the committee is in its recommendation."
         f'<div style="margin-top:8px;">'
         f'<span style="font-size:10px;"><span style="color:{_C["bear"]};font-weight:700;">SELL</span> = exit position</span>'
         f'<span style="font-size:10px;"><span style="color:{_C["warn"]};font-weight:700;">TRIM</span> = reduce size</span>'
         f'<span style="font-size:10px;"><span style="color:{_C["hold"]};font-weight:700;">HOLD</span> = keep, no action</span>'
         f'<span style="font-size:10px;"><span style="color:{_C["bull"]};font-weight:700;">ADD</span> = increase position</span>'
         f'<span style="font-size:10px;"><span style="color:{_C["bull"]};font-weight:700;">BUY</span> = new position</span>'
-        f'</div>'
+        f"</div>"
         f'<div style="margin-top:6px;font-size:10px;color:{_C["text_muted"]};">'
-        f'Colors throughout: '
+        f"Colors throughout: "
         f'<span style="color:{_C["bull"]};">&#9679; green = positive/bullish</span> &middot; '
         f'<span style="color:{_C["bear"]};">&#9679; red = negative/bearish</span> &middot; '
         f'<span style="color:{_C["warn"]};">&#9679; amber = caution</span> &middot; '
         f'<span style="color:{_C["hold"]};">&#9679; purple = neutral/hold</span>'
-        f'</div></div></div>'
+        f"</div></div></div>"
     )
 
     # ── S1b: PORTFOLIO PERFORMANCE (CIO v35.0) ──
@@ -1303,9 +1301,11 @@ def generate_report_html(
                     _cb_level = _cb.get("level", "NORMAL")
                     _cb_dd = _cb.get("drawdown_pct", 0)
 
-                _eq_val = _eq_latest["equity_usd"] if _eq_latest else 0
+                _eq_val_db = _eq_latest["equity_usd"] if _eq_latest else 0
+                _eq_date_db = _eq_latest["date"] if _eq_latest else ""
                 _cum_ret = _eq_latest["cumulative_return_pct"] if _eq_latest else 0
                 _ret_30d = (_cum_ret - _eq_30d["cumulative_return_pct"]) if _eq_30d else 0
+                _eq_val = acct.get("total_equity") or pv or _eq_val_db
 
                 _cb_color = (
                     _C["bull"]
@@ -1319,21 +1319,23 @@ def generate_report_html(
                 h.append(
                     f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;'
                     f'text-transform:uppercase;color:{_C["text_muted"]};margin-bottom:10px;">'
-                    f'PORTFOLIO PERFORMANCE</div>'
+                    f"PORTFOLIO PERFORMANCE</div>"
                 )
                 h.append(
                     '<table style="width:100%;border-collapse:separate;border-spacing:8px 0;" cellpadding="0"><tr>'
                 )
-                # Equity value
+                # Equity value — use live API equity (aligned with hero KPI)
+                _eq_src = "live" if (_eq_val != _eq_val_db) else f"as of {_eq_date_db}"
                 h.append(
                     f'<td style="width:25%;background:{_C["bg_alt"]};border:1px solid {_C["border"]};'
                     f'border-radius:6px;padding:12px 16px;text-align:center;">'
                     f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
                     f'text-transform:uppercase;color:{_C["text_muted"]};">Equity</div>'
                     f'<div style="font-size:20px;font-weight:800;color:{_C["text_dark"]};">'
-                    f'${_eq_val:,.0f}</div></td>'
+                    f"${_eq_val:,.0f}</div>"
+                    f'<div style="font-size:9px;color:{_C["text_muted"]};">{_eq_src}</div></td>'
                 )
-                # Cumulative return
+                # Cumulative return (from portfolio.db TWR series)
                 _ret_color = _C["bull"] if _cum_ret > 0 else _C["bear"]
                 h.append(
                     f'<td style="width:25%;background:{_C["bg_alt"]};border:1px solid {_C["border"]};'
@@ -1341,7 +1343,8 @@ def generate_report_html(
                     f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
                     f'text-transform:uppercase;color:{_C["text_muted"]};">TWR (Inception)</div>'
                     f'<div style="font-size:20px;font-weight:800;color:{_ret_color};">'
-                    f'{_cum_ret:+.1f}%</div></td>'
+                    f"{_cum_ret:+.1f}%</div>"
+                    f'<div style="font-size:9px;color:{_C["text_muted"]};">as of {_eq_date_db}</div></td>'
                 )
                 # 30-day return
                 _r30_color = _C["bull"] if _ret_30d > 0 else _C["bear"]
@@ -1351,7 +1354,8 @@ def generate_report_html(
                     f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
                     f'text-transform:uppercase;color:{_C["text_muted"]};">30-Day Return</div>'
                     f'<div style="font-size:20px;font-weight:800;color:{_r30_color};">'
-                    f'{_ret_30d:+.1f}%</div></td>'
+                    f"{_ret_30d:+.1f}%</div>"
+                    f'<div style="font-size:9px;color:{_C["text_muted"]};">as of {_eq_date_db}</div></td>'
                 )
                 # Circuit breaker
                 h.append(
@@ -1360,9 +1364,9 @@ def generate_report_html(
                     f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
                     f'text-transform:uppercase;color:{_C["text_muted"]};">Circuit Breaker</div>'
                     f'<div style="font-size:20px;font-weight:800;color:{_cb_color};">'
-                    f'{_cb_level}</div>'
+                    f"{_cb_level}</div>"
                     f'<div style="font-size:10px;color:{_C["text_muted"]};">'
-                    f'Drawdown: {_cb_dd:.1f}%</div></td>'
+                    f"Drawdown: {_cb_dd:.1f}%</div></td>"
                 )
                 h.append("</tr></table></div>")
             _pconn.close()
@@ -1409,11 +1413,11 @@ def generate_report_html(
         return (
             f'<div style="font-size:11px;color:{c["text_body"]};margin-top:6px;'
             f'padding:4px 10px;background:#f8fafc;border:1px solid {c["border"]};border-radius:4px;">'
-            f'{pe_str}'
-            f' | %B: {"—" if _bp == 0 and _ex == 0 else f"{_bp:.0f}%"}'
-            f' (AM {_am:+.0f})'
-            f' | EXRET: {"—" if _ex == 0 and _bp == 0 else f"{_ex:.0f}%"}'
-            f' | Rev: {_rev} | EPS: {_eps}</div>'
+            f"{pe_str}"
+            f" | %B: {'—' if _bp == 0 and _ex == 0 else f'{_bp:.0f}%'}"
+            f" (AM {_am:+.0f})"
+            f" | EXRET: {'—' if _ex == 0 and _bp == 0 else f'{_ex:.0f}%'}"
+            f" | Rev: {_rev} | EPS: {_eps}</div>"
         )
 
     def _dollar(pct: float) -> str:
@@ -1461,10 +1465,10 @@ def generate_report_html(
             trim_val = cur * trim_pct
             if cur > 0:
                 return (
-                    f"<b>Trim {int(trim_pct*100)}%</b> of position{_dollar(trim_val)} "
+                    f"<b>Trim {int(trim_pct * 100)}%</b> of position{_dollar(trim_val)} "
                     f"({cur:.2f}%{_dollar(cur)} &rarr; {new_pos:.2f}%{_dollar(new_pos)})"
                 )
-            return f"<b>Trim {int(trim_pct*100)}% of position</b>"
+            return f"<b>Trim {int(trim_pct * 100)}% of position</b>"
         if act == "SELL":
             return (
                 f"<b>Exit fully</b> (current {cur:.2f}%{_dollar(cur)})"
@@ -1503,7 +1507,7 @@ def generate_report_html(
             parts.append(f"{int(bp)}% analyst BUY consensus")
         ts = en.get("tech_signal", "")
         if ts == "ENTER_NOW":
-            parts.append(f"Technical entry signal (RSI {en.get('rsi',0):.0f})")
+            parts.append(f"Technical entry signal (RSI {en.get('rsi', 0):.0f})")
         elif ts == "WAIT_FOR_PULLBACK":
             parts.append("Technical: wait for pullback")
         macd = en.get("macd", "")
@@ -1511,10 +1515,10 @@ def generate_report_html(
             parts.append("MACD bullish")
         mf = en.get("macro_fit", "")
         if mf == "FAVORABLE":
-            parts.append(f"Macro favors {en.get('sector','')}")
+            parts.append(f"Macro favors {en.get('sector', '')}")
         cts = en.get("census_ts", "")
         if cts in ("accumulation", "strong_accumulation"):
-            parts.append(f"PIs {cts.replace('_',' ')}")
+            parts.append(f"PIs {cts.replace('_', ' ')}")
         ni = en.get("news_impact", "")
         if ni in ("HIGH_POSITIVE", "POSITIVE"):
             parts.append("Positive news catalyst")
@@ -1540,7 +1544,7 @@ def generate_report_html(
             parts.append("Flagged as quality trap")
         ts = en.get("tech_signal", "")
         if ts == "AVOID":
-            parts.append(f"Technical AVOID (RSI {en.get('rsi',0):.0f})")
+            parts.append(f"Technical AVOID (RSI {en.get('rsi', 0):.0f})")
         elif ts == "EXIT_SOON":
             parts.append("Technical EXIT_SOON")
         rsi = en.get("rsi", 0)
@@ -1548,10 +1552,10 @@ def generate_report_html(
             parts.append(f"Overbought RSI {rsi:.0f}")
         mf = en.get("macro_fit", "")
         if mf == "UNFAVORABLE":
-            parts.append(f"Macro headwind for {en.get('sector','')}")
+            parts.append(f"Macro headwind for {en.get('sector', '')}")
         cts = en.get("census_ts", "")
         if cts in ("distribution", "strong_distribution"):
-            parts.append(f"PIs {cts.replace('_',' ')} (smart money exiting)")
+            parts.append(f"PIs {cts.replace('_', ' ')} (smart money exiting)")
         ni = en.get("news_impact", "")
         if ni in ("HIGH_NEGATIVE", "NEGATIVE"):
             parts.append("Negative news exposure")
@@ -1572,7 +1576,7 @@ def generate_report_html(
             parts.append(f"Signal {vel.lower()}")
         fx = en.get("fx_impact", "")
         if fx == "HEADWIND":
-            parts.append(f"FX headwind ({en.get('currency_zone','')})")
+            parts.append(f"FX headwind ({en.get('currency_zone', '')})")
         if not parts:
             return "No specific bear factors identified."
         return "; ".join(parts) + "."
@@ -1585,7 +1589,7 @@ def generate_report_html(
         if sig == "B" and not triggers:
             return (
                 f'<div style="font-size:10px;color:{c["bull_text"]};margin-top:4px;">'
-                f'Signal engine: all BUY criteria passed</div>'
+                f"Signal engine: all BUY criteria passed</div>"
             )
         if not triggers or strength == "NONE":
             return ""
@@ -1601,14 +1605,14 @@ def generate_report_html(
             name = t.split(":")[0].replace("_", " ")
             pills.append(
                 f'<span style="display:inline-block;padding:2px 6px;margin:1px 2px;'
-                f'font-size:9px;font-weight:600;background:{c["bear_bg"]};'
-                f'color:{c["bear_text"]};border:1px solid {c["bear_border"]};'
+                f"font-size:9px;font-weight:600;background:{c['bear_bg']};"
+                f"color:{c['bear_text']};border:1px solid {c['bear_border']};"
                 f'border-radius:3px;">{e(name)}</span>'
             )
         return (
             f'<div style="font-size:10px;margin-top:4px;">'
             f'<span style="color:{strength_color};font-weight:700;">Signal triggers '
-            f'({strength}):</span> {"".join(pills)}</div>'
+            f"({strength}):</span> {''.join(pills)}</div>"
         )
 
     # Helper for action item cards
@@ -1710,8 +1714,7 @@ def generate_report_html(
                 color = _C["bull"] if total > 0 else _C["bear"]
                 sign = "+" if total > 0 else ""
                 cat_parts.append(
-                    f'<span style="color:{color};font-weight:600;">'
-                    f"{cat_name} {sign}{total}</span>"
+                    f'<span style="color:{color};font-weight:600;">{cat_name} {sign}{total}</span>'
                 )
             cat_html = ""
             if cat_parts:
@@ -1760,7 +1763,7 @@ def generate_report_html(
         name_label = _clean_name(_names.get(tkr, ""))
         name_html = (
             f'<span style="font-size:12px;color:{_C["text_body"]};margin-left:8px;">'
-            f'{e(name_label)}</span> '
+            f"{e(name_label)}</span> "
             if name_label
             else ""
         )
@@ -1770,20 +1773,20 @@ def generate_report_html(
         bear_str = _bear_case(en)
 
         inner = (
-            f'{extra_tags_pre}'
+            f"{extra_tags_pre}"
             f'<table style="width:100%;"><tr><td>'
-            f'{badge(act, action_color(act), "#fff")} '
+            f"{badge(act, action_color(act), '#fff')} "
             f'<span style="{_MONO}font-weight:800;font-size:14px;margin-left:8px;">{e(tkr)}</span> '
-            f'{name_html}'
+            f"{name_html}"
             f'<span style="font-size:11px;color:{_C["text_muted"]};margin-left:8px;">'
-            f'{sec} | RSI {rsi:.0f} | {abbr(ts)} | {abbr(mf)}'
-            f'{" | CE " + f"{ce:.1f}" if ce and act in ("BUY","ADD") else ""}'
-            f'{extra_tags}</span></td>'
+            f"{sec} | RSI {rsi:.0f} | {abbr(ts)} | {abbr(mf)}"
+            f"{' | CE ' + f'{ce:.1f}' if ce and act in ('BUY', 'ADD') else ''}"
+            f"{extra_tags}</span></td>"
             f'<td style="text-align:right;">{conv_display(conv)}</td></tr></table>'
             # Suggested trade size (always shown)
             f'<div style="font-size:12px;color:{_C["text_dark"]};margin-top:8px;'
             f'padding:6px 10px;background:{_C["bg_alt"]};border-left:3px solid {action_color(act)};">'
-            f'&#9654; Trade: {size_str}</div>' + _key_metrics_line(en, _C) + f'{sl_html}'
+            f"&#9654; Trade: {size_str}</div>" + _key_metrics_line(en, _C) + f"{sl_html}"
             # Bull case
             f'<div style="font-size:11px;color:{_C["text_body"]};margin-top:8px;line-height:1.5;">'
             f'<span style="color:{_C["bull"]};font-weight:700;">Bull case:</span> {e(bull_str)}</div>'
@@ -1796,7 +1799,7 @@ def generate_report_html(
             + f'<div style="font-size:11px;color:{_C["text_muted"]};font-style:italic;'
             f'margin-top:6px;line-height:1.5;">'
             f'<span style="color:{_C["warn"]};font-weight:700;font-style:normal;">Kill thesis:</span> {e(kill)}</div>'
-            f'{wf_html}'
+            f"{wf_html}"
         )
         # CIO v35.0: Shadow waterfall comparison
         shadow_keys = [k for k in wf if k.startswith("~")]
@@ -1807,8 +1810,8 @@ def generate_report_html(
                 inner += (
                     f'<div style="font-size:9px;color:{_C["text_muted"]};margin-top:4px;'
                     f'font-style:italic;">'
-                    f'v35 shadow: {len(shadow_keys)} disabled modifiers would have added '
-                    f'{shadow_sum:+d} {_shadow_dir}</div>'
+                    f"v35 shadow: {len(shadow_keys)} disabled modifiers would have added "
+                    f"{shadow_sum:+d} {_shadow_dir}</div>"
                 )
         h.append(_card(inner, card_border, action_bg(act)))
 
@@ -1816,7 +1819,7 @@ def generate_report_html(
     if sell_items:
         h.append(
             f'<div style="{_LABEL}color:{_C["bear_text"]};margin-bottom:10px;">'
-            f'Sell ({len(sell_items)})</div>'
+            f"Sell ({len(sell_items)})</div>"
         )
         for en in sell_items:
             _action_card(en, _C["bear_text"])
@@ -1825,7 +1828,7 @@ def generate_report_html(
     if trim_items:
         h.append(
             f'<div style="{_LABEL}color:{_C["warn_text"]};margin:20px 0 10px 0;">'
-            f'Trim ({len(trim_items)})</div>'
+            f"Trim ({len(trim_items)})</div>"
         )
         for en in trim_items:
             _action_card(en, _C["warn_text"])
@@ -1834,7 +1837,7 @@ def generate_report_html(
     if buy_items:
         h.append(
             f'<div style="{_LABEL}color:{_C["bull_text"]};margin:20px 0 10px 0;">'
-            f'Buy ({len(buy_items)})</div>'
+            f"Buy ({len(buy_items)})</div>"
         )
         for en in buy_items:
             _action_card(en, _C["bull_text"])
@@ -1842,8 +1845,7 @@ def generate_report_html(
     # ADD
     if add_items:
         h.append(
-            f'<div style="{_LABEL}color:#0d9488;margin:20px 0 10px 0;">'
-            f"Add ({len(add_items)})</div>"
+            f'<div style="{_LABEL}color:#0d9488;margin:20px 0 10px 0;">Add ({len(add_items)})</div>'
         )
         for en in add_items:
             _action_card(en, "#0d9488")
@@ -1858,7 +1860,7 @@ def generate_report_html(
             cc = conv_color(conv)
             h.append(
                 f'<span style="display:inline-block;padding:3px 10px;margin:2px 3px;'
-                f'{_MONO}font-size:11px;font-weight:700;background:{_C["bg_alt"]};'
+                f"{_MONO}font-size:11px;font-weight:700;background:{_C['bg_alt']};"
                 f'border:1px solid {_C["border"]};">{e(_tn(tkr, _names))}'
                 f'<span style="color:{cc};font-size:10px;margin-left:4px;">{conv}</span></span>'
             )
@@ -1878,9 +1880,9 @@ def generate_report_html(
             h.append(f'<h2 style="{_SECTION_H2}">Currency Snapshot</h2>')
             h.append(
                 _card(
-                    f'<b>EUR/USD</b> {rate:.4f} ({chg:+.2f}% 1M) — {e(str(trend))}<br>'
+                    f"<b>EUR/USD</b> {rate:.4f} ({chg:+.2f}% 1M) — {e(str(trend))}<br>"
                     f'<span style="font-size:11px;color:{_C["text_muted"]};">'
-                    f'{usd_count}/{len(concordance)} positions USD-denominated</span>',
+                    f"{usd_count}/{len(concordance)} positions USD-denominated</span>",
                     _C["info"],
                     _C["info_bg"],
                 )
@@ -1936,7 +1938,7 @@ def generate_report_html(
                                 "left",
                                 "",
                             ),
-                            (f'{pair_info.get("rate", "—")}', "center", ""),
+                            (f"{pair_info.get('rate', '—')}", "center", ""),
                             (
                                 f'<span style="color:{chg1_col};font-weight:600;">{chg1_str}</span>',
                                 "center",
@@ -1962,10 +1964,10 @@ def generate_report_html(
                                 "left",
                                 "",
                             ),
-                            (f'{dxy_data.get("value", "—")}', "center", ""),
+                            (f"{dxy_data.get('value', '—')}", "center", ""),
                             (f"{dxy_chg1:+.2f}%" if dxy_chg1 is not None else "—", "center", ""),
                             (
-                                f'{dxy_data.get("change_3m", 0):+.2f}%'
+                                f"{dxy_data.get('change_3m', 0):+.2f}%"
                                 if dxy_data.get("change_3m") is not None
                                 else "—",
                                 "center",
@@ -1993,7 +1995,7 @@ def generate_report_html(
                     continue
                 tickers = ", ".join(_tn(i["ticker"], _names) for i in items[:8])
                 if len(items) > 8:
-                    tickers += f" +{len(items)-8} more"
+                    tickers += f" +{len(items) - 8} more"
                 fx_note = ""
                 if zone == "EUR":
                     fx_note = (
@@ -2012,7 +2014,7 @@ def generate_report_html(
                         fx_note = f'<span style="color:{_C["text_muted"]};">Stable</span>'
                 h.append(
                     f'<div style="font-size:11px;margin:4px 0;color:{_C["text_muted"]};">'
-                    f'<b>{zone}</b> ({len(items)}): {e(tickers)} — {fx_note}</div>'
+                    f"<b>{zone}</b> ({len(items)}): {e(tickers)} — {fx_note}</div>"
                 )
             h.append("</div>")
             h.append(_section_close())
@@ -2136,11 +2138,11 @@ def generate_report_html(
         if bearish_macd > total_tech * 0.4:
             h.append(
                 f'<div style="background:{_C["warn_bg"]};border:1px solid {_C["warn_border"]};'
-                f'border-left:4px solid {_C["warn"]};'
+                f"border-left:4px solid {_C['warn']};"
                 f'padding:12px 18px;margin:16px 0;font-size:12px;color:{_C["text_body"]};">'
                 f'<b style="color:{_C["warn"]};">BROAD MARKET SIGNAL:</b> '
-                f'{bearish_macd}/{total_tech} stocks BEARISH MACD. '
-                f'{below50} below SMA50. Avg RSI: {avg_rsi:.0f}.</div>'
+                f"{bearish_macd}/{total_tech} stocks BEARISH MACD. "
+                f"{below50} below SMA50. Avg RSI: {avg_rsi:.0f}.</div>"
             )
 
     # Sector rotation
@@ -2157,7 +2159,7 @@ def generate_report_html(
             )
             for etf, data in sorted(
                 sector_rankings.items(),
-                key=lambda x: (x[1].get("return_1m", 0) if isinstance(x[1], dict) else -x[1]),
+                key=lambda x: x[1].get("return_1m", 0) if isinstance(x[1], dict) else -x[1],
                 reverse=True,
             ):
                 if not isinstance(data, dict):
@@ -2190,7 +2192,7 @@ def generate_report_html(
             )
             for etf, data in sorted(
                 sector_rankings.items(),
-                key=lambda x: (x[1].get("rank", 99) if isinstance(x[1], dict) else 99),
+                key=lambda x: x[1].get("rank", 99) if isinstance(x[1], dict) else 99,
             ):
                 if not isinstance(data, dict):
                     continue
@@ -2237,15 +2239,15 @@ def generate_report_html(
             h.append(
                 f'<tr style="background:{bg};">'
                 f'<td style="padding:4px 8px;font-weight:600;font-size:10px;">'
-                f'{e(sr.get("sector", ""))}</td>'
+                f"{e(sr.get('sector', ''))}</td>"
                 f'<td style="padding:4px 8px;text-align:center;{_MONO}font-size:10px;">'
-                f'{sr.get("rs_ratio", 100):.1f}</td>'
+                f"{sr.get('rs_ratio', 100):.1f}</td>"
                 f'<td style="padding:4px 8px;text-align:center;{_MONO}font-size:10px;">'
-                f'{sr.get("rs_momentum", 100):.1f}</td>'
+                f"{sr.get('rs_momentum', 100):.1f}</td>"
                 f'<td style="padding:4px 8px;text-align:center;">'
                 f'<span style="display:inline-block;padding:1px 6px;'
                 f'background:{qc};color:#fff;font-size:9px;font-weight:700;">'
-                f'{e(sr.get("quadrant", ""))}</span></td></tr>'
+                f"{e(sr.get('quadrant', ''))}</span></td></tr>"
             )
         h.append("</table>")
 
@@ -2489,17 +2491,17 @@ def generate_report_html(
         f'<div style="margin-top:10px;padding:10px 12px;background:{_C["bg_page"]};'
         f'border:1px solid {_C["border"]};font-size:10px;color:{_C["text_muted"]};line-height:1.6;">'
         f'<b style="color:{_C["text_dark"]};">Reading the Grid:</b> '
-        f'<b>FUND</b> = company financials (BUY/SELL/HOLD + score) &middot; '
-        f'<b>TECH</b> = price momentum (ENTER/WAIT/EXIT + RSI) &middot; '
-        f'<b>MACRO</b> = economic fit (FAVOR/UNFAV) &middot; '
-        f'<b>CENS</b> = crowd alignment (ALIGN/DIVERG) &middot; '
-        f'<b>NEWS</b> = recent news impact &middot; '
-        f'<b>RISK</b> = risk manager flag &middot; '
-        f'<b>EXR</b> = expected return above market (%) &middot; '
-        f'<b>TIMING</b> = when to act (ENTER now vs WAIT for a better price)<br/>'
-        f'* = Synthetic data (estimated, not reported) &middot; '
-        f'&#9650;&#9660; = Conviction change vs last committee &middot; '
-        f'↓ = Conviction decay (signal aging)</div>'
+        f"<b>FUND</b> = company financials (BUY/SELL/HOLD + score) &middot; "
+        f"<b>TECH</b> = price momentum (ENTER/WAIT/EXIT + RSI) &middot; "
+        f"<b>MACRO</b> = economic fit (FAVOR/UNFAV) &middot; "
+        f"<b>CENS</b> = crowd alignment (ALIGN/DIVERG) &middot; "
+        f"<b>NEWS</b> = recent news impact &middot; "
+        f"<b>RISK</b> = risk manager flag &middot; "
+        f"<b>EXR</b> = expected return above market (%) &middot; "
+        f"<b>TIMING</b> = when to act (ENTER now vs WAIT for a better price)<br/>"
+        f"* = Synthetic data (estimated, not reported) &middot; "
+        f"&#9650;&#9660; = Conviction change vs last committee &middot; "
+        f"↓ = Conviction decay (signal aging)</div>"
     )
     # Entry Timing Summary
     enter_now = [en for en in concordance if en.get("entry_timing") == "ENTER_NOW"]
@@ -2515,8 +2517,8 @@ def generate_report_html(
                 f'<div style="flex:1;background:{_C["bull_bg"]};border:1px solid {_C["bull_border"]};'
                 f'padding:10px;">'
                 f'<div style="font-size:10px;font-weight:700;color:{_C["bull_text"]};margin-bottom:6px;">ENTER NOW ({len(enter_now)})</div>'
-                f'{_pill_list(enter_tickers, _C["bg_white"], _C["text_dark"], _C["border"])}'
-                f'</div>'
+                f"{_pill_list(enter_tickers, _C['bg_white'], _C['text_dark'], _C['border'])}"
+                f"</div>"
             )
         if wait_pullback:
             wait_tickers = [_tn(en.get("ticker", ""), _names) for en in wait_pullback[:10]]
@@ -2524,8 +2526,8 @@ def generate_report_html(
                 f'<div style="flex:1;background:{_C["warn_bg"]};border:1px solid {_C["warn_border"]};'
                 f'padding:10px;">'
                 f'<div style="font-size:10px;font-weight:700;color:{_C["warn_text"]};margin-bottom:6px;">WAIT FOR PULLBACK ({len(wait_pullback)})</div>'
-                f'{_pill_list(wait_tickers, _C["bg_white"], _C["text_dark"], _C["border"])}'
-                f'</div>'
+                f"{_pill_list(wait_tickers, _C['bg_white'], _C['text_dark'], _C['border'])}"
+                f"</div>"
             )
         h.append("</div></div>")
     h.append(_section_close())
@@ -2543,24 +2545,24 @@ def generate_report_html(
         tb = agent_badge("Tech", d["tech_signal"], "#ede9fe", "#5b21b6", "#c4b5fd")
         d_name = _clean_name(_names.get(d["ticker"], ""))
         d_name_html = (
-            (f' <span style="font-size:11px;color:{_C["text_muted"]};">' f'{e(d_name)}</span>')
+            (f' <span style="font-size:11px;color:{_C["text_muted"]};">{e(d_name)}</span>')
             if d_name
             else ""
         )
         inner = (
             f'<div style="margin-bottom:8px;">'
             f'<span style="{_MONO}font-weight:800;font-size:14px;color:{_C["text_dark"]};">{e(d["ticker"])}</span>'
-            f'{d_name_html}'
+            f"{d_name_html}"
             f' <span style="font-size:12px;font-weight:600;color:{_C["text_body"]};margin-left:8px;">'
-            f'{e(d["headline"])}</span></div>'
+            f"{e(d['headline'])}</span></div>"
             f'<div style="margin-bottom:10px;">{fb}{tb}</div>'
             f'<div style="font-size:12px;color:{_C["text_body"]};line-height:1.6;margin-bottom:12px;">'
-            f'{e(d["narrative"])}</div>'
+            f"{e(d['narrative'])}</div>"
             f'<div style="background:{_C["bg_page"]};border:1px solid {_C["border"]};'
             f'padding:10px 14px;">'
             f'<span style="{_LABEL}">Resolution:</span> '
             f'<span style="font-size:12px;font-weight:700;color:{action_color(d["resolution"])};">'
-            f'{d["resolution"]} (conv. {d["conviction"]})</span></div>'
+            f"{d['resolution']} (conv. {d['conviction']})</span></div>"
         )
         h.append(_card(inner, d["accent"]))
     if not disagreements:
@@ -2585,7 +2587,7 @@ def generate_report_html(
             tkr = de["ticker"]
             d_name = _clean_name(_names.get(tkr, ""))
             d_name_html = (
-                (f' <span style="font-size:11px;color:{_C["text_muted"]};">' f'{e(d_name)}</span>')
+                (f' <span style="font-size:11px;color:{_C["text_muted"]};">{e(d_name)}</span>')
                 if d_name
                 else ""
             )
@@ -2603,7 +2605,7 @@ def generate_report_html(
             sig_badge = (
                 f'<span style="display:inline-block;padding:2px 8px;'
                 f'font-size:10px;font-weight:700;background:{sbg};color:{stxt};">'
-                f'{sig.replace("_", " ")}</span>'
+                f"{sig.replace('_', ' ')}</span>"
             )
 
             # Build card content
@@ -2616,7 +2618,7 @@ def generate_report_html(
             inner = (
                 f'<div style="margin-bottom:8px;">'
                 f'<span style="{_MONO}font-weight:800;font-size:14px;color:{_C["text_dark"]};">'
-                f'{e(tkr)}</span>{d_name_html} {sig_badge}</div>'
+                f"{e(tkr)}</span>{d_name_html} {sig_badge}</div>"
                 # Two-column layout: bull left, bear right
                 f'<div style="display:flex;gap:12px;margin-bottom:12px;">'
                 # Bull column
@@ -2626,7 +2628,7 @@ def generate_report_html(
                 f'<div style="font-size:12px;color:{_C["text_body"]};margin-bottom:8px;">{bull_thesis}</div>'
                 f'<div style="{_LABEL}margin-bottom:4px;">STRONGEST ARGUMENT</div>'
                 f'<div style="font-size:11px;color:{_C["text_body"]};">{bull_best}</div>'
-                f'</div>'
+                f"</div>"
                 # Bear column
                 f'<div style="flex:1;background:{_C["bear_bg"]};border:1px solid {_C["border"]};'
                 f'padding:12px;">'
@@ -2634,15 +2636,15 @@ def generate_report_html(
                 f'<div style="font-size:12px;color:{_C["text_body"]};margin-bottom:8px;">{bear_thesis}</div>'
                 f'<div style="{_LABEL}margin-bottom:4px;">STRONGEST ARGUMENT</div>'
                 f'<div style="font-size:11px;color:{_C["text_body"]};">{bear_best}</div>'
-                f'</div>'
-                f'</div>'
+                f"</div>"
+                f"</div>"
             )
 
             # Conceded points (become kill theses)
             if conceded:
                 pills = "".join(
                     f'<span style="display:inline-block;padding:2px 8px;'
-                    f'font-size:10px;background:{_C["warn_bg"]};color:{_C["warn_text"]};'
+                    f"font-size:10px;background:{_C['warn_bg']};color:{_C['warn_text']};"
                     f'margin:2px 4px 2px 0;">{e(c)}</span>'
                     for c in conceded
                     if c
@@ -2696,7 +2698,7 @@ def generate_report_html(
             for tilt in fexp["tilts"]:
                 h.append(
                     f'<div style="background:{_C["warn_bg"]};border:1px solid {_C["warn_border"]};'
-                    f'padding:6px 12px;margin:6px 0;font-size:11px;'
+                    f"padding:6px 12px;margin:6px 0;font-size:11px;"
                     f'color:{_C["warn_text"]};">&#9888; {e(tilt)}</div>'
                 )
         # Correlation regime if not STABLE
@@ -2706,10 +2708,10 @@ def generate_report_html(
             recent = corr_regime.get("recent_avg_correlation", 0)
             h.append(
                 f'<div style="background:{_C["bear_bg"]};border:1px solid {_C["bear_border"]};'
-                f'border-left:4px solid {_C["bear"]};'
+                f"border-left:4px solid {_C['bear']};"
                 f'padding:10px 14px;margin:8px 0;font-size:12px;color:{_C["bear_text"]};">'
-                f'<b>&#9888; Correlation Regime: {e(regime_label)}</b> &mdash; '
-                f'Recent 30d ({recent:.3f}) vs 1Y ({baseline:.3f})</div>'
+                f"<b>&#9888; Correlation Regime: {e(regime_label)}</b> &mdash; "
+                f"Recent 30d ({recent:.3f}) vs 1Y ({baseline:.3f})</div>"
             )
         h.append(_section_close())
     else:
@@ -2797,8 +2799,8 @@ def generate_report_html(
             h.append("</table>")
             h.append(
                 f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:4px;">'
-                f'VaR = max expected loss at 95% confidence. CVaR (Expected Shortfall) = average loss in the worst 5% of scenarios. '
-                f'Scaled from daily via &radic;t rule.</div>'
+                f"VaR = max expected loss at 95% confidence. CVaR (Expected Shortfall) = average loss in the worst 5% of scenarios. "
+                f"Scaled from daily via &radic;t rule.</div>"
             )
         elif var_95 != 0:
             # Fallback: single-row VaR display
@@ -2873,7 +2875,7 @@ def generate_report_html(
                     f'<tr style="background:{bg};">'
                     f'<td style="padding:4px 8px;font-weight:600;font-size:11px;">{e(sec)}</td>'
                     f'<td style="padding:4px 8px;text-align:right;{_MONO}font-weight:700;font-size:11px;">'
-                    f'{cnt} ({pct:.0f}%)</td>'
+                    f"{cnt} ({pct:.0f}%)</td>"
                     f'<td style="padding:4px 8px;width:60px;">'
                     f'<div style="height:4px;background:{_C["border"]};">'
                     f'<div style="height:100%;background:{_C["hold"]};'
@@ -2897,25 +2899,25 @@ def generate_report_html(
                 (
                     "Market (Beta)",
                     fexp.get("market", {}).get("avg_beta"),
-                    f'High \u03b2: {fexp.get("market", {}).get("high_beta_count", 0)}, '
-                    f'Low \u03b2: {fexp.get("market", {}).get("low_beta_count", 0)}',
+                    f"High \u03b2: {fexp.get('market', {}).get('high_beta_count', 0)}, "
+                    f"Low \u03b2: {fexp.get('market', {}).get('low_beta_count', 0)}",
                 ),
                 (
                     "Size",
                     fexp.get("size", {}).get("mega_pct"),
-                    f'Mega: {fexp.get("size", {}).get("mega_pct", 0):.0f}%, '
-                    f'Sm/Mid: {fexp.get("size", {}).get("small_mid_pct", 0):.0f}%',
+                    f"Mega: {fexp.get('size', {}).get('mega_pct', 0):.0f}%, "
+                    f"Sm/Mid: {fexp.get('size', {}).get('small_mid_pct', 0):.0f}%",
                 ),
                 (
                     "Value (PE)",
                     fexp.get("value", {}).get("avg_pe"),
-                    f'Value (<15): {fexp.get("value", {}).get("value_stocks", 0)}, '
-                    f'Growth (>30): {fexp.get("value", {}).get("growth_stocks", 0)}',
+                    f"Value (<15): {fexp.get('value', {}).get('value_stocks', 0)}, "
+                    f"Growth (>30): {fexp.get('value', {}).get('growth_stocks', 0)}",
                 ),
                 (
                     "Momentum (RS)",
                     fexp.get("momentum", {}).get("avg_rs"),
-                    f'Outperforming SPY: {fexp.get("momentum", {}).get("outperforming_spy_pct") or 0:.0f}%',
+                    f"Outperforming SPY: {fexp.get('momentum', {}).get('outperforming_spy_pct') or 0:.0f}%",
                 ),
                 ("Quality (ROE)", fexp.get("quality", {}).get("avg_roe"), None),
             ]
@@ -2941,7 +2943,7 @@ def generate_report_html(
                 for tilt in fexp["tilts"]:
                     h.append(
                         f'<div style="background:{_C["warn_bg"]};border:1px solid {_C["warn_border"]};'
-                        f'padding:6px 12px;margin:6px 0;font-size:11px;'
+                        f"padding:6px 12px;margin:6px 0;font-size:11px;"
                         f'color:{_C["warn_text"]};">&#9888; {e(tilt)}</div>'
                     )
 
@@ -3022,7 +3024,7 @@ def generate_report_html(
                     f'<div style="height:100%;background:{_C["bear"]};'
                     f'width:{bar_w:.0f}%;"></div></div></td>'
                     f'<td style="padding:6px 10px;font-size:11px;color:{_C["text_muted"]};">'
-                    f'{e(str(rn)[:80])}</td></tr>'
+                    f"{e(str(rn)[:80])}</td></tr>"
                 )
             h.append("</table>")
 
@@ -3033,20 +3035,20 @@ def generate_report_html(
             recent = corr_regime.get("recent_avg_correlation", 0)
             h.append(
                 f'<div style="background:{_C["bear_bg"]};border:1px solid {_C["bear_border"]};'
-                f'border-left:4px solid {_C["bear"]};'
+                f"border-left:4px solid {_C['bear']};"
                 f'padding:10px 14px;margin:12px 0;font-size:12px;color:{_C["bear_text"]};">'
-                f'<b>&#9888; Correlation Regime: {e(regime_label)}</b> &mdash; '
-                f'Recent 30d avg correlation ({recent:.3f}) vs 1Y baseline ({baseline:.3f}). '
-                f'Diversification benefit may be evaporating.</div>'
+                f"<b>&#9888; Correlation Regime: {e(regime_label)}</b> &mdash; "
+                f"Recent 30d avg correlation ({recent:.3f}) vs 1Y baseline ({baseline:.3f}). "
+                f"Diversification benefit may be evaporating.</div>"
             )
         elif corr_regime.get("regime"):
             h.append(
                 f'<div style="background:{_C["info_bg"]};border:1px solid {_C["info_border"]};'
-                f'padding:6px 12px;margin:8px 0;font-size:11px;'
+                f"padding:6px 12px;margin:8px 0;font-size:11px;"
                 f'color:{_C["text_body"]};">'
-                f'Correlation Regime: <b>{e(corr_regime["regime"])}</b> '
-                f'(30d: {corr_regime.get("recent_avg_correlation", 0):.3f} vs '
-                f'1Y: {corr_regime.get("baseline_avg_correlation", 0):.3f})</div>'
+                f"Correlation Regime: <b>{e(corr_regime['regime'])}</b> "
+                f"(30d: {corr_regime.get('recent_avg_correlation', 0):.3f} vs "
+                f"1Y: {corr_regime.get('baseline_avg_correlation', 0):.3f})</div>"
             )
 
         # Liquidity alerts
@@ -3058,9 +3060,9 @@ def generate_report_html(
         if low_liq:
             h.append(
                 f'<div style="background:{_C["warn_bg"]};border:1px solid {_C["warn_border"]};'
-                f'border-left:4px solid {_C["warn"]};'
+                f"border-left:4px solid {_C['warn']};"
                 f'padding:10px 14px;margin:12px 0;font-size:12px;color:{_C["warn_text"]};">'
-                f'<b>&#9888; Low Liquidity:</b> '
+                f"<b>&#9888; Low Liquidity:</b> "
             )
             parts = []
             for tkr, info in low_liq[:5]:
@@ -3328,7 +3330,7 @@ def generate_report_html(
         if trap_stocks:
             h.append(
                 f'<div style="{_LABEL}color:{_C["bear"]};margin:16px 0 8px 0;">'
-                f'Quality Traps ({len(trap_stocks)})</div>'
+                f"Quality Traps ({len(trap_stocks)})</div>"
             )
             for tkr in trap_stocks[:5]:
                 fd = fund_stocks[tkr]
@@ -3367,10 +3369,10 @@ def generate_report_html(
             and d["fcf_quality"].get("concern") == "EARNINGS_QUALITY_CONCERN"
         ]
         if weak_fcf:
-            fcf_items = [f'{e(t)} ({fcf.get("conversion_ratio", 0):.2f}x)' for t, fcf in weak_fcf]
+            fcf_items = [f"{e(t)} ({fcf.get('conversion_ratio', 0):.2f}x)" for t, fcf in weak_fcf]
             h.append(
                 f'<div style="margin-top:12px;"><span style="{_LABEL}color:{_C["warn"]};">Weak FCF Conversion: </span>'
-                f'{_pill_list(fcf_items, _C["warn_bg"], _C["warn_text"], _C["warn_border"], mono=False)}</div>'
+                f"{_pill_list(fcf_items, _C['warn_bg'], _C['warn_text'], _C['warn_border'], mono=False)}</div>"
             )
         # CIO v23.4: High debt risk
         high_debt = [
@@ -3383,7 +3385,7 @@ def generate_report_html(
             debt_tickers = [t for t, _ in high_debt]
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">High Debt Risk: </span>'
-                f'{_pill_list(debt_tickers, _C["bear_bg"], _C["bear_text"], _C["bear_border"])}</div>'
+                f"{_pill_list(debt_tickers, _C['bear_bg'], _C['bear_text'], _C['bear_border'])}</div>"
             )
         # CIO v23.3: EPS revision highlights
         eps_up = [
@@ -3399,16 +3401,16 @@ def generate_report_html(
             and d["eps_revisions"].get("classification") == "REVISIONS_DOWN"
         ]
         if eps_up:
-            eps_up_items = [f'{e(t)} +{eps.get("growth_pct", 0):.0f}%' for t, eps in eps_up]
+            eps_up_items = [f"{e(t)} +{eps.get('growth_pct', 0):.0f}%" for t, eps in eps_up]
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bull"]};">EPS Revisions Up: </span>'
-                f'{_pill_list(eps_up_items, _C["bull_bg"], _C["bull_text"], _C["bull_border"], mono=False)}</div>'
+                f"{_pill_list(eps_up_items, _C['bull_bg'], _C['bull_text'], _C['bull_border'], mono=False)}</div>"
             )
         if eps_down:
-            eps_down_items = [f'{e(t)} {eps.get("growth_pct", 0):+.0f}%' for t, eps in eps_down]
+            eps_down_items = [f"{e(t)} {eps.get('growth_pct', 0):+.0f}%" for t, eps in eps_down]
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">EPS Revisions Down: </span>'
-                f'{_pill_list(eps_down_items, _C["bear_bg"], _C["bear_text"], _C["bear_border"], mono=False)}</div>'
+                f"{_pill_list(eps_down_items, _C['bear_bg'], _C['bear_text'], _C['bear_border'], mono=False)}</div>"
             )
         h.append(_section_close())
 
@@ -3569,12 +3571,12 @@ def generate_report_html(
         if oversold:
             h.append(
                 f'<div style="margin-top:12px;"><span style="{_LABEL}color:{_C["bull"]};">Oversold (RSI&lt;30): </span>'
-                f'{_pill_list(oversold, _C["bull_bg"], _C["bull_text"], _C["bull_border"])}</div>'
+                f"{_pill_list(oversold, _C['bull_bg'], _C['bull_text'], _C['bull_border'])}</div>"
             )
         if overbought:
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">Overbought (RSI&gt;70): </span>'
-                f'{_pill_list(overbought, _C["bear_bg"], _C["bear_text"], _C["bear_border"])}</div>'
+                f"{_pill_list(overbought, _C['bear_bg'], _C['bear_text'], _C['bear_border'])}</div>"
             )
         # Divergence alerts (CIO v22.0 E4)
         bull_divs = [t for t, d in tech_stocks.items() if d.get("divergence") == "bullish"]
@@ -3582,12 +3584,12 @@ def generate_report_html(
         if bull_divs:
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bull"]};">Bullish Divergence: </span>'
-                f'{_pill_list(bull_divs, _C["bull_bg"], _C["bull_text"], _C["bull_border"])}</div>'
+                f"{_pill_list(bull_divs, _C['bull_bg'], _C['bull_text'], _C['bull_border'])}</div>"
             )
         if bear_divs:
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">Bearish Divergence: </span>'
-                f'{_pill_list(bear_divs, _C["bear_bg"], _C["bear_text"], _C["bear_border"])}</div>'
+                f"{_pill_list(bear_divs, _C['bear_bg'], _C['bear_text'], _C['bear_border'])}</div>"
             )
         # CIO v23.3: Multi-timeframe confluence highlights
         strong_conf = [
@@ -3604,13 +3606,13 @@ def generate_report_html(
             conf_items = [f"{e(t)} ({s:+d})" for t, s in strong_conf]
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bull"]};">Strong Confluence (D+W): </span>'
-                f'{_pill_list(conf_items, _C["bull_bg"], _C["bull_text"], _C["bull_border"], mono=False)}</div>'
+                f"{_pill_list(conf_items, _C['bull_bg'], _C['bull_text'], _C['bull_border'], mono=False)}</div>"
             )
         if weak_conf:
             wconf_items = [f"{e(t)} ({s:+d})" for t, s in weak_conf]
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">Conflicting Timeframes: </span>'
-                f'{_pill_list(wconf_items, _C["bear_bg"], _C["bear_text"], _C["bear_border"], mono=False)}</div>'
+                f"{_pill_list(wconf_items, _C['bear_bg'], _C['bear_text'], _C['bear_border'], mono=False)}</div>"
             )
         # CIO v23.4: High IV rank alerts
         high_iv = [
@@ -3622,7 +3624,7 @@ def generate_report_html(
             iv_items = [f"{e(t)} IV{iv:.0f}" for t, iv in high_iv]
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["warn"]};">High IV Rank (&gt;70): </span>'
-                f'{_pill_list(iv_items, _C["warn_bg"], _C["warn_text"], _C["warn_border"], mono=False)}</div>'
+                f"{_pill_list(iv_items, _C['warn_bg'], _C['warn_text'], _C['warn_border'], mono=False)}</div>"
             )
         # CIO v23.4: Volatility regime extremes
         extreme_vol = [
@@ -3633,7 +3635,7 @@ def generate_report_html(
         if extreme_vol:
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">High Volatility: </span>'
-                f'{_pill_list(extreme_vol, _C["bear_bg"], _C["bear_text"], _C["bear_border"])}</div>'
+                f"{_pill_list(extreme_vol, _C['bear_bg'], _C['bear_text'], _C['bear_border'])}</div>"
             )
         h.append(_section_close())
 
@@ -3669,7 +3671,7 @@ def generate_report_html(
                 tkr = m if isinstance(m, str) else m.get("symbol", m.get("ticker", "?"))
                 h.append(
                     f'<span style="display:inline-block;padding:3px 10px;margin:2px 3px;'
-                    f'font-size:10px;font-weight:600;background:{_C["warn_bg"]};color:{_C["warn_text"]};'
+                    f"font-size:10px;font-weight:600;background:{_C['warn_bg']};color:{_C['warn_text']};"
                     f'border:1px solid {_C["warn_border"]};">{e(_tn(tkr, _names))}</span>'
                 )
             h.append("</div>")
@@ -3750,18 +3752,18 @@ def generate_report_html(
                 )
                 h.append(
                     f'<td style="padding:5px 8px;border-bottom:1px solid #eee;">'
-                    f'{_reddit.get("mentions", 0)}</td>'
+                    f"{_reddit.get('mentions', 0)}</td>"
                 )
                 h.append(
-                    f'<td style="padding:5px 8px;border-bottom:1px solid #eee;">' f"{_br:.0%}</td>"
-                )
-                h.append(
-                    f'<td style="padding:5px 8px;border-bottom:1px solid #eee;">'
-                    f'{_ynews.get("articles", 0)}</td>'
+                    f'<td style="padding:5px 8px;border-bottom:1px solid #eee;">{_br:.0%}</td>'
                 )
                 h.append(
                     f'<td style="padding:5px 8px;border-bottom:1px solid #eee;">'
-                    f'{sd.get("mention_volume", "LOW")}</td>'
+                    f"{_ynews.get('articles', 0)}</td>"
+                )
+                h.append(
+                    f'<td style="padding:5px 8px;border-bottom:1px solid #eee;">'
+                    f"{sd.get('mention_volume', 'LOW')}</td>"
                 )
                 h.append("</tr>")
             h.append("</table>")
@@ -3785,9 +3787,9 @@ def generate_report_html(
                 )
                 h.append(
                     f'<span style="display:inline-block;padding:3px 10px;margin:2px 3px;'
-                    f'font-size:10px;font-weight:600;background:#f0f4ff;color:{_tr_color};'
+                    f"font-size:10px;font-weight:600;background:#f0f4ff;color:{_tr_color};"
                     f'border:1px solid #d0d8e8;">{e(_tn(_tr_tkr, _names))} '
-                    f'{tr.get("mentions", 0)} mentions</span>'
+                    f"{tr.get('mentions', 0)} mentions</span>"
                 )
             h.append("</div>")
         h.append(_section_close())
@@ -3855,11 +3857,19 @@ def generate_report_html(
             if tkr and items:
                 pn[tkr] = items
     else:
-        pn = pn_raw
+        pn = {}
+        for tkr, val in pn_raw.items():
+            if isinstance(val, list):
+                pn[tkr] = val
+            elif isinstance(val, dict):
+                pn[tkr] = [val]
+            else:
+                continue
     notable = [
         (t, items[0])
         for t, items in pn.items()
         if items
+        and isinstance(items[0], dict)
         and any(
             x in str(items[0].get("impact", items[0].get("score", "")))
             for x in ("POSITIVE", "NEGATIVE")
@@ -3981,7 +3991,7 @@ def generate_report_html(
                 f'<span style="{_MONO}font-size:10px;color:{_C["text_muted"]};">{e(ev.get("date", ""))}</span> '
                 f'<span style="font-size:12px;font-weight:600;color:{elc};">{e(ev.get("event", "")[:80])}</span>'
                 f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:2px;">'
-                f'{e(ev.get("sector_impact", "")[:80])}</div></div>'
+                f"{e(ev.get('sector_impact', '')[:80])}</div></div>"
             )
     if not _skip_news:
         h.append(_section_close())
@@ -4064,7 +4074,7 @@ def generate_report_html(
         if daily and sector_gaps:
             h.append(
                 f'<div style="{_LABEL}color:{_C["warn"]};margin:16px 0 8px 0;">'
-                f'Portfolio Sector Gaps</div>'
+                f"Portfolio Sector Gaps</div>"
             )
             for gap in sector_gaps[:4]:
                 sec = gap.get("sector", gap.get("etf", "?"))
@@ -4111,9 +4121,9 @@ def generate_report_html(
                 f'<tr style="background:{bg};">'
                 f'<td style="padding:6px 10px;">{_tn_cell(w.get("ticker", ""), _names)}</td>'
                 f'<td style="padding:6px 10px;font-size:11px;color:{_C["text_muted"]};">'
-                f'{e(w.get("sector", ""))}</td>'
+                f"{e(w.get('sector', ''))}</td>"
                 f'<td style="padding:6px 10px;text-align:center;{_MONO}font-weight:700;color:{cc};">'
-                f'{conv}</td>'
+                f"{conv}</td>"
                 f'<td style="padding:6px 10px;font-size:11px;">{e(w.get("watch_trigger", ""))}</td></tr>'
             )
         h.append("</table>")
@@ -4188,14 +4198,14 @@ def generate_report_html(
             d = c.get("delta", 0)
             pn = c.get("prev_norm", normalize_action(c.get("prev_action", "?")))
             prev_conv = c.get("prev_conviction")
-            prev_label = f'{e(pn or "NEW")} ({prev_conv if prev_conv is not None else "—"})'
+            prev_label = f"{e(pn or 'NEW')} ({prev_conv if prev_conv is not None else '—'})"
             h.append(
                 _table_row(
                     [
                         (_tn_cell(c.get("ticker", ""), _names), "left", ""),
                         (prev_label, "center", "font-size:11px;"),
                         (
-                            f'{e(c.get("curr_action", "?"))} ({c.get("curr_conviction", 0)})',
+                            f"{e(c.get('curr_action', '?'))} ({c.get('curr_conviction', 0)})",
                             "center",
                             "font-size:11px;",
                         ),
@@ -4394,12 +4404,12 @@ def generate_report_html(
             h.append(
                 f'<div style="background:{_C["bg_alt"]};border:1px solid {_C["border"]};'
                 f'padding:12px 16px;margin:12px 0;font-size:12px;">'
-                f'<b>vs SPY Benchmark</b> ({benchmark.get("period_months", 3)}M) &mdash; '
+                f"<b>vs SPY Benchmark</b> ({benchmark.get('period_months', 3)}M) &mdash; "
                 f'Portfolio: <span style="color:{bc};font-weight:700;">{port_ret:+.1f}%</span> | '
-                f'SPY: {spy_ret:+.1f}% | '
+                f"SPY: {spy_ret:+.1f}% | "
                 f'Excess: <span style="color:{bc};font-weight:700;">{excess:+.1f}%</span> | '
-                f'IR: {info_r:.2f} | '
-                f'TE: {benchmark.get("tracking_error", 0):.1f}%</div>'
+                f"IR: {info_r:.2f} | "
+                f"TE: {benchmark.get('tracking_error', 0):.1f}%</div>"
             )
 
         # ── Scorecard: Historical T+7/T+30 Hit Rates ──
@@ -4411,7 +4421,7 @@ def generate_report_html(
             h.append(
                 f'<div style="margin-top:16px;"><b style="font-size:12px;">Historical Performance</b>'
                 f'<span style="font-size:10px;color:{_C["text_muted"]};margin-left:8px;">'
-                f'T+7 and T+30 hit rates ({scorecard.get("period_months", 3)}M window)</span></div>'
+                f"T+7 and T+30 hit rates ({scorecard.get('period_months', 3)}M window)</span></div>"
             )
             h.append(
                 _table_open(
@@ -4505,9 +4515,9 @@ def generate_report_html(
                 h.append(
                     f'<div style="font-size:11px;color:{_C["text_muted"]};margin:8px 0 0 0;">'
                     f'<span style="color:{cal_col};">{icon}</span> '
-                    f'Conviction calibration: high-conviction stocks '
-                    f'{"outperform" if predictive else "underperform"} low-conviction '
-                    f'by {spread:+.1f}pp at T+30</div>'
+                    f"Conviction calibration: high-conviction stocks "
+                    f"{'outperform' if predictive else 'underperform'} low-conviction "
+                    f"by {spread:+.1f}pp at T+30</div>"
                 )
 
         # Calibration report (advisory, from weekly backtest)
@@ -4521,7 +4531,7 @@ def generate_report_html(
             h.append(
                 f'<div style="margin-top:16px;"><b style="font-size:12px;">Parameter Health Check</b>'
                 f'<span style="font-size:10px;color:{_C["text_muted"]};margin-left:8px;">'
-                f'Modifier effectiveness from calibration</span></div>'
+                f"Modifier effectiveness from calibration</span></div>"
             )
 
             if remove:
@@ -4532,7 +4542,7 @@ def generate_report_html(
                 )
                 h.append(
                     ", ".join(
-                        f'{k.replace("_"," ")} ({v.get("return_delta",0):+.1f}pp)'
+                        f"{k.replace('_', ' ')} ({v.get('return_delta', 0):+.1f}pp)"
                         for k, v in remove
                     )
                 )
@@ -4542,9 +4552,9 @@ def generate_report_html(
                 h.append(
                     f'<div style="background:{_C["info_bg"]};border:1px solid {_C["info_border"]};'
                     f'padding:8px 12px;margin:8px 0;font-size:11px;">'
-                    f'<b>Adjust ({len(adjust)})</b>: '
+                    f"<b>Adjust ({len(adjust)})</b>: "
                 )
-                h.append(", ".join(f'{k.replace("_"," ")}' for k, v in adjust))
+                h.append(", ".join(f"{k.replace('_', ' ')}" for k, v in adjust))
                 h.append("</div>")
 
             if keep:
@@ -4555,7 +4565,8 @@ def generate_report_html(
                 )
                 h.append(
                     ", ".join(
-                        f'{k.replace("_"," ")} ({v.get("return_delta",0):+.1f}pp)' for k, v in keep
+                        f"{k.replace('_', ' ')} ({v.get('return_delta', 0):+.1f}pp)"
+                        for k, v in keep
                     )
                 )
                 h.append("</div>")
@@ -4580,17 +4591,17 @@ def generate_report_html(
             h.append(
                 f'<div style="margin-top:16px;"><b style="font-size:12px;">Modifier Attribution</b>'
                 f'<span style="font-size:10px;color:{_C["text_muted"]};margin-left:8px;">'
-                f'Net impact across {len(concordance)} stocks</span></div>'
+                f"Net impact across {len(concordance)} stocks</span></div>"
             )
             # Reading guide
             h.append(
                 f'<div style="font-size:11px;color:{_C["text_body"]};margin:6px 0 10px 0;'
                 f'padding:8px 12px;background:{_C["bg_alt"]};border-left:3px solid {_C["info"]};">'
-                f'How to read: each row is one conviction adjustment the committee applied. '
-                f'<b>Fires</b> = number of stocks where this factor changed conviction. '
-                f'<b>Avg</b> = average conviction points per fire (positive = bullish boost, negative = penalty). '
-                f'<b>Net</b> = total points across the portfolio. '
-                f'Sorted by absolute Net impact — the factors at top are doing the most heavy lifting.</div>'
+                f"How to read: each row is one conviction adjustment the committee applied. "
+                f"<b>Fires</b> = number of stocks where this factor changed conviction. "
+                f"<b>Avg</b> = average conviction points per fire (positive = bullish boost, negative = penalty). "
+                f"<b>Net</b> = total points across the portfolio. "
+                f"Sorted by absolute Net impact — the factors at top are doing the most heavy lifting.</div>"
             )
             h.append(
                 _table_open(
@@ -4652,7 +4663,7 @@ def generate_report_html(
             h.append(
                 f'<div style="margin-bottom:8px;font-size:11px;">'
                 f'<b>Mode:</b> <span style="color:{mode_color};font-weight:700;">{mode}</span> '
-                f'&middot; <b>Horizon:</b> {sign_cal.get("horizon", "T+30")}</div>'
+                f"&middot; <b>Horizon:</b> {sign_cal.get('horizon', 'T+30')}</div>"
             )
             h.append(
                 _table_open(
@@ -4729,20 +4740,20 @@ def generate_report_html(
         history = regime_trans.get("history", [])
         h.append(
             f'<div style="background:{tbg};border:1px solid {tborder};'
-            f'border-left:4px solid {tc};'
+            f"border-left:4px solid {tc};"
             f'padding:10px 14px;margin:0 0 16px 0;font-size:12px;">'
             f'<b style="color:{tc};">Regime Transition: {e(trans)}</b> '
-            f'&mdash; 3-run MA: {regime_trans.get("short_ma", 0):.1f} vs '
-            f'7-run MA: {regime_trans.get("long_ma", 0):.1f} '
-            f'(spread: {regime_trans.get("spread", 0):+.1f})'
+            f"&mdash; 3-run MA: {regime_trans.get('short_ma', 0):.1f} vs "
+            f"7-run MA: {regime_trans.get('long_ma', 0):.1f} "
+            f"(spread: {regime_trans.get('spread', 0):+.1f})"
         )
         if history:
             pts = " &rarr; ".join(
-                f'{h_entry.get("avg_conviction", 0):.0f}' for h_entry in history[-5:]
+                f"{h_entry.get('avg_conviction', 0):.0f}" for h_entry in history[-5:]
             )
             h.append(
                 f'<br/><span style="color:{_C["text_muted"]};font-size:11px;">'
-                f'Conviction trend: {pts}</span>'
+                f"Conviction trend: {pts}</span>"
             )
         h.append("</div>")
         h.append(_section_close())
@@ -4807,7 +4818,7 @@ def generate_report_html(
         h.append(f'<h2 style="{_SECTION_H2}">Glossary</h2>')
         h.append(
             f'<p style="font-size:11px;color:{_C["text_muted"]};margin:0 0 12px 0;">'
-            f'Key terms used in this report, explained in plain language.</p>'
+            f"Key terms used in this report, explained in plain language.</p>"
         )
         h.append(f'<table style="{_TABLE}">')
         for i, (term, defn) in enumerate(_gloss):
@@ -4828,12 +4839,12 @@ def generate_report_html(
         f'<td style="vertical-align:top;">'
         f'<div style="font-size:12px;font-weight:700;color:{_C["text_dark"]};">Investment Committee {synth.get("version", "v33.0")}</div>'
         f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:2px;">'
-        f'{today_long} &middot; 7 Agents (Sonnet) + CIO (Opus)</div>'
+        f"{today_long} &middot; 7 Agents (Sonnet) + CIO (Opus)</div>"
         f'<div style="font-size:10px;color:{_C["text_light"]};margin-top:2px;">'
-        f'Signals: {e(signal_date)} &middot; Census: {e(census_date)}</div></td>'
+        f"Signals: {e(signal_date)} &middot; Census: {e(census_date)}</div></td>"
         f'<td style="text-align:right;vertical-align:top;">'
         f'<div style="font-size:10px;color:{_C["text_light"]};font-style:italic;">Not financial advice.</div>'
-        f'</td></tr></table></div>'
+        f"</td></tr></table></div>"
     )
     h.append("</div></body></html>")
 
@@ -5011,7 +5022,7 @@ def generate_report_from_files(
         macro = load_agent_report(rd / "macro.json", agent_name="macro")
         census = load_agent_report(rd / "census.json", agent_name="census")
         news = load_agent_report(rd / "news.json", agent_name="news")
-        opps = load_agent_report(rd / "opportunities.json", agent_name="opportunities")
+        opps = load_agent_report(rd / "opportunity.json", agent_name="opportunity")
         risk = load_agent_report(rd / "risk.json", agent_name="risk")
     except BrokenAgentReportError:
         # Surface the broken-agent failure cleanly. Operator must fix the

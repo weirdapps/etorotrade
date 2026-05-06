@@ -50,7 +50,9 @@ def backfill(dry_run: bool = False) -> None:
         # Just report what would be fixed
         for i in needs_fix:
             e = entries[i]
-            print(f"  {e.get('committee_date')} | {e.get('ticker'):6s} | {e.get('action'):5s} | price={e.get('price_at_recommendation')}")
+            print(
+                f"  {e.get('committee_date')} | {e.get('ticker'):6s} | {e.get('action'):5s} | price={e.get('price_at_recommendation')}"
+            )
         print(f"\nDry run: {len(needs_fix)} entries would be backfilled.")
         return
 

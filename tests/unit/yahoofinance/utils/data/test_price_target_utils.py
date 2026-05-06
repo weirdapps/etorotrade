@@ -66,18 +66,19 @@ class TestCalculatePriceTargetRobustness:
             mean=100.0,
             median=100.0,
             high=200.0,  # 100% above median
-            low=50.0,    # 50% below median
+            low=50.0,  # 50% below median
             current_price=95.0,
         )
         # Spread is 150/100 = 150% which is extreme
-        assert "Extreme price target spread" in str(result["warning_flags"]) or \
-               "Very high price target spread" in str(result["warning_flags"])
+        assert "Extreme price target spread" in str(
+            result["warning_flags"]
+        ) or "Very high price target spread" in str(result["warning_flags"])
         assert result["robustness_score"] < 70
 
     def test_mean_median_skewness_penalty(self):
         """Test mean-median difference penalizes robustness."""
         result = calculate_price_target_robustness(
-            mean=130.0,   # Mean is 30% higher than median
+            mean=130.0,  # Mean is 30% higher than median
             median=100.0,
             high=150.0,
             low=80.0,

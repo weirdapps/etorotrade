@@ -199,7 +199,7 @@ class DisplayFormatter:
                 try:
                     if pd.notna(x) and x != "" and x != "--":
                         # Convert decimal to percentage (0.1983 -> 19.8)
-                        return f"{float(x)*100:.1f}"
+                        return f"{float(x) * 100:.1f}"
                     return "N/A"
                 except:
                     return "N/A"

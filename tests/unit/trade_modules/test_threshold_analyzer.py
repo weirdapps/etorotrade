@@ -123,7 +123,7 @@ class TestThresholdAnalyzerFunctions:
             # Create a mock market.csv file with all required columns
             market_path = Path(tmpdir) / "market.csv"
             market_path.write_text(
-                "ticker,UP%,%B,BS\n" "AAPL,15%,85%,B\n" "MSFT,20%,90%,B\n" "TSLA,5%,40%,S\n"
+                "ticker,UP%,%B,BS\nAAPL,15%,85%,B\nMSFT,20%,90%,B\nTSLA,5%,40%,S\n"
             )
 
             report = generate_threshold_report(market_path)

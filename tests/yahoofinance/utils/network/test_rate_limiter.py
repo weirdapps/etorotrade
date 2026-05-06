@@ -199,12 +199,12 @@ class TestRateLimiterThreadSafety:
         limiter.would_exceed_rate_limit()
 
         # Verify lock was used - minimum of 3 lock operations
-        assert (
-            mock_lock.__enter__.call_count >= 3
-        ), f"Only used lock {mock_lock.__enter__.call_count} times"
-        assert (
-            mock_lock.__exit__.call_count >= 3
-        ), f"Only exited lock {mock_lock.__exit__.call_count} times"
+        assert mock_lock.__enter__.call_count >= 3, (
+            f"Only used lock {mock_lock.__enter__.call_count} times"
+        )
+        assert mock_lock.__exit__.call_count >= 3, (
+            f"Only exited lock {mock_lock.__exit__.call_count} times"
+        )
 
         # Restore original lock
         limiter.lock = original_lock
@@ -368,6 +368,7 @@ def test_import_compatibility():
     try:
         # Import from both locations and verify they refer to the same implementation
         from yahoofinance.utils.async_utils.rate_limiter import RateLimiter as RL1
+
         from yahoofinance.utils.network.rate_limiter import RateLimiter as RL2
 
         # Create instances

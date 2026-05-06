@@ -256,7 +256,7 @@ def _fetch_premium_news(ticker: str) -> list[tuple[str, str]]:
         # Build OR query for all premium domains
         site_filter = " OR ".join(f"site:{d}" for d in _PREMIUM_DOMAINS)
         query = f"{ticker}+stock+({site_filter})"
-        url = f"https://news.google.com/rss/search?" f"q={query}&hl=en-US&gl=US&ceid=US:en"
+        url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
         r = requests.get(
             url,
             timeout=_REQUEST_TIMEOUT,
@@ -284,7 +284,7 @@ def _fetch_google_news(ticker: str) -> list[tuple[str, str]]:
         import requests
 
         query = f"{ticker}+stock"
-        url = f"https://news.google.com/rss/search?" f"q={query}&hl=en-US&gl=US&ceid=US:en"
+        url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
         r = requests.get(
             url,
             timeout=_REQUEST_TIMEOUT,

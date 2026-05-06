@@ -544,7 +544,7 @@ def get_census_context(
         dist_part = f" Top distribution: {names}."
 
     summary = (
-        f"Census: {len(snapshots)} snapshots over {n_days} days. " f"{fg_part}{acc_part}{dist_part}"
+        f"Census: {len(snapshots)} snapshots over {n_days} days. {fg_part}{acc_part}{dist_part}"
     )
 
     return {

@@ -45,9 +45,9 @@ class TestNormalizeTicker:
 
         for input_ticker, expected in test_cases:
             result = normalize_ticker(input_ticker)
-            assert (
-                result == expected
-            ), f"Failed for {input_ticker}: got {result}, expected {expected}"
+            assert result == expected, (
+                f"Failed for {input_ticker}: got {result}, expected {expected}"
+            )
 
     def test_normalize_ticker_non_dual_listed(self):
         """Test normalization of regular stocks."""
@@ -197,9 +197,9 @@ class TestGetTickerExchangeSuffix:
 
         for ticker, expected_suffix in test_cases:
             result = get_ticker_exchange_suffix(ticker)
-            assert (
-                result == expected_suffix
-            ), f"Failed for {ticker}: got {result}, expected {expected_suffix}"
+            assert result == expected_suffix, (
+                f"Failed for {ticker}: got {result}, expected {expected_suffix}"
+            )
 
     def test_get_ticker_exchange_suffix_case_insensitive(self):
         """Test case insensitive suffix extraction."""

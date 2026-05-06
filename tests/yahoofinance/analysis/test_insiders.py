@@ -35,11 +35,13 @@ SAMPLE_TRANSACTIONS = [
     },
 ]
 
+
 @pytest.fixture
 def mock_provider():
     provider = Mock()
     provider.get_insider_transactions = Mock(return_value=SAMPLE_TRANSACTIONS)
     return provider
+
 
 @pytest.fixture
 def async_mock_provider():
@@ -58,9 +60,11 @@ def async_mock_provider():
     provider.call_tracker = call_tracker
     return provider
 
+
 @pytest.fixture
 def analyzer(mock_provider):
     return InsiderAnalyzer(mock_provider)
+
 
 @pytest.fixture
 def async_analyzer(async_mock_provider):
@@ -68,6 +72,7 @@ def async_analyzer(async_mock_provider):
     # Force is_async to True for testing
     analyzer.is_async = True
     return analyzer
+
 
 class TestInsiderTransaction:
     def test_insider_transaction_init(self):
@@ -90,6 +95,7 @@ class TestInsiderTransaction:
         assert transaction.value == pytest.approx(100000.0, abs=1e-9)
         assert transaction.share_price == pytest.approx(100.0, abs=1e-9)
 
+
 class TestInsiderSummary:
     def test_insider_summary_init(self):
         """Test InsiderSummary initialization"""
@@ -104,6 +110,7 @@ class TestInsiderSummary:
         assert summary.net_share_count == 0
         assert summary.average_buy_price is None
         assert summary.average_sell_price is None
+
 
 class TestInsiderAnalyzer:
     def test_init(self, mock_provider):

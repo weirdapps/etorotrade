@@ -533,7 +533,7 @@ class CustomFilter:
                     removed_count = before_count - after_count
 
                     self.logger.debug(
-                        f"Custom filter '{filter_info['name']}': " f"removed {removed_count} rows"
+                        f"Custom filter '{filter_info['name']}': removed {removed_count} rows"
                     )
 
                 except (KeyError, TypeError, ValueError, AttributeError) as e:
@@ -544,8 +544,7 @@ class CustomFilter:
             total_removed = initial_count - final_count
 
             self.logger.info(
-                f"Custom filters: {initial_count} → {final_count} "
-                f"({total_removed} total removed)"
+                f"Custom filters: {initial_count} → {final_count} ({total_removed} total removed)"
             )
 
             return filtered_df

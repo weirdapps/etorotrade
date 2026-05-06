@@ -21,6 +21,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("test_advanced_utils")
 
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 class TestRateLimiterErrorRecovery(unittest.IsolatedAsyncioTestCase):
@@ -53,6 +54,7 @@ class TestRateLimiterErrorRecovery(unittest.IsolatedAsyncioTestCase):
                 backoff_factor=2.0,
                 jitter=False,
             )
+
 
 if __name__ == "__main__":
     logger.info("Running advanced utility integration tests...")

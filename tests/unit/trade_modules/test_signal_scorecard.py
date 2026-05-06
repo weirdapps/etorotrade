@@ -502,9 +502,9 @@ class TestConsensusCalibration:
 
         cal = result.get("consensus_calibration", {})
         for bucket_label, stats in cal.items():
-            assert stats["hit_rate"] == pytest.approx(
-                100.0
-            ), f"Expected 100% hit rate for {bucket_label} with rising prices"
+            assert stats["hit_rate"] == pytest.approx(100.0), (
+                f"Expected 100% hit rate for {bucket_label} with rising prices"
+            )
             assert stats["avg_return"] > 0
 
     def test_consensus_calibration_hit_rate_falling_prices(self, tmp_dir):
@@ -540,9 +540,9 @@ class TestConsensusCalibration:
 
         cal = result.get("consensus_calibration", {})
         for bucket_label, stats in cal.items():
-            assert stats["hit_rate"] == pytest.approx(
-                0.0
-            ), f"Expected 0% hit rate for {bucket_label} with falling prices"
+            assert stats["hit_rate"] == pytest.approx(0.0), (
+                f"Expected 0% hit rate for {bucket_label} with falling prices"
+            )
             assert stats["avg_return"] < 0
 
     def test_consensus_calibration_empty_when_no_buy_percentage(self, tmp_dir):

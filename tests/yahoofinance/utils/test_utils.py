@@ -25,6 +25,7 @@ logging.basicConfig(
 )
 logger = get_logger(__name__)
 
+
 class TestMarketUtils(unittest.TestCase):
     """Test market utilities for ticker validation and normalization."""
 
@@ -52,6 +53,7 @@ class TestMarketUtils(unittest.TestCase):
         # Non-HK ticker (should remain unchanged)
         self.assertEqual(normalize_hk_ticker("AAPL"), "AAPL")
         self.assertEqual(normalize_hk_ticker("MSFT.US"), "MSFT.US")
+
 
 class TestFormatUtils(unittest.TestCase):
     """Test formatting utilities for output formatting."""
@@ -109,7 +111,9 @@ class TestFormatUtils(unittest.TestCase):
         ]
 
         # Patch PATHS temporarily during the test (use safe test directory)
-        with patch("yahoofinance.presentation.html_modules.generator.PATHS", {"OUTPUT_DIR": "test_output"}):
+        with patch(
+            "yahoofinance.presentation.html_modules.generator.PATHS", {"OUTPUT_DIR": "test_output"}
+        ):
             # Create HTML generator instance
             from yahoofinance.presentation.html import HTMLGenerator
 
@@ -125,6 +129,7 @@ class TestFormatUtils(unittest.TestCase):
             self.assertIn("Apple", html)
             self.assertIn("5.3%", html)
             self.assertIn("positive", html)
+
 
 class TestConfigAndCache(unittest.TestCase):
     """Test configuration values and cache improvements."""
@@ -195,6 +200,7 @@ class TestConfigAndCache(unittest.TestCase):
 
         # Verify cache was cleared
         self.assertIsNone(market_cache.get(test_key))
+
 
 if __name__ == "__main__":
     unittest.main()

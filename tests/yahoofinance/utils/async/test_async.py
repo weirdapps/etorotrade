@@ -31,6 +31,7 @@ logging.basicConfig(
 )
 logger = get_logger(__name__)
 
+
 class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
     """Test async helper functions."""
 
@@ -125,6 +126,7 @@ class TestAsyncHelpers(unittest.IsolatedAsyncioTestCase):
 
         # Check results
         self.assertEqual(result, "success")
+
 
 if __name__ == "__main__":
     unittest.main()
