@@ -386,7 +386,7 @@ class HTMLGenerator:
         table_html = f"""
         <table class="results-table">
             <thead>{header_row}</thead>
-            <tbody>{''.join(rows)}</tbody>
+            <tbody>{"".join(rows)}</tbody>
         </table>
         """
 
@@ -508,7 +508,7 @@ class HTMLGenerator:
         </div>
         <div class="footer-info">
             <div class="stats">Total Results: {len(df)}</div>
-            <div>Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
+            <div>Generated on: {pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}</div>
         </div>
     </div>
 </body>

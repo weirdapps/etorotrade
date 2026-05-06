@@ -280,7 +280,7 @@ class TestVectorizationPerformance:
             elapsed = time.perf_counter() - start
 
             # Should complete in under 100ms
-            assert (
-                elapsed < 0.1
-            ), f"Vectorized operation took {elapsed*1000:.2f}ms (expected <100ms)"
+            assert elapsed < 0.1, (
+                f"Vectorized operation took {elapsed * 1000:.2f}ms (expected <100ms)"
+            )
             assert len(result) > 0  # Should have some results

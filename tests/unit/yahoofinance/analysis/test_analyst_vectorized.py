@@ -114,7 +114,7 @@ class TestGetRatingsSummary:
         elapsed = time.perf_counter() - start
 
         # Should complete quickly even with 10k rows (< 50ms)
-        assert elapsed < 0.05, f"Vectorized operation took {elapsed*1000:.2f}ms (expected <50ms)"
+        assert elapsed < 0.05, f"Vectorized operation took {elapsed * 1000:.2f}ms (expected <50ms)"
         assert result["total_ratings"] == n_rows
 
 
@@ -210,7 +210,7 @@ class TestGetRecentChanges:
         elapsed = time.perf_counter() - start
 
         # Should complete quickly (< 300ms for 5000 rows, relaxed for CI environments)
-        assert elapsed < 0.3, f"Vectorized operation took {elapsed*1000:.2f}ms (expected <300ms)"
+        assert elapsed < 0.3, f"Vectorized operation took {elapsed * 1000:.2f}ms (expected <300ms)"
         assert len(result) > 0
 
 

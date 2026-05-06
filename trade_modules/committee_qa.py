@@ -323,11 +323,13 @@ def normalize_agent_reports(
             }
             sorted_sectors = sorted(
                 sr.items(),
-                key=lambda x: rank_order.get(
-                    str(x[1].get("recommendation", x[1].get("outlook", "NEUTRAL"))).upper(), 1
-                )
-                if isinstance(x[1], dict)
-                else 1,
+                key=lambda x: (
+                    rank_order.get(
+                        str(x[1].get("recommendation", x[1].get("outlook", "NEUTRAL"))).upper(), 1
+                    )
+                    if isinstance(x[1], dict)
+                    else 1
+                ),
             )
             for i, (_sname, sdata) in enumerate(sorted_sectors, 1):
                 if isinstance(sdata, dict) and "rank" not in sdata:

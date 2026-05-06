@@ -101,7 +101,7 @@ class YahooFinanceBaseProvider(ABC):
 
         if attempt < self.max_retries - 1:
             logger.warning(
-                f"Attempt {attempt+1}/{self.max_retries} failed for {ticker} {operation}: {str(error)}. Retrying in {delay:.2f}s"
+                f"Attempt {attempt + 1}/{self.max_retries} failed for {ticker} {operation}: {str(error)}. Retrying in {delay:.2f}s"
             )
             return delay
         else:

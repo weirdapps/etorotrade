@@ -31,6 +31,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 class TestErrorHierarchy(unittest.TestCase):
     """Test the error class hierarchy and inheritance."""
 
@@ -74,6 +75,7 @@ class TestErrorHierarchy(unittest.TestCase):
         data_error = DataError("Invalid data format", details)
         self.assertEqual(data_error.details.get("value"), "invalid")
 
+
 class TestErrorFormatting(unittest.TestCase):
     """Test error formatting and details."""
 
@@ -99,6 +101,7 @@ class TestErrorFormatting(unittest.TestCase):
 
         # Verify details are mentioned somehow
         self.assertTrue(any(key in formatted for key in details.keys()))
+
 
 class TestAPIErrorClassification(unittest.TestCase):
     """Test classification of API errors by status code."""
@@ -129,6 +132,7 @@ class TestAPIErrorClassification(unittest.TestCase):
         error = classify_api_error(418, "I'm a teapot")
         self.assertIsInstance(error, APIError)  # Generic API error
         self.assertEqual(error.details.get("status_code"), 418)
+
 
 if __name__ == "__main__":
     unittest.main()

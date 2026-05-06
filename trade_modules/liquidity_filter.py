@@ -130,7 +130,7 @@ def check_liquidity(ticker: str, tier: str) -> dict[str, Any]:
         }
 
     passes = adv >= min_adv
-    reason = "sufficient" if passes else f"adv_{adv/1e6:.1f}M_below_{min_adv/1e6:.0f}M"
+    reason = "sufficient" if passes else f"adv_{adv / 1e6:.1f}M_below_{min_adv / 1e6:.0f}M"
 
     return {
         "passes": passes,

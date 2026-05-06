@@ -462,7 +462,7 @@ class ImprovementAnalyzer:
         eu_rate = data_quality.by_region.get("EU", {}).get("rate", 0)
         if hk_rate < eu_rate:
             insights.append(
-                f"HK has BEST data coverage ({100-hk_rate:.1f}% conclusive) vs EU ({100-eu_rate:.1f}%)"
+                f"HK has BEST data coverage ({100 - hk_rate:.1f}% conclusive) vs EU ({100 - eu_rate:.1f}%)"
             )
 
         # SI insight

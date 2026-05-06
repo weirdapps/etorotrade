@@ -269,7 +269,7 @@ def _summarise_recommendation(
     parts = []
     if high_ic:
         parts.append(
-            f"{len(high_ic)} high-IC cells (|ρ|≥0.3) — boost conviction " f"weight in these cells."
+            f"{len(high_ic)} high-IC cells (|ρ|≥0.3) — boost conviction weight in these cells."
         )
     if low_ic:
         parts.append(

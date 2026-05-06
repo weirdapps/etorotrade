@@ -24,6 +24,7 @@ logging.basicConfig(
 )
 logger = get_logger(__name__)
 
+
 class TestRateLimiterConfiguration(unittest.TestCase):
     """Test the configuration options for rate limiter."""
 
@@ -62,6 +63,7 @@ class TestRateLimiterConfiguration(unittest.TestCase):
         from yahoofinance.utils.network.rate_limiter import global_rate_limiter as gr2
 
         self.assertIs(global_rate_limiter, gr2)
+
 
 class TestRateLimiterCore(unittest.TestCase):
     """Test the core functionality of the adaptive rate limiter."""
@@ -176,6 +178,7 @@ class TestRateLimiterCore(unittest.TestCase):
             ticker_delay = self.rate_limiter.get_delay_for_ticker("AAPL")
             self.assertGreaterEqual(ticker_delay, 0)
 
+
 class TestRateLimiterDecorators(unittest.TestCase):
     """Test rate limiting decorators and utilities."""
 
@@ -233,6 +236,7 @@ class TestRateLimiterDecorators(unittest.TestCase):
             self.assertEqual(mock_limiter.record_call.call_count, 1)
             self.assertEqual(mock_limiter.record_success.call_count, 1)
 
+
 class TestThreadSafety(unittest.TestCase):
     """Test thread safety and concurrent usage of rate limiter."""
 
@@ -268,6 +272,7 @@ class TestThreadSafety(unittest.TestCase):
         # Should have 20 calls tracked
         self.assertEqual(call_count, 20)
         self.assertEqual(len(limiter.call_timestamps), 20)
+
 
 class TestErrorRecovery(unittest.TestCase):
     """Test error recovery and backoff strategies."""
@@ -334,6 +339,7 @@ class TestErrorRecovery(unittest.TestCase):
 
         # Now AAPL should be in slow_tickers
         self.assertIn("AAPL", limiter.slow_tickers)
+
 
 if __name__ == "__main__":
     unittest.main()

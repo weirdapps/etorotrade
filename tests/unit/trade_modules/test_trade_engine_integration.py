@@ -382,9 +382,9 @@ class TestRealDataIntegration:
             # Portfolio stocks should be excluded from buy opportunities
             for ticker in tickers:
                 if ticker in market_data_with_prices.index:
-                    assert (
-                        ticker not in buy_ops.index
-                    ), f"Portfolio stock {ticker} should be excluded from buy ops"
+                    assert ticker not in buy_ops.index, (
+                        f"Portfolio stock {ticker} should be excluded from buy ops"
+                    )
 
     @pytest.mark.asyncio
     @pytest.mark.skip(
@@ -714,9 +714,9 @@ class TestPerformanceIntegration:
 
         # Should complete batch processing efficiently
         processing_time = end_time - start_time
-        assert (
-            processing_time < 5.0
-        ), f"Batch processing took {processing_time:.2f}s, expected < 5.0s"
+        assert processing_time < 5.0, (
+            f"Batch processing took {processing_time:.2f}s, expected < 5.0s"
+        )
 
         # Should return results for all tickers
         assert len(result) == len(tickers)

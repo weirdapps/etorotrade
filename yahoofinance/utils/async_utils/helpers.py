@@ -178,7 +178,7 @@ async def async_retry(
                 # Wait before retrying
                 await asyncio.sleep(delay)
             else:
-                logger.error(f"All {max_retries + 1} attempts failed. " f"Last error: {str(e)}")
+                logger.error(f"All {max_retries + 1} attempts failed. Last error: {str(e)}")
 
     # If we get here, all retries failed
     assert last_exception is not None
@@ -306,7 +306,7 @@ async def adaptive_fetch(
     for i in range(0, len(all_items), batch_size):
         batch = all_items[i : i + batch_size]
         logger.debug(
-            f"Processing batch {i//batch_size+1}/{(len(all_items)+batch_size-1)//batch_size} "
+            f"Processing batch {i // batch_size + 1}/{(len(all_items) + batch_size - 1) // batch_size} "
             f"with concurrency {concurrency}"
         )
 

@@ -338,10 +338,10 @@ def summarise_for_committee(lessons: list[dict[str, Any]]) -> str:
     ]
     for l in lessons[:5]:
         lines.append(
-            f"* {l['ticker']} ({l.get('recommendation_date','')}, conv "
-            f"{l.get('conviction','?')}): "
-            f"dropped {l.get('drawdown_pct','?')}% in "
-            f"{l.get('days_to_drawdown','?')}d. {l.get('lesson','')}"
+            f"* {l['ticker']} ({l.get('recommendation_date', '')}, conv "
+            f"{l.get('conviction', '?')}): "
+            f"dropped {l.get('drawdown_pct', '?')}% in "
+            f"{l.get('days_to_drawdown', '?')}d. {l.get('lesson', '')}"
         )
     if common_dissenters:
         lines.append("")

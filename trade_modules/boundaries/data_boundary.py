@@ -279,7 +279,7 @@ class DataBoundary(IDataBoundary):
                 ConnectionError,
                 TimeoutError,
             ) as e:
-                logger.error(f"Error fetching batch {i//batch_size + 1}: {e}")
+                logger.error(f"Error fetching batch {i // batch_size + 1}: {e}")
                 continue
 
         if all_data:

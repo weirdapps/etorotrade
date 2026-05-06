@@ -158,9 +158,9 @@ class TestParametrizedTierRegionSignals:
 
         assert "BS" in result.columns
         # With negative upside, should be S (SELL)
-        assert (
-            result.loc[ticker, "BS"] == "S"
-        ), f"Expected S for negative upside in {tier}-{region}, got {result.loc[ticker, 'BS']}"
+        assert result.loc[ticker, "BS"] == "S", (
+            f"Expected S for negative upside in {tier}-{region}, got {result.loc[ticker, 'BS']}"
+        )
 
     @pytest.mark.parametrize(
         "tier,market_cap",
@@ -200,9 +200,9 @@ class TestParametrizedTierRegionSignals:
 
         assert "BS" in result.columns
         # With insufficient analysts, should be I (INCONCLUSIVE)
-        assert (
-            result.loc[ticker, "BS"] == "I"
-        ), f"Expected I for insufficient analysts in {tier}-{region}, got {result.loc[ticker, 'BS']}"
+        assert result.loc[ticker, "BS"] == "I", (
+            f"Expected I for insufficient analysts in {tier}-{region}, got {result.loc[ticker, 'BS']}"
+        )
 
 
 class TestExretCalculationEdgeCases:
@@ -578,9 +578,9 @@ class TestBuySignalQualityValidation:
 
         result = calculate_action(data)
         # Should be INCONCLUSIVE, not BUY
-        assert (
-            result.loc["TEST", "BS"] == "I"
-        ), "Insufficient analyst coverage should be INCONCLUSIVE"
+        assert result.loc["TEST", "BS"] == "I", (
+            "Insufficient analyst coverage should be INCONCLUSIVE"
+        )
 
     def test_buy_signal_requires_minimum_upside(self):
         """BUY signals require minimum upside (EXRET gate removed — redundant derivative)."""
@@ -625,9 +625,9 @@ class TestSellSignalHardTriggers:
         ).set_index("ticker")
 
         result = calculate_action(data)
-        assert (
-            result.loc["TEST", "BS"] == "S"
-        ), "Severe negative upside with weak sentiment should be SELL"
+        assert result.loc["TEST", "BS"] == "S", (
+            "Severe negative upside with weak sentiment should be SELL"
+        )
 
     def test_very_low_buy_percentage_triggers_sell(self):
         """Very low buy% (<35%) is hard SELL trigger."""
@@ -674,9 +674,9 @@ class TestQualityOverrideProtection:
 
         result = calculate_action(data)
         # Should NOT be SELL due to quality override
-        assert (
-            result.loc["TEST", "BS"] != "S"
-        ), "High quality stock should be protected from SELL via quality override"
+        assert result.loc["TEST", "BS"] != "S", (
+            "High quality stock should be protected from SELL via quality override"
+        )
 
 
 class TestPEGDisabled:
@@ -732,9 +732,9 @@ class TestMarketCapGate:
         ).set_index("ticker")
 
         result = calculate_action(data)
-        assert (
-            result.loc["MICRO", "BS"] == "I"
-        ), "Stock below $2B floor should be INCONCLUSIVE regardless of fundamentals"
+        assert result.loc["MICRO", "BS"] == "I", (
+            "Stock below $2B floor should be INCONCLUSIVE regardless of fundamentals"
+        )
 
     def test_small_cap_needs_more_analysts(self):
         """$2-5B stocks need 6+ analysts, not just 4."""
@@ -755,9 +755,9 @@ class TestMarketCapGate:
         ).set_index("ticker")
 
         result = calculate_action(data)
-        assert (
-            result.loc["SMALL", "BS"] == "I"
-        ), "$2-5B stock with only 4 analysts should be INCONCLUSIVE (needs 6+)"
+        assert result.loc["SMALL", "BS"] == "I", (
+            "$2-5B stock with only 4 analysts should be INCONCLUSIVE (needs 6+)"
+        )
 
     def test_small_cap_with_sufficient_analysts_processed(self):
         """$2-5B stocks with 6+ analysts should be processed normally."""
@@ -778,9 +778,9 @@ class TestMarketCapGate:
 
         result = calculate_action(data)
         # Should NOT be INCONCLUSIVE - has sufficient analysts
-        assert (
-            result.loc["SMALL", "BS"] != "I"
-        ), "$2-5B stock with 8 analysts should not be INCONCLUSIVE"
+        assert result.loc["SMALL", "BS"] != "I", (
+            "$2-5B stock with 8 analysts should not be INCONCLUSIVE"
+        )
 
     def test_large_cap_needs_only_4_analysts(self):
         """$5B+ stocks only need 4 analysts."""
@@ -801,6 +801,6 @@ class TestMarketCapGate:
 
         result = calculate_action(data)
         # Should NOT be INCONCLUSIVE - 4 analysts is enough for $10B stock
-        assert (
-            result.loc["LARGE", "BS"] != "I"
-        ), "$10B stock with 4 analysts should not be INCONCLUSIVE"
+        assert result.loc["LARGE", "BS"] != "I", (
+            "$10B stock with 4 analysts should not be INCONCLUSIVE"
+        )

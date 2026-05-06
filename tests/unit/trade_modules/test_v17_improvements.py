@@ -835,10 +835,12 @@ class TestWeeklyBacktestHelpers:
         monkeypatch.setattr(
             CommitteeBacktester,
             "__init__",
-            lambda self, log_dir=None: setattr(self, "log_dir", tmp_path)
-            or setattr(self, "history", [])
-            or setattr(self, "forward_returns", {})
-            or None,
+            lambda self, log_dir=None: (
+                setattr(self, "log_dir", tmp_path)
+                or setattr(self, "history", [])
+                or setattr(self, "forward_returns", {})
+                or None
+            ),
         )
 
         import sys
@@ -859,10 +861,12 @@ class TestWeeklyBacktestHelpers:
         monkeypatch.setattr(
             CommitteeBacktester,
             "__init__",
-            lambda self, log_dir=None: setattr(self, "log_dir", tmp_path)
-            or setattr(self, "history", [])
-            or setattr(self, "forward_returns", {})
-            or None,
+            lambda self, log_dir=None: (
+                setattr(self, "log_dir", tmp_path)
+                or setattr(self, "history", [])
+                or setattr(self, "forward_returns", {})
+                or None
+            ),
         )
 
         import sys

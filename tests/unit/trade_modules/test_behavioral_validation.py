@@ -204,9 +204,9 @@ class TestBehavioralValidation:
         buy_symbols = set(result_with_portfolio["buy_opportunities"].index)
         portfolio_in_market = portfolio_symbols.intersection(set(enhanced_market_data.index))
         portfolio_in_buy = portfolio_in_market.intersection(buy_symbols)
-        assert (
-            len(portfolio_in_buy) == 0
-        ), f"Portfolio symbols {portfolio_in_buy} found in buy opportunities"
+        assert len(portfolio_in_buy) == 0, (
+            f"Portfolio symbols {portfolio_in_buy} found in buy opportunities"
+        )
 
     @pytest.mark.asyncio
     async def test_notrade_filtering_baseline_behavior(

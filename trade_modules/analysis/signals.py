@@ -516,9 +516,11 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
     )
     # Handle boolean-like values
     above_200dma = above_200dma_raw.map(
-        lambda x: True
-        if x in [True, "True", "true", 1, "1", "Y", "y"]
-        else (False if x in [False, "False", "false", 0, "0", "N", "n"] else np.nan)
+        lambda x: (
+            True
+            if x in [True, "True", "true", 1, "1", "Y", "y"]
+            else (False if x in [False, "False", "false", 0, "0", "N", "n"] else np.nan)
+        )
     )
 
     # Continuous 200DMA ratio: price as percentage of 200-day MA (e.g., 105 = 5% above)

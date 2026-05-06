@@ -75,9 +75,9 @@ class TestACTIVE_MODIFIERSv36:
             "fcf_quality_strong",
             "sector_rotation",
         ):
-            assert (
-                mod not in ACTIVE_MODIFIERS
-            ), f"{mod} fires constant Δ in our data (NaN ρ) — drop from ACTIVE"
+            assert mod not in ACTIVE_MODIFIERS, (
+                f"{mod} fires constant Δ in our data (NaN ρ) — drop from ACTIVE"
+            )
 
     def test_inverted_piotroski_is_not_active(self):
         """Piotroski has ρ=−0.23 (high quality → LOWER returns) — drop pending review."""
@@ -90,9 +90,9 @@ class TestACTIVE_MODIFIERSv36:
         from trade_modules.committee_synthesis import ACTIVE_MODIFIERS
 
         for mod in ("census_alignment", "eps_revisions_up", "macro_sector", "rel_strength_spy"):
-            assert (
-                mod not in ACTIVE_MODIFIERS
-            ), f"{mod} has large-n SHADOW verdict (no rank predictive power)"
+            assert mod not in ACTIVE_MODIFIERS, (
+                f"{mod} has large-n SHADOW verdict (no rank predictive power)"
+            )
 
     def test_active_set_is_small(self):
         """v36 ships ≤8 active modifiers — empirical winners only."""

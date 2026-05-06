@@ -1431,9 +1431,9 @@ class TestV3RegressionBugs:
             position_limit=3.5,
         )
         # With fund=83.7 and BUY signal, should be at least ADD
-        assert (
-            result["conviction"] >= 60
-        ), f"NVDA with fund=83.7 + BUY signal should have conv>=60, got {result['conviction']}"
+        assert result["conviction"] >= 60, (
+            f"NVDA with fund=83.7 + BUY signal should have conv>=60, got {result['conviction']}"
+        )
 
     def test_btc_sell_with_bullish_agents(self):
         """
@@ -1464,9 +1464,9 @@ class TestV3RegressionBugs:
         )
         # With mostly bullish agents, SELL conviction should be reduced
         if result["action"] == "SELL":
-            assert (
-                result["conviction"] < 70
-            ), f"BTC SELL with bullish agents should have reduced conviction, got {result['conviction']}"
+            assert result["conviction"] < 70, (
+                f"BTC SELL with bullish agents should have reduced conviction, got {result['conviction']}"
+            )
 
     def test_buy_signal_unconditional_floor_40(self):
         """
@@ -1494,9 +1494,9 @@ class TestV3RegressionBugs:
             sector_rankings={},
             position_limit=2.0,
         )
-        assert (
-            result["conviction"] >= 40
-        ), f"BUY-signal stock conviction must be >=40, got {result['conviction']}"
+        assert result["conviction"] >= 40, (
+            f"BUY-signal stock conviction must be >=40, got {result['conviction']}"
+        )
 
 
 # ============================================================
@@ -3778,9 +3778,9 @@ class TestRSIFloorForTrimEscalation:
             sector_rankings={},
             position_limit=5.0,
         )
-        assert (
-            entry["action"] == "HOLD"
-        ), f"Strong fundamentals (75) should block trim escalation, got {entry['action']}"
+        assert entry["action"] == "HOLD", (
+            f"Strong fundamentals (75) should block trim escalation, got {entry['action']}"
+        )
 
     def test_weak_fundamentals_allow_trim_escalation(self):
         """v32.0: fund_score < 70 with tech=AVOID + risk_warning should still TRIM."""
@@ -3800,9 +3800,9 @@ class TestRSIFloorForTrimEscalation:
             sector_rankings={},
             position_limit=5.0,
         )
-        assert (
-            entry["action"] == "TRIM"
-        ), f"Weak fundamentals (55) with tech=AVOID + risk should TRIM, got {entry['action']}"
+        assert entry["action"] == "TRIM", (
+            f"Weak fundamentals (55) with tech=AVOID + risk should TRIM, got {entry['action']}"
+        )
 
     def test_overbought_rsi80_needs_risk_warning_too(self):
         """v32.0: RSI > 80 + bearish tech alone no longer triggers TRIM without risk_warning."""
@@ -3822,9 +3822,9 @@ class TestRSIFloorForTrimEscalation:
             sector_rankings={},
             position_limit=5.0,
         )
-        assert (
-            entry["action"] == "HOLD"
-        ), f"RSI>80 without risk_warning should not TRIM, got {entry['action']}"
+        assert entry["action"] == "HOLD", (
+            f"RSI>80 without risk_warning should not TRIM, got {entry['action']}"
+        )
 
     def test_overbought_rsi80_with_risk_and_weak_fund_trims(self):
         """v32.0: RSI > 80 + bearish tech + risk_warning + weak fund should TRIM."""
@@ -3844,9 +3844,9 @@ class TestRSIFloorForTrimEscalation:
             sector_rankings={},
             position_limit=5.0,
         )
-        assert (
-            entry["action"] == "TRIM"
-        ), f"RSI>80 + risk + weak fund (45) should TRIM, got {entry['action']}"
+        assert entry["action"] == "TRIM", (
+            f"RSI>80 + risk + weak fund (45) should TRIM, got {entry['action']}"
+        )
 
 
 class TestRiskWarningDilution:
@@ -4032,9 +4032,9 @@ class TestSectorConcentrationPenalty:
         )
         # HOLD-signal stocks that stay HOLD should NOT have sector penalty
         for entry in concordance:
-            assert (
-                entry["action"] == "HOLD"
-            ), f"Test pre-condition broke: {entry['ticker']} ended up {entry['action']}"
+            assert entry["action"] == "HOLD", (
+                f"Test pre-condition broke: {entry['ticker']} ended up {entry['action']}"
+            )
             assert entry.get("sector_concentration_penalty") is None
 
     def test_penalty_does_not_breach_floor(self):
@@ -4121,9 +4121,9 @@ class TestV11ActionConvictionSync:
 
         for entry in concordance:
             if entry["action"] == "ADD":
-                assert (
-                    entry["conviction"] >= 55
-                ), f'{entry["ticker"]}: ADD with conviction {entry["conviction"]} < 55'
+                assert entry["conviction"] >= 55, (
+                    f"{entry['ticker']}: ADD with conviction {entry['conviction']} < 55"
+                )
 
     def test_no_desync_after_concentration_penalty(self):
         """No stock should have ADD action with conviction below threshold."""
@@ -4154,9 +4154,9 @@ class TestV11ActionConvictionSync:
         for entry in concordance:
             # Verify contract: ADD requires conv >= 55 for BUY signal
             if entry["signal"] == "B" and entry["action"] == "ADD":
-                assert (
-                    entry["conviction"] >= 55
-                ), f'{entry["ticker"]}: contract violation ADD at conv={entry["conviction"]}'
+                assert entry["conviction"] >= 55, (
+                    f"{entry['ticker']}: contract violation ADD at conv={entry['conviction']}"
+                )
 
 
 class TestV11DirectionalConfidenceSynthetic:
@@ -4284,9 +4284,9 @@ class TestV11SignalVelocityWiring:
 
         aapl = [e for e in concordance if e["ticker"] == "AAPL"][0]
         # Signal changed from H to B (upgrade) within ~8 days → should be ACCELERATING or IMPROVING
-        assert (
-            aapl["signal_velocity"] != "NO_HISTORY"
-        ), f'Velocity should be populated but got {aapl["signal_velocity"]}'
+        assert aapl["signal_velocity"] != "NO_HISTORY", (
+            f"Velocity should be populated but got {aapl['signal_velocity']}"
+        )
 
     def test_velocity_no_history_without_previous(self):
         """Without previous concordance, velocity should be NO_HISTORY."""
@@ -4371,7 +4371,7 @@ class TestV11SectorPenaltyCap:
         for entry in concordance:
             if not entry.get("is_opportunity"):
                 penalty = entry.get("sector_concentration_penalty", 0)
-                assert penalty <= 6, f'{entry["ticker"]}: sector penalty {penalty} exceeds cap of 6'
+                assert penalty <= 6, f"{entry['ticker']}: sector penalty {penalty} exceeds cap of 6"
 
 
 class TestV11EarningsSurpriseWiring:
@@ -4420,9 +4420,9 @@ class TestV11EarningsSurpriseWiring:
         )
 
         aapl = [e for e in concordance if e["ticker"] == "AAPL"][0]
-        assert (
-            aapl["earnings_surprise"] == "SERIAL_BEATER"
-        ), f'Expected SERIAL_BEATER but got {aapl["earnings_surprise"]}'
+        assert aapl["earnings_surprise"] == "SERIAL_BEATER", (
+            f"Expected SERIAL_BEATER but got {aapl['earnings_surprise']}"
+        )
 
     def test_earnings_no_data_without_fund_fields(self):
         """Without earnings fields in fund_data, should default to NO_DATA."""
@@ -4527,7 +4527,7 @@ class TestV11OpportunityActionPreservation:
         assert newtech["action"] in (
             "BUY",
             "HOLD",
-        ), f'Opportunity NEWTECH should be BUY or HOLD, not {newtech["action"]}'
+        ), f"Opportunity NEWTECH should be BUY or HOLD, not {newtech['action']}"
 
 
 # ============================================================
@@ -4606,9 +4606,9 @@ class TestV12R1KillThesisFloorEscape:
             regime="RISK_OFF",
         )
         # With RISK_OFF + penalties + kill thesis, should NOT be ADD
-        assert (
-            result["action"] != "ADD" or result["conviction"] < 55
-        ), "Kill thesis should prevent ADD recommendation"
+        assert result["action"] != "ADD" or result["conviction"] < 55, (
+            "Kill thesis should prevent ADD recommendation"
+        )
 
     def test_no_kill_thesis_quality_floor_still_works(self):
         """Without kill thesis, quality floors should still apply normally."""
@@ -4754,9 +4754,9 @@ class TestV12M1AsymmetricNewsWeights:
         )
         # Net bull delta = (bull_pos - bull_base) - (bear_pos - bear_base)
         net_bull = (bull_pos - bull_base) - (bear_pos - bear_base)
-        assert (
-            net_bull < 1.0
-        ), f"HIGH_POSITIVE net bull contribution ({net_bull:.2f}) should be < 1.0"
+        assert net_bull < 1.0, (
+            f"HIGH_POSITIVE net bull contribution ({net_bull:.2f}) should be < 1.0"
+        )
 
 
 class TestV12R2SellBearRatioContinuous:
@@ -4780,9 +4780,9 @@ class TestV12R2SellBearRatioContinuous:
             excess_exret=0,
             bear_ratio=0.79,
         )
-        assert (
-            base_79 > base_65
-        ), f"Bear ratio 0.79 base ({base_79}) should exceed 0.65 base ({base_65})"
+        assert base_79 > base_65, (
+            f"Bear ratio 0.79 base ({base_79}) should exceed 0.65 base ({base_65})"
+        )
 
     def test_bear_ratio_0_80_gives_85(self):
         """Bear ratio >= 0.80 should still give base 85."""
@@ -4828,9 +4828,9 @@ class TestV12R2SellBearRatioContinuous:
                 excess_exret=0,
                 bear_ratio=br,
             )
-            assert (
-                base >= prev_base
-            ), f"Base at bear_ratio={br} ({base}) should >= prev ({prev_base})"
+            assert base >= prev_base, (
+                f"Base at bear_ratio={br} ({base}) should >= prev ({prev_base})"
+            )
             prev_base = base
 
 
@@ -6145,12 +6145,12 @@ class TestV40ConsensusCrowdedPenaltyRemoved:
             sector_rankings={},
             position_limit=5.0,
         )
-        assert (
-            result["conviction"] >= 55
-        ), f"Marginal below-median stock conv {result['conviction']} < 55"
-        assert (
-            result["action"] == "ADD"
-        ), f"Expected ADD for marginal below-median, got {result['action']}"
+        assert result["conviction"] >= 55, (
+            f"Marginal below-median stock conv {result['conviction']} < 55"
+        )
+        assert result["action"] == "ADD", (
+            f"Expected ADD for marginal below-median, got {result['action']}"
+        )
 
 
 # ============================================================
@@ -6677,9 +6677,9 @@ class TestQualityGrowthException:
             sector_rankings={},
             bull_count=5,
         )
-        assert (
-            "quality_trap" not in w
-        ), f"Quality growth exception should waive quality_trap, got waterfall={w}"
+        assert "quality_trap" not in w, (
+            f"Quality growth exception should waive quality_trap, got waterfall={w}"
+        )
 
     @pytest.mark.skip(reason="CIO v35.0: modifier disabled/changed")
     def test_quality_trap_applied_for_weak_fund(self):
@@ -7004,17 +7004,17 @@ class TestV40EpsRevisionsPriceGuard:
         """pp = 10% (< 20%): EPS revisions up bonus contributes."""
         result = synthesize_stock(**self._kw(pp_value=10))
         wf = result.get("conviction_waterfall", {})
-        assert (
-            wf.get("eps_revisions_up", 0) > 0
-        ), f"Expected eps_revisions_up bonus to fire (pp=10), got waterfall: {wf}"
+        assert wf.get("eps_revisions_up", 0) > 0, (
+            f"Expected eps_revisions_up bonus to fire (pp=10), got waterfall: {wf}"
+        )
 
     def test_bonus_suppressed_when_pp_exceeds_threshold(self):
         """pp = 30% (> 20%): EPS revisions up bonus suppressed (gated)."""
         result = synthesize_stock(**self._kw(pp_value=30))
         wf = result.get("conviction_waterfall", {})
-        assert (
-            wf.get("eps_revisions_up", 0) == 0
-        ), f"Expected eps_revisions_up bonus to NOT fire (pp=30), got: {wf}"
+        assert wf.get("eps_revisions_up", 0) == 0, (
+            f"Expected eps_revisions_up bonus to NOT fire (pp=30), got: {wf}"
+        )
 
     def test_downside_revisions_unaffected_by_pp_guard(self):
         """REVISIONS_DOWN penalty fires regardless of pp."""
@@ -7109,9 +7109,9 @@ class TestV40TrimQualityProtection:
     def test_quality_75_blocks_trim(self):
         """fund_score=75 + no kill thesis → HOLD (not TRIM)."""
         result = synthesize_stock(**self._kw(fund_score=75))
-        assert (
-            result["action"] == "HOLD"
-        ), f"Expected HOLD for quality stock (fund=75), got {result['action']}"
+        assert result["action"] == "HOLD", (
+            f"Expected HOLD for quality stock (fund=75), got {result['action']}"
+        )
 
     def test_quality_80_blocks_trim(self):
         result = synthesize_stock(**self._kw(fund_score=80))
@@ -7120,18 +7120,18 @@ class TestV40TrimQualityProtection:
     def test_below_quality_threshold_allows_trim(self):
         """fund_score=70 (below new threshold 75) + tech AVOID + risk → TRIM."""
         result = synthesize_stock(**self._kw(fund_score=70))
-        assert (
-            result["action"] == "TRIM"
-        ), f"Expected TRIM for fund=70 (below 75) with bear signals, got {result['action']}"
+        assert result["action"] == "TRIM", (
+            f"Expected TRIM for fund=70 (below 75) with bear signals, got {result['action']}"
+        )
 
     def test_kill_thesis_overrides_quality_protection(self):
         """fund_score=80 + triggered kill thesis → TRIM allowed (override)."""
         result = synthesize_stock(**self._kw(fund_score=80, kill_thesis_triggered=True))
         # Kill thesis triggered means an explicit, pre-identified failure mode
         # has happened — quality should not block exit.
-        assert (
-            result["action"] == "TRIM"
-        ), f"Expected TRIM despite quality (kill thesis triggered), got {result['action']}"
+        assert result["action"] == "TRIM", (
+            f"Expected TRIM despite quality (kill thesis triggered), got {result['action']}"
+        )
 
 
 class TestV40KillThesisGenerator:

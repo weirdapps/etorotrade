@@ -62,8 +62,7 @@ class TestEstimateHoldingCostPct:
         costs = [estimate_holding_cost_pct(tier=t)["total_pct"] for t in tiers]
         for i in range(len(costs) - 1):
             assert costs[i] < costs[i + 1], (
-                f"{tiers[i]} cost {costs[i]} should be less than "
-                f"{tiers[i + 1]} cost {costs[i + 1]}"
+                f"{tiers[i]} cost {costs[i]} should be less than {tiers[i + 1]} cost {costs[i + 1]}"
             )
 
     def test_longer_hold_higher_cost(self):

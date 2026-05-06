@@ -41,6 +41,7 @@ SAMPLE_TICKER_INFO = {
     "from_low": 20.0,
 }
 
+
 @pytest.fixture
 def mock_provider():
     provider = Mock()
@@ -52,6 +53,7 @@ def mock_provider():
         }
     )
     return provider
+
 
 @pytest.fixture
 def async_mock_provider():
@@ -80,9 +82,11 @@ def async_mock_provider():
     provider.call_tracker = call_tracker
     return provider
 
+
 @pytest.fixture
 def analyzer(mock_provider):
     return PricingAnalyzer(mock_provider)
+
 
 @pytest.fixture
 def async_analyzer(async_mock_provider):
@@ -90,6 +94,7 @@ def async_analyzer(async_mock_provider):
     # Force is_async to True for testing
     analyzer.is_async = True
     return analyzer
+
 
 class TestPriceData:
     """Tests for PriceData class"""
@@ -120,6 +125,7 @@ class TestPriceData:
         assert data.from_high == pytest.approx(-14.29, abs=1e-9)
         assert data.from_low == pytest.approx(20.0, abs=1e-9)
 
+
 class TestPriceTarget:
     """Tests for PriceTarget class"""
 
@@ -135,6 +141,7 @@ class TestPriceTarget:
         assert target.low == pytest.approx(150.0, abs=1e-9)
         assert target.upside == pytest.approx(20.0, abs=1e-9)
         assert target.analyst_count == 32
+
 
 class TestPricingAnalyzer:
     """Tests for PricingAnalyzer class"""

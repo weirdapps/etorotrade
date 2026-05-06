@@ -955,7 +955,7 @@ def log_kill_theses(
 
     # Save back
     _save_kill_theses(existing, path)
-    logger.info(f"Logged {new_count} kill theses for {date} " f"({len(existing)} total)")
+    logger.info(f"Logged {new_count} kill theses for {date} ({len(existing)} total)")
 
 
 def check_kill_theses(
@@ -1598,8 +1598,9 @@ def calibrate_modifiers(
         "bullish_divergence": lambda r: r.get("divergence") == "bullish",
         "high_piotroski": lambda r: r.get("piotroski_score") and r["piotroski_score"] >= 7,
         "rs_outperforming": lambda r: r.get("rs_vs_spy") and r["rs_vs_spy"] > 1.0,
-        "high_short_interest": lambda r: r.get("short_interest_pct")
-        and r["short_interest_pct"] > 10,
+        "high_short_interest": lambda r: (
+            r.get("short_interest_pct") and r["short_interest_pct"] > 10
+        ),
         "strong_confluence": lambda r: r.get("confluence_score") and r["confluence_score"] >= 5,
         "volume_confirmed": lambda r: r.get("relative_volume") and r["relative_volume"] > 1.5,
         "eps_revisions_up": lambda r: r.get("eps_revisions") == "REVISIONS_UP",
@@ -1711,7 +1712,6 @@ def attribute_performance_to_modifiers(
         return {"sufficient_data": False}
 
     attribution = {"sufficient_data": True, "modifiers": {}}
-
 
     for mod_name, mod_data in cal.get("modifiers", {}).items():
         delta = mod_data.get("alpha_delta", 0)

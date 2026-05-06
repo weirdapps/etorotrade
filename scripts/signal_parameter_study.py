@@ -115,7 +115,7 @@ def fetch_prices_bulk(tickers: list[str], start: str, end: str) -> dict[str, pd.
                     results[t] = df
                     _save_price_cache(t, df)
             except Exception as e:
-                print(f"  Batch {i}-{i+chunk_size} error: {e}")
+                print(f"  Batch {i}-{i + chunk_size} error: {e}")
 
     # SPY benchmark
     if "SPY" not in results:
@@ -223,8 +223,8 @@ def analyze_parameter(
         q_mask = quintile_labels == q
         q_a = a[q_mask]
         if len(q_a) > 0:
-            q_alphas[f"Q{q+1}"] = round(float(np.mean(q_a)), 2)
-            q_hit_rates[f"Q{q+1}"] = round(float(np.mean(q_a > 0) * 100), 1)
+            q_alphas[f"Q{q + 1}"] = round(float(np.mean(q_a)), 2)
+            q_hit_rates[f"Q{q + 1}"] = round(float(np.mean(q_a > 0) * 100), 1)
 
     # Top vs bottom quintile spread
     q_keys = sorted(q_alphas.keys())
@@ -403,7 +403,7 @@ def main():
     alphas = [e["alpha_30d"] for e in entries_with_alpha]
     print(f"   Mean alpha: {np.mean(alphas):.2f}%")
     print(f"   Median alpha: {np.median(alphas):.2f}%")
-    print(f"   Hit rate (alpha>0): {np.mean(np.array(alphas)>0)*100:.1f}%")
+    print(f"   Hit rate (alpha>0): {np.mean(np.array(alphas) > 0) * 100:.1f}%")
 
     # 4. Parameter-level analysis
     print("\n4. Analyzing parameter predictive power...")
@@ -509,10 +509,10 @@ def main():
     ]
     if improving and deteriorating:
         print(
-            f"  PE Improving (PEF<PET): n={len(improving)}, avg α={np.mean(improving):+.2f}%, hit={np.mean(np.array(improving)>0)*100:.1f}%"
+            f"  PE Improving (PEF<PET): n={len(improving)}, avg α={np.mean(improving):+.2f}%, hit={np.mean(np.array(improving) > 0) * 100:.1f}%"
         )
         print(
-            f"  PE Deteriorating (PEF≥PET): n={len(deteriorating)}, avg α={np.mean(deteriorating):+.2f}%, hit={np.mean(np.array(deteriorating)>0)*100:.1f}%"
+            f"  PE Deteriorating (PEF≥PET): n={len(deteriorating)}, avg α={np.mean(deteriorating):+.2f}%, hit={np.mean(np.array(deteriorating) > 0) * 100:.1f}%"
         )
         print(f"  Spread: {np.mean(improving) - np.mean(deteriorating):+.2f}pp")
         _, p = stats.mannwhitneyu(improving, deteriorating, alternative="two-sided")

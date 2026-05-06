@@ -13,6 +13,7 @@ from yahoofinance.core.logging import setup_logging
 # Configure logging
 setup_logging(log_level=logging.INFO)
 
+
 async def main():
     """Get and display raw data from provider."""
     print("Fetching data...")
@@ -45,6 +46,7 @@ async def main():
         print(
             f"- Short percent correctly formatted: {isinstance(info.get('short_percent'), (int, float))}"
         )
+
 
 if __name__ == "__main__":
     asyncio.run(main())

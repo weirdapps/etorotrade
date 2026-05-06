@@ -74,9 +74,9 @@ class TestLargeUSTierSignals:
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
 
-        assert (
-            result.loc["NFLX", "BS"] == "B"
-        ), "Should generate BUY for LARGE-US with all conditions met"
+        assert result.loc["NFLX", "BS"] == "B", (
+            "Should generate BUY for LARGE-US with all conditions met"
+        )
 
     def test_large_us_sell_signal_low_upside(self, large_us_base_data):
         """SELL signal with enhanced scoring: negative upside + weak sentiment.
@@ -92,9 +92,9 @@ class TestLargeUSTierSignals:
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
 
-        assert (
-            result.loc["NFLX", "BS"] == "S"
-        ), "Should SELL with severe negative upside + weak sentiment"
+        assert result.loc["NFLX", "BS"] == "S", (
+            "Should SELL with severe negative upside + weak sentiment"
+        )
 
     def test_large_us_sell_signal_low_buy_percentage(self, large_us_base_data):
         """SELL signal with enhanced scoring: very low buy% (hard trigger)."""
@@ -173,9 +173,9 @@ class TestLargeEUTierSignals:
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
 
-        assert (
-            result.loc["SAP.DE", "BS"] == "S"
-        ), "Should SELL with negative upside + weak sentiment"
+        assert result.loc["SAP.DE", "BS"] == "S", (
+            "Should SELL with negative upside + weak sentiment"
+        )
 
     def test_large_eu_hold_signal(self, large_eu_base_data):
         """HOLD signal for LARGE-EU tier when between thresholds."""
@@ -237,9 +237,9 @@ class TestLargeHKTierSignals:
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
 
-        assert (
-            result.loc["BABA.HK", "BS"] == "S"
-        ), "Should SELL with severe negative upside + weak sentiment"
+        assert result.loc["BABA.HK", "BS"] == "S", (
+            "Should SELL with severe negative upside + weak sentiment"
+        )
 
     def test_large_hk_hold_signal(self, large_hk_base_data):
         """HOLD signal for LARGE-HK tier when between thresholds."""

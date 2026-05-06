@@ -88,9 +88,9 @@ class TestExternalSymlinks:
             f"not a copy (would drift)"
         )
         target = os.readlink(ext_path)
-        assert (
-            "scripts/agents" in target
-        ), f"{ext_path} symlinks to {target}, expected scripts/agents/"
+        assert "scripts/agents" in target, (
+            f"{ext_path} symlinks to {target}, expected scripts/agents/"
+        )
 
 
 class TestMacroAnalystImportable:

@@ -2,6 +2,7 @@
 """
 Test the handling of additional fields like short interest and PEG ratio.
 """
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

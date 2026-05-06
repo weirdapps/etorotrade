@@ -81,9 +81,9 @@ class TestSmallUSTierSignals:
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
 
-        assert (
-            result.loc["SNAP", "BS"] == "S"
-        ), "Should SELL with severe negative upside + weak sentiment"
+        assert result.loc["SNAP", "BS"] == "S", (
+            "Should SELL with severe negative upside + weak sentiment"
+        )
 
     def test_small_us_hold_signal(self, small_us_base_data):
         """HOLD signal for SMALL-US tier."""

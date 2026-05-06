@@ -33,6 +33,7 @@ from .types import StockData
 # Field-level caching system (optional import - uses compatibility layer)
 try:
     from .field_cache import FieldCache, cached
+
     _FIELD_CACHE_AVAILABLE = True
 except ImportError:
     # Field cache dependencies not available
@@ -69,7 +70,9 @@ __all__ = [
 
 # Add field cache exports if available
 if _FIELD_CACHE_AVAILABLE:
-    __all__.extend([
-        "FieldCache",
-        "cached",
-    ])
+    __all__.extend(
+        [
+            "FieldCache",
+            "cached",
+        ]
+    )

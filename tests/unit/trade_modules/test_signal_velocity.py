@@ -25,9 +25,7 @@ class TestSignalVelocityBasic:
     @pytest.fixture
     def temp_log(self):
         """Create a temporary JSONL log file, cleaned up after test."""
-        with tempfile.NamedTemporaryFile(
-            suffix=".jsonl", delete=False, mode="w"
-        ) as f:
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False, mode="w") as f:
             temp_path = Path(f.name)
         yield temp_path
         if temp_path.exists():
@@ -42,13 +40,16 @@ class TestSignalVelocityBasic:
     def test_single_ticker_fresh(self, temp_log):
         """A ticker with signal logged 3 days ago should be classified as fresh."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {
-                "ticker": "AAPL",
-                "signal": "B",
-                "timestamp": (now - timedelta(days=3)).isoformat(),
-            }
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "AAPL",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=3)).isoformat(),
+                }
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -61,13 +62,16 @@ class TestSignalVelocityBasic:
     def test_single_ticker_stable(self, temp_log):
         """A ticker with signal logged 30 days ago should be classified as stable."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {
-                "ticker": "MSFT",
-                "signal": "H",
-                "timestamp": (now - timedelta(days=30)).isoformat(),
-            }
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "MSFT",
+                    "signal": "H",
+                    "timestamp": (now - timedelta(days=30)).isoformat(),
+                }
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -79,13 +83,16 @@ class TestSignalVelocityBasic:
     def test_single_ticker_stale(self, temp_log):
         """A ticker with signal logged 90 days ago should be classified as stale."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {
-                "ticker": "NVDA",
-                "signal": "S",
-                "timestamp": (now - timedelta(days=90)).isoformat(),
-            }
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "NVDA",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=90)).isoformat(),
+                }
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -96,13 +103,16 @@ class TestSignalVelocityBasic:
     def test_boundary_fresh_to_stable(self, temp_log):
         """At exactly 7 days, classification should be stable (not fresh)."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {
-                "ticker": "GOOG",
-                "signal": "B",
-                "timestamp": (now - timedelta(days=7)).isoformat(),
-            }
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "GOOG",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=7)).isoformat(),
+                }
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -112,13 +122,16 @@ class TestSignalVelocityBasic:
     def test_boundary_stable_to_stale(self, temp_log):
         """At exactly 60 days, classification should be stable (not stale)."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {
-                "ticker": "META",
-                "signal": "H",
-                "timestamp": (now - timedelta(days=60)).isoformat(),
-            }
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "META",
+                    "signal": "H",
+                    "timestamp": (now - timedelta(days=60)).isoformat(),
+                }
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -128,13 +141,16 @@ class TestSignalVelocityBasic:
     def test_boundary_just_stale(self, temp_log):
         """At 61 days, classification should be stale."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {
-                "ticker": "AMZN",
-                "signal": "B",
-                "timestamp": (now - timedelta(days=61)).isoformat(),
-            }
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "AMZN",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=61)).isoformat(),
+                }
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -147,9 +163,7 @@ class TestSignalVelocityChanges:
 
     @pytest.fixture
     def temp_log(self):
-        with tempfile.NamedTemporaryFile(
-            suffix=".jsonl", delete=False, mode="w"
-        ) as f:
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False, mode="w") as f:
             temp_path = Path(f.name)
         yield temp_path
         if temp_path.exists():
@@ -164,16 +178,31 @@ class TestSignalVelocityChanges:
         """A ticker with 3+ changes in 30 days should be volatile."""
         now = datetime.now()
         # B -> S -> H -> B (3 changes in 30 days)
-        self._write_entries(temp_log, [
-            {"ticker": "TSLA", "signal": "B",
-             "timestamp": (now - timedelta(days=25)).isoformat()},
-            {"ticker": "TSLA", "signal": "S",
-             "timestamp": (now - timedelta(days=18)).isoformat()},
-            {"ticker": "TSLA", "signal": "H",
-             "timestamp": (now - timedelta(days=10)).isoformat()},
-            {"ticker": "TSLA", "signal": "B",
-             "timestamp": (now - timedelta(days=3)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "TSLA",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=25)).isoformat(),
+                },
+                {
+                    "ticker": "TSLA",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=18)).isoformat(),
+                },
+                {
+                    "ticker": "TSLA",
+                    "signal": "H",
+                    "timestamp": (now - timedelta(days=10)).isoformat(),
+                },
+                {
+                    "ticker": "TSLA",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=3)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -186,18 +215,36 @@ class TestSignalVelocityChanges:
         """Volatile classification should take priority over fresh."""
         now = datetime.now()
         # 4 changes in 30 days, current signal is 1 day old (would be fresh)
-        self._write_entries(temp_log, [
-            {"ticker": "COIN", "signal": "B",
-             "timestamp": (now - timedelta(days=20)).isoformat()},
-            {"ticker": "COIN", "signal": "S",
-             "timestamp": (now - timedelta(days=15)).isoformat()},
-            {"ticker": "COIN", "signal": "H",
-             "timestamp": (now - timedelta(days=10)).isoformat()},
-            {"ticker": "COIN", "signal": "B",
-             "timestamp": (now - timedelta(days=5)).isoformat()},
-            {"ticker": "COIN", "signal": "S",
-             "timestamp": (now - timedelta(days=1)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "COIN",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=20)).isoformat(),
+                },
+                {
+                    "ticker": "COIN",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=15)).isoformat(),
+                },
+                {
+                    "ticker": "COIN",
+                    "signal": "H",
+                    "timestamp": (now - timedelta(days=10)).isoformat(),
+                },
+                {
+                    "ticker": "COIN",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=5)).isoformat(),
+                },
+                {
+                    "ticker": "COIN",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=1)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -209,14 +256,26 @@ class TestSignalVelocityChanges:
     def test_two_changes_not_volatile(self, temp_log):
         """Only 2 changes in 30 days should NOT be volatile."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"ticker": "AMD", "signal": "B",
-             "timestamp": (now - timedelta(days=20)).isoformat()},
-            {"ticker": "AMD", "signal": "S",
-             "timestamp": (now - timedelta(days=10)).isoformat()},
-            {"ticker": "AMD", "signal": "H",
-             "timestamp": (now - timedelta(days=3)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "AMD",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=20)).isoformat(),
+                },
+                {
+                    "ticker": "AMD",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=10)).isoformat(),
+                },
+                {
+                    "ticker": "AMD",
+                    "signal": "H",
+                    "timestamp": (now - timedelta(days=3)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -228,8 +287,11 @@ class TestSignalVelocityChanges:
         now = datetime.now()
         # B logged daily for 15 days
         entries = [
-            {"ticker": "NFLX", "signal": "B",
-             "timestamp": (now - timedelta(days=15 - i)).isoformat()}
+            {
+                "ticker": "NFLX",
+                "signal": "B",
+                "timestamp": (now - timedelta(days=15 - i)).isoformat(),
+            }
             for i in range(16)
         ]
         self._write_entries(temp_log, entries)
@@ -245,16 +307,31 @@ class TestSignalVelocityChanges:
         """Streak should reset after a signal change."""
         now = datetime.now()
         # S for 50 days, then B for 5 days
-        self._write_entries(temp_log, [
-            {"ticker": "DIS", "signal": "S",
-             "timestamp": (now - timedelta(days=55)).isoformat()},
-            {"ticker": "DIS", "signal": "S",
-             "timestamp": (now - timedelta(days=50)).isoformat()},
-            {"ticker": "DIS", "signal": "B",
-             "timestamp": (now - timedelta(days=5)).isoformat()},
-            {"ticker": "DIS", "signal": "B",
-             "timestamp": (now - timedelta(days=2)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "DIS",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=55)).isoformat(),
+                },
+                {
+                    "ticker": "DIS",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=50)).isoformat(),
+                },
+                {
+                    "ticker": "DIS",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=5)).isoformat(),
+                },
+                {
+                    "ticker": "DIS",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=2)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -265,19 +342,37 @@ class TestSignalVelocityChanges:
     def test_changes_outside_30d_window_not_counted(self, temp_log):
         """Signal changes older than 30 days should not count in signal_changes_30d."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"ticker": "UBER", "signal": "B",
-             "timestamp": (now - timedelta(days=60)).isoformat()},
-            {"ticker": "UBER", "signal": "S",
-             "timestamp": (now - timedelta(days=50)).isoformat()},
-            {"ticker": "UBER", "signal": "H",
-             "timestamp": (now - timedelta(days=40)).isoformat()},
-            {"ticker": "UBER", "signal": "B",
-             "timestamp": (now - timedelta(days=35)).isoformat()},
-            # Only this one in the 30-day window
-            {"ticker": "UBER", "signal": "S",
-             "timestamp": (now - timedelta(days=10)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "UBER",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=60)).isoformat(),
+                },
+                {
+                    "ticker": "UBER",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=50)).isoformat(),
+                },
+                {
+                    "ticker": "UBER",
+                    "signal": "H",
+                    "timestamp": (now - timedelta(days=40)).isoformat(),
+                },
+                {
+                    "ticker": "UBER",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=35)).isoformat(),
+                },
+                # Only this one in the 30-day window
+                {
+                    "ticker": "UBER",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=10)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -290,14 +385,26 @@ class TestSignalVelocityChanges:
     def test_multiple_tickers(self, temp_log):
         """Should track velocity independently per ticker."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"ticker": "AAPL", "signal": "B",
-             "timestamp": (now - timedelta(days=3)).isoformat()},
-            {"ticker": "MSFT", "signal": "H",
-             "timestamp": (now - timedelta(days=30)).isoformat()},
-            {"ticker": "NVDA", "signal": "S",
-             "timestamp": (now - timedelta(days=90)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "AAPL",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=3)).isoformat(),
+                },
+                {
+                    "ticker": "MSFT",
+                    "signal": "H",
+                    "timestamp": (now - timedelta(days=30)).isoformat(),
+                },
+                {
+                    "ticker": "NVDA",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=90)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -312,9 +419,7 @@ class TestSignalVelocityEdgeCases:
 
     @pytest.fixture
     def temp_log(self):
-        with tempfile.NamedTemporaryFile(
-            suffix=".jsonl", delete=False, mode="w"
-        ) as f:
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False, mode="w") as f:
             temp_path = Path(f.name)
         yield temp_path
         if temp_path.exists():
@@ -346,10 +451,16 @@ class TestSignalVelocityEdgeCases:
         now = datetime.now()
         with open(temp_log, "w") as f:
             f.write("not valid json\n")
-            f.write(json.dumps({
-                "ticker": "AAPL", "signal": "B",
-                "timestamp": (now - timedelta(days=5)).isoformat(),
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "ticker": "AAPL",
+                        "signal": "B",
+                        "timestamp": (now - timedelta(days=5)).isoformat(),
+                    }
+                )
+                + "\n"
+            )
             f.write("{broken\n")
 
         result = get_signal_velocity(log_path=temp_log)
@@ -362,10 +473,16 @@ class TestSignalVelocityEdgeCases:
         now = datetime.now()
         with open(temp_log, "w") as f:
             f.write("\n")
-            f.write(json.dumps({
-                "ticker": "AAPL", "signal": "B",
-                "timestamp": (now - timedelta(days=2)).isoformat(),
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "ticker": "AAPL",
+                        "signal": "B",
+                        "timestamp": (now - timedelta(days=2)).isoformat(),
+                    }
+                )
+                + "\n"
+            )
             f.write("\n")
             f.write("   \n")
 
@@ -376,13 +493,19 @@ class TestSignalVelocityEdgeCases:
     def test_missing_fields_skipped(self, temp_log):
         """Entries missing required fields should be skipped."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"signal": "B", "timestamp": now.isoformat()},  # missing ticker
-            {"ticker": "MSFT", "timestamp": now.isoformat()},  # missing signal
-            {"ticker": "GOOG", "signal": "B"},  # missing timestamp
-            {"ticker": "AAPL", "signal": "B",
-             "timestamp": (now - timedelta(days=1)).isoformat()},  # valid
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {"signal": "B", "timestamp": now.isoformat()},  # missing ticker
+                {"ticker": "MSFT", "timestamp": now.isoformat()},  # missing signal
+                {"ticker": "GOOG", "signal": "B"},  # missing timestamp
+                {
+                    "ticker": "AAPL",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=1)).isoformat(),
+                },  # valid
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -392,11 +515,17 @@ class TestSignalVelocityEdgeCases:
     def test_invalid_timestamp_skipped(self, temp_log):
         """Entries with invalid timestamp strings should be skipped."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"ticker": "BAD", "signal": "B", "timestamp": "not-a-date"},
-            {"ticker": "AAPL", "signal": "B",
-             "timestamp": (now - timedelta(days=1)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {"ticker": "BAD", "signal": "B", "timestamp": "not-a-date"},
+                {
+                    "ticker": "AAPL",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=1)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -406,20 +535,21 @@ class TestSignalVelocityEdgeCases:
     def test_test_tickers_filtered(self, temp_log):
         """Test/invalid tickers matching _INVALID_TICKER_PATTERN should be excluded."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"ticker": "TICK1", "signal": "B",
-             "timestamp": now.isoformat()},
-            {"ticker": "TICKER42", "signal": "S",
-             "timestamp": now.isoformat()},
-            {"ticker": "STOCK5", "signal": "H",
-             "timestamp": now.isoformat()},
-            {"ticker": "SELL", "signal": "B",
-             "timestamp": now.isoformat()},
-            {"ticker": "SMALLCAP", "signal": "B",
-             "timestamp": now.isoformat()},
-            {"ticker": "AAPL", "signal": "B",
-             "timestamp": (now - timedelta(days=1)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {"ticker": "TICK1", "signal": "B", "timestamp": now.isoformat()},
+                {"ticker": "TICKER42", "signal": "S", "timestamp": now.isoformat()},
+                {"ticker": "STOCK5", "signal": "H", "timestamp": now.isoformat()},
+                {"ticker": "SELL", "signal": "B", "timestamp": now.isoformat()},
+                {"ticker": "SMALLCAP", "signal": "B", "timestamp": now.isoformat()},
+                {
+                    "ticker": "AAPL",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=1)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -429,14 +559,18 @@ class TestSignalVelocityEdgeCases:
     def test_invalid_signal_filtered(self, temp_log):
         """Signals not in _VALID_SIGNALS (B/S/H/I) should be excluded."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"ticker": "BAD1", "signal": "X",
-             "timestamp": now.isoformat()},
-            {"ticker": "BAD2", "signal": "",
-             "timestamp": now.isoformat()},
-            {"ticker": "AAPL", "signal": "B",
-             "timestamp": (now - timedelta(days=1)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {"ticker": "BAD1", "signal": "X", "timestamp": now.isoformat()},
+                {"ticker": "BAD2", "signal": "", "timestamp": now.isoformat()},
+                {
+                    "ticker": "AAPL",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=1)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -447,10 +581,16 @@ class TestSignalVelocityEdgeCases:
     def test_inconclusive_signal_accepted(self, temp_log):
         """I (INCONCLUSIVE) is a valid signal and should be tracked."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"ticker": "PLTR", "signal": "I",
-             "timestamp": (now - timedelta(days=5)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "PLTR",
+                    "signal": "I",
+                    "timestamp": (now - timedelta(days=5)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -461,10 +601,12 @@ class TestSignalVelocityEdgeCases:
     def test_single_entry_zero_day_streak(self, temp_log):
         """A signal logged today should have 0 days_at_current_signal."""
         now = datetime.now()
-        self._write_entries(temp_log, [
-            {"ticker": "AAPL", "signal": "B",
-             "timestamp": now.isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {"ticker": "AAPL", "signal": "B", "timestamp": now.isoformat()},
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 
@@ -482,14 +624,26 @@ class TestSignalVelocityEdgeCases:
         """Entries written out of chronological order should still produce correct results."""
         now = datetime.now()
         # Write in reverse order
-        self._write_entries(temp_log, [
-            {"ticker": "AAPL", "signal": "B",
-             "timestamp": (now - timedelta(days=2)).isoformat()},
-            {"ticker": "AAPL", "signal": "S",
-             "timestamp": (now - timedelta(days=20)).isoformat()},
-            {"ticker": "AAPL", "signal": "B",
-             "timestamp": (now - timedelta(days=5)).isoformat()},
-        ])
+        self._write_entries(
+            temp_log,
+            [
+                {
+                    "ticker": "AAPL",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=2)).isoformat(),
+                },
+                {
+                    "ticker": "AAPL",
+                    "signal": "S",
+                    "timestamp": (now - timedelta(days=20)).isoformat(),
+                },
+                {
+                    "ticker": "AAPL",
+                    "signal": "B",
+                    "timestamp": (now - timedelta(days=5)).isoformat(),
+                },
+            ],
+        )
 
         result = get_signal_velocity(log_path=temp_log)
 

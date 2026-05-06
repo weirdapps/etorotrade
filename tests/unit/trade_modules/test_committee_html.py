@@ -24,24 +24,52 @@ def _minimal_synth():
     return {
         "concordance": [
             {
-                "ticker": "AAPL", "signal": "B", "action": "ADD",
-                "conviction": 72, "fund_score": 80, "fund_view": "BUY",
-                "tech_signal": "ENTER_NOW", "rsi": 55, "macro_fit": "FAVORABLE",
-                "census": "ALIGNED", "news_impact": "NEUTRAL",
-                "risk_warning": False, "exret": 12.5, "sector": "Technology",
-                "bull_pct": 75, "bull_weight": 4.2, "bear_weight": 1.8,
-                "beta": 1.1, "max_pct": 5.0, "tech_momentum": 25,
-                "is_opportunity": False, "fund_synthetic": False,
+                "ticker": "AAPL",
+                "signal": "B",
+                "action": "ADD",
+                "conviction": 72,
+                "fund_score": 80,
+                "fund_view": "BUY",
+                "tech_signal": "ENTER_NOW",
+                "rsi": 55,
+                "macro_fit": "FAVORABLE",
+                "census": "ALIGNED",
+                "news_impact": "NEUTRAL",
+                "risk_warning": False,
+                "exret": 12.5,
+                "sector": "Technology",
+                "bull_pct": 75,
+                "bull_weight": 4.2,
+                "bear_weight": 1.8,
+                "beta": 1.1,
+                "max_pct": 5.0,
+                "tech_momentum": 25,
+                "is_opportunity": False,
+                "fund_synthetic": False,
             },
             {
-                "ticker": "XOM", "signal": "S", "action": "SELL",
-                "conviction": 35, "fund_score": 30, "fund_view": "SELL",
-                "tech_signal": "AVOID", "rsi": 72, "macro_fit": "UNFAVORABLE",
-                "census": "NEUTRAL", "news_impact": "HIGH_NEGATIVE",
-                "risk_warning": True, "exret": -5.0, "sector": "Energy",
-                "bull_pct": 25, "bull_weight": 1.0, "bear_weight": 5.0,
-                "beta": 0.9, "max_pct": 3.0, "tech_momentum": -15,
-                "is_opportunity": False, "fund_synthetic": False,
+                "ticker": "XOM",
+                "signal": "S",
+                "action": "SELL",
+                "conviction": 35,
+                "fund_score": 30,
+                "fund_view": "SELL",
+                "tech_signal": "AVOID",
+                "rsi": 72,
+                "macro_fit": "UNFAVORABLE",
+                "census": "NEUTRAL",
+                "news_impact": "HIGH_NEGATIVE",
+                "risk_warning": True,
+                "exret": -5.0,
+                "sector": "Energy",
+                "bull_pct": 25,
+                "bull_weight": 1.0,
+                "bear_weight": 5.0,
+                "beta": 0.9,
+                "max_pct": 3.0,
+                "tech_momentum": -15,
+                "is_opportunity": False,
+                "fund_synthetic": False,
             },
         ],
         "regime": "CAUTIOUS",
@@ -68,15 +96,26 @@ def _minimal_reports():
     """Minimal agent report dicts for testing."""
     fund = {
         "stocks": {
-            "AAPL": {"fundamental_score": 80, "pe_trajectory": "IMPROVING",
-                      "exret": 12.5, "insider_sentiment": "NET_BUYING", "notes": "Strong"},
+            "AAPL": {
+                "fundamental_score": 80,
+                "pe_trajectory": "IMPROVING",
+                "exret": 12.5,
+                "insider_sentiment": "NET_BUYING",
+                "notes": "Strong",
+            },
         },
         "quality_traps": [],
     }
     tech = {
         "stocks": {
-            "AAPL": {"rsi": 55, "macd_signal": "BULLISH", "bb_position": 0.6,
-                      "trend": "UPTREND", "momentum_score": 25, "timing_signal": "ENTER_NOW"},
+            "AAPL": {
+                "rsi": 55,
+                "macd_signal": "BULLISH",
+                "bb_position": 0.6,
+                "trend": "UPTREND",
+                "momentum_score": 25,
+                "timing_signal": "ENTER_NOW",
+            },
         },
     }
     macro = {}
@@ -196,7 +235,14 @@ class TestGenerateReportHtml:
         synth = _minimal_synth()
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(
-            synth, fund, tech, macro, census, news, opps, risk,
+            synth,
+            fund,
+            tech,
+            macro,
+            census,
+            news,
+            opps,
+            risk,
             date_str="2026-03-17",
         )
         assert "March 17, 2026" in html
@@ -267,8 +313,14 @@ class TestGenerateReportHtml:
     def test_conviction_delta_shown(self):
         synth = _minimal_synth()
         synth["changes"] = [
-            {"ticker": "AAPL", "delta": 5, "prev_action": "HOLD",
-             "curr_action": "ADD", "prev_conviction": 67, "curr_conviction": 72},
+            {
+                "ticker": "AAPL",
+                "delta": 5,
+                "prev_action": "HOLD",
+                "curr_action": "ADD",
+                "prev_conviction": 67,
+                "curr_conviction": 72,
+            },
         ]
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
@@ -277,16 +329,32 @@ class TestGenerateReportHtml:
     def test_hold_stocks_in_monitor_section(self):
         """v9.0: HOLD stocks appear in compact grid, not in removed deep dive section."""
         synth = _minimal_synth()
-        synth["concordance"].append({
-            "ticker": "MSFT", "signal": "H", "action": "HOLD",
-            "conviction": 60, "fund_score": 90, "fund_view": "BUY",
-            "tech_signal": "HOLD", "rsi": 50, "macro_fit": "FAVORABLE",
-            "census": "ALIGNED", "news_impact": "NEUTRAL",
-            "risk_warning": False, "exret": 8.0, "sector": "Technology",
-            "bull_pct": 65, "bull_weight": 3.5, "bear_weight": 2.0,
-            "beta": 1.0, "max_pct": 5.0, "tech_momentum": 10,
-            "is_opportunity": False, "fund_synthetic": False,
-        })
+        synth["concordance"].append(
+            {
+                "ticker": "MSFT",
+                "signal": "H",
+                "action": "HOLD",
+                "conviction": 60,
+                "fund_score": 90,
+                "fund_view": "BUY",
+                "tech_signal": "HOLD",
+                "rsi": 50,
+                "macro_fit": "FAVORABLE",
+                "census": "ALIGNED",
+                "news_impact": "NEUTRAL",
+                "risk_warning": False,
+                "exret": 8.0,
+                "sector": "Technology",
+                "bull_pct": 65,
+                "bull_weight": 3.5,
+                "bear_weight": 2.0,
+                "beta": 1.0,
+                "max_pct": 5.0,
+                "tech_momentum": 10,
+                "is_opportunity": False,
+                "fund_synthetic": False,
+            }
+        )
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
         # MSFT (HOLD) should appear in HOLD section
@@ -320,32 +388,60 @@ class TestV12P2CapitalEfficiency:
         synth = _minimal_synth()
         synth["concordance"] = [
             {
-                "ticker": "LOW_CE", "signal": "B", "action": "ADD",
-                "conviction": 70, "fund_score": 70, "fund_view": "BUY",
-                "tech_signal": "HOLD", "rsi": 50, "macro_fit": "NEUTRAL",
-                "census": "NEUTRAL", "news_impact": "NEUTRAL",
-                "risk_warning": False, "exret": 5.0, "sector": "Tech",
-                "bull_pct": 60, "bull_weight": 3.0, "bear_weight": 2.0,
-                "beta": 1.0, "max_pct": 5.0, "tech_momentum": 0,
-                "is_opportunity": False, "fund_synthetic": False,
+                "ticker": "LOW_CE",
+                "signal": "B",
+                "action": "ADD",
+                "conviction": 70,
+                "fund_score": 70,
+                "fund_view": "BUY",
+                "tech_signal": "HOLD",
+                "rsi": 50,
+                "macro_fit": "NEUTRAL",
+                "census": "NEUTRAL",
+                "news_impact": "NEUTRAL",
+                "risk_warning": False,
+                "exret": 5.0,
+                "sector": "Tech",
+                "bull_pct": 60,
+                "bull_weight": 3.0,
+                "bear_weight": 2.0,
+                "beta": 1.0,
+                "max_pct": 5.0,
+                "tech_momentum": 0,
+                "is_opportunity": False,
+                "fund_synthetic": False,
                 "capital_efficiency": 3.0,
             },
             {
-                "ticker": "HIGH_CE", "signal": "B", "action": "ADD",
-                "conviction": 70, "fund_score": 70, "fund_view": "BUY",
-                "tech_signal": "HOLD", "rsi": 50, "macro_fit": "NEUTRAL",
-                "census": "NEUTRAL", "news_impact": "NEUTRAL",
-                "risk_warning": False, "exret": 15.0, "sector": "Health",
-                "bull_pct": 60, "bull_weight": 3.0, "bear_weight": 2.0,
-                "beta": 1.0, "max_pct": 5.0, "tech_momentum": 0,
-                "is_opportunity": False, "fund_synthetic": False,
+                "ticker": "HIGH_CE",
+                "signal": "B",
+                "action": "ADD",
+                "conviction": 70,
+                "fund_score": 70,
+                "fund_view": "BUY",
+                "tech_signal": "HOLD",
+                "rsi": 50,
+                "macro_fit": "NEUTRAL",
+                "census": "NEUTRAL",
+                "news_impact": "NEUTRAL",
+                "risk_warning": False,
+                "exret": 15.0,
+                "sector": "Health",
+                "bull_pct": 60,
+                "bull_weight": 3.0,
+                "bear_weight": 2.0,
+                "beta": 1.0,
+                "max_pct": 5.0,
+                "tech_momentum": 0,
+                "is_opportunity": False,
+                "fund_synthetic": False,
                 "capital_efficiency": 20.0,
             },
         ]
         fund, tech, macro, census, news, opps, risk = _minimal_reports()
         html = generate_report_html(synth, fund, tech, macro, census, news, opps, risk)
         # In the Action Items section, HIGH_CE should appear before LOW_CE
-        action_section = html[html.index("Action Items"):]
+        action_section = html[html.index("Action Items") :]
         pos_high = action_section.index("HIGH_CE")
         pos_low = action_section.index("LOW_CE")
         assert pos_high < pos_low
@@ -367,9 +463,21 @@ class TestTrackRecordSection:
             "total_evaluated": 8,
             "actions": {
                 "ADD": {
-                    "count": 5, "hit_rate": 60.0, "avg_return": 2.5,
-                    "best": {"ticker": "NVDA", "return_pct": 8.3, "conviction": 72, "action": "ADD"},
-                    "worst": {"ticker": "MSFT", "return_pct": -2.1, "conviction": 55, "action": "ADD"},
+                    "count": 5,
+                    "hit_rate": 60.0,
+                    "avg_return": 2.5,
+                    "best": {
+                        "ticker": "NVDA",
+                        "return_pct": 8.3,
+                        "conviction": 72,
+                        "action": "ADD",
+                    },
+                    "worst": {
+                        "ticker": "MSFT",
+                        "return_pct": -2.1,
+                        "conviction": 55,
+                        "action": "ADD",
+                    },
                 },
                 "HOLD": {"count": 3, "hit_rate": 66.7, "avg_return": 0.3},
             },

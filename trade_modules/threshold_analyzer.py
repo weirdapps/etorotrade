@@ -211,7 +211,7 @@ def generate_threshold_report(market_path: Path | None = None) -> str:
     signal_counts = df["BS"].value_counts()
     total = len(df)
     for signal, count in signal_counts.items():
-        report.append(f"  {signal}: {count} ({count/total*100:.1f}%)")
+        report.append(f"  {signal}: {count} ({count / total * 100:.1f}%)")
     report.append("")
 
     # Selectivity assessment

@@ -522,7 +522,7 @@ class TestWalkForwardCalibration:
         for i in range(6):
             bt.history.append(
                 {
-                    "date": f"2026-01-{10+i:02d}",
+                    "date": f"2026-01-{10 + i:02d}",
                     "concordance": [
                         {
                             "ticker": "AAPL",
@@ -542,7 +542,7 @@ class TestWalkForwardCalibration:
             )
         # Populate returns for all entries
         bt.forward_returns = {
-            f"AAPL:2026-01-{10+i:02d}": {"T+7": 3.0 + i, "T+30": 5.0 + i} for i in range(6)
+            f"AAPL:2026-01-{10 + i:02d}": {"T+7": 3.0 + i, "T+30": 5.0 + i} for i in range(6)
         }
         report = bt.generate_calibration_report()
         assert "walk_forward" in report

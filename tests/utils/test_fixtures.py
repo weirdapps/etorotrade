@@ -35,7 +35,7 @@ def create_paginated_data(num_pages: int = 3, items_per_page: int = 3) -> list[d
         item_counter += items_per_page
 
         # Last page has no next token
-        next_token = f"page{page_num+1}" if page_num < num_pages else None
+        next_token = f"page{page_num + 1}" if page_num < num_pages else None
 
         pages.append({"items": page_items, "next_page_token": next_token})
 
@@ -70,9 +70,9 @@ def create_mock_fetcher(pages: list[dict[str, Any]]) -> Callable[[str | None], d
     return mock_fetcher
 
 
-def create_bulk_fetch_mocks() -> (
-    tuple[list[int], Callable[[Any], dict[str, Any]], Callable[[dict[str, Any]], int]]
-):
+def create_bulk_fetch_mocks() -> tuple[
+    list[int], Callable[[Any], dict[str, Any]], Callable[[dict[str, Any]], int]
+]:
     """
         Create mock objects for bulk fetch tests.
 

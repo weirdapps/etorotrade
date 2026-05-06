@@ -285,7 +285,7 @@ def display_processing_stats():
             )
             if stats["cache_hits"] > 0:
                 print(
-                    f"   Cache hits: {stats['cache_hits']} ({stats['cache_hits']*100//total}% from cache)"
+                    f"   Cache hits: {stats['cache_hits']} ({stats['cache_hits'] * 100 // total}% from cache)"
                 )
         _last_processing_stats = None  # Clear after displaying
 
