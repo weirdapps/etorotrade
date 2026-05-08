@@ -1383,10 +1383,32 @@ def generate_report_html(
         )
     )
 
+    # CIO v37+: Data-quality banner — surface portfolio-data degradation so
+    # readers know action cards may be missing live exposure context.
+    _dq_warnings = synth.get("data_quality_warnings", []) or []
+    for _dqw in _dq_warnings:
+        h.append(
+            f'<div style="background:#fffbeb;border:1px solid #fde68a;'
+            f"border-radius:4px;padding:10px 14px;margin-bottom:14px;"
+            f'font-size:12px;color:#92400e;">'
+            f"&#9888; <b>DATA QUALITY:</b> {e(str(_dqw))}</div>"
+        )
+
     # CIO v36: Per-action sizing + bull/bear narrative helpers
+    # Primary: synth.portfolio_constraints.current_stock_exposures (set by
+    # generate_synthesis_output when current_positions is passed in).
+    # Fallback (CIO v37+): risk.json position_limits[*].current_pct, which the
+    # Risk Manager already populates from live portfolio data. Defense-in-depth
+    # against orchestrators that don't yet wire current_positions through.
     _cur_pos_map = (synth.get("portfolio_constraints", {}) or {}).get(
         "current_stock_exposures", {}
     ) or {}
+    if not _cur_pos_map:
+        _cur_pos_map = {
+            t: float(rec.get("current_pct", 0.0))
+            for t, rec in (pos_limits or {}).items()
+            if isinstance(rec, dict) and rec.get("current_pct")
+        }
 
     def _key_metrics_line(en, c):
         """Compact key metrics row for action cards."""
