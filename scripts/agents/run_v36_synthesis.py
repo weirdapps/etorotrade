@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import csv
 import json
+import os
+import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 # Make the repo importable
@@ -102,6 +105,108 @@ def enrich_sector_from_fundamentals(sector_map, fund):
         if sector:
             sector_map[t] = sector
     return sector_map
+
+
+def _keychain_get(account: str, service: str) -> str:
+    """Fetch a secret from macOS keychain, return '' on failure."""
+    try:
+        result = subprocess.run(
+            ["security", "find-generic-password", "-a", account, "-s", service, "-w"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return ""
+
+
+def fetch_current_positions_from_etoro_api(
+    sector_map: dict[str, str] | None = None,
+) -> tuple[dict[str, float], dict[str, float], float, str | None]:
+    """
+    Fetch live position weights directly from the eToro Portfolio API.
+
+    Returns (stock_pcts, sector_pcts, total_equity, error_message).
+    On success, error_message is None. On failure, returns ({}, {}, 0.0, "...")
+    so the caller can warn and degrade gracefully.
+
+    stock_pcts: {ticker: current_pct_of_equity}
+    sector_pcts: {sector_name: current_pct_of_equity}
+    """
+    try:
+        import requests
+    except ImportError:
+        return {}, {}, 0.0, "requests library not installed"
+
+    public_key = os.environ.get("ETORO_PUBLIC_KEY") or _keychain_get(
+        "etoro-api", "etoro-public-key"
+    )
+    user_key = os.environ.get("ETORO_USER_KEY") or _keychain_get("etoro-api", "etoro-user-key")
+    if not public_key or not user_key:
+        return {}, {}, 0.0, "eToro API credentials not found in env or keychain"
+
+    headers = {
+        "x-api-key": public_key,
+        "x-user-key": user_key,
+        "x-request-id": str(uuid.uuid4()),
+        "Content-Type": "application/json",
+    }
+    try:
+        resp = requests.get("https://api.etoro.com/api/v1/portfolio", headers=headers, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except (requests.RequestException, ValueError) as exc:
+        return {}, {}, 0.0, f"eToro API request failed: {exc}"
+
+    total_equity = float(data.get("totalEquity") or 0.0)
+    if total_equity <= 0:
+        return {}, {}, 0.0, "eToro API returned non-positive totalEquity"
+
+    # Aggregate positions per symbol (multiple lots per ticker possible).
+    # Direction is irrelevant for capital-at-risk: longs and shorts both consume
+    # equivalent % of equity in eToro's account model.
+    raw_value: dict[str, float] = {}
+    for pos in data.get("positions", []):
+        sym = (pos.get("symbol") or "").strip()
+        if not sym:
+            continue
+        units = float(pos.get("units") or 0.0)
+        rate = float(pos.get("currentRate") or pos.get("openRate") or 0.0)
+        raw_value[sym] = raw_value.get(sym, 0.0) + units * rate
+
+    stock_pcts = {sym: round(val / total_equity * 100, 4) for sym, val in raw_value.items()}
+
+    sector_pcts: dict[str, float] = {}
+    smap = sector_map or {}
+    for sym, pct in stock_pcts.items():
+        sec = smap.get(sym, "Other")
+        sector_pcts[sec] = round(sector_pcts.get(sec, 0.0) + pct, 4)
+
+    return stock_pcts, sector_pcts, total_equity, None
+
+
+def fallback_positions_from_risk_report(
+    risk_report: dict, sector_map: dict[str, str] | None = None
+) -> tuple[dict[str, float], dict[str, float]]:
+    """
+    Derive current_pct and sector exposures from risk.json position_limits.
+
+    Used when the live eToro API call fails — risk_analysis.py was already
+    fed live data via portfolio.csv, so this is the next-best source.
+    """
+    plim = risk_report.get("position_limits", {}) or {}
+    stock_pcts = {
+        t: float(rec.get("current_pct") or 0.0) for t, rec in plim.items() if isinstance(rec, dict)
+    }
+    sector_pcts: dict[str, float] = {}
+    smap = sector_map or {}
+    for sym, pct in stock_pcts.items():
+        sec = smap.get(sym) or (plim.get(sym, {}) if isinstance(plim.get(sym), dict) else {}).get(
+            "sector", "Other"
+        )
+        sector_pcts[sec] = round(sector_pcts.get(sec, 0.0) + pct, 4)
+    return stock_pcts, sector_pcts
 
 
 def main():
@@ -214,6 +319,36 @@ def main():
         portfolio_sectors[s] = portfolio_sectors.get(s, 0) + 1
     sector_gaps = detect_sector_gaps(portfolio_sectors, macro.get("sector_rankings", {}))
 
+    # Fetch live position weights from eToro API (single source of truth).
+    # Fall back to risk.json's position_limits if the API call fails — that
+    # data was itself sourced from portfolio.csv which the daily-signals
+    # workflow refreshes from the API.
+    print("Fetching live positions from eToro API...", file=sys.stderr)
+    stock_pcts, sector_pcts, total_equity, api_error = fetch_current_positions_from_etoro_api(
+        sector_map=sector_map
+    )
+    portfolio_data_warning = None
+    if api_error:
+        print(f"  WARN: eToro API unavailable ({api_error})", file=sys.stderr)
+        stock_pcts, sector_pcts = fallback_positions_from_risk_report(risk, sector_map)
+        if stock_pcts:
+            portfolio_data_warning = (
+                f"eToro API unavailable ({api_error}); using risk.json position_limits "
+                "as fallback (may be up to 24h stale)."
+            )
+            print(f"  Fallback: {len(stock_pcts)} positions from risk.json", file=sys.stderr)
+        else:
+            portfolio_data_warning = (
+                f"eToro API unavailable ({api_error}) AND risk.json has no position_limits. "
+                "Action cards will display 0% for current exposure."
+            )
+            print("  Fallback FAILED: no portfolio data available.", file=sys.stderr)
+    else:
+        print(
+            f"  Live: {len(stock_pcts)} positions, ${total_equity:,.0f} total equity",
+            file=sys.stderr,
+        )
+
     print("Generating synthesis output...", file=sys.stderr)
     synthesis = generate_synthesis_output(
         concordance=concordance,
@@ -225,7 +360,12 @@ def main():
         sector_gaps=sector_gaps,
         census_ts_map=census_ts_map,
         opportunity_report=opps,
+        current_positions=stock_pcts,
+        current_sector_exposures=sector_pcts,
+        sector_map=sector_map,
     )
+    if portfolio_data_warning:
+        synthesis.setdefault("data_quality_warnings", []).append(portfolio_data_warning)
     pr = risk.get("portfolio_risk", {})
     synthesis["sharpe_ratio"] = pr.get("sharpe_ratio_1y")
     synthesis["sortino_ratio"] = pr.get("sortino_ratio")

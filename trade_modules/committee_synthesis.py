@@ -205,12 +205,44 @@ ACTIVE_MODIFIERS = _resolve_active_modifiers()
 CIRCUIT_BREAKER_PATH = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
 
 
+def _is_always_active_modifier(key: str) -> bool:
+    """Modifiers that bypass the ACTIVE_MODIFIERS gate.
+
+    These are not noisy signal heuristics (which the v35/v36 gating governs);
+    they are categorical risk facts or framework markers that must always
+    influence conviction. Keep this list small.
+    """
+    if key in (
+        "kill_thesis",
+        "proportionality_cap",
+        "floor_applied",
+        "risk_off_cap",
+        "conviction_decay",
+        "overweight_forced_trim",
+    ):
+        return True
+    # CIO v37+: position-overweight family (dynamic ratio in label)
+    if key.startswith("overweight_"):
+        return True
+    # Adversarial debate adjustments (always active when present)
+    if key.startswith("debate_"):
+        return True
+    # Trim-regime gate marker
+    if key == "trim_regime_gate":
+        return True
+    return False
+
+
 def filter_waterfall(waterfall: dict[str, int]) -> tuple[int, int, dict[str, int]]:
     """Filter waterfall to only active modifiers, shadow-tracking disabled ones.
 
     CIO v35.0: After all modifiers are computed, this function separates
     active modifiers (that influence conviction) from disabled ones (prefixed
     with '~' for shadow tracking). Returns recomputed (bonuses, penalties, filtered_wf).
+
+    CIO v37+: A whitelist of always-active modifiers (see _is_always_active_modifier)
+    bypasses the v35/v36 gating — these are categorical risk facts (e.g. kill
+    thesis, position overweight) rather than noisy signal heuristics.
     """
     filtered = {}
     bonuses = 0
@@ -220,7 +252,7 @@ def filter_waterfall(waterfall: dict[str, int]) -> tuple[int, int, dict[str, int
         if key.startswith("~"):
             filtered[key] = value
             continue
-        if key in ACTIVE_MODIFIERS:
+        if key in ACTIVE_MODIFIERS or _is_always_active_modifier(key):
             filtered[key] = value
             if value > 0:
                 bonuses += value
@@ -2257,6 +2289,50 @@ def compute_dynamic_freshness(
     return 0.6
 
 
+def position_overweight_policy(current_pct: float, position_limit: float) -> tuple[int, bool, str]:
+    """
+    Risk policy: how to penalize / force-trim positions exceeding the cap.
+
+    Returns (conviction_penalty, force_trim, reason).
+    - conviction_penalty: positive int (subtracted from conviction). 0 = no penalty.
+    - force_trim: True → action will be promoted to TRIM regardless of signal.
+    - reason: human-readable label for the waterfall (e.g. "overweight_1.7x").
+
+    Inputs:
+      current_pct: live % of equity in this stock (0 = not held)
+      position_limit: risk-derived max % (max_pct from risk.json)
+
+    POLICY (tunable — current values reflect "moderate risk discipline"):
+      ratio ≤ 1.0   → no penalty                    (within risk budget, incl. at cap)
+      ratio 1.0–1.25 → -5  conviction               (mildly over)
+      ratio 1.25–1.5 → -10 conviction               (over)
+      ratio 1.5–2.0  → -15 conviction + force TRIM  (significantly over)
+      ratio ≥ 2.0    → -25 conviction + force TRIM  (egregiously over)
+
+    Special cases:
+      - position_limit ≤ 0 (cap=0, can't add at all): if currently held,
+        treat as severely overweight → -20 + force TRIM.
+      - current_pct == 0: no-op (new opportunity, not a held position).
+    """
+    if current_pct <= 0:
+        return 0, False, ""
+
+    if position_limit <= 0:
+        # Risk says "no room at all" but we still hold it → force reduction.
+        return 20, True, f"overweight_capped_zero_holding_{current_pct:.1f}pct"
+
+    ratio = current_pct / position_limit
+    if ratio <= 1.0:
+        return 0, False, ""
+    if ratio < 1.25:
+        return 5, False, f"overweight_{ratio:.2f}x"
+    if ratio < 1.5:
+        return 10, False, f"overweight_{ratio:.2f}x"
+    if ratio < 2.0:
+        return 15, True, f"overweight_{ratio:.2f}x"
+    return 25, True, f"overweight_{ratio:.2f}x"
+
+
 def compute_adjustments(
     signal: str,
     fund_score: float,
@@ -2884,6 +2960,7 @@ def synthesize_stock(
     sentiment_volume: str = "LOW",
     signal_triggers: list[str] | None = None,
     signal_trigger_strength: str = "NONE",
+    current_pct: float = 0.0,
 ) -> dict[str, Any]:
     """
     Synthesize a single stock through the full conviction scoring pipeline.
@@ -3587,6 +3664,19 @@ def synthesize_stock(
         if conviction < _pre_riskoff:
             _w["risk_off_cap"] = conviction - _pre_riskoff
 
+    # CIO v37+: Position-overweight penalty (hard risk-budget breach).
+    # Applied AFTER all signal-driven modifiers but BEFORE determine_action so
+    # the conviction drop can naturally demote ADD → HOLD when sized over cap.
+    # See position_overweight_policy() for the curve. Uncapped: this is a
+    # categorical risk fact, not a noisy signal modifier.
+    _ow_penalty, _ow_force_trim, _ow_label = position_overweight_policy(
+        current_pct=float(current_pct or 0.0),
+        position_limit=float(position_limit or 0.0),
+    )
+    if _ow_penalty:
+        conviction -= _ow_penalty
+        _w[_ow_label] = -_ow_penalty
+
     # Step 6: Determine action
     # CIO v17 H4.b: Pass rolling-percentile thresholds when supplied;
     # determine_action falls back to legacy fixed cuts otherwise.
@@ -3601,16 +3691,19 @@ def synthesize_stock(
     # CIO v17 M2: Suppress whipsaw TRIMs in trending markets.
     # Empirical T+30: TRIM hit rate 25%, avg α +2.75% — TRIMs went the wrong
     # way in a trend. Risk-driven TRIMs (kill thesis, RSI≥80, large position,
-    # risk_warning, tech EXIT/AVOID) still pass through. Position-percent
-    # proxy uses position_limit (Risk Manager's per-stock cap) since the live
-    # held % is not always available at synthesis time.
+    # risk_warning, tech EXIT/AVOID) still pass through.
+    # CIO v37+: position_pct now wired from live eToro API (current_pct param).
+    # Falls back to position_limit when current_pct is zero (new opportunities
+    # not in portfolio) — preserves prior behavior for that case.
+    _live_pct = float(current_pct or 0.0)
+    _trim_gate_pct = _live_pct if _live_pct > 0 else float(position_limit or 0.0)
     gated_action, regime_gate_label = apply_trim_regime_gate(
         action,
         regime=regime,
         regime_momentum=regime_momentum,
         tech_signal=tech_signal,
         rsi=rsi,
-        position_pct=float(position_limit or 0.0),
+        position_pct=_trim_gate_pct,
         kill_thesis_triggered=kill_thesis_triggered,
         risk_warning=risk_warning,
     )
@@ -3647,6 +3740,15 @@ def synthesize_stock(
             action = "TRIM"
         elif risk_warning and tech_signal == "AVOID":
             action = "TRIM"
+
+    # CIO v37+: Risk-budget force-TRIM. When the live position is significantly
+    # over the risk-derived cap (see position_overweight_policy), promote any
+    # non-SELL action to TRIM regardless of signal. Bypasses the quality_blocks_trim
+    # gate — being 1.7x over the cap is a risk fact, not a quality opinion.
+    # Does not override SELL (which is even stronger).
+    if _ow_force_trim and action not in ("SELL", "TRIM"):
+        action = "TRIM"
+        _w["overweight_forced_trim"] = 0  # 0-delta marker; visible in waterfall
 
     # TRIM conviction recalculation — replace residual buy-case score with
     # trim confidence (how confident we are the position should be reduced)
@@ -4192,6 +4294,9 @@ def _synthesize_with_lookups(
     news_impact = _resolve_news_impact(lookups["port_news"], ticker)
     rl = lookups["risk_limits"].get(ticker, {})
     pos_limit = rl.get("max_pct", 5.0) if isinstance(rl, dict) else 5.0
+    # Live position weight from risk.json position_limits (ultimately sourced
+    # from the eToro API). Defaults to 0 = not currently held.
+    cur_pct = float(rl.get("current_pct", 0.0)) if isinstance(rl, dict) else 0.0
     ts_trend = census_ts_map.get(ticker, "stable")
 
     # CIO v11.0 L3: Extract earnings surprise from fundamental agent data
@@ -4283,6 +4388,7 @@ def _synthesize_with_lookups(
         sentiment_volume=sent_vol,
         signal_triggers=sig_triggers,
         signal_trigger_strength=sig_trigger_strength,
+        current_pct=cur_pct,
     )
 
 
