@@ -5,7 +5,9 @@ Basic coverage tests for the signal performance tracking functionality.
 """
 
 import tempfile
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -170,8 +172,11 @@ class TestIPOGracePeriod:
 
         yaml_config = get_yaml_config()
 
-        # ETOR should be detected as recent IPO
-        result = is_recent_ipo("ETOR", yaml_config)
+        # Freeze time so ETOR (IPO 2025-05-14) is always within the 12-month grace period
+        with patch("trade_modules.analysis.signals.datetime") as mock_dt:
+            mock_dt.now.return_value = datetime(2025, 9, 1)
+            mock_dt.strptime = datetime.strptime
+            result = is_recent_ipo("ETOR", yaml_config)
         assert result is True
 
     def test_is_recent_ipo_old(self):
