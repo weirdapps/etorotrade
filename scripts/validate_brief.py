@@ -90,7 +90,6 @@ def _is_news_sourced(text: str, match_start: int) -> bool:
 
 def _is_ticker_price(text: str, match_start: int) -> bool:
     """Check if a $NNN pattern is actually a $TICKER reference."""
-    before = text[max(0, match_start - 1) : match_start]
     after_end = match_start + 20
     after = text[match_start:after_end]
     ticker_match = TICKER_RE.match(after)

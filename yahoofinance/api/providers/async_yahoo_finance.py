@@ -12,24 +12,14 @@ from typing import Any, TypeVar
 import aiohttp
 import pandas as pd
 
-from yahoofinance.core.errors import APIError, ValidationError, YFinanceError
-
-from ...core.logging import get_logger
-from ...utils.error_handling import with_retry
-
-# Define constants for repeated strings
-DEFAULT_ERROR_MESSAGE = "An error occurred"
-EARNINGS_DATE_COL = "Earnings Date"
-
-# Use relative imports
 from ...core.errors import APIError, NetworkError, RateLimitError, ValidationError, YFinanceError
+from ...core.logging import get_logger
 from ...data.cache_compatibility import LRUCache
 from ...utils.async_utils.enhanced import AsyncRateLimiter, enhanced_async_rate_limited
+from ...utils.error_handling import with_retry
 from ...utils.market.ticker_utils import is_stock_ticker, validate_ticker  # Keep this import
 from ...utils.network.circuit_breaker import CircuitOpenError
 from ...utils.network.session_manager import get_shared_session
-
-# Import from split modules
 from .async_modules import (
     POSITIVE_GRADES,
     calculate_analyst_momentum,
@@ -46,6 +36,10 @@ from .async_modules import (
 from .base_provider import AsyncFinanceDataProvider
 
 logger = get_logger(__name__)
+
+# Define constants for repeated strings
+DEFAULT_ERROR_MESSAGE = "An error occurred"
+EARNINGS_DATE_COL = "Earnings Date"
 
 T = TypeVar("T")  # Return type for async functions
 
@@ -176,10 +170,9 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
         try:
             return await _do_fetch()
-        except CircuitOpenError as e:
-            retry_after = e.retry_after
-            {"status_code": 503, "retry_after": retry_after}
-            raise e
+        except CircuitOpenError:
+            # 503 — caller is expected to honour the circuit's retry_after
+            raise
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_ticker_info(
@@ -197,16 +190,10 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
         # Check if we have valid cached non-price data (within TTL)
         cached_entry = self._ticker_cache.get(ticker)
-        use_cached_static = False
-        cached_static_data = {}
-
         if cached_entry:
             cache_age = time.time() - cached_entry.get("timestamp", 0)
             if cache_age < self._cache_ttl_seconds:
-                # Cache is valid - we can use non-price fields
-                use_cached_static = True
-                cached_static_data = cached_entry.get("data", {})
-                logger.debug(f"Using cached static data for {ticker} (age: {cache_age:.0f}s)")
+                logger.debug(f"Cached static data available for {ticker} (age: {cache_age:.0f}s)")
             else:
                 logger.debug(
                     f"Cache expired for {ticker} (age: {cache_age:.0f}s > {self._cache_ttl_seconds}s)"
@@ -502,14 +489,14 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             ModuleNotFoundError,
             RuntimeError,
             MemoryError,
-        ) as e:
-            raise e
+        ):
+            raise
         except (OSError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(
                 f"Network error when fetching historical data for {ticker}: {str(e)}"
             )
-        except (APIError, ValidationError, RateLimitError, NetworkError) as exc:
-            raise exc
+        except (APIError, ValidationError, RateLimitError, NetworkError):
+            raise
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_earnings_data(self, ticker: str) -> dict[str, Any]:
@@ -733,12 +720,12 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             ModuleNotFoundError,
             RuntimeError,
             MemoryError,
-        ) as e:
-            raise e
+        ):
+            raise
         except (OSError, ConnectionError, aiohttp.ClientError) as e:
             raise NetworkError(f"Network error when searching tickers for '{query}': {str(e)}")
-        except (APIError, ValidationError, RateLimitError, NetworkError) as exc:
-            raise exc
+        except (APIError, ValidationError, RateLimitError, NetworkError):
+            raise
 
     @enhanced_async_rate_limited(max_retries=0)
     async def get_price_data(self, ticker: str) -> dict[str, Any]:

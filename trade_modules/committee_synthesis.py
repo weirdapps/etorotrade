@@ -3548,7 +3548,7 @@ def synthesize_stock(
                 _w[key] = emitted
         bonuses = min(bonuses + capped, 20)
         if raw_sum > capped:
-            _w["fund_composite_cap"] = raw_sum - capped  # positive = absorbed
+            _w["fund_composite_cap"] = raw_sum - capped  # value above zero means absorbed
 
     # ── CIO v23.4: Debt quality modifier ─────────────────────────────
     debt_quality = fund_data.get("debt_quality") or {}

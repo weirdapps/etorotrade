@@ -605,8 +605,8 @@ class YahooFinanceBaseProvider(ABC):
             default_cache_manager.set(cache_key, ticker_obj, data_type="ticker_info")
 
             return ticker_obj
-        except YFinanceError as e:
-            raise e
+        except YFinanceError:
+            raise
 
     def calculate_upside_potential(self, current_price, target_price):
         """
@@ -689,7 +689,7 @@ class YahooFinanceBaseProvider(ABC):
             return history
         except YFinanceError as e:
             logger.error(f"Error fetching historical data for {ticker}: {str(e)}")
-            raise e
+            raise
 
     def _get_price_data(self, ticker: str) -> dict[str, Any]:
         """
@@ -729,7 +729,7 @@ class YahooFinanceBaseProvider(ABC):
             }
         except YFinanceError as e:
             logger.error(f"Error extracting price data for {ticker}: {str(e)}")
-            raise e
+            raise
 
     def _process_ticker_info(
         self, ticker: str, ticker_obj: yf.Ticker, skip_insider_metrics: bool = False
@@ -784,7 +784,7 @@ class YahooFinanceBaseProvider(ABC):
             return result
         except YFinanceError as e:
             logger.error(f"Error processing ticker info for {ticker}: {str(e)}")
-            raise e
+            raise
 
     def _get_analyst_consensus(self, ticker_obj: yf.Ticker, ticker: str) -> dict[str, Any]:
         """

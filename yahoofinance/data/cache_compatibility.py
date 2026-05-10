@@ -55,8 +55,8 @@ class CacheManager:
         6. set(key, value, ttl=300, data_type="something")  # mixed kwargs
         """
         # Handle keyword arguments for backward compatibility
+        # data_type is accepted but intentionally dropped (legacy signature)
         ttl = kwargs.get("ttl", None)
-        data_type = kwargs.get("data_type", None)
 
         # If ttl wasn't provided as keyword, try to determine from positional args
         if ttl is None:

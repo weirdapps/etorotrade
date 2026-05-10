@@ -323,7 +323,7 @@ def calculate_expected_return(df: pd.DataFrame) -> pd.DataFrame:
     result_df = df.copy()
 
     try:
-        # EXRET = upside * (buy_percentage / 100)
+        # Formula: EXRET equals upside times buy_percentage divided by 100
         upside_col = (
             result_df.get("upside")
             if "upside" in result_df.columns

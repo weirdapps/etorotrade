@@ -201,7 +201,7 @@ class DisplayFormatter:
                         # Convert decimal to percentage (0.1983 -> 19.8)
                         return f"{float(x) * 100:.1f}"
                     return "N/A"
-                except:
+                except (ValueError, TypeError):
                     return "N/A"
 
             df["ROE"] = df["ROE"].apply(format_roe)
@@ -214,7 +214,7 @@ class DisplayFormatter:
                     if pd.notna(x) and x != "" and x != "--":
                         return f"{float(x):.1f}"
                     return "N/A"
-                except:
+                except (ValueError, TypeError):
                     return "N/A"
 
             df["DE"] = df["DE"].apply(format_de)

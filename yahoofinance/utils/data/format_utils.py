@@ -310,16 +310,9 @@ def calculate_position_size(
     # If EXRET is not available, use fallback logic based on market cap only
     use_fallback = exret is None or exret <= 0
 
-    # Get portfolio configuration
-    portfolio_value = PORTFOLIO_CONFIG["PORTFOLIO_VALUE"]
+    # Get portfolio configuration (only min/max bounds; tier sizing comes from YAML)
     min_position = PORTFOLIO_CONFIG["MIN_POSITION_USD"]
     max_position = PORTFOLIO_CONFIG["MAX_POSITION_USD"]
-    base_pct = PORTFOLIO_CONFIG["BASE_POSITION_PCT"]
-
-    # Market cap thresholds
-    small_cap = PORTFOLIO_CONFIG["SMALL_CAP_THRESHOLD"]
-    mid_cap = PORTFOLIO_CONFIG["MID_CAP_THRESHOLD"]
-    large_cap = PORTFOLIO_CONFIG["LARGE_CAP_THRESHOLD"]
 
     # NEW APPROACH: YAML-Based Position Sizing
     try:
@@ -341,13 +334,10 @@ def calculate_position_size(
             # Step 1: Determine tier-based position size (YAML-driven)
             if market_cap >= value_min:  # VALUE tier (≥$100B)
                 multiplier = tier_multipliers.get("value", 4)
-                tier_name = "VALUE"
             elif market_cap >= growth_min:  # GROWTH tier ($5B-$100B)
                 multiplier = tier_multipliers.get("growth", 2)
-                tier_name = "GROWTH"
             else:  # BETS tier (<$5B)
                 multiplier = tier_multipliers.get("bets", 1)
-                tier_name = "BETS"
 
             # Calculate base position using YAML configuration
             base_position = base_size * multiplier
@@ -355,24 +345,18 @@ def calculate_position_size(
             # Fallback to hardcoded values if YAML not available
             if market_cap >= 100_000_000_000:  # VALUE (≥$100B)
                 base_position = 2500 * 4  # $10,000
-                tier_name = "VALUE"
             elif market_cap >= 5_000_000_000:  # GROWTH ($5B-$100B)
                 base_position = 2500 * 2  # $5,000
-                tier_name = "GROWTH"
             else:  # BETS (<$5B)
                 base_position = 2500 * 1  # $2,500
-                tier_name = "BETS"
     except (KeyError, ValueError, TypeError, OSError):
         # If YAML loading fails, use hardcoded fallback
         if market_cap >= 100_000_000_000:  # VALUE (≥$100B)
             base_position = 2500 * 4  # $10,000
-            tier_name = "VALUE"
         elif market_cap >= 5_000_000_000:  # GROWTH ($5B-$100B)
             base_position = 2500 * 2  # $5,000
-            tier_name = "GROWTH"
         else:  # BETS (<$5B)
             base_position = 2500 * 1  # $2,500
-            tier_name = "BETS"
 
     # Step 2: Linear beta risk adjustment (secondary driver)
     risk_multiplier = 1.0

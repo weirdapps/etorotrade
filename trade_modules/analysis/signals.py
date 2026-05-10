@@ -655,12 +655,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                     logger.info(
                         f"Ticker {ticker}: BITCOIN_PROXY beta {row_beta_val:.1f} > {max_beta_btc}, using equity eval"
                     )
-                    pass  # Fall through to standard evaluation
+                    # Fall through to standard evaluation
                 elif not pd.isna(row_si_val) and row_si_val > max_si_btc:
                     logger.info(
                         f"Ticker {ticker}: BITCOIN_PROXY SI {row_si_val:.1f}% > {max_si_btc}%, using equity eval"
                     )
-                    pass  # Fall through to standard evaluation
+                    # Fall through to standard evaluation
                 else:
                     # Hybrid logic: combine momentum with relaxed analyst thresholds
                     # Bitcoin proxies are highly volatile, so standard thresholds don't apply
@@ -674,7 +674,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                         logger.info(
                             f"Ticker {ticker}: BITCOIN_PROXY has no momentum data, using equity eval"
                         )
-                        pass  # Will continue to standard evaluation
+                        # Will continue to standard evaluation
                     elif momentum_ok and analyst_ok:
                         # Both momentum and analyst sentiment positive
                         meets_200dma = row_above_200dma is True or not require_200dma
@@ -1133,8 +1133,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                     f"upside={row_upside:.1f}% >= {quality_override_upside}%)"
                 )
                 # Skip SELL evaluation entirely for quality stocks
-                # They will be evaluated for BUY criteria below
-                pass  # Fall through to BUY evaluation
+                # They will be evaluated for BUY criteria below — fall through
             elif am_blocks_override and row_buy_pct >= quality_override_buy_pct:
                 logger.info(
                     f"Ticker {ticker}: QUALITY OVERRIDE BLOCKED by momentum gate "
