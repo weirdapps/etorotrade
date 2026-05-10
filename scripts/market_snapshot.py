@@ -12,9 +12,11 @@ Usage:
 import argparse
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import yfinance as yf
+
+UTC = timezone.utc  # Python 3.10 compat (datetime.UTC is 3.11+)
 
 INSTRUMENTS = {
     # European indices

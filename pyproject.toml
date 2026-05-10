@@ -179,7 +179,10 @@ ignore_errors = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+# Match CI matrix (test job runs Python 3.10). Setting to py311 caused ruff
+# to auto-apply UP017 (datetime.UTC alias) which is 3.11+ only and broke
+# pytest collection on 3.10 runners.
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
