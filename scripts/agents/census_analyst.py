@@ -4,8 +4,10 @@ Census Intelligence Analyst - Analyzes wisdom of 1,500 popular investors on eTor
 """
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
+
+UTC = timezone.utc  # Python 3.10 compat (datetime.UTC is 3.11+)
 
 # Portfolio tickers
 PORTFOLIO = [
