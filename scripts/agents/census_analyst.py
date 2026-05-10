@@ -4,9 +4,7 @@ Census Intelligence Analyst - Analyzes wisdom of 1,500 popular investors on eTor
 """
 
 import json
-from datetime import datetime, timezone
-
-UTC = timezone.utc  # Python 3.10 compat (datetime.UTC is 3.11+)
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Portfolio tickers
@@ -65,7 +63,7 @@ def load_time_series(path):
     try:
         with open(path) as f:
             return json.load(f)
-    except:
+    except (OSError, json.JSONDecodeError):
         return {}
 
 
@@ -74,7 +72,7 @@ def load_signals(path):
     try:
         with open(path) as f:
             return json.load(f)
-    except:
+    except (OSError, json.JSONDecodeError):
         return {}
 
 
@@ -192,9 +190,9 @@ def main():
     ts = load_time_series(ts_file)
     signals = load_signals(signals_file)
 
-    # Extract analyses
-    top100 = census["analyses"][0]  # investorCount=100
-    broad = census["analyses"][3]  # investorCount=1500
+    # Extract analyses (top-100 investors and broad 1500-investor set)
+    top100 = census["analyses"][0]
+    broad = census["analyses"][3]
 
     # Build instrument map
     instruments = {}
@@ -301,7 +299,7 @@ def main():
         signal_data = signals.get(ticker, {})
         signal_strength = get_signal_strength(signal_data)
         census_strength = get_census_strength(holders_t100)
-        div_score, div_interp, div_note = calculate_divergence(signal_strength, census_strength)
+        div_score, div_interp, _ = calculate_divergence(signal_strength, census_strength)
 
         stocks[ticker] = {
             "holders_pct_top100": holders_t100,

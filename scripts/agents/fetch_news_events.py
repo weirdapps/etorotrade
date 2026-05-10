@@ -52,7 +52,7 @@ def fetch_earnings_calendar(tickers):
                     if isinstance(earnings_date_raw, str):
                         try:
                             earnings_date = datetime.strptime(earnings_date_raw, "%Y-%m-%d")
-                        except:
+                        except ValueError:
                             continue
                     elif hasattr(earnings_date_raw, "timestamp"):
                         earnings_date = earnings_date_raw

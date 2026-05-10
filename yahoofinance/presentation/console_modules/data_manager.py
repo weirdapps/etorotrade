@@ -263,7 +263,7 @@ def _load_tickers_from_file(file_path: str, ticker_column: list[str]) -> list[st
 
         return tickers
     except YFinanceError:
-        pass  # Silent error handling
+        # Silent error handling — empty list signals no tickers
         return []
 
 

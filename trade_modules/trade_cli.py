@@ -278,8 +278,8 @@ async def handle_trade_analysis_direct(display, trade_choice, get_provider=None,
         app_logger: Logger instance (optional)
     """
     try:
-        # Get file paths
-        output_dir, input_dir, market_file, portfolio_file, _ = get_file_paths()
+        # Get file paths (only output_dir is used; others kept for tuple compat)
+        output_dir, _, _, _, _ = get_file_paths()
 
         # Use etoro.csv as the source data since it contains the analyzed market data with BS signals
         # The market.csv file may be empty or small; etoro.csv has the full analyzed universe
@@ -584,10 +584,8 @@ def _display_empty_results(columns, title, output_filename, app_logger):
     display_empty_table(columns, title)
 
     try:
-        from trade_modules.utils import get_file_paths
         from yahoofinance.presentation.html import HTMLGenerator
 
-        output_dir, _, _, _, _ = get_file_paths()
         html_filename = output_filename.replace(".csv", ".html")
         base_filename = os.path.splitext(html_filename)[0]
 

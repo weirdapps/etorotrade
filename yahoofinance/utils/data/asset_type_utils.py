@@ -672,7 +672,7 @@ def universal_sort_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         # Sort by asset priority (ascending) then market cap (descending)
         sorted_df = sorted_df.sort_values(
             [
-                "asset_priority",  # 1=stocks, 2=ETFs, 3=crypto, 4=commodities, 5=other
+                "asset_priority",  # priority order: stocks, ETFs, crypto, commodities, other
                 "market_cap_usd_sort",  # Descending market cap within each asset type
             ],
             ascending=[True, False],

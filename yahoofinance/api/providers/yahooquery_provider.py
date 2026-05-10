@@ -12,19 +12,17 @@ from typing import Any
 import pandas as pd
 from yahooquery import Ticker
 
-from yahoofinance.core.errors import YFinanceError
-
 from ...core.errors import RateLimitError, YFinanceError
 from ...core.logging import get_logger
+from ...utils.network.rate_limiter import rate_limited
 from .base_provider import FinanceDataProvider
 from .yahoo_finance_base import YahooFinanceBaseProvider
+
+logger = get_logger(__name__)
 
 # Define constants for repeated strings
 RATE_LIMIT_ERROR_MESSAGE = "rate limit"
 TOO_MANY_REQUESTS_ERROR_MESSAGE = "too many requests"
-from ...utils.network.rate_limiter import rate_limited
-
-logger = get_logger(__name__)
 
 
 class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
@@ -182,7 +180,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                                 earnings_date_obj = pd.Timestamp(earnings_date).date()
                                 if earnings_date_obj < today:
                                     past_earnings.append((earnings_date_obj, earning))
-                            except:
+                            except (ValueError, TypeError):
                                 continue
 
                     # Sort by date descending to get the most recent past date
@@ -814,7 +812,7 @@ class YahooQueryProvider(YahooFinanceBaseProvider, FinanceDataProvider):
                                 earnings_date_obj = pd.Timestamp(earnings_date).date()
                                 if earnings_date_obj < today:
                                     past_earnings.append((earnings_date_obj, earning))
-                            except:
+                            except (ValueError, TypeError):
                                 continue
 
                     # Sort by date descending to get the most recent past date

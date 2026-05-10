@@ -91,7 +91,7 @@ def parse_pct(val):
         return None
     try:
         return float(val.rstrip("%"))
-    except:
+    except (ValueError, TypeError, AttributeError):
         return None
 
 
@@ -101,7 +101,7 @@ def parse_num(val):
         return None
     try:
         return float(val)
-    except:
+    except (ValueError, TypeError):
         return None
 
 
@@ -169,7 +169,7 @@ def get_insider_activity(ticker):
         elif sells > buys * 1.5:
             return "NET_SELLING"
         return "NEUTRAL"
-    except:
+    except (AttributeError, KeyError, ValueError, TypeError, OSError):
         return "NO_DATA"
 
 
@@ -178,7 +178,7 @@ def get_sector(ticker):
     try:
         stock = yf.Ticker(ticker)
         return stock.info.get("sector", "Unknown")
-    except:
+    except (AttributeError, KeyError, ValueError, TypeError, OSError):
         return "Unknown"
 
 

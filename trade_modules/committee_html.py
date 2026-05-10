@@ -4117,9 +4117,7 @@ def generate_report_html(
 
         h.append(_section_close())
 
-    # ══════════════════════════════════════════════════════════════════
-    # EPILOGUE
-    # ══════════════════════════════════════════════════════════════════
+    # ──────────────────────────── EPILOGUE ────────────────────────────
 
     # ── S14: WATCHLIST (CIO v23.3) ──
     watchlist = synth.get("watchlist", [])
@@ -5032,24 +5030,19 @@ def generate_report_from_files(
     # (OAuth 401, etc.) raise BrokenAgentReportError so a broken upstream
     # cannot silently feed empty stubs into synthesis. synthesis.json is
     # required (committee output, not an agent output) so it stays plain.
-    from trade_modules.committee_synthesis import (
-        BrokenAgentReportError,
-        load_agent_report,
-    )
+    from trade_modules.committee_synthesis import load_agent_report
 
     synth = load_json(rd / "synthesis.json")
-    try:
-        fund = load_agent_report(rd / "fundamental.json", agent_name="fundamental")
-        tech = load_agent_report(rd / "technical.json", agent_name="technical")
-        macro = load_agent_report(rd / "macro.json", agent_name="macro")
-        census = load_agent_report(rd / "census.json", agent_name="census")
-        news = load_agent_report(rd / "news.json", agent_name="news")
-        opps = load_agent_report(rd / "opportunity.json", agent_name="opportunity")
-        risk = load_agent_report(rd / "risk.json", agent_name="risk")
-    except BrokenAgentReportError:
-        # Surface the broken-agent failure cleanly. Operator must fix the
-        # upstream before re-running rather than ship a fake-clean report.
-        raise
+    # BrokenAgentReportError is intentionally allowed to propagate. Operator
+    # must fix the upstream before re-running rather than ship a fake-clean
+    # report.
+    fund = load_agent_report(rd / "fundamental.json", agent_name="fundamental")
+    tech = load_agent_report(rd / "technical.json", agent_name="technical")
+    macro = load_agent_report(rd / "macro.json", agent_name="macro")
+    census = load_agent_report(rd / "census.json", agent_name="census")
+    news = load_agent_report(rd / "news.json", agent_name="news")
+    opps = load_agent_report(rd / "opportunity.json", agent_name="opportunity")
+    risk = load_agent_report(rd / "risk.json", agent_name="risk")
 
     # Build name map — CSV names are truncated (10 char), so enrich with yfinance
     name_map: dict[str, str] = {}

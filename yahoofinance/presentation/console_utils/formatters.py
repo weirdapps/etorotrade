@@ -12,7 +12,7 @@ class ConsoleFormatter:
             if isinstance(value, (int, float)):
                 return f"{value:,.2f}"
             return str(value)
-        except:
+        except (ValueError, TypeError):
             return "--"
 
     @staticmethod
@@ -21,5 +21,5 @@ class ConsoleFormatter:
             return "--"
         try:
             return f"{float(value):.1f}%"
-        except:
+        except (ValueError, TypeError):
             return "--"

@@ -144,7 +144,6 @@ def get_provider(
 
     # Create a cache key based on the provider key and kwargs
     # Only consider basic kwargs that don't affect instance behavior
-    cache_key_parts = [provider_key]
     cacheable_kwargs = {}
     for key, value in kwargs.items():
         if key in ("max_retries", "retry_delay", "max_concurrency", "enable_circuit_breaker"):

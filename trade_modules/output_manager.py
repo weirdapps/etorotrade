@@ -513,7 +513,7 @@ def format_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
                         # Convert to percentage value with 1 decimal place (no % sign)
                         return f"{float(x) * 100:.1f}"
                     return "--"
-                except:
+                except (ValueError, TypeError):
                     return "--"
 
             formatted_df["ROE"] = formatted_df["ROE"].apply(format_roe)
@@ -527,7 +527,7 @@ def format_display_dataframe(display_df: pd.DataFrame) -> pd.DataFrame:
                         # Format to 1 decimal place
                         return f"{float(x):.1f}"
                     return "--"
-                except:
+                except (ValueError, TypeError):
                     return "--"
 
             formatted_df["DE"] = formatted_df["DE"].apply(format_de)

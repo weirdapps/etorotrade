@@ -149,8 +149,6 @@ async def process_batch_async(
         if show_progress:
             elapsed = time.time() - start_time
             items_per_second = max((success_count + error_count) / max(elapsed, 0.1), 0.01)
-            remaining_items = total_items - (success_count + error_count)
-            estimated_remaining = remaining_items / items_per_second
 
             # Show the last item being processed in the description with cleaner format
             current_item = batch[-1] if batch else ""
