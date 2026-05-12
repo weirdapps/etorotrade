@@ -30,6 +30,7 @@ dependencies = [
     "lxml>=5.0.0",  # required by yfinance.Ticker.earnings_dates (undeclared upstream dep)
     "yahooquery>=2.3.7",
     "requests>=2.25.0,<3.0.0",
+    "urllib3>=2.7.0",  # CVE-2026-44431/44432: decompression-bomb safeguard bypass in <2.7.0
     "scipy>=1.10.0",
     "pyarrow>=14.0.0",
     "tabulate>=0.8.9",
