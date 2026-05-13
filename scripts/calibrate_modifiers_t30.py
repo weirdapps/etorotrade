@@ -337,7 +337,9 @@ def bootstrap_spearman_ci(
 
     rhos = []
     for _ in range(n_resamples):
-        idx = [rng.randint(0, n - 1) for _ in range(n)]
+        idx = [
+            rng.randint(0, n - 1) for _ in range(n)
+        ]  # NOSONAR statistical bootstrap, not security
         bx = [xs[i] for i in idx]
         by = [ys[i] for i in idx]
         if len(set(bx)) < 2 or len(set(by)) < 2:

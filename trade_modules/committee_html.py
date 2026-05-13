@@ -275,9 +275,9 @@ def _clean_name(raw):
     if not raw:
         return raw
     # Remove share class / listing suffixes
-    raw = re.sub(r"\s+ORD\s+\d+P$", "", raw, flags=re.I)
-    raw = re.sub(r"\s+CLASS\s+[A-C]$", "", raw, flags=re.I)
-    raw = re.sub(r"\s+CL\s+[A-C]$", "", raw, flags=re.I)
+    raw = re.sub(r"\s+ORD\s+\d+P$", "", raw, flags=re.I)  # NOSONAR linear, trusted yfinance name
+    raw = re.sub(r"\s+CLASS\s+[A-C]$", "", raw, flags=re.I)  # NOSONAR linear, trusted yfinance name
+    raw = re.sub(r"\s+CL\s+[A-C]$", "", raw, flags=re.I)  # NOSONAR linear, trusted yfinance name
     # Remove common suffixes for brevity
     for suffix in [
         ", Inc.",

@@ -253,7 +253,7 @@ def normalize_agent_reports(
                     break
         if not ind.get("us_10y_yield"):
             for src_text in [str(ri.get("yield_curve_context", "")), str(ri)]:
-                m = re.search(
+                m = re.search(  # NOSONAR linear regex on trusted MCP-news context
                     r"10[- ]?year\s+(?:Treasury\s+)?(?:near|at|~)?\s*(\d+\.?\d*)\s*%",
                     src_text,
                     re.IGNORECASE,

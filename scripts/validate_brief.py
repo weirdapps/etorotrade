@@ -71,7 +71,7 @@ NEWS_CONTEXT_PATTERNS = [
 NEWS_CONTEXT_RE = re.compile("|".join(NEWS_CONTEXT_PATTERNS), re.IGNORECASE)
 
 TICKER_RE = re.compile(r"\$([A-Z][A-Z0-9]+(?:\.[A-Z]+)?)")
-PCT_RE = re.compile(r"([+-]\d+\.?\d*)%")
+PCT_RE = re.compile(r"([+-]\d+\.?\d*)%")  # NOSONAR linear regex on trusted draft text
 PRICE_RE = re.compile(r"\$(\d[\d,]*\.?\d*)")
 
 # Map display names in post text to yfinance tickers for instrument-aware validation
