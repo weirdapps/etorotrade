@@ -112,6 +112,23 @@ def _is_news_sourced(text: str, match_start: int) -> bool:
     return bool(NEWS_CONTEXT_RE.search(ctx))
 
 
+def _is_ticker_attributed(text: str, match_start: int, lookback: int = 30) -> bool:
+    """A percentage is ticker-attributed when a $TICKER ends within `lookback`
+    chars before it. Such moves came from MCP news, not from the macro snapshot,
+    and are not validatable here. Example: "$NWG.L -4.7%"."""
+    window_start = max(0, match_start - lookback)
+    window = text[window_start:match_start]
+    last = None
+    for m in TICKER_RE.finditer(window):
+        last = m
+    if last is None:
+        return False
+    # Distance between end of $TICKER and the percentage must be small
+    # (allows space, comma, "down to ", etc. — but not whole sentences).
+    gap = len(window) - last.end()
+    return gap <= 10
+
+
 def _is_ticker_price(text: str, match_start: int) -> bool:
     """Check if a $NNN pattern is actually a $TICKER reference."""
     after_end = match_start + 20
@@ -122,6 +139,15 @@ def _is_ticker_price(text: str, match_start: int) -> bool:
         if candidate.isalpha() or "." in candidate:
             return True
     return False
+
+
+_CAP_SUFFIX_RE = re.compile(r"[TBMtbm](?![A-Za-z])|tn\b|bn\b|mn\b", re.IGNORECASE)
+
+
+def _is_market_cap_suffix(text: str, match_end: int) -> bool:
+    """A $NUMBER immediately followed by T/B/M (or tn/bn/mn) is market-cap
+    notation, not a price. Examples: "$4T", "$800B", "$50M", "$4tn"."""
+    return bool(_CAP_SUFFIX_RE.match(text[match_end : match_end + 3]))
 
 
 def _find_nearby_instrument(text: str, match_start: int) -> str | None:
@@ -150,6 +176,8 @@ def extract_market_percentages(text: str) -> list[dict]:
     for m in PCT_RE.finditer(text):
         if _is_news_sourced(text, m.start()):
             continue
+        if _is_ticker_attributed(text, m.start()):
+            continue
         results.append(
             {
                 "value": float(m.group(1)),
@@ -166,6 +194,8 @@ def extract_market_prices(text: str) -> list[dict]:
     results = []
     for m in PRICE_RE.finditer(text):
         if _is_ticker_price(text, m.start()):
+            continue
+        if _is_market_cap_suffix(text, m.end()):
             continue
         if _is_news_sourced(text, m.start()):
             continue
