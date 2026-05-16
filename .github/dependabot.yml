@@ -29,6 +29,12 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # mando >=0.8 conflicts with radon 6.0.1 (which pins mando<0.8). Until
+    # radon publishes a release supporting newer mando, ignore mando
+    # majors/minors so dependabot stops opening unmergeable PRs.
+    ignore:
+      - dependency-name: "mando"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
