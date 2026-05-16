@@ -155,29 +155,37 @@ __version__ = "v36.0"
 # entries with n≥150 confirming no edge.
 
 V35_ACTIVE_MODIFIERS = {
-    # Literature-validated set (CIO v35.0). Default until v36 evidence.
-    "census_alignment",  # +3/+5 (Novy-Marx-style alignment)
-    "revenue_growth",  # -5/+8 (Novy-Marx 2013)
+    # Literature-validated set (CIO v35.0), pruned in CIO v41 (2026-05-16).
+    # See V37_DEPRECATED below for the 4 removals and rationale.
+    "census_alignment",  # +5 (CIO v41: gated to div_score < -30 only)
+    "revenue_growth",  # -5/+8 (Novy-Marx 2013) — calibration WORKS (+2.95% alpha)
     "eps_revisions_up",  # +5/+8 (PEAD literature)
     "eps_revisions_down",  # -5
     "earnings_surprise",  # -5/+10 (Bernard & Thomas 1989)
     "iv_low_entry",  # +5
     "news_catalyst_neg",  # -8 (Tetlock 2007)
-    "news_catalyst_pos",  # +5
+    "news_catalyst_pos",  # +5 — calibration WORKS (+3.66% alpha)
     "target_consensus",  # +2 (Diether et al. 2002)
     "piotroski_quality",  # +3 (Asness et al. quality factor)
-    "fcf_quality_strong",  # +2
-    "currency_risk_USD",  # -3
-    "currency_risk_HKD",  # -2
+    "currency_risk_HKD",  # -2 — calibration WORKS (-8.89% alpha when fired)
     "currency_risk_JPY",  # -2
     "currency_risk_GBP",  # -2
-    "signal_velocity",  # -5/+5
+    "signal_velocity",  # -5/+5 — calibration WORKS (-4.33% alpha when fired)
     "sector_rotation",  # -5/+5 (Conover et al. 2008)
-    "sector_concentration",  # -10/+1
     "dividend_yield_trap",  # -5 (Fuller & Goldstein 2011)
-    "short_interest_weakness",  # -3 (Desai et al. 2002)
-    "iv_x_earnings",  # -5 (Ni et al. 2008)
+    "iv_x_earnings",  # -5 (Ni et al. 2008) — calibration WORKS (-6.86% alpha)
     "volume_confirm",  # +3 (Campbell et al. 1993)
+}
+
+# CIO v41 (2026-05-16): Modifiers removed from active set based on T+30
+# calibration showing wrong-direction effect. Kept here as a documented
+# deprecation record so future re-evaluation knows their history.
+# Calibration source: ~/.weirdapps-trading/committee/calibration_report.json
+V37_DEPRECATED = {
+    "currency_risk_USD",  # n=83  delta=-3.00 → alpha +2.64% (penalized winners)
+    "fcf_quality_strong",  # n=57  delta=+1.93 → alpha -5.84% (rewarded losers)
+    "sector_concentration",  # n=281 delta=-4.46 → alpha +2.08% (penalized winners)
+    "short_interest_weakness",  # n=32 delta=-3.00 → alpha +5.08% (penalized winners)
 }
 
 V36_ACTIVE_MODIFIERS = {
@@ -2404,12 +2412,11 @@ def compute_adjustments(
     # preserved in waterfall_categories.py for backward compatibility with
     # historical attribution rendering, but no longer fire.
 
-    # Census alignment — v35.0: reduced from +5/+8 to +3/+5
-    if -10 <= div_score <= 10:
-        _apply("census_alignment", 3)
-    elif -20 <= div_score < -10 or 10 < div_score <= 20:
-        _apply("census_alignment", 2)
-    elif div_score < -20:
+    # Census alignment — v41 (2026-05-16): tightened from "fires on 89% of stocks"
+    # to "fires only on strong contrarian divergence". Calibration showed the
+    # broad-fire variant produced -1.37% alpha (noise). Only div_score < -30
+    # represents a genuine contrarian signal worth boosting.
+    if div_score < -30:
         _apply("census_alignment", 5)
 
     # Census time-series — DISABLED v35.0 (zero predictive power)
@@ -3590,14 +3597,17 @@ def synthesize_stock(
 
     conviction = base + bonuses - penalties
 
-    # Step 4e: Kill thesis penalty (CIO v6.0 E1)
-    # When a previously logged kill thesis has triggered, apply -15 penalty
-    # that BYPASSES the normal penalty cap. A triggered kill thesis represents
-    # a specific, pre-identified failure mode — it is categorically different
-    # from generic agent disagreement and deserves uncapped treatment.
+    # Step 4e: Kill thesis penalty (CIO v6.0 E1, recalibrated v41)
+    # When a previously logged kill thesis has triggered, apply -5 penalty
+    # that BYPASSES the normal penalty cap.
+    #
+    # v41 (2026-05-16): Penalty reduced from -15 to -5. Kill thesis audit on 71
+    # triggered theses showed 8.8% true-positive rate (n=53 calibrated). The
+    # original -15 penalty (largest in the system) is not justified by 9%
+    # accuracy. -5 keeps directional signal but scales weight to evidence.
     if kill_thesis_triggered:
-        conviction -= 15
-        _w["kill_thesis"] = -15
+        conviction -= 5
+        _w["kill_thesis"] = -5
 
     # Step 4f: Adversarial debate adjustment (CIO v27.0)
     # The debate round stress-tests the bull/bear case for contentious stocks.
@@ -3741,14 +3751,27 @@ def synthesize_stock(
         elif risk_warning and tech_signal == "AVOID":
             action = "TRIM"
 
-    # CIO v37+: Risk-budget force-TRIM. When the live position is significantly
-    # over the risk-derived cap (see position_overweight_policy), promote any
-    # non-SELL action to TRIM regardless of signal. Bypasses the quality_blocks_trim
-    # gate — being 1.7x over the cap is a risk fact, not a quality opinion.
-    # Does not override SELL (which is even stronger).
+    # CIO v41 (post-backtest 2026-05-16): Quality-corroborated force-TRIM.
+    # Previous v37 behavior force-trimmed any non-SELL when overweight, cutting
+    # winners purely for sizing: NVDA (+$30K), GOOG (+$22K), AMZN (+$17K), AAPL
+    # (+$8K) all force-trimmed on 2026-05-16 despite strong fundamentals.
+    #
+    # New rule: the conviction penalty (-15 at 1.5-2.0x, -25 at >=2.0x) is
+    # preserved as size discipline, but force_trim now requires quality
+    # concurrence — weak fundamentals (fund_score < 65), bearish technicals
+    # (EXIT_SOON/AVOID/SELL), or a triggered kill thesis. Quality stocks that
+    # happen to be overweight (because they appreciated, not because we
+    # over-bought) deserve to run.
+    quality_corroborates_ow_trim = (
+        fund_score < 65 or tech_signal in ("EXIT_SOON", "AVOID", "SELL") or kill_thesis_triggered
+    )
     if _ow_force_trim and action not in ("SELL", "TRIM"):
-        action = "TRIM"
-        _w["overweight_forced_trim"] = 0  # 0-delta marker; visible in waterfall
+        if quality_corroborates_ow_trim:
+            action = "TRIM"
+            _w["overweight_forced_trim"] = 0  # 0-delta marker; visible in waterfall
+        else:
+            # Audit trail: log that we WOULD have force-trimmed but quality blocked it
+            _w["overweight_force_trim_blocked"] = 0
 
     # TRIM conviction recalculation — replace residual buy-case score with
     # trim confidence (how confident we are the position should be reduced)
