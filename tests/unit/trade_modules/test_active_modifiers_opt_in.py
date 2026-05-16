@@ -21,13 +21,18 @@ import pytest
 
 class TestModifierSetsBothExist:
     def test_v35_set_exists(self):
-        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
+        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS, V37_DEPRECATED
 
-        # v35 had 22 literature-validated modifiers
-        assert len(V35_ACTIVE_MODIFIERS) == 22
+        # v35 had 22 literature-validated modifiers; CIO v41 (2026-05-16)
+        # pruned 4 with wrong-direction calibration evidence, leaving 18.
+        # The pruned ones live in V37_DEPRECATED for audit trail.
+        assert len(V35_ACTIVE_MODIFIERS) == 18
         assert "census_alignment" in V35_ACTIVE_MODIFIERS
-        assert "currency_risk_USD" in V35_ACTIVE_MODIFIERS
         assert "news_catalyst_pos" in V35_ACTIVE_MODIFIERS
+        # currency_risk_USD was deprecated in v41 (n=83 -> alpha +2.64%
+        # while firing -3 penalty — penalized winners).
+        assert "currency_risk_USD" not in V35_ACTIVE_MODIFIERS
+        assert "currency_risk_USD" in V37_DEPRECATED
 
     def test_v36_set_exists(self):
         from trade_modules.committee_synthesis import V36_ACTIVE_MODIFIERS
