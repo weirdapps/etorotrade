@@ -3260,14 +3260,18 @@ class TestKillThesisIntegration:
         }
 
     def test_kill_thesis_reduces_conviction(self):
-        """Triggered kill thesis should reduce conviction by 15 points."""
+        """Triggered kill thesis reduces conviction by 5 points (v41).
+
+        Original v6.0 penalty was -15; reduced to -5 in v41 after kill-thesis
+        audit showed 8.8% true-positive rate (n=53). See TestV41KillThesisPenaltyReduced.
+        """
         args = self._base_args()
         normal = synthesize_stock(ticker="TEST", **args, kill_thesis_triggered=False)
         killed = synthesize_stock(ticker="TEST", **args, kill_thesis_triggered=True)
         assert killed["conviction"] < normal["conviction"]
-        # The delta should be exactly 15 (before floors may intervene)
+        # The delta should be exactly 5 (before floors may intervene)
         raw_delta = normal["conviction"] - killed["conviction"]
-        assert raw_delta == 15 or killed["conviction"] == 40  # floor may cap
+        assert raw_delta == 5 or killed["conviction"] == 40  # floor may cap
 
     def test_kill_thesis_bypasses_penalty_cap(self):
         """Kill thesis penalty is applied AFTER normal penalty cap, bypassing it."""
@@ -7207,3 +7211,308 @@ class TestV40KillThesisGenerator:
         )
         assert "Wrong if" in thesis
         assert "Re-evaluate" in thesis
+
+
+class TestV41OverweightQualityGate:
+    """CIO v41 (post-backtest 2026-05-16): Quality-corroborated force-TRIM.
+
+    Backtest 2026-05-16 found that overweight force-TRIMs were cutting winners
+    purely for sizing: NVDA (+$30K), GOOG (+$22K), AMZN (+$17K), AAPL (+$8K)
+    all force-TRIMmed despite strong fundamentals. The conviction penalty
+    (-15 at 1.5-2.0x, -25 at >=2.0x) is preserved as size discipline, but
+    force_trim now requires quality concurrence: weak fundamentals, bearish
+    technicals, or a triggered kill thesis.
+    """
+
+    def _kw(
+        self,
+        current_pct=10.0,
+        position_limit=5.0,
+        fund_score=80,
+        tech_signal="HOLD",
+        kill_thesis_triggered=False,
+        signal="B",
+    ):
+        """Build kwargs for an overweight position with tunable quality."""
+        return {
+            "ticker": "TEST",
+            "sig_data": {
+                "signal": signal,
+                "exret": 10,
+                "buy_pct": 80,
+                "beta": 1.0,
+                "pet": 20,
+                "pef": 18,
+            },
+            "fund_data": {"fundamental_score": fund_score, "quality_trap_warning": False},
+            "tech_data": {"timing_signal": tech_signal, "momentum_score": 0, "rsi": 55},
+            "macro_fit": "NEUTRAL",
+            "census_alignment": "NEUTRAL",
+            "div_score": 0,
+            "census_ts_trend": "stable",
+            "news_impact": "NEUTRAL",
+            "risk_warning": False,
+            "sector": "Technology",
+            "sector_median_exret": 8,
+            "sector_rankings": {},
+            "position_limit": position_limit,
+            "current_pct": current_pct,
+            "kill_thesis_triggered": kill_thesis_triggered,
+        }
+
+    def test_overweight_quality_winner_not_force_trimmed(self):
+        """2x overweight + strong fundamentals + neutral tech → action NOT TRIM."""
+        # Equivalent to NVDA: 7.04% weight vs ~3.5% target = 2.0x overweight
+        result = synthesize_stock(
+            **self._kw(
+                current_pct=10.0,
+                position_limit=5.0,
+                fund_score=80,
+                tech_signal="HOLD",
+            )
+        )
+        assert result["action"] != "TRIM", (
+            f"Quality stock at 2.0x overweight should NOT be force-trimmed, "
+            f"got {result['action']} at conviction {result['conviction']}"
+        )
+
+    def test_overweight_winner_audit_marker_set(self):
+        """When force-trim is blocked by quality, an audit marker is recorded."""
+        result = synthesize_stock(
+            **self._kw(
+                current_pct=10.0,
+                position_limit=5.0,
+                fund_score=80,
+                tech_signal="HOLD",
+            )
+        )
+        waterfall = result.get("conviction_waterfall", {})
+        assert "overweight_force_trim_blocked" in waterfall, (
+            f"Expected 'overweight_force_trim_blocked' marker in waterfall, "
+            f"got keys: {list(waterfall.keys())}"
+        )
+
+    def test_overweight_weak_fund_still_force_trimmed(self):
+        """2x overweight + WEAK fundamentals (fund<65) → force TRIM still fires."""
+        result = synthesize_stock(
+            **self._kw(
+                current_pct=10.0,
+                position_limit=5.0,
+                fund_score=60,
+                tech_signal="HOLD",
+            )
+        )
+        assert result["action"] == "TRIM", (
+            f"Weak-fundamentals overweight should be force-trimmed, got {result['action']}"
+        )
+
+    def test_overweight_bad_tech_still_force_trimmed(self):
+        """2x overweight + bearish tech (EXIT_SOON) → force TRIM fires."""
+        result = synthesize_stock(
+            **self._kw(
+                current_pct=10.0,
+                position_limit=5.0,
+                fund_score=80,
+                tech_signal="EXIT_SOON",
+            )
+        )
+        assert result["action"] == "TRIM", (
+            f"Bad-tech overweight should be force-trimmed, got {result['action']}"
+        )
+
+    def test_overweight_kill_thesis_still_force_trimmed(self):
+        """2x overweight + triggered kill thesis → force TRIM fires (override)."""
+        result = synthesize_stock(
+            **self._kw(
+                current_pct=10.0,
+                position_limit=5.0,
+                fund_score=80,
+                tech_signal="HOLD",
+                kill_thesis_triggered=True,
+            )
+        )
+        assert result["action"] == "TRIM", (
+            f"Triggered kill thesis should force-trim overweight, got {result['action']}"
+        )
+
+    def test_conviction_penalty_still_applied_for_quality_winners(self):
+        """Conviction penalty (-25 at 2x) still applied — size discipline preserved."""
+        result_overweight = synthesize_stock(
+            **self._kw(
+                current_pct=10.0,
+                position_limit=5.0,
+                fund_score=80,
+                tech_signal="HOLD",
+            )
+        )
+        result_baseline = synthesize_stock(
+            **self._kw(
+                current_pct=3.0,
+                position_limit=5.0,  # within cap
+                fund_score=80,
+                tech_signal="HOLD",
+            )
+        )
+        # Overweight should have notably lower conviction than within-cap baseline
+        assert result_overweight["conviction"] < result_baseline["conviction"], (
+            f"Penalty should still suppress conviction: "
+            f"overweight={result_overweight['conviction']}, "
+            f"baseline={result_baseline['conviction']}"
+        )
+
+    def test_mild_overweight_no_force_trim_either_way(self):
+        """1.2x overweight → no force_trim regardless of quality (only conv penalty)."""
+        # ratio = 6/5 = 1.2 → penalty=-5, force_trim=False (existing behavior)
+        result = synthesize_stock(
+            **self._kw(
+                current_pct=6.0,
+                position_limit=5.0,
+                fund_score=60,
+                tech_signal="EXIT_SOON",
+            )
+        )
+        # Weak quality at mild overweight should NOT trigger overweight force-trim
+        # (it may still TRIM via the existing v40 escalation path, but not via _ow_force_trim)
+        waterfall = result.get("conviction_waterfall", {})
+        # The overweight key would be "overweight_1.20x" etc, with NO _ow_force_trim
+        # since position_overweight_policy returns force_trim=False for ratio<1.5
+        assert "overweight_forced_trim" not in waterfall
+
+
+class TestV41ModifierDeprecations:
+    """CIO v41: 4 V35-active modifiers moved to V37_DEPRECATED after calibration.
+
+    Calibration data (n=1504 obs, T+30) showed these had wrong-direction effect:
+    - currency_risk_USD: -3 penalty but stocks went +2.64% alpha
+    - fcf_quality_strong: +2 bonus but stocks went -5.84% alpha
+    - sector_concentration: -4.46 penalty but stocks went +2.08% alpha
+    - short_interest_weakness: -3 penalty but stocks went +5.08% alpha
+    """
+
+    def test_currency_risk_usd_not_in_active(self):
+        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
+
+        assert "currency_risk_USD" not in V35_ACTIVE_MODIFIERS
+
+    def test_fcf_quality_strong_not_in_active(self):
+        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
+
+        assert "fcf_quality_strong" not in V35_ACTIVE_MODIFIERS
+
+    def test_sector_concentration_not_in_active(self):
+        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
+
+        assert "sector_concentration" not in V35_ACTIVE_MODIFIERS
+
+    def test_short_interest_weakness_not_in_active(self):
+        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
+
+        assert "short_interest_weakness" not in V35_ACTIVE_MODIFIERS
+
+    def test_deprecated_v37_set_documents_removals(self):
+        """V37_DEPRECATED set exists and contains the 4 disabled modifiers."""
+        from trade_modules.committee_synthesis import V37_DEPRECATED
+
+        assert "currency_risk_USD" in V37_DEPRECATED
+        assert "fcf_quality_strong" in V37_DEPRECATED
+        assert "sector_concentration" in V37_DEPRECATED
+        assert "short_interest_weakness" in V37_DEPRECATED
+
+
+class TestV41KillThesisPenaltyReduced:
+    """CIO v41: kill_thesis penalty reduced from -15 to -5.
+
+    Calibration showed kill_thesis fired 53 times with 8.8% true-positive rate.
+    A -15 penalty (the largest in the system) is not justified by a 9% TP rate.
+    Reduce to -5 — keeps directional signal but scales weight to evidence.
+    """
+
+    def _kw_with_kill(self, fund_score=70):
+        return {
+            "ticker": "TEST",
+            "sig_data": {
+                "signal": "B",
+                "exret": 10,
+                "buy_pct": 70,
+                "beta": 1.0,
+                "pet": 20,
+                "pef": 18,
+            },
+            "fund_data": {"fundamental_score": fund_score, "quality_trap_warning": False},
+            "tech_data": {"timing_signal": "HOLD", "momentum_score": 0, "rsi": 55},
+            "macro_fit": "NEUTRAL",
+            "census_alignment": "NEUTRAL",
+            "div_score": 0,
+            "census_ts_trend": "stable",
+            "news_impact": "NEUTRAL",
+            "risk_warning": False,
+            "sector": "Technology",
+            "sector_median_exret": 8,
+            "sector_rankings": {},
+            "position_limit": 5.0,
+            "kill_thesis_triggered": True,
+        }
+
+    def test_kill_thesis_penalty_is_minus_5(self):
+        """Triggered kill thesis sets waterfall entry to -5, not -15."""
+        result = synthesize_stock(**self._kw_with_kill(fund_score=70))
+        waterfall = result.get("conviction_waterfall", {})
+        assert waterfall.get("kill_thesis") == -5, (
+            f"Expected kill_thesis penalty of -5, got {waterfall.get('kill_thesis')}"
+        )
+
+
+class TestV41CensusAlignmentTightened:
+    """CIO v41: census_alignment only fires on strong divergence (div_score < -30).
+
+    Previous behavior fired on 89% of stocks (any div_score in [-20, 20]) with
+    -1.37% alpha — basically noise. Tighten to only fire on genuine contrarian
+    divergence (div_score < -30) where there's a real informational signal.
+    """
+
+    def _kw(self, div_score, census_alignment="NEUTRAL"):
+        return {
+            "ticker": "TEST",
+            "sig_data": {
+                "signal": "B",
+                "exret": 10,
+                "buy_pct": 70,
+                "beta": 1.0,
+                "pet": 20,
+                "pef": 18,
+            },
+            "fund_data": {"fundamental_score": 70, "quality_trap_warning": False},
+            "tech_data": {"timing_signal": "HOLD", "momentum_score": 0, "rsi": 55},
+            "macro_fit": "NEUTRAL",
+            "census_alignment": census_alignment,
+            "div_score": div_score,
+            "census_ts_trend": "stable",
+            "news_impact": "NEUTRAL",
+            "risk_warning": False,
+            "sector": "Technology",
+            "sector_median_exret": 8,
+            "sector_rankings": {},
+            "position_limit": 5.0,
+        }
+
+    def test_normal_alignment_does_not_fire(self):
+        """div_score in [-10, 10] no longer fires census_alignment."""
+        result = synthesize_stock(**self._kw(div_score=0))
+        waterfall = result.get("conviction_waterfall", {})
+        assert "census_alignment" not in waterfall, (
+            f"Expected no census_alignment for div_score=0, got: {waterfall.get('census_alignment')}"
+        )
+
+    def test_moderate_divergence_does_not_fire(self):
+        """div_score in [-20, -10] no longer fires."""
+        result = synthesize_stock(**self._kw(div_score=-15))
+        waterfall = result.get("conviction_waterfall", {})
+        assert "census_alignment" not in waterfall
+
+    def test_strong_divergence_fires(self):
+        """div_score < -30 still fires +5 (strong contrarian signal preserved)."""
+        result = synthesize_stock(**self._kw(div_score=-35))
+        waterfall = result.get("conviction_waterfall", {})
+        assert waterfall.get("census_alignment") == 5, (
+            f"Expected census_alignment=+5 for div_score=-35, got {waterfall.get('census_alignment')}"
+        )
