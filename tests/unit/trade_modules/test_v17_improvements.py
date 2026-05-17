@@ -299,13 +299,14 @@ class TestKellyFraction:
 
 
 class TestCensusBand:
-    """CIO v36 / M5: census_alignment moved to shadow (~ prefix). Tests
-    look up the shadow-prefixed key since the modifier value computation
-    is unchanged — only its inclusion in the active bonuses/penalties is.
+    """CIO v41 (2026-05-16): census_alignment tightened from "fires on
+    89% of stocks" (-1.37% alpha = noise) to "fires only when div_score
+    < -30" (genuine contrarian divergence, +5 bonus). The old band
+    structure (+3 tight, +2 loose, +5 strong-contrarian) is gone.
 
-    CIO v36 N3: V36 modifier set is opt-in via CIO_V36_NEW_MODIFIERS=1
-    env var. Each test enables it via the autouse fixture so census_alignment
-    is shadowed (default v35 set has it ACTIVE without ~ prefix).
+    Under V36_ACTIVE_MODIFIERS (env var set), census_alignment is
+    shadowed with ~ prefix. Under v41 it only computes when the
+    div_score < -30 gate fires.
     """
 
     @pytest.fixture(autouse=True)
@@ -320,8 +321,9 @@ class TestCensusBand:
         monkeypatch.delenv("CIO_V36_NEW_MODIFIERS", raising=False)
         importlib.reload(mod)
 
-    def test_tight_band_full_bonus(self):
-        # Direct test: invoke compute_adjustments with div_score in [-10,10].
+    def test_tight_band_no_longer_fires(self):
+        # v41: div_score in tight band (e.g. 5) no longer triggers
+        # census_alignment. Pre-v41 this fired +3.
         from trade_modules.committee_synthesis import compute_adjustments
 
         bonuses, penalties, wf = compute_adjustments(
@@ -344,10 +346,12 @@ class TestCensusBand:
             sector_rankings={},
             bull_count=4,
         )
-        # v36: census_alignment is shadowed; raw value still 3
-        assert wf.get("~census_alignment") == 3
+        assert wf.get("~census_alignment") is None
+        assert wf.get("census_alignment") is None
 
-    def test_loose_band_partial_bonus(self):
+    def test_loose_band_no_longer_fires(self):
+        # v41: div_score in loose band (e.g. 15) no longer triggers
+        # census_alignment. Pre-v41 this fired +2.
         from trade_modules.committee_synthesis import compute_adjustments
 
         bonuses, penalties, wf = compute_adjustments(
@@ -370,10 +374,12 @@ class TestCensusBand:
             sector_rankings={},
             bull_count=4,
         )
-        # v36: shadowed; raw still 2
-        assert wf.get("~census_alignment") == 2
+        assert wf.get("~census_alignment") is None
+        assert wf.get("census_alignment") is None
 
-    def test_strong_contrarian_eight(self):
+    def test_strong_contrarian_fires_at_minus_31(self):
+        # v41: only div_score < -30 (strictly) fires census_alignment +5.
+        # Use -31 (was -30 pre-v41; v41 made the comparison strict).
         from trade_modules.committee_synthesis import compute_adjustments
 
         bonuses, penalties, wf = compute_adjustments(
@@ -384,7 +390,7 @@ class TestCensusBand:
             rsi=55,
             macro_fit="NEUTRAL",
             census_alignment="DIVERGENT",
-            div_score=-30,
+            div_score=-31,
             census_ts="stable",
             news_impact="NEUTRAL",
             risk_warning=False,
@@ -396,7 +402,7 @@ class TestCensusBand:
             sector_rankings={},
             bull_count=4,
         )
-        # v36: shadowed; raw still 5
+        # v36 modifiers are active → census_alignment shadowed with ~ prefix
         assert wf.get("~census_alignment") == 5
 
 
