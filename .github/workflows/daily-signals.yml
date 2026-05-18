@@ -158,12 +158,13 @@ jobs:
             PUSH_SUCCESS=false
             for i in 1 2 3; do
               echo "Push attempt $i..."
-              if git pull --rebase origin master && git push; then
+              git rebase --abort 2>/dev/null || true
+              if git pull --rebase -X ours origin master && git push; then
                 PUSH_SUCCESS=true
                 break
               fi
-              echo "Attempt $i failed, retrying in 5 seconds..."
-              sleep 5
+              echo "Attempt $i failed, retrying in 10 seconds..."
+              sleep 10
             done
             if [ "$PUSH_SUCCESS" = false ]; then
               echo "ERROR: All push attempts failed. Signal data will be stale!"
