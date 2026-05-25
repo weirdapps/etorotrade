@@ -137,17 +137,14 @@ LEVI,Levi Strauss & Co. ,NYSE
 UBER,Uber Technologies Inc.,NYSE
 BYND,Beyond Meat Inc.,Nasdaq
 CAVA,CAVA Group Inc,NYSE
-SURF.CVR,SURF Merger with CHRS CVR,NYSE
 CXM,Sprinklr Inc,NYSE
 LAR,Lithium Argentina AG,NYSE
 BIRK,Birkenstock Holding Ltd,NYSE
-ZYNE.CVR,"Zynerba Pharmaceuticals, Inc. CVR",NYSE
 CNH,CNH Industrial NV,NYSE
 SDHC,Smith Douglas Homes Corp,NYSE
 AHR,American Healthcare REIT Inc,NYSE
 TFG,Fortegra Group Inc,NYSE
 NATL,NCR Atleos Corp,NYSE
-GRCL.CVR,Gracell Biotechnologies Inc. CVR,NYSE
 SIE.DE,Siemens Aktiengesellschaft,FRA
 BAS.DE,BASF SE,FRA
 SAP.DE,SAP SE,FRA
@@ -274,34 +271,29 @@ VFS,VinFast Auto Ltd,Nasdaq
 ARM,ARM Holdings PLC,Nasdaq
 SDZNY,Sandoz Group AG-ADR,OTC Markets Stock Exchange
 TDTH,Trident Digital Tech Holdings Ltd,Nasdaq
-DUCO.TEST,DUCO,Nasdaq
-TSLA.CALL1,Tesla option (CALL 1),Nasdaq
 NTES,NetEase Inc.-ADR,Nasdaq
 JD,JD.com-ADR,Nasdaq
 TCOM.CH,Trip.com Group Ltd-ADR,Nasdaq
 ATHM.CH,Autohome-ADR,NYSE
-TSLA.CALL2,Tesla option (CALL 2),Nasdaq
 XOS,XOS Inc,Nasdaq
-TSLA.PUT1,Tesla option (PUT 1),Nasdaq
-TSLA.PUT2,Tesla option (PUT 2),Nasdaq
 MOMO,Hello Group Inc-ADR,Nasdaq
 TTWO,Take Two Interactive Software Inc,Nasdaq
-NESN.ZU,Nestle SA,SIX
-ROP.ZU,Roche Holding Ltd,SIX
-ABBN.ZU,ABB LTD,SIX
-ADEN.ZU,Adecco Group AG,SIX
-BAER.ZU,Julius Baer Gruppe AG,SIX
-CFR.ZU,Compagnie Financiere Richemont SA,SIX
-GEBN.ZU,Geberit AG,SIX
-GIVN.ZU,Givaudan S.A,SIX
-HOLN.ZU,Holcim Ltd,SIX
-SCMN.ZU,Swisscom AG,SIX
-SGSN.ZU,SGS SA,SIX
-SLHN.ZU,Swiss Life Holding AG,SIX
-SREN.ZU,Swiss Re AG,SIX
-UBSG.ZU,UBS Group AG,SIX
-UHR.ZU,The Swatch Group SA - B Shares,SIX
-ZURN.ZU,Zurich Insurance Group Ltd,SIX
+NESN.SW,Nestle SA,SIX
+ROP.SW,Roche Holding Ltd,SIX
+ABBN.SW,ABB LTD,SIX
+ADEN.SW,Adecco Group AG,SIX
+BAER.SW,Julius Baer Gruppe AG,SIX
+CFR.SW,Compagnie Financiere Richemont SA,SIX
+GEBN.SW,Geberit AG,SIX
+GIVN.SW,Givaudan S.A,SIX
+HOLN.SW,Holcim Ltd,SIX
+SCMN.SW,Swisscom AG,SIX
+SGSN.SW,SGS SA,SIX
+SLHN.SW,Swiss Life Holding AG,SIX
+SREN.SW,Swiss Re AG,SIX
+UBSG.SW,UBS Group AG,SIX
+UHR.SW,The Swatch Group SA - B Shares,SIX
+ZURN.SW,Zurich Insurance Group Ltd,SIX
 MRX,Marex Group plc,Nasdaq
 DWL.L,Dowlais Group PLC,LSE
 RIGD.L,Reliance Industries Limited,LSE
@@ -732,8 +724,8 @@ SOI.PA,Soitec S.A.,Euronext Paris
 SXRG.DE11,iShares MSCI USA Small Cap ESG Enhanced UCITS ETF USD11,Euronext Paris
 SXR7.DE11,iShares Core MSCI EMU UCITS ETF EUR11,Euronext Paris
 EUN0.DE11,iShares Edge MSCI Europe Minimum Volatility UCITS ETF11,Euronext Paris
-ACLN.ZU,Accelleron Industries Ltd,SIX
-LISP.ZU,Chocoladefabriken Lindt & Sprungli AG,SIX
+ACLN.SW,Accelleron Industries Ltd,SIX
+LISP.SW,Chocoladefabriken Lindt & Sprungli AG,SIX
 DBK.DE,Deutsche Bank Aktiengesellschaft,FRA
 CARLB.CO,Carlsberg A/S Class B,Copenhagen Stock Exchange
 NOD.OL,Nordic Semiconductor ASA,Oslo Stock Exchange
@@ -1392,7 +1384,6 @@ LLYVA,Liberty Live Holdings Inc-A ,Nasdaq
 WBTN,WEBTOON Entertainment Inc,Nasdaq
 CXAI,CXApp Inc,Nasdaq
 INKT,Mink Therapeutics Inc,Nasdaq
-JPM.EXT,JPMorgan Chase & Co,Regular Trading Hours - RTH
 BHVNOLD,Biohaven Ltd old,NYSE
 FG,F&G Annuities & Life Inc,NYSE
 VTS,Vitesse Energy Inc,NYSE
@@ -1400,24 +1391,23 @@ OUST,Ouster Inc,Nasdaq
 RBA,RB Global INC,NYSE
 MSGE,Madison Square Garden Spinco,NYSE
 KNF,Knife River Corp,NYSE
-MRTX.CVR,Mirati Therapeutics Inc Merger CVR,NYSE
 IS0D.DE11,iShares Oil & Gas Exploration & Production UCITS ETF11,Euronext Paris
 IS3Q.DE11,iShares Edge MSCI World Quality Factor UCITS ETF11,Euronext Paris
-AMRZ.ZU,AMRIZE LTD,SIX
-CA231.ZU,CA231,SIX
-CA232.ZU,CA232,SIX
-CA233.ZU,CA233,SIX
-CA234.ZU,CA234,SIX
-CA235.ZU,CA235,SIX
-CA236.ZU,CA236,SIX
-CA237.ZU,CA237,SIX
-CA238.ZU,CA238,SIX
-CA239.ZU,CA239,SIX
-CA240.ZU,CA240,SIX
-CA241.ZU,CA241,SIX
-CA242.ZU,CA242,SIX
-CA243.ZU,CA243,SIX
-PPGN.ZU,PolyPeptide Group AG,SIX
+AMRZ.SW,AMRIZE LTD,SIX
+CA231.SW,CA231,SIX
+CA232.SW,CA232,SIX
+CA233.SW,CA233,SIX
+CA234.SW,CA234,SIX
+CA235.SW,CA235,SIX
+CA236.SW,CA236,SIX
+CA237.SW,CA237,SIX
+CA238.SW,CA238,SIX
+CA239.SW,CA239,SIX
+CA240.SW,CA240,SIX
+CA241.SW,CA241,SIX
+CA242.SW,CA242,SIX
+CA243.SW,CA243,SIX
+PPGN.SW,PolyPeptide Group AG,SIX
 CS.ST,CoinShares International Limited,Stockholm  Stock Exchange
 ERIC-B.ST,Telefonaktiebolaget LM Ericsson,Stockholm  Stock Exchange
 VOLV-B.ST,Volvo AB ser. B,Stockholm  Stock Exchange
@@ -1434,7 +1424,7 @@ CA257.ST,CA257,Stockholm  Stock Exchange
 CA258.ST,CA258,Stockholm  Stock Exchange
 CA259.ST,CA259,Stockholm  Stock Exchange
 IMC.MC,Inmocemento,Bolsa De Madrid
-HAVAS.NV,Havas Bv,Euronext Amsterdam
+HAVAS.AS,Havas Bv,Euronext Amsterdam
 LTMC.MI,Lottomatica Group Spa,Borsa Italiana
 SPM.MI,Saipem Spa,Borsa Italiana
 NEXI.MI,Nexi S.P.A,Borsa Italiana
@@ -1448,13 +1438,13 @@ ICOP.MI,ICoP SpA SB Societa Benefit,Borsa Italiana
 4IG.BD,4iG Nyrt,Budapest
 AKKO.BD,AKKO Invest Nyrt,Budapest
 ALTEO.BD,ALTEO Energy Services Public Limited Company,Budapest
-DSFIR.NV,DSM-FIRMENICH AG,Euronext Amsterdam
-BFIT.NV,Basic-Fit N.V,Euronext Amsterdam
-APAM.NV,Aperam S.A,Euronext Amsterdam
-ALFEN.NV,Alfen N.V,Euronext Amsterdam
-UMG.NV,Universal Music Group N.V,Euronext Amsterdam
+DSFIR.AS,DSM-FIRMENICH AG,Euronext Amsterdam
+BFIT.AS,Basic-Fit N.V,Euronext Amsterdam
+APAM.AS,Aperam S.A,Euronext Amsterdam
+ALFEN.AS,Alfen N.V,Euronext Amsterdam
+UMG.AS,Universal Music Group N.V,Euronext Amsterdam
 PLX.PA,Pluxee France SA,Euronext Paris
-EXO.NV,Exor NV,Euronext Amsterdam
+EXO.AS,Exor NV,Euronext Amsterdam
 CAVEN.OL,Cavendish Hydrogen ASA,Oslo Stock Exchange
 SOMA.OL,Solstad Maritime Holding AS,Oslo Stock Exchange
 CA307.OL,CA307,Oslo Stock Exchange
@@ -1491,7 +1481,7 @@ CA347.HE,CA347,Helsinki Stock Exchange
 CA348.HE,CA348,Helsinki Stock Exchange
 CA349.HE,CA349,Helsinki Stock Exchange
 SYENS.BR,Syensqo SA,Euronext Brussels
-JDEP.NV,JDE Peet's NV,Euronext Amsterdam
+JDEP.AS,JDE Peet's NV,Euronext Amsterdam
 ANTIN.PA,Antin Infrastructure Partners SAS,Euronext Paris
 CA353.BR,CA353,Euronext Brussels
 CA354.BR,CA354,Euronext Brussels
@@ -1500,53 +1490,53 @@ CA356.BR,CA356,Euronext Brussels
 CA357.BR,CA357,Euronext Brussels
 CA358.BR,CA358,Euronext Brussels
 CA359.BR,CA359,Euronext Brussels
-CA366.LSB,CA366,Euronext Lisbon
-CA367.LSB,CA367,Euronext Lisbon
-CA368.LSB,CA368,Euronext Lisbon
-CA369.LSB,CA369,Euronext Lisbon
-XYZ.ASX,Block Inc,Sydney
-NWS.ASX,News Corporation,Sydney
-FPH.ASX,Fisher & Paykel Healthcare Corporation Limited,Sydney
-AIA.ASX,Auckland International Airport Limited,Sydney
-TLC.ASX,The Lottery Corporation Limited,Sydney
-REH.ASX,Reece Limited,Sydney
-ALX.ASX,Atlas Arteria Limited,Sydney
-TWE.ASX,Treasury Wine Estates Limited,Sydney
-TPG.ASX,TPG Telecom Limited,Sydney
-SPK.ASX,Spark New Zealand Limited,Sydney
-CAR.ASX,carsales.com Ltd,Sydney
-SGH.ASX,SGH Ltd,Sydney
-ORI.ASX,Orica Limited,Sydney
-ALD.ASX,Ampol Limited,Sydney
-CWY.ASX,Cleanaway Waste Management Limited,Sydney
-ALQ.ASX,ALS Limited,Sydney
-LLC.ASX,Lendlease Group,Sydney
-PME.ASX,Pro Medicus Limited,Sydney
-BEN.ASX,Bendigo and Adelaide Bank Limited,Sydney
-HVN.ASX,Harvey Norman Holdings Limited,Sydney
-CGF.ASX,Challenger Limited,Sydney
-NHC.ASX,New Hope Corporation Limited,Sydney
-QUB.ASX,Qube Holdings Limited,Sydney
-BOQ.ASX,Bank of Queensland Limited,Sydney
-A2M.ASX,The a2 Milk Company Limited,Sydney
-VEA.ASX,Viva Energy Group Limited,Sydney
-AMP.ASX,AMP Limited,Sydney
-NXT.ASX,NEXTDC Limited,Sydney
-BPT.ASX,Beach Energy Limited,Sydney
-MTS.ASX,Metcash Limited,Sydney
-TNE.ASX,Technology One Limited,Sydney
-ANN.ASX,Ansell Limited,Sydney
-NEC.ASX,Nine Entertainment Co. Holdings Limited,Sydney
-CRN.ASX,Coronado Global Resources Inc,Sydney
-NHF.ASX,nib holdings limited,Sydney
-DOW.ASX,Downer EDI Limited,Sydney
-CLW.ASX,Charter Hall Long WALE REIT,Sydney
+CA366.LS,CA366,Euronext Lisbon
+CA367.LS,CA367,Euronext Lisbon
+CA368.LS,CA368,Euronext Lisbon
+CA369.LS,CA369,Euronext Lisbon
+XYZ.AX,Block Inc,Sydney
+NWS.AX,News Corporation,Sydney
+FPH.AX,Fisher & Paykel Healthcare Corporation Limited,Sydney
+AIA.AX,Auckland International Airport Limited,Sydney
+TLC.AX,The Lottery Corporation Limited,Sydney
+REH.AX,Reece Limited,Sydney
+ALX.AX,Atlas Arteria Limited,Sydney
+TWE.AX,Treasury Wine Estates Limited,Sydney
+TPG.AX,TPG Telecom Limited,Sydney
+SPK.AX,Spark New Zealand Limited,Sydney
+CAR.AX,carsales.com Ltd,Sydney
+SGH.AX,SGH Ltd,Sydney
+ORI.AX,Orica Limited,Sydney
+ALD.AX,Ampol Limited,Sydney
+CWY.AX,Cleanaway Waste Management Limited,Sydney
+ALQ.AX,ALS Limited,Sydney
+LLC.AX,Lendlease Group,Sydney
+PME.AX,Pro Medicus Limited,Sydney
+BEN.AX,Bendigo and Adelaide Bank Limited,Sydney
+HVN.AX,Harvey Norman Holdings Limited,Sydney
+CGF.AX,Challenger Limited,Sydney
+NHC.AX,New Hope Corporation Limited,Sydney
+QUB.AX,Qube Holdings Limited,Sydney
+BOQ.AX,Bank of Queensland Limited,Sydney
+A2M.AX,The a2 Milk Company Limited,Sydney
+VEA.AX,Viva Energy Group Limited,Sydney
+AMP.AX,AMP Limited,Sydney
+NXT.AX,NEXTDC Limited,Sydney
+BPT.AX,Beach Energy Limited,Sydney
+MTS.AX,Metcash Limited,Sydney
+TNE.AX,Technology One Limited,Sydney
+ANN.AX,Ansell Limited,Sydney
+NEC.AX,Nine Entertainment Co. Holdings Limited,Sydney
+CRN.AX,Coronado Global Resources Inc,Sydney
+NHF.AX,nib holdings limited,Sydney
+DOW.AX,Downer EDI Limited,Sydney
+CLW.AX,Charter Hall Long WALE REIT,Sydney
 ANY.BD,ANY Security Printing Company PLC,Budapest
-BRG.ASX,Breville Group Limited,Sydney
-SGR.ASX,The Star Entertainment Group Limited,Sydney
-PRU.ASX,Perseus Mining Limited,Sydney
-CIA.ASX,Champion Iron Limited,Sydney
-CTD.ASX,Corporate Travel Management Limited,Sydney
+BRG.AX,Breville Group Limited,Sydney
+SGR.AX,The Star Entertainment Group Limited,Sydney
+PRU.AX,Perseus Mining Limited,Sydney
+CIA.AX,Champion Iron Limited,Sydney
+CTD.AX,Corporate Travel Management Limited,Sydney
 PL,Planet Labs PBC,NYSE
 ONT.L,Oxford Nanopore Technologies plc,LSE
 300.HK,Midea Group Co Ltd,Hong Kong Exchanges
@@ -1556,7 +1546,7 @@ ONT.L,Oxford Nanopore Technologies plc,LSE
 3750.HK,Contemporary Amperex Technology Co Limited,Hong Kong Exchanges
 0434.HK,Boyaa Interactive International Limited,Hong Kong Exchanges
 CA376.HK,CA376,Hong Kong Exchanges
-MYR.ASX,Myer Holdings Limited,Sydney
+MYR.AX,Myer Holdings Limited,Sydney
 DORMANT1234,Dormant1234,Sydney
 APPENINN.BD,Appeninn Holding,Budapest
 AUTOW.BD,AUTOWALLIS PLC,Budapest
@@ -1566,8 +1556,6 @@ GSPARK.BD,GRAPHISOFT PARK SE,Budapest
 MAST.BD,MASTERPLAST,Budapest
 MOL.BD,MOL Hungarian Oil and Gas PLC,Budapest
 MTELEKOM.BD,Magyar Telekom Telecommunications PLC,Budapest
-ARIKTEST.TENDER,Test Tender offer ,LSE
-OFFER.CASHRESERVED,NatwestOffer.CashReserved,LSE
 OPUS.BD,OPUS GLOBAL Nyrt,Budapest
 OTP.BD,OTP Bank Nyrt,Budapest
 PANNERGY.BD,PANNERGY PLC,Budapest
@@ -2111,36 +2099,36 @@ WB,Weibo Corp-ADR,Nasdaq
 BILI,Bilibili-ADR,Nasdaq
 NIO,Nio Inc.-ADR,NYSE
 NIU,Niu Technologies-ADR,Nasdaq
-AALB.NV,Aalberts NV,Euronext Amsterdam
-ABN.NV,ABN AMRO Group NV,Euronext Amsterdam
-ADYEN.NV,Adyen NV,Euronext Amsterdam
-AGN.NV,Aegon Ltd,Euronext Amsterdam
-AKZA.NV,Akzo Nobel NV,Euronext Amsterdam
-AMG.NV,AMG Advanced Metallurgical Group NV,Euronext Amsterdam
-ARCAD.NV,Arcadis NV,Euronext Amsterdam
-ASM.NV,ASM International NV,Euronext Amsterdam
-ASML.NV,ASML Holding NV,Euronext Amsterdam
-ASRNL.NV,ASR Nederland NV,Euronext Amsterdam
-BESI.NV,BE Semiconductor Industries NV,Euronext Amsterdam
-FLOW.NV,Flow Traders Cooperatief UA,Euronext Amsterdam
-HEIA.NV,Heineken,Euronext Amsterdam
-HEIO.NV,Heineken Holding NV,Euronext Amsterdam
-IMCD.NV,IMCD NV,Euronext Amsterdam
-KPN.NV,KPN,Euronext Amsterdam
-NN.NV,NN Group NV,Euronext Amsterdam
-OCI.NV,OCI NV,Euronext Amsterdam
-PHIA.NV,Koninklijke Philips N.V.,Euronext Amsterdam
-PNL.NV,PostNL NV,Euronext Amsterdam
-RAND.NV,Randstad Holding NV,Euronext Amsterdam
-SBMO.NV,SBM Offshore NV,Euronext Amsterdam
-LIGHT.NV,Signify NV,Euronext Amsterdam
-TKWY.NV,Just Eat Takeaway.com NV,Euronext Amsterdam
-TWEKA.NV,TKH Group,Euronext Amsterdam
-TOM2.NV,TomTom BV,Euronext Amsterdam
-VPK.NV,Koninklijke Vopak NV,Euronext Amsterdam
-WHA.NV,Wereldhave NV,Euronext Amsterdam
-WKL.NV,Wolters Kluwer NV,Euronext Amsterdam
-AD.NV,Koninklijke Ahold NV,Euronext Amsterdam
+AALB.AS,Aalberts NV,Euronext Amsterdam
+ABN.AS,ABN AMRO Group NV,Euronext Amsterdam
+ADYEN.AS,Adyen NV,Euronext Amsterdam
+AGN.AS,Aegon Ltd,Euronext Amsterdam
+AKZA.AS,Akzo Nobel NV,Euronext Amsterdam
+AMG.AS,AMG Advanced Metallurgical Group NV,Euronext Amsterdam
+ARCAD.AS,Arcadis NV,Euronext Amsterdam
+ASM.AS,ASM International NV,Euronext Amsterdam
+ASML.AS,ASML Holding NV,Euronext Amsterdam
+ASRNL.AS,ASR Nederland NV,Euronext Amsterdam
+BESI.AS,BE Semiconductor Industries NV,Euronext Amsterdam
+FLOW.AS,Flow Traders Cooperatief UA,Euronext Amsterdam
+HEIA.AS,Heineken,Euronext Amsterdam
+HEIO.AS,Heineken Holding NV,Euronext Amsterdam
+IMCD.AS,IMCD NV,Euronext Amsterdam
+KPN.AS,KPN,Euronext Amsterdam
+NN.AS,NN Group NV,Euronext Amsterdam
+OCI.AS,OCI NV,Euronext Amsterdam
+PHIA.AS,Koninklijke Philips N.V.,Euronext Amsterdam
+PNL.AS,PostNL NV,Euronext Amsterdam
+RAND.AS,Randstad Holding NV,Euronext Amsterdam
+SBMO.AS,SBM Offshore NV,Euronext Amsterdam
+LIGHT.AS,Signify NV,Euronext Amsterdam
+TKWY.AS,Just Eat Takeaway.com NV,Euronext Amsterdam
+TWEKA.AS,TKH Group,Euronext Amsterdam
+TOM2.AS,TomTom BV,Euronext Amsterdam
+VPK.AS,Koninklijke Vopak NV,Euronext Amsterdam
+WHA.AS,Wereldhave NV,Euronext Amsterdam
+WKL.AS,Wolters Kluwer NV,Euronext Amsterdam
+AD.AS,Koninklijke Ahold NV,Euronext Amsterdam
 URW.PA,Unibail-Rodamco-Westfield,Euronext Paris
 ATO.PA,Atos SE,Euronext Paris
 DSY.PA,Dassault Systemes,Euronext Paris
@@ -2228,11 +2216,11 @@ METSB.HE,Metsa Board,Helsinki Stock Exchange
 NOKIA.HE,Nokia Corp.,Helsinki Stock Exchange
 OUT1V.HE,Outokumpu Oyj,Helsinki Stock Exchange
 METSO.HE,Metso Corporation,Helsinki Stock Exchange
-AMS.ZU,Ams AG,SIX
-LAND.ZU,Landis+Gyr Group AG,SIX
-UBXN.ZU,u-blox Holding AG,SIX
-DAE.ZU,Daetwyler Holding AG,SIX
-SRAIL.ZU,Stadler Rail AG,SIX
+AMS.SW,Ams AG,SIX
+LAND.SW,Landis+Gyr Group AG,SIX
+UBXN.SW,u-blox Holding AG,SIX
+DAE.SW,Daetwyler Holding AG,SIX
+SRAIL.SW,Stadler Rail AG,SIX
 S92.DE,SMA Solar Technology AG,FRA
 KTOS,Kratos Defense & Security Solutions Inc,Nasdaq
 AMBA,Ambarella Inc,Nasdaq
@@ -2249,7 +2237,6 @@ BLDP,Ballard Power Systems Inc.,Nasdaq
 CSIQ,Canadian Solar Inc.,Nasdaq
 CEVA,Ceva Inc.,Nasdaq
 CNMD,Conmed Corp.,NYSE
-WOLF.OLD,Wolfspeed Inc,Nasdaq
 DENN,Denny's Corp.,Nasdaq
 ENPH,Enphase Energy Inc.,Nasdaq
 EEFT,Euronet Worldwide Inc.,Nasdaq
@@ -2314,8 +2301,8 @@ GN.CO,GN Store Nord A/S,Copenhagen Stock Exchange
 JYSK.CO,Jyske Bank A/S,Copenhagen Stock Exchange
 ROCKB.CO,Rockwool International B A/S,Copenhagen Stock Exchange
 RBREW.CO,Royal Unibrew A/S,Copenhagen Stock Exchange
-LKFT.NV,Lakefront Biotherapeutics,Euronext Amsterdam
-INGA.NV,ING Groep NV,Euronext Amsterdam
+LKFT.AS,Lakefront Biotherapeutics,Euronext Amsterdam
+INGA.AS,ING Groep NV,Euronext Amsterdam
 ACKB.BR,Ackermans & Van Haaren NV,Euronext Brussels
 AGS.BR,Ageas NV,Euronext Brussels
 ABI.BR,Anheuser Busch InBev,Euronext Brussels
@@ -2330,9 +2317,9 @@ UMI.BR,Umicore,Euronext Brussels
 WDP.BR,Warehouses De Pauw NV,Euronext Brussels
 AED.BR,Aedifica SA,Euronext Brussels
 COFB.BR,Cofinimmo SA,Euronext Brussels
-BCP.LSB,Banco Comercial Portugues SA,Euronext Lisbon
-EDP.LSB,EDP - Energias de Portugal SA,Euronext Lisbon
-JMT.LSB,Jeronimo Martins SGPS SA,Euronext Lisbon
+BCP.LS,Banco Comercial Portugues SA,Euronext Lisbon
+EDP.LS,EDP - Energias de Portugal SA,Euronext Lisbon
+JMT.LS,Jeronimo Martins SGPS SA,Euronext Lisbon
 ATE.PA,Alten SA,Euronext Paris
 AKE.PA,Arkema,Euronext Paris
 COV.PA,Covivio SA,Euronext Paris
@@ -2365,32 +2352,32 @@ NEL.OL,NEL ASA,Oslo Stock Exchange
 SALM.OL,SalMar ASA,Oslo Stock Exchange
 VEND,Vend Marketplaces ASA,Oslo Stock Exchange
 TOM.OL,Tomra Systems,Oslo Stock Exchange
-ALC.ZU,Alcon Inc.,SIX
-BALN.ZU,Baloise Holding AG,SIX
-BARN.ZU,Barry Callebaut AG,SIX
-BUCN.ZU,Bucher Industries AG,SIX
-CMBN.ZU,Cembra Money Bank AG,SIX
-CLN.ZU,Clariant AG,SIX
-DKSH.ZU,DKSH Holding AG,SIX
-AVOL.ZU,Avolta AG,SIX
-EMSN.ZU,Ems-Chemie Holding AG,SIX
-FHZN.ZU,Flughafen Zurich AG,SIX
-GALE.ZU,Galenica AG,SIX
-HBAN.ZU,Helvetia Baloise Holding AG,SIX
-KNIN.ZU,Kuehne & Nagel International AG,SIX
-LOGN.ZU,Logitech International SA,SIX
-LONN.ZU,Lonza Group Ltd,SIX
-OERL.ZU,OC Oerlikon Corporation AG,SIX
-PGHN.ZU,Partners Group Holding AG,SIX
-PSPN.ZU,PSP Swiss Property AG,SIX
-SCHP.ZU,Schindler Holding AG,SIX
-SIKA.ZU,Sika Ltd,SIX
-SOON.ZU,Sonova Holding AG,SIX
-STMN.ZU,Straumann Holding Ltd,SIX
-SPSN.ZU,Swiss Prime Site AG,SIX
-TECN.ZU,Tecan Group AG,SIX
-TEMN.ZU,Temenos Ltd,SIX
-VACN.ZU,VAT Group Ltd,SIX
+ALC.SW,Alcon Inc.,SIX
+BALN.SW,Baloise Holding AG,SIX
+BARN.SW,Barry Callebaut AG,SIX
+BUCN.SW,Bucher Industries AG,SIX
+CMBN.SW,Cembra Money Bank AG,SIX
+CLN.SW,Clariant AG,SIX
+DKSH.SW,DKSH Holding AG,SIX
+AVOL.SW,Avolta AG,SIX
+EMSN.SW,Ems-Chemie Holding AG,SIX
+FHZN.SW,Flughafen Zurich AG,SIX
+GALE.SW,Galenica AG,SIX
+HBAN.SW,Helvetia Baloise Holding AG,SIX
+KNIN.SW,Kuehne & Nagel International AG,SIX
+LOGN.SW,Logitech International SA,SIX
+LONN.SW,Lonza Group Ltd,SIX
+OERL.SW,OC Oerlikon Corporation AG,SIX
+PGHN.SW,Partners Group Holding AG,SIX
+PSPN.SW,PSP Swiss Property AG,SIX
+SCHP.SW,Schindler Holding AG,SIX
+SIKA.SW,Sika Ltd,SIX
+SOON.SW,Sonova Holding AG,SIX
+STMN.SW,Straumann Holding Ltd,SIX
+SPSN.SW,Swiss Prime Site AG,SIX
+TECN.SW,Tecan Group AG,SIX
+TEMN.SW,Temenos Ltd,SIX
+VACN.SW,VAT Group Ltd,SIX
 CLNX.MC,Cellnex Telecom SA,Bolsa De Madrid
 COL.MC,Colonial SFL Socimi SA,Bolsa De Madrid
 MRL.MC,Merlin Properties SOCIMI SA,Bolsa De Madrid
@@ -2938,7 +2925,6 @@ SKLZ,Skillz Inc,NYSE
 CIM,Chimera Investment Corp,NYSE
 CLDT,Chatham Lodging Trust,NYSE
 CLF,Cleveland-Cliffs Inc,NYSE
-RPTX.CVR,RPTX Merger CVR,Nasdaq
 DBRG,DigitalBridge Group Inc,NYSE
 CM,Canadian Imperial Bank of Commerce,NYSE
 CMRE,Costamare Inc,NYSE
@@ -3184,7 +3170,7 @@ UAVS,AgEagle Aerial Systems Inc,NYSE
 EFR,Eaton Vance Senior Floating-Rate Trust,NYSE
 YCBD,cbdMD Inc,NYSE
 ZOMDF,Zomedica Corp,OTC Markets Stock Exchange
-RO.ZU,Roche bearer shares,SIX
+RO.SW,Roche bearer shares,SIX
 KRG,Kite Realty Group Trust,NYSE
 TIGO,Millicom International Cellular SA,Nasdaq
 COK.DE,CANCOM SE,FRA
@@ -3193,163 +3179,163 @@ DRW3.DE,Draegerwerk AG & Co KGaA,FRA
 EUZ.DE,Eckert & Ziegler Strahlen- und Medizintechnik AG,FRA
 PBB.DE,Deutsche Pfandbriefbank AG,FRA
 NOEJ.DE,Norma Group SE,FRA
-BHP.ASX,BHP Group Limited,Sydney
-CSL.ASX,CSL Limited,Sydney
-CBA.ASX,Commonwealth Bank of Australia ,Sydney
-FMG.ASX,Fortescue Metals Group Limited ,Sydney
-WBC.ASX,Westpac Banking Corporation,Sydney
-RIO.ASX,Rio Tinto Group,Sydney
-MQG.ASX,Macquarie Group Limited,Sydney
-NAB.ASX,National Australia Bank Limited,Sydney
-ANZ.ASX, ANZ Group Holdings Limited,Sydney
-WOW.ASX,Woolworths Group Limited,Sydney
-WES.ASX,Wesfarmers Limited,Sydney
-PLS.ASX,PLS Group Ltd,Sydney
-GMG.ASX,Goodman Group ,Sydney
-STO.ASX,Santos Limited,Sydney
-WDS.ASX,Woodside Energy Group Ltd,Sydney
-MIN.ASX,Mineral Resources Limited ,Sydney
-LYC.ASX,Lynas Rare Earths Limited,Sydney
-S32.ASX,South32 Limited ,Sydney
-BRN.ASX,BrainChip Holdings Ltd,Sydney
-TCL.ASX,Transurban Group ,Sydney
-JHX.ASX,James Hardie Industries plc,Sydney
-XRO.ASX,Xero Limited,Sydney
-WTC.ASX,WiseTech Global Limited,Sydney
-SHL.ASX,Sonic Healthcare Limited,Sydney
-NST.ASX,Northern Star Resources Limited,Sydney
-ALL.ASX,Aristocrat Leisure Limited,Sydney
-QBE.ASX,QBE Insurance Group Limited,Sydney
-COL.ASX,Coles Group Limited ,Sydney
-SCG.ASX,Scentre Group ,Sydney
-AMC.ASX,Amcor plc,Sydney
-AGL.ASX,AGL Energy Limited,Sydney
-MFG.ASX,Magellan Financial Group Limited,Sydney
-IGO.ASX,IGO Limited ,Sydney
-BSL.ASX,BlueScope Steel Limited,Sydney
-QAN.ASX,Qantas Airways Limited,Sydney
-BXB.ASX,Brambles Limited ,Sydney
-NVX.ASX,Novonix Limited ,Sydney
-CHC.ASX,Charter Hall Group,Sydney
-DNL.ASX,Dyno Nobel Ltd,Sydney
-SOL.ASX,Washington H. Soul Pattinson and Company Limited,Sydney
-ORG.ASX,Origin Energy Limited,Sydney
-RMD.ASX,ResMed Inc,Sydney
-EVN.ASX,Evolution Mining Limited,Sydney
-DXS.ASX,Dexus,Sydney
-SGP.ASX,Stockland,Sydney
-RHC.ASX,Ramsay Health Care Limited ,Sydney
-ASX.ASX,ASX Limited,Sydney
-WHC.ASX,Whitehaven Coal Limited,Sydney
-SUN.ASX,Suncorp Group Limited,Sydney
-GPT.ASX,GPT Group ,Sydney
-IAG.ASX,Insurance Australia Group Limited,Sydney
-MGR.ASX,Mirvac Group,Sydney
-IEL.ASX,IDP Education Limited,Sydney
-CPU.ASX,Computershare Limited ,Sydney
-DMP.ASX,Dominos Pizza Enterprises Limited,Sydney
-LTR.ASX,Liontown Ltd,Sydney
-REA.ASX,REA Group Limited ,Sydney
-APA.ASX,APA Group ,Sydney
-COH.ASX,Cochlear Limited,Sydney
-ILU.ASX,Iluka Resources Limited,Sydney
-MPL.ASX,Medibank Private Limited,Sydney
-VCX.ASX,Vicinity Centres ,Sydney
-JBH.ASX,JB Hi-Fi Limited ,Sydney
-SEK.ASX,SEEK Limited,Sydney
-WOR.ASX,Worley Limited,Sydney
-SDF.ASX,Steadfast Group Limited ,Sydney
-EDV.ASX,Endeavour Group Limited,Sydney
-FLT.ASX,Flight Centre Travel Group Limited,Sydney
-AZJ.ASX,Aurizon Holdings Limited ,Sydney
-VUL.ASX,Vulcan Energy Resources Ltd,Sydney
-CXO.ASX,Core Lithium Ltd,Sydney
-AVZ.ASX,AVZ Minerals Ltd,Sydney
+BHP.AX,BHP Group Limited,Sydney
+CSL.AX,CSL Limited,Sydney
+CBA.AX,Commonwealth Bank of Australia ,Sydney
+FMG.AX,Fortescue Metals Group Limited ,Sydney
+WBC.AX,Westpac Banking Corporation,Sydney
+RIO.AX,Rio Tinto Group,Sydney
+MQG.AX,Macquarie Group Limited,Sydney
+NAB.AX,National Australia Bank Limited,Sydney
+ANZ.AX, ANZ Group Holdings Limited,Sydney
+WOW.AX,Woolworths Group Limited,Sydney
+WES.AX,Wesfarmers Limited,Sydney
+PLS.AX,PLS Group Ltd,Sydney
+GMG.AX,Goodman Group ,Sydney
+STO.AX,Santos Limited,Sydney
+WDS.AX,Woodside Energy Group Ltd,Sydney
+MIN.AX,Mineral Resources Limited ,Sydney
+LYC.AX,Lynas Rare Earths Limited,Sydney
+S32.AX,South32 Limited ,Sydney
+BRN.AX,BrainChip Holdings Ltd,Sydney
+TCL.AX,Transurban Group ,Sydney
+JHX.AX,James Hardie Industries plc,Sydney
+XRO.AX,Xero Limited,Sydney
+WTC.AX,WiseTech Global Limited,Sydney
+SHL.AX,Sonic Healthcare Limited,Sydney
+NST.AX,Northern Star Resources Limited,Sydney
+ALL.AX,Aristocrat Leisure Limited,Sydney
+QBE.AX,QBE Insurance Group Limited,Sydney
+COL.AX,Coles Group Limited ,Sydney
+SCG.AX,Scentre Group ,Sydney
+AMC.AX,Amcor plc,Sydney
+AGL.AX,AGL Energy Limited,Sydney
+MFG.AX,Magellan Financial Group Limited,Sydney
+IGO.AX,IGO Limited ,Sydney
+BSL.AX,BlueScope Steel Limited,Sydney
+QAN.AX,Qantas Airways Limited,Sydney
+BXB.AX,Brambles Limited ,Sydney
+NVX.AX,Novonix Limited ,Sydney
+CHC.AX,Charter Hall Group,Sydney
+DNL.AX,Dyno Nobel Ltd,Sydney
+SOL.AX,Washington H. Soul Pattinson and Company Limited,Sydney
+ORG.AX,Origin Energy Limited,Sydney
+RMD.AX,ResMed Inc,Sydney
+EVN.AX,Evolution Mining Limited,Sydney
+DXS.AX,Dexus,Sydney
+SGP.AX,Stockland,Sydney
+RHC.AX,Ramsay Health Care Limited ,Sydney
+ASX.AX,ASX Limited,Sydney
+WHC.AX,Whitehaven Coal Limited,Sydney
+SUN.AX,Suncorp Group Limited,Sydney
+GPT.AX,GPT Group ,Sydney
+IAG.AX,Insurance Australia Group Limited,Sydney
+MGR.AX,Mirvac Group,Sydney
+IEL.AX,IDP Education Limited,Sydney
+CPU.AX,Computershare Limited ,Sydney
+DMP.AX,Dominos Pizza Enterprises Limited,Sydney
+LTR.AX,Liontown Ltd,Sydney
+REA.AX,REA Group Limited ,Sydney
+APA.AX,APA Group ,Sydney
+COH.AX,Cochlear Limited,Sydney
+ILU.AX,Iluka Resources Limited,Sydney
+MPL.AX,Medibank Private Limited,Sydney
+VCX.AX,Vicinity Centres ,Sydney
+JBH.AX,JB Hi-Fi Limited ,Sydney
+SEK.AX,SEEK Limited,Sydney
+WOR.AX,Worley Limited,Sydney
+SDF.AX,Steadfast Group Limited ,Sydney
+EDV.AX,Endeavour Group Limited,Sydney
+FLT.AX,Flight Centre Travel Group Limited,Sydney
+AZJ.AX,Aurizon Holdings Limited ,Sydney
+VUL.AX,Vulcan Energy Resources Ltd,Sydney
+CXO.AX,Core Lithium Ltd,Sydney
+AVZ.AX,AVZ Minerals Ltd,Sydney
 VOD.L, Vodafone Group PLC,LSE
-WJL.ASX,Webjet Group Limited,Sydney
-TLS.ASX,Telstra Group Ltd,Sydney
-IPO108.ASX,IPO108,Sydney
-IPO109.ASX,IPO109,Sydney
-IPO110.ASX,IPO110,Sydney
-SFR.ASX,Sandfire Resources Limited,Sydney
-NSR.ASX,National Storage REIT,Sydney
-SUL.ASX,Super Retail Group Limited,Sydney
-TAH.ASX,Tabcorp Holdings Limited,Sydney
-ELV.ASX,Elevra Lithium Ltd,Sydney
-CHN.ASX,Chalice Mining Limited,Sydney
-IVC.ASX,InvoCare Limited,Sydney
-RWC.ASX,Reliance Worldwide Corporation Limited,Sydney
-PPT.ASX,Perpetual Limited,Sydney
-SGM.ASX,Sims Limited,Sydney
-TLX.ASX,Telix Pharmaceuticals Limited,Sydney
-RRL.ASX,Regis Resources Limited,Sydney
-MP1.ASX,Megaport Limited,Sydney
-NIC.ASX,Nickel Industries Limited,Sydney
-PDN.ASX,Paladin Energy Ltd,Sydney
-ORA.ASX,Orora Limited,Sydney
-HLS.ASX,Healius Limited,Sydney
-WEB.ASX,Webjet Limited,Sydney
-RGN.ASX,Region Group,Sydney
-PXA.ASX,PEXA Group Limited,Sydney
-ELD.ASX,Elders Limited,Sydney
-IRE.ASX,Iress Limited,Sydney
-LKE.ASX,Lake Resources NL,Sydney
-APE.ASX,Eagers Automotive Limited,Sydney
-GOR.ASX,Gold Road Resources Limited,Sydney
-BGL.ASX,Bellevue Gold Limited,Sydney
-PMV.ASX,Premier Investments Limited,Sydney
-HUB.ASX,HUB24 Limited,Sydney
-ARB.ASX,ARB Corporation Limited,Sydney
-CIP.ASX,Centuria Industrial REIT,Sydney
-KAR.ASX,Karoon Energy Ltd,Sydney
-GNC.ASX,GrainCorp Limited,Sydney
-SYR.ASX,Syrah Resources Limited,Sydney
-IPH.ASX,IPH Limited,Sydney
-IFL.ASX,Insignia Financial Ltd,Sydney
-BAP.ASX,Bapcor Limited,Sydney
-AUB.ASX,AUB Group Limited,Sydney
-NAN.ASX,Nanosonics Limited,Sydney
-LOV.ASX,Lovisa Holdings Limited,Sydney
-DHG.ASX,Domain Holdings Australia Limited,Sydney
-UMG.ASX,United Malt Group Limited,Sydney
-DRR.ASX,Deterra Royalties Limited,Sydney
-PNV.ASX,PolyNovo Limited,Sydney
-FBU.ASX,Fletcher Building Limited,Sydney
-INA.ASX,Ingenia Communities Group,Sydney
-NWH.ASX,NRW Holdings Limited,Sydney
-CMM.ASX,Capricorn Metals Ltd,Sydney
-HDN.ASX,HomeCo Daily Needs REIT,Sydney
-JLG.ASX,Johns Lyng Group Limited,Sydney
-LIC.ASX,Lifestyle Communities Limited,Sydney
-NUF.ASX,Nufarm Limited,Sydney
-WPR.ASX,Waypoint REIT,Sydney
-CQR.ASX,Charter Hall Retail REIT,Sydney
-PNI.ASX,Pinnacle Investment Management Group Limited,Sydney
-BKL.ASX,Blackmores Limited,Sydney
-CCP.ASX,Credit Corp Group Limited,Sydney
-MND.ASX,Monadelphous Group Limited,Sydney
-ING.ASX,Inghams Group Limited,Sydney
-WAF.ASX,West African Resources Limited,Sydney
-AOV.ASX,Amotiv Ltd,Sydney
-NWL.ASX,Netwealth Group Limited,Sydney
-BKW.ASX,Brickworks Limited,Sydney
-CNU.ASX,Chorus Limited,Sydney
-ABP.ASX,Abacus Property Group,Sydney
-BWP.ASX,BWP Property Group,Sydney
-ARF.ASX,Arena REIT,Sydney
-BGA.ASX,Bega Cheese Limited,Sydney
-HMC.ASX,HMC Capital Limited,Sydney
-KLS.ASX,Kelsian Group Limited,Sydney
-CKF.ASX,Collins Foods Limited,Sydney
-GOZ.ASX,Growthpoint Properties Australia,Sydney
-EVT.ASX,EVT Limited,Sydney
-CMW.ASX,Cromwell Property Group,Sydney
-CQE.ASX,Charter Hall Social Infrastructure REIT,Sydney
-IMU.ASX,Imugene Ltd,Sydney
+WJL.AX,Webjet Group Limited,Sydney
+TLS.AX,Telstra Group Ltd,Sydney
+IPO108.AX,IPO108,Sydney
+IPO109.AX,IPO109,Sydney
+IPO110.AX,IPO110,Sydney
+SFR.AX,Sandfire Resources Limited,Sydney
+NSR.AX,National Storage REIT,Sydney
+SUL.AX,Super Retail Group Limited,Sydney
+TAH.AX,Tabcorp Holdings Limited,Sydney
+ELV.AX,Elevra Lithium Ltd,Sydney
+CHN.AX,Chalice Mining Limited,Sydney
+IVC.AX,InvoCare Limited,Sydney
+RWC.AX,Reliance Worldwide Corporation Limited,Sydney
+PPT.AX,Perpetual Limited,Sydney
+SGM.AX,Sims Limited,Sydney
+TLX.AX,Telix Pharmaceuticals Limited,Sydney
+RRL.AX,Regis Resources Limited,Sydney
+MP1.AX,Megaport Limited,Sydney
+NIC.AX,Nickel Industries Limited,Sydney
+PDN.AX,Paladin Energy Ltd,Sydney
+ORA.AX,Orora Limited,Sydney
+HLS.AX,Healius Limited,Sydney
+WEB.AX,Webjet Limited,Sydney
+RGN.AX,Region Group,Sydney
+PXA.AX,PEXA Group Limited,Sydney
+ELD.AX,Elders Limited,Sydney
+IRE.AX,Iress Limited,Sydney
+LKE.AX,Lake Resources NL,Sydney
+APE.AX,Eagers Automotive Limited,Sydney
+GOR.AX,Gold Road Resources Limited,Sydney
+BGL.AX,Bellevue Gold Limited,Sydney
+PMV.AX,Premier Investments Limited,Sydney
+HUB.AX,HUB24 Limited,Sydney
+ARB.AX,ARB Corporation Limited,Sydney
+CIP.AX,Centuria Industrial REIT,Sydney
+KAR.AX,Karoon Energy Ltd,Sydney
+GNC.AX,GrainCorp Limited,Sydney
+SYR.AX,Syrah Resources Limited,Sydney
+IPH.AX,IPH Limited,Sydney
+IFL.AX,Insignia Financial Ltd,Sydney
+BAP.AX,Bapcor Limited,Sydney
+AUB.AX,AUB Group Limited,Sydney
+NAN.AX,Nanosonics Limited,Sydney
+LOV.AX,Lovisa Holdings Limited,Sydney
+DHG.AX,Domain Holdings Australia Limited,Sydney
+UMG.AX,United Malt Group Limited,Sydney
+DRR.AX,Deterra Royalties Limited,Sydney
+PNV.AX,PolyNovo Limited,Sydney
+FBU.AX,Fletcher Building Limited,Sydney
+INA.AX,Ingenia Communities Group,Sydney
+NWH.AX,NRW Holdings Limited,Sydney
+CMM.AX,Capricorn Metals Ltd,Sydney
+HDN.AX,HomeCo Daily Needs REIT,Sydney
+JLG.AX,Johns Lyng Group Limited,Sydney
+LIC.AX,Lifestyle Communities Limited,Sydney
+NUF.AX,Nufarm Limited,Sydney
+WPR.AX,Waypoint REIT,Sydney
+CQR.AX,Charter Hall Retail REIT,Sydney
+PNI.AX,Pinnacle Investment Management Group Limited,Sydney
+BKL.AX,Blackmores Limited,Sydney
+CCP.AX,Credit Corp Group Limited,Sydney
+MND.AX,Monadelphous Group Limited,Sydney
+ING.AX,Inghams Group Limited,Sydney
+WAF.AX,West African Resources Limited,Sydney
+AOV.AX,Amotiv Ltd,Sydney
+NWL.AX,Netwealth Group Limited,Sydney
+BKW.AX,Brickworks Limited,Sydney
+CNU.AX,Chorus Limited,Sydney
+ABP.AX,Abacus Property Group,Sydney
+BWP.AX,BWP Property Group,Sydney
+ARF.AX,Arena REIT,Sydney
+BGA.AX,Bega Cheese Limited,Sydney
+HMC.AX,HMC Capital Limited,Sydney
+KLS.AX,Kelsian Group Limited,Sydney
+CKF.AX,Collins Foods Limited,Sydney
+GOZ.AX,Growthpoint Properties Australia,Sydney
+EVT.AX,EVT Limited,Sydney
+CMW.AX,Cromwell Property Group,Sydney
+CQE.AX,Charter Hall Social Infrastructure REIT,Sydney
+IMU.AX,Imugene Ltd,Sydney
 FSS1,First Sydney stock,Sydney
 ERG.MI,ERG SpA,Borsa Italiana
-PRX.NV,Prosus NV,Euronext Amsterdam
-EDPR.LSB,EDP Renovaveis SA,Euronext Lisbon
+PRX.AS,Prosus NV,Euronext Amsterdam
+EDPR.LS,EDP Renovaveis SA,Euronext Lisbon
 SAN.MC,Banco Santander SA,Bolsa De Madrid
 TEF.MC,Telefonica SA,Bolsa De Madrid
 LAC,Lithium Americas Corp,NYSE
@@ -3542,7 +3528,6 @@ WRTS.APRN.20,APRN WARRANT - 0.2 at 20 USD,NYSE
 NLOP,Net Lease Office Properties,NYSE
 EE,Excelerate Energy Inc.,NYSE
 CA21,Royal Dutch  Shell,LSE
-SBER.MOEX,Sberbank Moscow,LSE
 RPI.L,Raspberry Pi Ltd,LSE
 CA54.L,CA54,LSE
 CA55.L,CA55,LSE
@@ -3645,21 +3630,16 @@ FIP,FTAI Infrastructure LLC,Nasdaq
 MURA,Mural Oncology Plc,Nasdaq
 INBX,Inhibrx Biosciences Inc,Nasdaq
 WAY,Waystar Holding Corp,Nasdaq
-FUSN.CVR,Fusion Pharmaceuticals Inc CVR Payment (Acquired),Nasdaq
-INBX.CVR,Inhibrx Inc CVR Payment (Acquired),Nasdaq
 TEM,Tempus AI Inc,Nasdaq
 TLX,Telix Pharmaceuticals Limited,Nasdaq
 GRAL,Grail Inc,Nasdaq
-TECX.CVR,Tectonic Therapeutic Inc Merger CVR,Nasdaq
 SUNS,Sunrise Realty Trust Inc,Nasdaq
 SNREY,Sunrise Communications AG,Nasdaq
-PSTX.CVR,Poseida Therapeutics Inc Merger CVR,Nasdaq
 VRM,Vroom Inc,Nasdaq
 SFD,Smithfield Foods Inc,Nasdaq
 SNDK,Sandisk Corp/DE,Nasdaq
 HLN,Haleon PLC-ADR,NYSE
 PSTH_LIQU,Pershing Square Tontine Holdings Ltd-SPAC,NYSE
-ABMD.RIGHT,ABMD Merger ,NYSE
 ILSUSD_OLD,CA56,NYSE
 VLTO,Veralto Corp,NYSE
 KLG,WK Kellogg Co,NYSE
@@ -4010,8 +3990,6 @@ STJ.L,St.James's Place Capital Plc,LSE
 TOST,Toast Inc.,NYSE
 9866.HK,NIO Inc Class A,Hong Kong Exchanges
 P911.DE,Porsche AG,FRA
-AMC.EXT,AMC Entertainment Holdings Inc,Regular Trading Hours - RTH
-DJT.EXT,Trump Media & Technology Group,Regular Trading Hours - RTH
 IONQ,IONQ Inc,NYSE
 LPLA,LPL Financial Holdings Inc,Nasdaq
 ONON,On Holding AG,NYSE
@@ -4160,7 +4138,6 @@ SSYS,Stratasys Ltd,Nasdaq
 BNL,Broadstone Net Lease Inc,NYSE
 LUCK,Lucky Strike Entertainment Corp,NYSE
 AD,Array Digital Infrastructure Inc,NYSE
-CD.OLD,Chindata Group Holdings Limited,Nasdaq
 HUBG,Hub Group Inc,Nasdaq
 CTRE,CareTrust REIT Inc,NYSE
 PLL,Piedmont Lithium Inc,Nasdaq
@@ -5072,21 +5049,21 @@ ESPR,Esperion Therapeutics Inc,Nasdaq
 HRTX,Heron Therapeutics Inc,Nasdaq
 REI,Ring Energy Inc,NYSE
 WULF,Terawulf Inc,Nasdaq
-RMS.ASX,Ramelius Resources Ltd,Sydney
+RMS.AX,Ramelius Resources Ltd,Sydney
 RXT,Rackspace Technology Inc,Nasdaq
 TSHA,Taysha Gene Therapies Inc,Nasdaq
 NXDR,Nextdoor Holdings Inc,NYSE
 BBAI,Bigbear.Ai Holdings Inc,NYSE
 BIVI,Biovie Inc,Nasdaq
 ERAS,Erasca Inc,Nasdaq
-IMD.ASX,Imdex Ltd,Sydney
+IMD.AX,Imdex Ltd,Sydney
 MLGO,Microalgo Inc,Nasdaq
-GMD.ASX,Genesis Minerals Ltd,Sydney
+GMD.AX,Genesis Minerals Ltd,Sydney
 MRSN,Mersana Therapeutics Inc,Nasdaq
 XERS,Xeris Biopharma Holdings Inc,Nasdaq
 MREO,Mereo Biopha-Adr,Nasdaq
 SOUN,Soundhound Ai Inc-A,Nasdaq
-WGX.ASX,Westgold Resources Ltd,Sydney
+WGX.AX,Westgold Resources Ltd,Sydney
 KNTE,Kinnate Biopharma Inc,Nasdaq
 NRGV,Energy Vault Holdings Inc,NYSE
 PMVP,Pmv Pharmaceuticals Inc,Nasdaq
@@ -5103,37 +5080,37 @@ AUR,Aurora Innovation Inc,Nasdaq
 MSPR,Msp Recovery Inc,Nasdaq
 NRDY,Nerdy Inc,NYSE
 APLT,Applied Therapeutics Inc,Nasdaq
-EMR.ASX,Emerald Resources Nl,Sydney
+EMR.AX,Emerald Resources Nl,Sydney
 TPST,Tempest Therapeutics Inc,Nasdaq
-CTT.ASX,Cettire Ltd,Sydney
-VNT.ASX,Ventia Services Group Pty Lt,Sydney
+CTT.AX,Cettire Ltd,Sydney
+VNT.AX,Ventia Services Group Pty Lt,Sydney
 BTAI,Bioxcel Therapeutics Inc,Nasdaq
 BTBT,Bit Digital Inc,Nasdaq
 ORGO,Organogenesis Holdings Inc,Nasdaq
 SMRT,Smartrent Inc,NYSE
 LLFLQ,Ll Flooring Holdings Inc,NYSE
 ENIC,Enel Chile Sa,NYSE
-AZS.ASX,Azure Minerals Ltd,Sydney
+AZS.AX,Azure Minerals Ltd,Sydney
 STRO,Sutro Biopharma Inc,Nasdaq
 NG,Novagold Resources Inc,NYSE
 HIVE,Hive Digital Technologies Ltd,Nasdaq
-SMR.ASX,Stanmore Resources Ltd,Sydney
-ABB.ASX,Aussie Broadband Ltd,Sydney
-WBT.ASX,Weebit Nano Ltd,Sydney
-BOE.ASX,Boss Energy Ltd,Sydney
+SMR.AX,Stanmore Resources Ltd,Sydney
+ABB.AX,Aussie Broadband Ltd,Sydney
+WBT.AX,Weebit Nano Ltd,Sydney
+BOE.AX,Boss Energy Ltd,Sydney
 AMPX,Amprius Technologies Inc,NYSE
 BNKK,Bonk Inc,Nasdaq
 RVPH,Reviva Pharmaceuticals Holdi,OTC Markets Stock Exchange
 SERA,Sera Prognostics Inc-A,Nasdaq
 EJH,E-Home Household Service,Nasdaq
 LIAN,Lianbio-Adr,OTC Markets Stock Exchange
-HLI.ASX,Helia Group Ltd,Sydney
+HLI.AX,Helia Group Ltd,Sydney
 SAND,Sandstorm Gold Ltd,NYSE
 AUTL,Autolus Therapeu,Nasdaq
 STTK,Shattuck Labs In,Nasdaq
-YAL.ASX,Yancoal Australia Ltd,Sydney
+YAL.AX,Yancoal Australia Ltd,Sydney
 EQX,Equinox Gold Corp,NYSE
-SDR.ASX,Siteminder Ltd,Sydney
+SDR.AX,Siteminder Ltd,Sydney
 IREN,Iris Energy Ltd,Nasdaq
 UIS,Unisys Corp,NYSE
 OPTX,Syntec Optics Holdings Inc,Nasdaq
@@ -5142,23 +5119,23 @@ SOAR,Volato Group Inc,NYSE
 INTS,Intensity Therapeutics Inc,Nasdaq
 ENGN,enGene Therapeutics Inc,Nasdaq
 CCG,Cheche Group Inc,Nasdaq
-DTL.ASX,Data3 Limited,Sydney
+DTL.AX,Data3 Limited,Sydney
 HRTG,Heritage Insurance Holdings,NYSE
-SIQ.ASX,Smartgroup Corp Ltd,Sydney
-CDA.ASX,Codan Ltd,Sydney
+SIQ.AX,Smartgroup Corp Ltd,Sydney
+CDA.AX,Codan Ltd,Sydney
 MTRX,Matrix Service Co,Nasdaq
 QXO,QXO Inc,NYSE
 CDAQF,Compass Digital Acquisition,OTC Markets Stock Exchange
 KIDZ,Classover Hold-B Equity,Nasdaq
-NCK.ASX,Nick Scali Ltd,Sydney
+NCK.AX,Nick Scali Ltd,Sydney
 IVCBF,Investcorp Europe Acquisi-A,OTC Markets Stock Exchange
 DRCT,Direct Digital Holdings In-A,Nasdaq
 OR,OR Royalties Ltd,NYSE
-AD8.ASX,Audinate Group Ltd,Sydney
+AD8.AX,Audinate Group Ltd,Sydney
 BLCO,Bausch + Lomb Corp,NYSE
 VRE,Veris Residentia,NYSE
-NEU.ASX,Neuren Pharmaceuticals Ltd,Sydney
-MMS.ASX,Mcmillan Shakespeare Ltd,Sydney
+NEU.AX,Neuren Pharmaceuticals Ltd,Sydney
+MMS.AX,Mcmillan Shakespeare Ltd,Sydney
 CSTR,Capstar Financial Holdings I,Nasdaq
 APGE,Apogee Therapeutics Inc,Nasdaq
 TLK,Telkom Indonesia Persero Tbk Pt,NYSE
@@ -5200,9 +5177,9 @@ HEPS,D-Market Elektronik Hizmetler Ve Ticaret As,Nasdaq
 WBX,Wallbox Nv,NYSE
 RBTC,Rubicon Technologies Inc,NYSE
 RMTI,Rockwell Medical Inc,Nasdaq
-AX1.ASX,Accent Group Ltd,Sydney
+AX1.AX,Accent Group Ltd,Sydney
 LYEL,Lyell Immunopharma Inc,Nasdaq
-IDX.ASX,Integral Diagnostics Ltd,Sydney
+IDX.AX,Integral Diagnostics Ltd,Sydney
 TCSGQ,Container Store Group Inc/Th,NYSE
 TNYA,Tenaya Therapeutics Inc,Nasdaq
 AQST,Aquestive Therapeutics Inc,Nasdaq
@@ -5221,9 +5198,9 @@ LGVN,Longeveron Inc-A,Nasdaq
 HNST,Honest Co Inc/The,Nasdaq
 DOUG,Douglas Elliman Inc,NYSE
 OMGAQ,Omega Therapeutics Inc,Nasdaq
-RIC.ASX,Ridley Corp Ltd,Sydney
+RIC.AX,Ridley Corp Ltd,Sydney
 VLN,Valens Semiconductor Ltd,NYSE
-RDX.ASX,Redox Ltd/Australia,Sydney
+RDX.AX,Redox Ltd/Australia,Sydney
 DSGN,Design Therapeutics Inc,Nasdaq
 EXFY,Expensify Inc - A,Nasdaq
 OMER,Omeros Corp,Nasdaq
@@ -5233,7 +5210,7 @@ MYPS,Playstudios Inc,Nasdaq
 GGR,Gogoro Inc,Nasdaq
 CARM,Carisma Therapeutics Inc,Nasdaq
 RLMD,Relmada Therapeutics Inc,Nasdaq
-BMN.ASX,Bannerman Energy Ltd,Sydney
+BMN.AX,Bannerman Energy Ltd,Sydney
 ANNX,Annexon Inc,Nasdaq
 CYPH,Cypherpunk Technologies Inc,Nasdaq
 MKTW,Marketwise Inc,Nasdaq
@@ -5242,7 +5219,7 @@ IRD,Opus Genetics Inc,Nasdaq
 SGHT,Sight Sciences Inc,Nasdaq
 HUMA,Humacyte Inc,Nasdaq
 RDZN,Roadzen Inc,Nasdaq
-DVP.ASX,Develop Global Ltd,Sydney
+DVP.AX,Develop Global Ltd,Sydney
 DCTH,Delcath Systems Inc,Nasdaq
 OXSQ,Oxford Square Capital Corp,Nasdaq
 RDW,Redwire Corp,NYSE
@@ -5255,7 +5232,7 @@ RMNI,Rimini Street Inc,Nasdaq
 BDTX,Black Diamond Therapeutics I,Nasdaq
 NOTV,Inotiv Inc,Nasdaq
 ALUR,Allurion Technologies Inc,NYSE
-SLX.ASX,Silex Systems Ltd,Sydney
+SLX.AX,Silex Systems Ltd,Sydney
 CDZI,Cadiz Inc,Nasdaq
 ADV,Advantage Solutions Inc,Nasdaq
 PRLD,Prelude Therapeutics Inc,Nasdaq
@@ -5292,7 +5269,7 @@ DLTH,Duluth Holdings Inc - Cl B,Nasdaq
 STKS,One Group Hospitality Inc/Th,Nasdaq
 INTR,Inter & Co Inc - Cl A,Nasdaq
 EPIX,Essa Pharma Inc,Nasdaq
-KGN.ASX,Kogan.Com Ltd,Sydney
+KGN.AX,Kogan.Com Ltd,Sydney
 BEEM,Beam Global,Nasdaq
 TCRX,Tscan Therapeutics Inc,Nasdaq
 OPAL,Opal Fuels Inc-A,Nasdaq
@@ -5311,9 +5288,9 @@ GORV,Lazydays Holdings Inc,Nasdaq
 OBIO,Orchestra Biomed Holdings In,Nasdaq
 KWY,Kingsway Corp,NYSE
 PESI,Perma-Fix Environmental Svcs,Nasdaq
-WA1.ASX,Wa1 Resources Ltd,Sydney
+WA1.AX,Wa1 Resources Ltd,Sydney
 NPCE,Neuropace Inc,Nasdaq
-TPW.ASX,Temple & Webster Group Ltd,Sydney
+TPW.AX,Temple & Webster Group Ltd,Sydney
 LE,Lands End Inc,Nasdaq
 VIRC,Virco Mfg Corporation,Nasdaq
 MRAM,Everspin Technologies Inc,Nasdaq
@@ -5323,7 +5300,7 @@ PLSE,Pulse Biosciences Inc,Nasdaq
 ANVS,Annovis Bio,NYSE
 BLFY,Blue Foundry Bancorp,Nasdaq
 MFIN,Medallion Financial Corp,Nasdaq
-PWH.ASX,Pwr Holdings Ltd,Sydney
+PWH.AX,Pwr Holdings Ltd,Sydney
 THRD,Third Harmonic Bio Inc,Nasdaq
 ESHA,Esh Acquisition Corp-A,Nasdaq
 PCYO,Pure Cycle Corp,Nasdaq
@@ -5357,13 +5334,13 @@ SEZL,Sezzle Inc,Nasdaq
 CBAN,Colony Bankcorp,NYSE
 QUIK,Quicklogic Corp,Nasdaq
 UTI,Universal Technical Institut,NYSE
-DDR.ASX,Dicker Data Ltd,Sydney
+DDR.AX,Dicker Data Ltd,Sydney
 FBYD,Falcons Beyond Global Inc-A,Nasdaq
 LWAY,Lifeway Foods Inc,Nasdaq
 XBP,Xbp Europe Holdings Inc,Nasdaq
 WHF,Whitehorse Finance Inc,Nasdaq
 TFPM,Triple Flag Precious Metals Corp,NYSE
-JIN.ASX,Jumbo Interactive Ltd,Sydney
+JIN.AX,Jumbo Interactive Ltd,Sydney
 NGS,Natural Gas Services Group,NYSE
 ELTK,Eltek Ltd,Nasdaq
 BWMX,Betterware De Mexico Sapi De,NYSE
@@ -5407,7 +5384,7 @@ PFIS,Peoples Financial Services,Nasdaq
 KRRO,Korro Bio Inc,Nasdaq
 CLMB,Climb Global Solutions Inc,Nasdaq
 FRPH,Frp Holdings Inc,Nasdaq
-MAQ.ASX,Macquarie Technology Group L,Sydney
+MAQ.AX,Macquarie Technology Group L,Sydney
 OZ,Belpointe Prep Llc,NYSE
 IX,Orix Corp,NYSE
 ITIC,Investors Title Co,Nasdaq
@@ -6346,7 +6323,6 @@ DORMANT12148,Dormant12148,LSE
 URU.L,Uru Metals Ld,LSE_AIM
 KCR.L,Kcr Residential Reit Plc,LSE_AIM
 YXT,YXT.COM Group Holding Ltd,NYSE
-SEG.RIGHT,Right for Seaport Entertainment Group Inc,NYSE
 INGM,Ingram Micro Holding Corporation,NYSE
 ECG,Everus Construction Group Inc,NYSE
 MRP,Millrose Properties Inc,NYSE
@@ -6751,60 +6727,60 @@ EXJ.DE,Readcrest Capital AG,FRA
 E8X.DE,Elexxion AG,FRA
 T3T1.DE,Seven Principles AG,FRA
 VXT.DE,Tmc Content Group AG,FRA
-UNA.NV,Unilever PLC,Euronext Amsterdam
-MT.NV,ArcelorMittal SA,Euronext Amsterdam
-REN.NV,RELX PLC,Euronext Amsterdam
-INPST.NV,InPost SA,Euronext Amsterdam
-FUR.NV,Fugro NV,Euronext Amsterdam
-ALLFG.NV,Allfunds Group PLC,Euronext Amsterdam
-CVC.NV,CVC Capital Partners PLC,Euronext Amsterdam
-BAMNB.NV,Koninklijke BAM Groep NV,Euronext Amsterdam
-PHARM.NV,Pharming Group NV,Euronext Amsterdam
-HEIJM.NV,Koninklijke Heijmans NV,Euronext Amsterdam
-VLK.NV,Van Lanschot Kempen NV,Euronext Amsterdam
-HAL.NV,HAL Trust,Euronext Amsterdam
-CRBN.NV,Corbion NV,Euronext Amsterdam
-CTPNV.NV,Ctp NV,Euronext Amsterdam
-ECMPA.NV,Eurocommercial Properties NV,Euronext Amsterdam
-VVY.NV,Vivoryon Therapeutics NV,Euronext Amsterdam
-CCEP.NV,Coca-Cola Europacific Partners PLC,Euronext Amsterdam
-NSI.NV,NSI NV,Euronext Amsterdam
-AVTX.NV,Avantium NV,Euronext Amsterdam
-NXFIL.NV,NX Filtration NV,Euronext Amsterdam
-BRNL.NV,Brunel International NV,Euronext Amsterdam
-EBUS.NV,Ebusco Holding NV,Euronext Amsterdam
-FAST.NV,Fastned BV,Euronext Amsterdam
-THEON.NV,Theon International Plc,Euronext Amsterdam
-SLIGR.NV,Sligro Food Group NV,Euronext Amsterdam
-NEDAP.NV,Nedap NV,Euronext Amsterdam
-FFARM.NV,ForFarmers NV,Euronext Amsterdam
-SIFG.NV,Sif Holding NV,Euronext Amsterdam
+UNA.AS,Unilever PLC,Euronext Amsterdam
+MT.AS,ArcelorMittal SA,Euronext Amsterdam
+REN.AS,RELX PLC,Euronext Amsterdam
+INPST.AS,InPost SA,Euronext Amsterdam
+FUR.AS,Fugro NV,Euronext Amsterdam
+ALLFG.AS,Allfunds Group PLC,Euronext Amsterdam
+CVC.AS,CVC Capital Partners PLC,Euronext Amsterdam
+BAMNB.AS,Koninklijke BAM Groep NV,Euronext Amsterdam
+PHARM.AS,Pharming Group NV,Euronext Amsterdam
+HEIJM.AS,Koninklijke Heijmans NV,Euronext Amsterdam
+VLK.AS,Van Lanschot Kempen NV,Euronext Amsterdam
+HAL.AS,HAL Trust,Euronext Amsterdam
+CRBN.AS,Corbion NV,Euronext Amsterdam
+CTPNV.AS,Ctp NV,Euronext Amsterdam
+ECMPA.AS,Eurocommercial Properties NV,Euronext Amsterdam
+VVY.AS,Vivoryon Therapeutics NV,Euronext Amsterdam
+CCEP.AS,Coca-Cola Europacific Partners PLC,Euronext Amsterdam
+NSI.AS,NSI NV,Euronext Amsterdam
+AVTX.AS,Avantium NV,Euronext Amsterdam
+NXFIL.AS,NX Filtration NV,Euronext Amsterdam
+BRNL.AS,Brunel International NV,Euronext Amsterdam
+EBUS.AS,Ebusco Holding NV,Euronext Amsterdam
+FAST.AS,Fastned BV,Euronext Amsterdam
+THEON.AS,Theon International Plc,Euronext Amsterdam
+SLIGR.AS,Sligro Food Group NV,Euronext Amsterdam
+NEDAP.AS,Nedap NV,Euronext Amsterdam
+FFARM.AS,ForFarmers NV,Euronext Amsterdam
+SIFG.AS,Sif Holding NV,Euronext Amsterdam
 CA12630,Vastned Retail NV,Euronext Amsterdam
-ACOMO.NV,Acomo NV,Euronext Amsterdam
-KENDR.NV,Kendrion NV,Euronext Amsterdam
-BSGR.NV,B&S Group SA,Euronext Amsterdam
-FER.NV,Ferrovial NV,Euronext Amsterdam
-CMCOM.NV,CM.com NV,Euronext Amsterdam
-AXS.NV,Accsys Technologies PLC,Euronext Amsterdam
-AZRN.NV,Azerion Group NV,Euronext Amsterdam
-VEON.NV,VEON Ltd,Euronext Amsterdam
-VALUE.NV,Value8 NV,Euronext Amsterdam
-HOLCO.NV,Holland Colours NV,Euronext Amsterdam
-EARTH.NV,Green Earth Group NV,Euronext Amsterdam
-NRP.NV,Nepi Rockcastle NV,Euronext Amsterdam
-EAS2P.NV,Ease2pay NV,Euronext Amsterdam
-REINA.NV,Reinet Investments SCA,Euronext Amsterdam
-CABKA.NV,Cabka NV,Euronext Amsterdam
-AJAX.NV,AFC Ajax NV,Euronext Amsterdam
-CTAC.NV,Ctac NV,Euronext Amsterdam
-PBH.NV,PB Holding N.V.,Euronext Amsterdam
-MORE.NV,Morefield Group NV,Euronext Amsterdam
-BNJ.NV,Banijay Group NV,Euronext Amsterdam
-ALX.NV,Alumexx NV,Euronext Amsterdam
-NAI.NV,New Amsterdam Invest NV,Euronext Amsterdam
-AMUND.NV,Almunda Professionals NV,Euronext Amsterdam
-NEDSE.NV,MKB Nedsense NV,Euronext Amsterdam
-QEV.NV,SPEAR Investments I BV,Euronext Amsterdam
+ACOMO.AS,Acomo NV,Euronext Amsterdam
+KENDR.AS,Kendrion NV,Euronext Amsterdam
+BSGR.AS,B&S Group SA,Euronext Amsterdam
+FER.AS,Ferrovial NV,Euronext Amsterdam
+CMCOM.AS,CM.com NV,Euronext Amsterdam
+AXS.AS,Accsys Technologies PLC,Euronext Amsterdam
+AZRN.AS,Azerion Group NV,Euronext Amsterdam
+VEON.AS,VEON Ltd,Euronext Amsterdam
+VALUE.AS,Value8 NV,Euronext Amsterdam
+HOLCO.AS,Holland Colours NV,Euronext Amsterdam
+EARTH.AS,Green Earth Group NV,Euronext Amsterdam
+NRP.AS,Nepi Rockcastle NV,Euronext Amsterdam
+EAS2P.AS,Ease2pay NV,Euronext Amsterdam
+REINA.AS,Reinet Investments SCA,Euronext Amsterdam
+CABKA.AS,Cabka NV,Euronext Amsterdam
+AJAX.AS,AFC Ajax NV,Euronext Amsterdam
+CTAC.AS,Ctac NV,Euronext Amsterdam
+PBH.AS,PB Holding N.V.,Euronext Amsterdam
+MORE.AS,Morefield Group NV,Euronext Amsterdam
+BNJ.AS,Banijay Group NV,Euronext Amsterdam
+ALX.AS,Alumexx NV,Euronext Amsterdam
+NAI.AS,New Amsterdam Invest NV,Euronext Amsterdam
+AMUND.AS,Almunda Professionals NV,Euronext Amsterdam
+NEDSE.AS,MKB Nedsense NV,Euronext Amsterdam
+QEV.AS,SPEAR Investments I BV,Euronext Amsterdam
 DIE.BR,DIeteren Group SA,Euronext Brussels
 DOR12659,CMB Tech NV,Euronext Brussels
 LOTB.BR,Lotus Bakeries NV,Euronext Brussels
@@ -7035,7 +7011,7 @@ RING.OL,Sparebank 1 Ringerike Hadeland,Oslo Stock Exchange
 OTOVO.OL,Otovo ASA,Oslo Stock Exchange
 CAPSL.OL,Capsol Technologies ASA,Oslo Stock Exchange
 OTEC.OL,Otello Corporation ASA,Oslo Stock Exchange
-ENVI.NV,Envipco Holding NV,Euronext Amsterdam
+ENVI.AS,Envipco Holding NV,Euronext Amsterdam
 LYTIX.OL,LYTIX BIOPHARMA ASA,Oslo Stock Exchange
 MOBA.OL,Morrow Bank ASA,Oslo Stock Exchange
 SBO.OL,Selvaag Bolig ASA,Oslo Stock Exchange
@@ -7487,19 +7463,13 @@ NP,Neptune Insurance Holdings Inc,NYSE
 ALH,Alliance Laundry Holdings Inc,NYSE
 PXED,"Phoenix Education Partners, Inc",NYSE
 BETA,"BETA Technologies, Inc",NYSE
-APLT.CVR,APLT Merger CVR,Nasdaq
-DRM.STOCK42,Ecogas Inversiones SA Spun Off,NYSE
 SFGYY,Sony Financial Group Inc,OTC Markets Stock Exchange
-BBBY.WS,Bed Bath & Beyond Incorporation Warrant,NYSE
-GME.WS,GameStop Corp. warrant,NYSE
 WOLF,Wolfspeed Inc,NYSE
 CVR.THS,TreeHouse Foods CVR,NYSE
-DRM.STOCK69,Test -fees per lot,NYSE
 SONN CVR,SONN CVR Megrer,NYSE
 MRSN CVR,MRSN Merger CVR,Nasdaq
 CVR GBIO,Generation Bio Co CVR,Nasdaq
 ETNB CVR,ETNB CVR Merger,Nasdaq
-WOLF ESCROW.CVR,WOLF Reclass ESCROW.CVR,NYSE
 VERV US CVR,VERV US merger CVR,Nasdaq
 NSTGQ CVR-ESCROW,Nanostring Technologies CVR-Escrow,Nasdaq
 BPMC CVR,Sanofi and BPMC Acquisition CVR,NYSE
@@ -7828,7 +7798,6 @@ BIOPOR.CO,Bioporto AS,Copenhagen Stock Exchange
 LUXORB.CO,Investeringsselskabet Luxor AS,Copenhagen Stock Exchange
 CPHCAPST.CO,Copenhagen Capital AS,Copenhagen Stock Exchange
 AMV0.DE,Aumovio SE,FRA
-DRM.14252,"Test- fees from balance, EU",FRA
 TKMS.DE,Tkms AG& Co KGaA,FRA
 AAPL.EUR,Apple,FRA
 GOOG.EUR,Alphabet,FRA
@@ -7844,11 +7813,7 @@ FRA CVR,LOCKED FOR FRA CVR,FRA
 FRA CVR1,LOCKED FOR FRA CVR1,FRA
 RACE.MI,Ferrari NV,Borsa Italiana
 EASOR.HE,Easor Oyj,Helsinki Stock Exchange
-DRM.14268,Dormant Stock 14268,FRA
-DRM.14269,Dormant Stock 14269,FRA
 ADCBRI.DH,Locked for Abu Dhabi Rights,Abu Dhabi
-DRM.14273,Dormant Stock 14273,Abu Dhabi
-DRM.14274,Dormant Stock 14274,Abu Dhabi
 GLIBK,GCI Liberty Inc,Nasdaq
 GLIBA,GCI Liberty Inc,Nasdaq
 XXI,Twenty One Capital Inc,Nasdaq
@@ -7942,11 +7907,9 @@ BIPC,Brookfield Infrastructure Corp,NYSE
 BUR,Burford Capital Ltd,NYSE
 VANI,"Vivani Medical, Inc",Nasdaq
 ETOR-B,eToro Group Ltd,Nasdaq
-AKRO.CVR,AKRO.CVR,Nasdaq
 ADVM CVR,ADVM CVR,Nasdaq
 Q,Qnity Electronics Inc,NYSE
 MBRFY,MARFRIG GLOBAL FOOD-SPON ADR,OTC Markets Stock Exchange
-DRM.14424,Test - fees from balance US,Nasdaq
 DNN,Denison Mines Corp,NYSE
 UUUU,Energy Fuels Inc,NYSE
 NXE,Nexgen Energy Ltd,NYSE
@@ -8192,31 +8155,6 @@ AKTS,Aktis Oncology Inc,Nasdaq
 9984.T,SoftBank Group Corp.,Tokyo Stock Exchange
 3436.T,Sumco Corp,Tokyo Stock Exchange
 3289.T,Tokyu Fudosan Holdings Corp,Tokyo Stock Exchange
-DRM.14730,Dormant Stock14730,Tokyo Stock Exchange
-DRM.14731,Dormant Stock14731,Tokyo Stock Exchange
-DRM.14732,Dormant Stock14732,Tokyo Stock Exchange
-DRM.14733,Dormant Stock14733,Tokyo Stock Exchange
-DRM.14734,Dormant Stock14734,Tokyo Stock Exchange
-DRM.14735,Dormant Stock14735,Tokyo Stock Exchange
-DRM.14736,Dormant Stock14736,Tokyo Stock Exchange
-DRM.14737,Dormant Stock14737,Tokyo Stock Exchange
-DRM.14738,Dormant Stock14738,Tokyo Stock Exchange
-DRM.14739,Dormant Stock14739,Tokyo Stock Exchange
-DRM.14740,Dormant Stock14740,Tokyo Stock Exchange
-DRM.14741,Dormant Stock14741,Tokyo Stock Exchange
-DRM.14742,Dormant Stock14742,Tokyo Stock Exchange
-DRM.14743,Dormant Stock14743,Tokyo Stock Exchange
-DRM.14744,Dormant Stock14744,Tokyo Stock Exchange
-DRM.14745,Dormant Stock14745,Tokyo Stock Exchange
-DRM.14746,Dormant Stock14746,Tokyo Stock Exchange
-DRM.14747,Dormant Stock14747,Tokyo Stock Exchange
-DRM.14748,Dormant Stock14748,Tokyo Stock Exchange
-DRM.14749,Dormant Stock14749,Tokyo Stock Exchange
-DRM.14750,Dormant Stock14750,Tokyo Stock Exchange
-DRM.14751,Dormant Stock14751,Tokyo Stock Exchange
-DRM.14752,Dormant Stock14752,Tokyo Stock Exchange
-DRM.14753,Dormant Stock14753,Tokyo Stock Exchange
-DRM.14754,Dormant Stock14754,Tokyo Stock Exchange
 LMRI,"Lumexa Imaging Holdings, Inc",Nasdaq
 WLTH,Wealthfront Corporation,Nasdaq
 MDLN,Medline Inc,Nasdaq
@@ -8262,7 +8200,6 @@ PONY,Pony AI Inc,Nasdaq
 CRML,Critical Metals Corp,Nasdaq
 VSNT,VERSANT MEDIA GROUP INC,Nasdaq
 ETOR 4 C40,ETOR APR26 C40,Nasdaq
-TSLA.24-7,Tesla 24/7,Nasdaq
 LIFE,Ethos Technologies Inc,Nasdaq
 MTPLF,Metaplanet Inc,OTC Markets Stock Exchange
 PICS,PicS N.V.,Nasdaq
@@ -8271,7 +8208,6 @@ AERO,Aeromexico Group,NYSE
 MICC,MAGNUM ICE CREAM CO BV,NYSE
 AXIA.PC,Axia Energia-ADR,NYSE
 BTGO,"BitGo Holdings, Inc",NYSE
-US.CVR,Locked for CVR 15209,NYSE
 OPENL,Warrant of Opendoor Technologies Inc,Nasdaq
 OPENZ,Warrant of Opendoor Technologies Inc,Nasdaq
 OPENW,Warrant of Opendoor Technologies Inc,Nasdaq
@@ -8317,35 +8253,10 @@ DNTH,Dianthus Therapeutics Inc,Nasdaq
 SION,Sionna Therapeutics Inc,Nasdaq
 ANDG,Andersen Group Inc,NYSE
 YSS,"York Space Systems, Inc",NYSE
-DRM.15255,Dormant Stock15255,FRA
-DRM.15256,Dormant Stock15256,FRA
-DRM.15257,Dormant Stock15257,FRA
-DRM.15258,Dormant Stock15258,FRA
-DRM.15259,Dormant Stock15259,FRA
-DRM.15260,Dormant Stock15260,FRA
-DRM.15261,Dormant Stock15261,FRA
-DRM.15262,Dormant Stock15262,FRA
-DRM.15263,Dormant Stock15263,FRA
-DRM.15264,Dormant Stock15264,FRA
-DRM.15265,Dormant Stock15265,FRA
-DRM.15266,Dormant Stock15266,FRA
-DRM.15267,Dormant Stock15267,FRA
-DRM.15268,Dormant Stock15268,FRA
-DRM.15269,Dormant Stock15269,FRA
-MICC.NV,MAGNUM ICE CREAM CO NV,Euronext Amsterdam
+MICC.AS,MAGNUM ICE CREAM CO NV,Euronext Amsterdam
 FR CVR,LOCKED FOR FRENCH CVR,Euronext Paris
 FR CVR1,LOCKED FOR FRENCH CVR1,Euronext Paris
-CSG.NV,Czechoslovak Group,Euronext Amsterdam
-DRM.15274,Dormant Stock15274,Euronext Paris
-US.CVR1,Locked for CVR 15525,NYSE
-US.CVR2,Locked for CVR 15526,NYSE
-US.CVR3,Locked for CVR 15527,NYSE
-CVR.15528,Locked for CVR 15528,NYSE
-CVR.15529,Locked for CVR 15529,NYSE
-CVR.15530,Locked for CVR 15530,NYSE
-CVR.15531,Locked for CVR 15531,NYSE
-CVR.15532,Locked for CVR 15532,NYSE
-CVR.15533,Locked for CVR 15533,NYSE
+CSG.AS,Czechoslovak Group,Euronext Amsterdam
 VGNT,Versigent Ltd,NYSE
 MAIR,Madison Air Solutions Corp,NYSE
 AVEX,AEVEX Corp,NYSE
@@ -8356,46 +8267,8 @@ SBMT,Silver Bow Mining Corp,NYSE
 GMRS,GMR Solutions Inc,NYSE
 BXDC,Blackstone Digital Infrastructure Trust Inc,NYSE
 EROK,"EagleRock Land, LLC",NYSE
-DRM.15544,Dormant Stock15544,NYSE
-DRM.15545,Dormant Stock15545,NYSE
-DRM.15546,Dormant Stock15546,NYSE
-DRM.15547,Dormant Stock15547,NYSE
-DRM.15548,Dormant Stock15548,NYSE
-DRM.15549,Dormant Stock15549,NYSE
-DRM.15550,Dormant Stock15550,NYSE
-DRM.15551,Dormant Stock15551,NYSE
-DRM.15552,Dormant Stock15552,NYSE
-DRM.15553,Dormant Stock15553,NYSE
-DRM.15554,Dormant Stock15554,NYSE
-DRM.15555,Dormant Stock15555,NYSE
-DRM.15556,Dormant Stock15556,NYSE
-DRM.15557,Dormant Stock15557,NYSE
-DRM.15558,Dormant Stock15558,NYSE
-DRM.15559,Dormant Stock15559,NYSE
-DRM.15560,Dormant Stock15560,NYSE
-DRM.15561,Dormant Stock15561,NYSE
-DRM.15562,Dormant Stock15562,NYSE
-DRM.15563,Dormant Stock15563,NYSE
-DRM.15564,Dormant Stock15564,NYSE
-DRM.15565,Dormant Stock15565,NYSE
-DRM.15566,Dormant Stock15566,NYSE
-DRM.15567,Dormant Stock15567,NYSE
-DRM.15568,Dormant Stock15568,NYSE
-AAPL.24-7,Apple 24/7,NYSE
-AMZN.24-7,Amazon 24/7,NYSE
-META.24-7,Meta 24/7,NYSE
-GOOG.24-7,Google 24/7,NYSE
-MSFT.24-7,Microsoft 24/7,NYSE
-NVDA.24-7,Nvidia 24/7,NYSE
 CVR.AVDL,Avadel Pharmaceuticals CVR,Nasdaq
-JAGX.PFD,Jaguar Health/PFD Contra Stock,Nasdaq
-HOLX.CVR,HOLX Merger CVR,Nasdaq
-ACLX.CVR,ACLX Merger CVR,Nasdaq
 SGP,SpyGlass Pharma Inc,Nasdaq
-APLS.CVR,APLS Merger CVR,Nasdaq
-US.CVR11,LOCKED FOR CVR10,Nasdaq
-US.CVR12,LOCKED FOR CVR11,Nasdaq
-US.CVR13,LOCKED FOR CVR12,Nasdaq
 GENB,"Generate Biomedicines, Inc",Nasdaq
 TKVA,Salspera Inc,Nasdaq
 CAST,"FreeCast, Inc",Nasdaq
@@ -8406,7 +8279,6 @@ PAYP, PayPay Corporation,Nasdaq
 HMH,HMH Holding Inc.,Nasdaq
 ARXS,"Arxis, Inc",Nasdaq
 SWMR,Swarmer Inc,Nasdaq
-IPO.ACCESS.TEST,IPO Access Test,Nasdaq
 ALMR,"Alamar Biosciences, Inc",Nasdaq
 KLRA,"Kailera Therapeutics, Inc",Nasdaq
 YSWY,"Yesway, Inc",Nasdaq
@@ -8429,635 +8301,609 @@ STRF,Strategy Prf F (Strife 10%),Nasdaq
 STRC,Strategy Prf A (Stretch var.),Nasdaq
 STRK,Strategy Prf (Strike 8%),Nasdaq
 STRD,Strategy Prf D (Stride 10%),Nasdaq
-DRM.15618,Dormant Stock15618,Nasdaq
-DRM.15619,Dormant Stock15619,Nasdaq
-DRM.15620,Dormant Stock15620,Nasdaq
-DRM.15621,Dormant Stock15621,Nasdaq
-DRM.15622,Dormant Stock15622,Nasdaq
-DRM.15623,Dormant Stock15623,Nasdaq
 TRAX,First Tracks Biotherapeutics Inc,Nasdaq
-DRM.15675,Dormant Stock15675,FRA
-DRM.15676,Dormant Stock15676,FRA
-DRM.15677,Dormant Stock15677,FRA
-DRM.15678,Dormant Stock15678,FRA
-DRM.15679,Dormant Stock15679,FRA
-DRM.15680,Dormant Stock15680,FRA
-DRM.15681,Dormant Stock15681,FRA
-DRM.15682,Dormant Stock15682,FRA
-DRM.15683,Dormant Stock15683,FRA
-DRM.15684,Dormant Stock15684,FRA
-BVR.ASX,Bellavista Resources Ltd,Sydney
-DRM.15686,Dormant Stock15686,Sydney
-DRM.15687,Dormant Stock15687,Sydney
-DRM.15688,Dormant Stock15688,Sydney
-DRM.15689,Dormant Stock15689,Sydney
+BVR.AX,Bellavista Resources Ltd,Sydney
 KMAR.OL,Kongsberg Maritime AS,Oslo Stock Exchange
-DRM.15691,Dormant Stock15691,Oslo Stock Exchange
-DRM.15692,Dormant Stock15692,Oslo Stock Exchange
 OCTVSD-B.ST,Octave Intelligence Plc,Stockholm  Stock Exchange
 SIVE.ST,Sivers Semiconductors AB,Stockholm  Stock Exchange
-DRM.15695,Dormant Stock15695,Stockholm  Stock Exchange
 6656.HK,Sigenergy Technology,Hong Kong Exchanges
-DRM.15701,Dormant Stock15701,Copenhagen Stock Exchange
-DRM.15702,Dormant Stock15702,Copenhagen Stock Exchange
-DRM.15703,Dormant Stock15703,Copenhagen Stock Exchange
-SIX.ASX,Sprintex Ltd,Sydney
-BOT.ASX,Botanix Pharmaceuticals Ltd,Sydney
-BOC.ASX,Bougainville Copper Ltd,Sydney
-HGO.ASX,Hillgrove Resources Ltd,Sydney
-TAM.ASX,Tanami Gold NL,Sydney
-ERA.ASX,Energy Resources of Australia Ltd,Sydney
-NGY.ASX,NuEnergy Gas Ltd,Sydney
-SDI.ASX,SDI Ltd,Sydney
-MXI.ASX,Maxiparts Ltd,Sydney
-KCN.ASX,Kingsgate Consolidated Ltd,Sydney
-ARA.ASX,Ariadne Australia Ltd,Sydney
-CYG.ASX,Coventry Group Ltd,Sydney
-EPM.ASX,Eclipse Metals Ltd,Sydney
-FRI.ASX,Finbar Group Ltd,Sydney
-MRT.ASX,Maritana Minerals Ltd,Sydney
-GOW.ASX,Gowing Brothers Ltd,Sydney
-ATP.ASX,Atlas Pearls Ltd,Sydney
-HZN.ASX,Horizon Oil Ltd,Sydney
-LKO.ASX,Lakes Blue Energy NL,Sydney
-CTM.ASX,Centaurus Metals Ltd,Sydney
-AS1.ASX,Asara Resources Ltd,Sydney
-ALK.ASX,Alkane Resources Ltd,Sydney
-AAR.ASX,Astral Resources NL,Sydney
-DYL.ASX,Deep Yellow Ltd,Sydney
-IMM.ASX,Immutep Ltd,Sydney
-MAH.ASX,Macmahon Holdings Ltd,Sydney
-EMP.ASX,Emperor Energy Ltd,Sydney
-FWD.ASX,Fleetwood Ltd,Sydney
-GG8.ASX,Gorilla Gold Mines Ltd,Sydney
-NVA.ASX,Nova Minerals Ltd,Sydney
-TBR.ASX,Tribune Resources Ltd,Sydney
-SBZ.ASX,SchoolBlazer Ltd,Sydney
-KOV.ASX,Korvest Ltd,Sydney
-SKS.ASX,SKS Technologies Group Ltd,Sydney
-EL8.ASX,Elevate Uranium Ltd,Sydney
-WZR.ASX,Wisr Ltd,Sydney
-TVN.ASX,Tivan Ltd,Sydney
-SBM.ASX,St Barbara Ltd,Sydney
-A1N.ASX,ARN Media Ltd,Sydney
-LEX.ASX,Lefroy Exploration Ltd,Sydney
-ECT.ASX,Environmental Clean Technologies Ltd,Sydney
-CVN.ASX,Carnarvon Energy Ltd,Sydney
-RSG.ASX,Resolute Mining Ltd,Sydney
-GWA.ASX,GWA Group Ltd,Sydney
-A1M.ASX,AIC Mines Ltd,Sydney
-GML.ASX,Gateway Mining Ltd,Sydney
-PRN.ASX,Perenti Ltd,Sydney
-CTO.ASX,Citigold Corp Ltd,Sydney
-PEN.ASX,Peninsula Energy Ltd,Sydney
-IMB.ASX,Intelligent Monitoring Group Ltd,Sydney
-TLG.ASX,Talga Group Ltd,Sydney
-ASB.ASX,Austal Ltd,Sydney
-CWP.ASX,Cedar Woods Properties Ltd,Sydney
-IMA.ASX,Image Resources NL,Sydney
-ADN.ASX,Andromeda Metals Ltd,Sydney
-SNL.ASX,Supply Network Ltd,Sydney
-RND.ASX,Rand Mining Ltd,Sydney
-EGL.ASX,Environmental Group Ltd/The,Sydney
-PNR.ASX,Pantoro Gold Ltd,Sydney
-DCC.ASX,DigitalX Ltd,Sydney
-OMH.ASX,OM Holdings Ltd,Sydney
-CUE.ASX,Cue Energy Resources Ltd,Sydney
-ABV.ASX,Advanced Braking Technology Ltd,Sydney
-RNT.ASX,Rent.com.au Ltd,Sydney
-VAU.ASX,Vault Minerals Ltd,Sydney
-HIT.ASX,HiTech Group Australia Ltd,Sydney
-SHV.ASX,Select Harvests Ltd,Sydney
-CCV.ASX,Cash Converters International Ltd,Sydney
-BUB.ASX,Bubs Australia Ltd,Sydney
-BTL.ASX,Beetaloo Energy Australia Ltd,Sydney
-SKC.ASX,SKYCITY Entertainment Group Ltd,Sydney
-FGH.ASX,Foresta Group Holdings Ltd,Sydney
-FGR.ASX,First Graphene Ltd,Sydney
-AGD.ASX,Austral Gold Ltd,Sydney
-PTX.ASX,Prescient Therapeutics Ltd,Sydney
-AIZ.ASX,Air New Zealand Ltd,Sydney
-DXB.ASX,Dimerix Ltd,Sydney
-PGL.ASX,Pilbara Gold Ltd,Sydney
-CCL.ASX,Cuscal Ltd,Sydney
-RMC.ASX,Resimac Group Ltd,Sydney
-LAU.ASX,Lindsay Australia Ltd,Sydney
-PTR.ASX,PTR Minerals Ltd,Sydney
-RDM.ASX,Red Metal Ltd,Sydney
-PCL.ASX,Pancontinental Energy NL,Sydney
-CYM.ASX,Cyprium Metals Ltd,Sydney
-ZIM.ASX,Zimplats Holdings Ltd,Sydney
-IOD.ASX,IODM Ltd,Sydney
-LRK.ASX,Lark Distilling Co Ltd,Sydney
-SNT.ASX,Syntara Ltd,Sydney
-NUZ.ASX,Neurizon Therapeutics Ltd,Sydney
-KSC.ASX,K&S Corp Ltd,Sydney
-WC8.ASX,Wildcat Resources Ltd,Sydney
-BCI.ASX,BCI Minerals Ltd,Sydney
-CLX.ASX,CTI Logistics Ltd,Sydney
-AGY.ASX,Argosy Minerals Ltd,Sydney
-RKN.ASX,Reckon Ltd,Sydney
-PHX.ASX,PharmX Technologies Ltd,Sydney
-TCG.ASX,Turaco Gold Ltd,Sydney
-PFG.ASX,Prime Financial Group Ltd/Australia,Sydney
-CVW.ASX,ClearView Wealth Ltd/Australia,Sydney
-TWR.ASX,TOWER Ltd,Sydney
-GDG.ASX,Generation Development Group Ltd,Sydney
-DRE.ASX,Dreadnought Resources Ltd,Sydney
-MYX.ASX,Mayne Pharma Group Ltd,Sydney
-PGC.ASX,Paragon Care Ltd,Sydney
-HAV.ASX,Havilah Resources Ltd,Sydney
-CLV.ASX,Clover Corp Ltd,Sydney
-IXR.ASX,Ionic Rare Earths Ltd,Sydney
-SRV.ASX,Servcorp Ltd,Sydney
-CKA.ASX,Cokal Ltd,Sydney
-AQD.ASX,AusQuest Ltd,Sydney
-LIN.ASX,Lindian Resources Ltd,Sydney
-SHM.ASX,Shriro Holdings Ltd,Sydney
-ATH.ASX,Alterity Therapeutics ltd,Sydney
-HSN.ASX,Hansen Technologies Ltd,Sydney
-BBL.ASX,Brisbane Broncos Ltd,Sydney
-IVR.ASX,Investigator Silver Ltd,Sydney
-SPL.ASX,Starpharma Holdings Ltd,Sydney
-MAU.ASX,Magnetic Resources NL,Sydney
-BTR.ASX,Brightstar Resources Ltd,Sydney
-MVP.ASX,Medical Developments International Ltd,Sydney
-AHC.ASX,Austco Healthcare Ltd,Sydney
-OCL.ASX,Objective Corp Ltd,Sydney
-MYG.ASX,Mayfield Group Holdings Ltd,Sydney
-BCM.ASX,Brazilian Critical Minerals Ltd,Sydney
-MSB.ASX,Mesoblast Ltd,Sydney
-LYL.ASX,Lycopodium Ltd,Sydney
-DEV.ASX,DevEx Resources Ltd,Sydney
-FML.ASX,Focus Minerals Ltd,Sydney
-FSA.ASX,FSA Group Ltd,Sydney
-KSN.ASX,Kingston Resources Ltd,Sydney
-EYE.ASX,Nova Eye Medical Ltd,Sydney
-JAN.ASX,Janison Education Group Ltd,Sydney
-CUV.ASX,Clinuvel Pharmaceuticals Ltd,Sydney
-LMG.ASX,Latrobe Magnesium Ltd,Sydney
-MEK.ASX,Meeka Metals Ltd,Sydney
-MGX.ASX,MGX Resources Ltd,Sydney
-IRI.ASX,Integrated Research Ltd,Sydney
-BXN.ASX,Bioxyne Ltd,Sydney
-NMT.ASX,Neometals Ltd,Sydney
-PNC.ASX,Pioneer Credit Ltd,Sydney
-CMP.ASX,Compumedics Ltd,Sydney
-AUR.ASX,Auris Minerals Ltd,Sydney
-ADV.ASX,Ardiden Ltd,Sydney
-SDV.ASX,SciDev Ltd,Sydney
-GPR.ASX,Geopacific Resources Ltd,Sydney
-AMA.ASX,AMA Group Ltd,Sydney
-PAC.ASX,Pacific Current Group Ltd,Sydney
-FEX.ASX,Fenix Resources Ltd,Sydney
-ANG.ASX,Austin Engineering Ltd,Sydney
-NMG.ASX,New Murchison Gold Ltd,Sydney
-CGS.ASX,Cogstate Ltd,Sydney
-TSO.ASX,Tesoro Gold Ltd,Sydney
-IBR.ASX,Iron Bear Resources Ltd,Sydney
-EHL.ASX,Emeco Holdings Ltd,Sydney
-CLA.ASX,Celsius Resources Ltd,Sydney
-PYC.ASX,PYC Therapeutics Ltd,Sydney
-AAC.ASX,Australian Agricultural Co Ltd,Sydney
-SKY.ASX,Sky Metals Ltd,Sydney
-OBL.ASX,Omni Bridgeway Ltd,Sydney
-AGI.ASX,Ainsworth Game Technology Ltd,Sydney
-ALA.ASX,Arovella Therapeutics Ltd,Sydney
-EGH.ASX,Eureka Group Holdings Ltd,Sydney
-COI.ASX,Comet Ridge Ltd,Sydney
-RXL.ASX,Rox Resources Ltd/Australia,Sydney
-SHN.ASX,Sunshine Metals Ltd/Australia,Sydney
-EWC.ASX,Energy World Corp Ltd,Sydney
-KGL.ASX,KGL Resources Ltd/Australia,Sydney
-EXR.ASX,Elixir Energy Ltd,Sydney
-GRR.ASX,Grange Resources Ltd,Sydney
-AEL.ASX,Amplitude Energy Ltd,Sydney
-CTP.ASX,Central Petroleum Ltd,Sydney
-ION.ASX,Iondrive Ltd,Sydney
-MAT.ASX,Matsa Resources Ltd,Sydney
-EOS.ASX,Electro Optic Systems Holdings Ltd,Sydney
-HLO.ASX,Helloworld Travel Ltd,Sydney
-IIQ.ASX,INOVIQ Ltd,Sydney
-OBM.ASX,Ora Banda Mining Ltd,Sydney
-CAF.ASX,Centrepoint Alliance Ltd,Sydney
-JLL.ASX,Jindalee Lithium Ltd,Sydney
-CVV.ASX,Caravel Minerals Ltd,Sydney
-EGG.ASX,Enero Group Ltd,Sydney
-SPZ.ASX,Smart Parking Ltd,Sydney
-STX.ASX,Strike Energy Ltd,Sydney
-MTH.ASX,Mithril Silver And Gold Ltd,Sydney
-CUF.ASX,Cufe Ltd,Sydney
-SIG.ASX,Sigma Healthcare Ltd,Sydney
-CXU.ASX,Cauldron Energy Ltd,Sydney
-BML.ASX,Boab Metals Ltd,Sydney
-COG.ASX,COG Financial Services Ltd,Sydney
-AEF.ASX,Australian Ethical Investment Ltd,Sydney
-LRM.ASX,Lion Rock Minerals Ltd,Sydney
-NH3.ASX,NH3 Clean Energy Ltd,Sydney
-SSM.ASX,Service Stream Ltd,Sydney
-SKK.ASX,Stakk Ltd,Sydney
-HAS.ASX,Hastings Technology Metals Ltd,Sydney
-BKY.ASX,Berkeley Energia Ltd,Sydney
-BIS.ASX,Bisalloy Steel Group Ltd,Sydney
-STN.ASX,Saturn Metals Ltd,Sydney
-PPC.ASX,Peet Ltd,Sydney
-MEI.ASX,Meteoric Resources NL,Sydney
-EDU.ASX,Edu Holdings Ltd,Sydney
-ORN.ASX,Orion Minerals Ltd,Sydney
-ARU.ASX,Arafura Rare Earths Ltd,Sydney
-LOT.ASX,Lotus Resources Ltd,Sydney
-AFG.ASX,Australian Finance Group Ltd,Sydney
-MLX.ASX,Metals X Ltd,Sydney
-SOM.ASX,SomnoMed Ltd,Sydney
-AVL.ASX,Australian Vanadium Ltd,Sydney
-STM.ASX,Sunstone Metals Ltd,Sydney
-AEU.ASX,Atomic Eagle Ltd,Sydney
-JMS.ASX,Jupiter Mines Ltd,Sydney
-HUM.ASX,Humm Group Ltd,Sydney
-A4N.ASX,Alpha HPA Ltd,Sydney
-SRZ.ASX,Stellar Resources Ltd/Australia,Sydney
-FFM.ASX,FireFly Metals Ltd,Sydney
-DRX.ASX,Diatreme Resources Ltd,Sydney
-XRF.ASX,XRF Scientific Ltd,Sydney
-CRI.ASX,Critica Ltd,Sydney
-SRG.ASX,SRG Global Ltd,Sydney
-AKM.ASX,Aspire Mining Ltd,Sydney
-M7T.ASX,Mach7 Technologies Ltd,Sydney
-SXL.ASX,Southern Cross Media Group Ltd,Sydney
-CC5.ASX,Clever Culture Systems Ltd,Sydney
-EML.ASX,EML Payments Ltd,Sydney
-RHI.ASX,Red Hill Minerals Ltd,Sydney
-SVM.ASX,Sovereign Metals Ltd,Sydney
-E25.ASX,Element 25 Ltd,Sydney
-NTU.ASX,Northern Minerals Ltd/Australia,Sydney
-TOE.ASX,Toro Energy Ltd,Sydney
-ENR.ASX,Encounter Resources Ltd,Sydney
-STK.ASX,Strickland Metals Ltd,Sydney
-NGI.ASX,Navigator Global Investments Ltd,Sydney
-EDE.ASX,Eden Innovations Ltd,Sydney
-AEE.ASX,Aura Energy Ltd,Sydney
-SHO.ASX,SportsHero Ltd,Sydney
-WWI.ASX,West Wits Mining Ltd,Sydney
-EQR.ASX,EQ Resources Ltd,Sydney
-PPS.ASX,Praemium Ltd,Sydney
-CAV.ASX,Carnavale Resources Ltd,Sydney
-ETM.ASX,Energy Transition Minerals Ltd,Sydney
-RFG.ASX,Retail Food Group Ltd,Sydney
-CYL.ASX,Catalyst Metals Ltd,Sydney
-ACW.ASX,Actinogen Medical Ltd,Sydney
-CZR.ASX,CZR Resources Ltd,Sydney
-SVR.ASX,Solvar Ltd,Sydney
-TTM.ASX,Titan Minerals Ltd,Sydney
-SVL.ASX,Silver Mines Ltd,Sydney
-CYC.ASX,Cyclopharm Ltd,Sydney
-EOL.ASX,Energy One Ltd,Sydney
-LML.ASX,Lincoln Minerals Ltd,Sydney
-QPM.ASX,QPM Energy Ltd,Sydney
-SNS.ASX,SenSen Networks Ltd,Sydney
-PEX.ASX,Peel Mining Ltd,Sydney
-MEU.ASX,Marmota Ltd,Sydney
-L1G.ASX,L1 Group Ltd,Sydney
-AMI.ASX,Aurelia Metals Ltd,Sydney
-ZNC.ASX,Zenith Minerals Ltd,Sydney
-AXE.ASX,Archer Materials Ltd,Sydney
-VLS.ASX,Vita Life Sciences Ltd,Sydney
-GBM.ASX,GBM Resources Ltd,Sydney
-AZY.ASX,Antipa Minerals Ltd,Sydney
-LBL.ASX,Laserbond Ltd,Sydney
-IPD.ASX,ImpediMed Ltd,Sydney
-SRL.ASX,Sunrise Energy Metals Ltd,Sydney
-CEL.ASX,Challenger Gold Ltd,Sydney
-ACF.ASX,Acrow Ltd,Sydney
-VYS.ASX,Vysarn Ltd,Sydney
-CYP.ASX,Cynata Therapeutics Ltd,Sydney
-GEM.ASX,G8 Education Ltd,Sydney
-INR.ASX,ioneer Ltd,Sydney
-SXE.ASX,Southern Cross Electrical Engineering Ltd,Sydney
-VBC.ASX,Verbrec Ltd,Sydney
-BFG.ASX,Bell Financial Group Ltd,Sydney
-ERM.ASX,Emmerson Resources Ltd,Sydney
-BRL.ASX,Bathurst Resources Ltd,Sydney
-AVM.ASX,Advance Metals Ltd,Sydney
-FLC.ASX,Fluence Corp Ltd,Sydney
-ARD.ASX,Argent Minerals Ltd,Sydney
-LCY.ASX,Legacy Iron Ore Ltd,Sydney
-RUL.ASX,RPMGlobal Holdings Ltd,Sydney
-NXD.ASX,NextEd Group Ltd,Sydney
-MYS.ASX,MyState Ltd,Sydney
-ELT.ASX,Elementos Ltd,Sydney
-ZEO.ASX,Zeotech Ltd,Sydney
-ATC.ASX,Altech Batteries Ltd,Sydney
-PSC.ASX,Prospect Resources Ltd,Sydney
-KMD.ASX,KMD Brands Ltd,Sydney
-MMI.ASX,Metro Mining Ltd,Sydney
-MCE.ASX,Matrix Composites & Engineering Ltd,Sydney
-PHO.ASX,Phosco Ltd,Sydney
-AUC.ASX,Ausgold Ltd,Sydney
-FHE.ASX,Frontier Energy Ltd,Sydney
-ZIP.ASX,Zip Co Ltd,Sydney
-VNL.ASX,Vinyl Group Ltd,Sydney
-HCH.ASX,Hot Chili Ltd,Sydney
-CAY.ASX,Canyon Resources Ltd,Sydney
-ASN.ASX,Anson Resources Ltd,Sydney
-TER.ASX,Terracom Ltd,Sydney
-IFT.ASX,Infratil Ltd,Sydney
-SGLLV.ASX,Ricegrowers Ltd,Sydney
-EGR.ASX,Ecograf Ltd,Sydney
-SGQ.ASX,St George Mining Ltd,Sydney
-EUR.ASX,European Lithium Ltd,Sydney
-PDI.ASX,Predictive Discovery Ltd,Sydney
-WGR.ASX,Western Gold Resources Ltd,Sydney
-YOJ.ASX,Yojee Ltd,Sydney
-ARR.ASX,American Rare Earths Ltd,Sydney
-WIA.ASX,WIA Gold Ltd,Sydney
-KGD.ASX,Kula Gold Ltd,Sydney
-RNU.ASX,Renascor Resources Ltd,Sydney
-EIQ.ASX,ECHOiQ Ltd,Sydney
-DLI.ASX,Delta Lithium Ltd,Sydney
-AGE.ASX,Alligator Energy Ltd,Sydney
-VRX.ASX,VRX Silica Ltd,Sydney
-CUP.ASX,Count Ltd,Sydney
-SHA.ASX,Shape Australia Pty Ltd,Sydney
-AHX.ASX,Apiam Animal Health Ltd,Sydney
-VEE.ASX,Veem Ltd,Sydney
-IPG.ASX,IPD Group Ltd/Australia,Sydney
-GNG.ASX,GR Engineering Services Ltd,Sydney
-AIS.ASX,Aeris Resources Ltd,Sydney
-TGM.ASX,Theta Gold Mines Ltd,Sydney
-MCA.ASX,Murray Cod Australia Ltd,Sydney
-TM1.ASX,Terra Metals Ltd,Sydney
-DTR.ASX,Dateline Resources Ltd,Sydney
-RTR.ASX,Rumble Resources Ltd,Sydney
-ALC.ASX,Alcidion Group Ltd,Sydney
-ALR.ASX,Altair Minerals Ltd,Sydney
-KKO.ASX,Kinetiko Energy Ltd,Sydney
-MSV.ASX,Mitchell Services Ltd,Sydney
-OR3.ASX,Ore Resources Ltd,Sydney
-PWR.ASX,Peter Warren Automotive Holdings Ltd,Sydney
-MGH.ASX,Maas Group Holdings Ltd,Sydney
-COD.ASX,Coda Minerals Ltd,Sydney
-AQZ.ASX,Alliance Aviation Services Ltd,Sydney
-WCE.ASX,West Coast Silver Ltd,Sydney
-PCK.ASX,Painchek Ltd,Sydney
-SPG.ASX,SPC Global Holdings Ltd,Sydney
-BWN.ASX,Bhagwan Marine Ltd,Sydney
-ESR.ASX,Estrella Resources Ltd,Sydney
-UNI.ASX,Universal Store Holdings Ltd,Sydney
-EMH.ASX,European Metals Holdings Ltd,Sydney
-DUR.ASX,Duratec Ltd,Sydney
-CXL.ASX,Calix Ltd,Sydney
-AQI.ASX,Alicanto Minerals Ltd,Sydney
-PTN.ASX,Patronus Resources Ltd,Sydney
-MPW.ASX,Metal Powder Works Ltd,Sydney
-WTM.ASX,Waratah Minerals Ltd,Sydney
-TGN.ASX,Tungsten Mining NL,Sydney
-AV1.ASX,AdVeritas Ltd,Sydney
-FMN.ASX,Famien Resources Ltd,Sydney
-PXX.ASX,Polarx Ltd,Sydney
-MTO.ASX,MotorCycle Holdings Ltd,Sydney
-SMI.ASX,Santana Minerals Ltd,Sydney
-SHJ.ASX,Shine Justice Ltd,Sydney
-MCY.ASX,Mercury NZ Ltd,Sydney
-GYG.ASX,Guzman y Gomez Ltd,Sydney
-OFX.ASX,OFX Group Ltd,Sydney
-MEZ.ASX,Meridian Energy Ltd,Sydney
-ATX.ASX,Amplia Therapeutics Ltd,Sydney
-QGL.ASX,Quantum Graphite Ltd,Sydney
-EBO.ASX,EBOS Group Ltd,Sydney
-TYR.ASX,Tyro Payments Ltd,Sydney
-BLX.ASX,Beacon Lighting Group Ltd,Sydney
-GNE.ASX,Genesis Energy Ltd,Sydney
-MVF.ASX,Monash IVF Group Ltd,Sydney
-GTK.ASX,Gentrack Group Ltd,Sydney
-OCC.ASX,Orthocell Ltd,Sydney
-LGI.ASX,LGI Ltd/Australia,Sydney
-VGL.ASX,Vista Group International Ltd,Sydney
-UBN.ASX,Urbanise.com Ltd,Sydney
-REG.ASX,Regis Healthcare Ltd,Sydney
-MLG.ASX,MLG OZ Ltd,Sydney
-PIQ.ASX,Proteomics International Laboratories Ltd,Sydney
-CAT.ASX,Catapult Sports Ltd,Sydney
-OML.ASX,oOh!media Ltd,Sydney
-APX.ASX,Appen Ltd,Sydney
-FID.ASX,Fiducian Group Ltd,Sydney
-EXP.ASX,Experience Co Ltd,Sydney
-FPR.ASX,FleetPartners Group Ltd,Sydney
-SLC.ASX,Superloop Ltd,Sydney
-ART.ASX,Airtasker Ltd,Sydney
-ADH.ASX,Adairs Ltd,Sydney
-PPL.ASX,Pureprofile Ltd,Sydney
-KSL.ASX,Kina Securities Ltd,Sydney
-PAR.ASX,Paradigm Biopharmaceuticals Ltd,Sydney
-KYP.ASX,Kinatico Ltd,Sydney
-KPG.ASX,Kelly Partners Group Holdings Ltd,Sydney
-RCE.ASX,Recce Pharmaceuticals Ltd,Sydney
-BBN.ASX,Baby Bunting Group Ltd,Sydney
-CEN.ASX,Contact Energy Ltd,Sydney
-HZR.ASX,Hazer Group Ltd,Sydney
-MX1.ASX,Micro-X Ltd,Sydney
-IGL.ASX,IVE Group Ltd,Sydney
-EQT.ASX,EQT Holdings Ltd,Sydney
-BET.ASX,Betmakers Technology Group Ltd,Sydney
-ASM.ASX,Australian Strategic Materials Ltd,Sydney
-IPX.ASX,IperionX Ltd,Sydney
-USL.ASX,Unico Silver Ltd,Sydney
-ATG.ASX,Articore Group Ltd,Sydney
-DRO.ASX,DroneShield Ltd,Sydney
-RAC.ASX,Racura Oncology Ltd,Sydney
-CCA.ASX,Change Financial Ltd,Sydney
-SSG.ASX,Shaver Shop Group Ltd,Sydney
-NZM.ASX,NZME Ltd,Sydney
-MHJ.ASX,Michael Hill International Ltd,Sydney
-QOR.ASX,Qoria Ltd,Sydney
-RIV.ASX,Rivco Australia Ltd,Sydney
-FDV.ASX,Frontier Digital Ventures Ltd,Sydney
-ARL.ASX,Ardea Resources Ltd,Sydney
-CNB.ASX,Carnaby Resources Ltd,Sydney
-GBR.ASX,Great Boulder Resources Ltd,Sydney
-WRK.ASX,WRKR LTD,Sydney
-KZR.ASX,Kalamazoo Resources Ltd,Sydney
-HRN.ASX,Horizon Gold Ltd,Sydney
-ASG.ASX,Autosports Group Ltd,Sydney
-BVS.ASX,Bravura Solutions Ltd,Sydney
-BSX.ASX,Blackstone Minerals Ltd,Sydney
-SM1.ASX,Synlait Milk Ltd,Sydney
-COB.ASX,Cobalt Blue Holdings Ltd,Sydney
-IKE.ASX,ikeGPS Group Ltd,Sydney
-MTC.ASX,MetalsTech Ltd,Sydney
-VR1.ASX,Vection Technologies Ltd,Sydney
-MAF.ASX,MA Financial Group Ltd,Sydney
-BRI.ASX,Big River Industries Ltd,Sydney
-MKR.ASX,Manuka Resources Ltd,Sydney
-ELS.ASX,Elsight Ltd,Sydney
-TTT.ASX,Titomic Ltd,Sydney
-RML.ASX,Resolution Minerals Ltd,Sydney
-ABY.ASX,Adore Beauty Group Ltd,Sydney
-NOL.ASX,NobleOak Life Ltd,Sydney
-HPG.ASX,Hipages Group Holdings Ltd,Sydney
-PFP.ASX,Propel Funeral Partners Ltd,Sydney
-PPE.ASX,PeopleIN Ltd,Sydney
-DBF.ASX,Duxton Farms Ltd,Sydney
-WGN.ASX,Wagners Holding Co Ltd,Sydney
-CY5.ASX,Cygnus Metals Ltd,Sydney
-BC8.ASX,Black Cat Syndicate Ltd,Sydney
-POD.ASX,Podium Minerals Ltd,Sydney
-AT4.ASX,American Tungsten & Antimony Ltd,Sydney
-RZI.ASX,Raiz Invest Ltd,Sydney
-GAL.ASX,Galileo Mining Ltd,Sydney
-MM1.ASX,Midas Minerals Ltd,Sydney
-ARN.ASX,Aldoro Resources Ltd,Sydney
-SGI.ASX,Stealth Group Holdings Ltd,Sydney
-AR9.ASX,Archtis Ltd,Sydney
-CRS.ASX,Caprice Resources Ltd,Sydney
-NVU.ASX,Nanoveu Ltd,Sydney
-CEH.ASX,Coast Entertainment Holdings Ltd,Sydney
-WWG.ASX,Wiseway Group Ltd,Sydney
-YRL.ASX,Yandal Resources Ltd,Sydney
-HGH.ASX,Heartland Group Holdings Ltd,Sydney
-ENP.ASX,Entropy Neurodynamics Ltd,Sydney
-EMV.ASX,EMvision Medical Devices Ltd,Sydney
-A1G.ASX,African Gold Ltd,Sydney
-RDY.ASX,ReadyTech Holdings Ltd,Sydney
-VVA.ASX,Viva Leisure Ltd,Sydney
-RPL.ASX,Regal Partners Ltd,Sydney
-PBH.ASX,PointsBet Holdings Ltd,Sydney
-LDX.ASX,Lumos Diagnostics Holdings Ltd,Sydney
-MAD.ASX,Mader Group Ltd,Sydney
-LFS.ASX,Latitude Group Holdings Ltd,Sydney
-3DA.ASX,Amaero Ltd,Sydney
-MME.ASX,MoneyMe Ltd,Sydney
-COS.ASX,COSOL Ltd,Sydney
-CBE.ASX,Cobre Ltd,Sydney
-KAU.ASX,Kaiser Reef Ltd,Sydney
-AR1.ASX,Austral Resources Australia Ltd,Sydney
-BMR.ASX,Ballymore Resources Ltd,Sydney
-AL3.ASX,AML3D Ltd,Sydney
-FLG.ASX,Flagship Minerals Ltd,Sydney
-TUA.ASX,Tuas Ltd,Sydney
-AIM.ASX,AI-Media Technologies Ltd,Sydney
-4DX.ASX,4DMedical Ltd,Sydney
-ARX.ASX,Aroa Biosurgery Ltd,Sydney
-AWJ.ASX,Auric Mining Ltd,Sydney
-DUG.ASX,DUG Technology Ltd,Sydney
-ERD.ASX,Eroad Ltd,Sydney
-PLT.ASX,Plenti Group Ltd,Sydney
-CCR.ASX,Credit Clear Ltd,Sydney
-CSX.ASX,Cleanspace Holdings Ltd,Sydney
-TNC.ASX,True North Copper Ltd,Sydney
-AI1.ASX,Adisyn Ltd,Sydney
-NMR.ASX,Native Mineral Resources Holdings Ltd,Sydney
-DSK.ASX,Dusk Group Ltd,Sydney
-OMA.ASX,Omega Oil & Gas Ltd,Sydney
-AGC.ASX,Australian Gold & Copper Ltd,Sydney
-DAI.ASX,Decidr AI Industries Ltd,Sydney
-NXL.ASX,Nuix Ltd,Sydney
-GNP.ASX,GenusPlus Group Ltd,Sydney
-MM8.ASX,Medallion Metals Ltd,Sydney
-PLY.ASX,Playside Studios Ltd,Sydney
-ACE.ASX,Acusensus Ltd,Sydney
-LRV.ASX,Larvotto Resources Ltd,Sydney
-LIS.ASX,Li-S Energy Ltd,Sydney
-SHG.ASX,Singular Health Group Ltd,Sydney
-EZZ.ASX,Ezz Life Science Holdings Ltd,Sydney
-FXG.ASX,Felix Gold Ltd,Sydney
-B4P.ASX,Beforepay Group Ltd,Sydney
-FRB.ASX,Firebird Metals Ltd,Sydney
-C79.ASX,Chrysos Corp Ltd,Sydney
-ILA.ASX,Island Pharmaceuticals Ltd,Sydney
-POL.ASX,Polymetals Resources Ltd,Sydney
-FRS.ASX,Forrestania Resources Ltd,Sydney
-BCA.ASX,Black Canyon Ltd,Sydney
-GL1.ASX,Global Lithium Resources Ltd,Sydney
-ACL.ASX,Australian Clinical Labs Ltd,Sydney
-TOR.ASX,Torque Metals Ltd,Sydney
-SPD.ASX,Southern Palladium Ltd,Sydney
-PPM.ASX,Pepper Money Ltd/Australia,Sydney
-AYA.ASX,Artrya Ltd,Sydney
-LM8.ASX,Lunnon Metals Ltd,Sydney
-TRJ.ASX,Trajan Group Holdings Ltd,Sydney
-BGD.ASX,Barton Gold Holdings Ltd,Sydney
-BFL.ASX,BSP Financial Group Ltd,Sydney
-LKY.ASX,Locksley Resources Ltd,Sydney
-AR3.ASX,Australian Rare Earths Ltd,Sydney
-29M.ASX,29Metals Ltd,Sydney
-MTM.ASX,Metallium Ltd,Sydney
-G50.ASX,G50 Corp Ltd,Sydney
-BBT.ASX,betr Entertainment Ltd,Sydney
-PGO.ASX,Pacgold Ltd,Sydney
-VTM.ASX,Victory Metals Ltd,Sydney
-CU6.ASX,Clarity Pharmaceuticals Ltd,Sydney
-CBO.ASX,Cobram Estate Olives Ltd,Sydney
-MI6.ASX,Minerals 260 Ltd,Sydney
-ASL.ASX,Andean Silver Ltd,Sydney
-AUE.ASX,Aurum Resources Ltd,Sydney
-WR1.ASX,Winsome Resources Ltd,Sydney
-VBX.ASX,VBX Ltd,Sydney
-VTX.ASX,Vertex Minerals Ltd,Sydney
-VSL.ASX,Vulcan Steel Ltd,Sydney
-JDO.ASX,Judo Capital Holdings Ltd,Sydney
-STP.ASX,Step One Clothing Ltd,Sydney
-RAD.ASX,Radiopharm Theranostics Ltd,Sydney
-M79.ASX,Mammoth Minerals Ltd,Sydney
-ROC.ASX,Rocketboots Ltd,Sydney
-BIO.ASX,Biome Australia Ltd,Sydney
-FAL.ASX,Falcon Metals Ltd/Australia,Sydney
-AW1.ASX,American West Metals ltd,Sydney
-HAR.ASX,Haranga Resources Ltd,Sydney
-RCM.ASX,Rapid Critical Metals Ltd,Sydney
-ATA.ASX,Atturra ltd,Sydney
-FEG.ASX,Far East Gold Ltd,Sydney
-VMM.ASX,Viridis Mining and Minerals Ltd,Sydney
-QAL.ASX,Qualitas Ltd,Sydney
-MPK.ASX,Many Peaks Minerals Ltd,Sydney
-SLS.ASX,Solstice Minerals Ltd,Sydney
-MAP.ASX,Microba Life Sciences Ltd,Sydney
-OSM.ASX,Osmond Resources Ltd,Sydney
-MMA.ASX,Maronan Metals Pty Ltd,Sydney
-FDR.ASX,Finder Energy Holdings Ltd,Sydney
-TOK.ASX,Tolu Minerals Ltd,Sydney
-THL.ASX,Tourism Holdings Ltd,Sydney
-NNL.ASX,Nordic Resources Ltd,Sydney
-BHM.ASX,Broken Hill Mines Ltd,Sydney
-A11.ASX,Atlantic Lithium Ltd,Sydney
-TRE.ASX,Toubani Resources Ltd,Sydney
-VHM.ASX,VHM Ltd,Sydney
-GHY.ASX,Gold Hydrogen Ltd,Sydney
-CHW.ASX,Chilwa Minerals Ltd,Sydney
-EVO.ASX,Embark Early Education Ltd,Sydney
-COV.ASX,Cleo Diagnostics Ltd,Sydney
-BKB.ASX,Black Bear Minerals Ltd,Sydney
-NDO.ASX,Nido Education Ltd,Sydney
-NEM.ASX,Newmont Corp,Sydney
-LTP.ASX,LTR Pharma Ltd,Sydney
-BRE.ASX,Brazilian Rare Earths Ltd,Sydney
-SS1.ASX,Sun Silver Ltd,Sydney
-IVZ.ASX,Invictus Energy Ltd,Sydney
-BB1.ASX,Blinklab Ltd,Sydney
-TEA.ASX,Tasmea Ltd,Sydney
-AAL.ASX,Alfabs Australia Ltd,Sydney
-ORD.ASX,Ordell Minerals Ltd,Sydney
-CVL.ASX,Civmec Australia Ltd,Sydney
-EV8.ASX,Everlast Minerals Ltd,Sydney
-SYL.ASX,Symal Group Ltd,Sydney
-BM1.ASX,Ballard Mining Ltd,Sydney
-GGP.ASX,Greatland Resources Ltd,Sydney
-LNQ.ASX,LinQ Minerals Ltd,Sydney
-VGN.ASX,Virgin Australia Holdings Ltd,Sydney
-TTX.ASX,Tetratherix Ltd,Sydney
+SIX.AX,Sprintex Ltd,Sydney
+BOT.AX,Botanix Pharmaceuticals Ltd,Sydney
+BOC.AX,Bougainville Copper Ltd,Sydney
+HGO.AX,Hillgrove Resources Ltd,Sydney
+TAM.AX,Tanami Gold NL,Sydney
+ERA.AX,Energy Resources of Australia Ltd,Sydney
+NGY.AX,NuEnergy Gas Ltd,Sydney
+SDI.AX,SDI Ltd,Sydney
+MXI.AX,Maxiparts Ltd,Sydney
+KCN.AX,Kingsgate Consolidated Ltd,Sydney
+ARA.AX,Ariadne Australia Ltd,Sydney
+CYG.AX,Coventry Group Ltd,Sydney
+EPM.AX,Eclipse Metals Ltd,Sydney
+FRI.AX,Finbar Group Ltd,Sydney
+MRT.AX,Maritana Minerals Ltd,Sydney
+GOW.AX,Gowing Brothers Ltd,Sydney
+ATP.AX,Atlas Pearls Ltd,Sydney
+HZN.AX,Horizon Oil Ltd,Sydney
+LKO.AX,Lakes Blue Energy NL,Sydney
+CTM.AX,Centaurus Metals Ltd,Sydney
+AS1.AX,Asara Resources Ltd,Sydney
+ALK.AX,Alkane Resources Ltd,Sydney
+AAR.AX,Astral Resources NL,Sydney
+DYL.AX,Deep Yellow Ltd,Sydney
+IMM.AX,Immutep Ltd,Sydney
+MAH.AX,Macmahon Holdings Ltd,Sydney
+EMP.AX,Emperor Energy Ltd,Sydney
+FWD.AX,Fleetwood Ltd,Sydney
+GG8.AX,Gorilla Gold Mines Ltd,Sydney
+NVA.AX,Nova Minerals Ltd,Sydney
+TBR.AX,Tribune Resources Ltd,Sydney
+SBZ.AX,SchoolBlazer Ltd,Sydney
+KOV.AX,Korvest Ltd,Sydney
+SKS.AX,SKS Technologies Group Ltd,Sydney
+EL8.AX,Elevate Uranium Ltd,Sydney
+WZR.AX,Wisr Ltd,Sydney
+TVN.AX,Tivan Ltd,Sydney
+SBM.AX,St Barbara Ltd,Sydney
+A1N.AX,ARN Media Ltd,Sydney
+LEX.AX,Lefroy Exploration Ltd,Sydney
+ECT.AX,Environmental Clean Technologies Ltd,Sydney
+CVN.AX,Carnarvon Energy Ltd,Sydney
+RSG.AX,Resolute Mining Ltd,Sydney
+GWA.AX,GWA Group Ltd,Sydney
+A1M.AX,AIC Mines Ltd,Sydney
+GML.AX,Gateway Mining Ltd,Sydney
+PRN.AX,Perenti Ltd,Sydney
+CTO.AX,Citigold Corp Ltd,Sydney
+PEN.AX,Peninsula Energy Ltd,Sydney
+IMB.AX,Intelligent Monitoring Group Ltd,Sydney
+TLG.AX,Talga Group Ltd,Sydney
+ASB.AX,Austal Ltd,Sydney
+CWP.AX,Cedar Woods Properties Ltd,Sydney
+IMA.AX,Image Resources NL,Sydney
+ADN.AX,Andromeda Metals Ltd,Sydney
+SNL.AX,Supply Network Ltd,Sydney
+RND.AX,Rand Mining Ltd,Sydney
+EGL.AX,Environmental Group Ltd/The,Sydney
+PNR.AX,Pantoro Gold Ltd,Sydney
+DCC.AX,DigitalX Ltd,Sydney
+OMH.AX,OM Holdings Ltd,Sydney
+CUE.AX,Cue Energy Resources Ltd,Sydney
+ABV.AX,Advanced Braking Technology Ltd,Sydney
+RNT.AX,Rent.com.au Ltd,Sydney
+VAU.AX,Vault Minerals Ltd,Sydney
+HIT.AX,HiTech Group Australia Ltd,Sydney
+SHV.AX,Select Harvests Ltd,Sydney
+CCV.AX,Cash Converters International Ltd,Sydney
+BUB.AX,Bubs Australia Ltd,Sydney
+BTL.AX,Beetaloo Energy Australia Ltd,Sydney
+SKC.AX,SKYCITY Entertainment Group Ltd,Sydney
+FGH.AX,Foresta Group Holdings Ltd,Sydney
+FGR.AX,First Graphene Ltd,Sydney
+AGD.AX,Austral Gold Ltd,Sydney
+PTX.AX,Prescient Therapeutics Ltd,Sydney
+AIZ.AX,Air New Zealand Ltd,Sydney
+DXB.AX,Dimerix Ltd,Sydney
+PGL.AX,Pilbara Gold Ltd,Sydney
+CCL.AX,Cuscal Ltd,Sydney
+RMC.AX,Resimac Group Ltd,Sydney
+LAU.AX,Lindsay Australia Ltd,Sydney
+PTR.AX,PTR Minerals Ltd,Sydney
+RDM.AX,Red Metal Ltd,Sydney
+PCL.AX,Pancontinental Energy NL,Sydney
+CYM.AX,Cyprium Metals Ltd,Sydney
+ZIM.AX,Zimplats Holdings Ltd,Sydney
+IOD.AX,IODM Ltd,Sydney
+LRK.AX,Lark Distilling Co Ltd,Sydney
+SNT.AX,Syntara Ltd,Sydney
+NUZ.AX,Neurizon Therapeutics Ltd,Sydney
+KSC.AX,K&S Corp Ltd,Sydney
+WC8.AX,Wildcat Resources Ltd,Sydney
+BCI.AX,BCI Minerals Ltd,Sydney
+CLX.AX,CTI Logistics Ltd,Sydney
+AGY.AX,Argosy Minerals Ltd,Sydney
+RKN.AX,Reckon Ltd,Sydney
+PHX.AX,PharmX Technologies Ltd,Sydney
+TCG.AX,Turaco Gold Ltd,Sydney
+PFG.AX,Prime Financial Group Ltd/Australia,Sydney
+CVW.AX,ClearView Wealth Ltd/Australia,Sydney
+TWR.AX,TOWER Ltd,Sydney
+GDG.AX,Generation Development Group Ltd,Sydney
+DRE.AX,Dreadnought Resources Ltd,Sydney
+MYX.AX,Mayne Pharma Group Ltd,Sydney
+PGC.AX,Paragon Care Ltd,Sydney
+HAV.AX,Havilah Resources Ltd,Sydney
+CLV.AX,Clover Corp Ltd,Sydney
+IXR.AX,Ionic Rare Earths Ltd,Sydney
+SRV.AX,Servcorp Ltd,Sydney
+CKA.AX,Cokal Ltd,Sydney
+AQD.AX,AusQuest Ltd,Sydney
+LIN.AX,Lindian Resources Ltd,Sydney
+SHM.AX,Shriro Holdings Ltd,Sydney
+ATH.AX,Alterity Therapeutics ltd,Sydney
+HSN.AX,Hansen Technologies Ltd,Sydney
+BBL.AX,Brisbane Broncos Ltd,Sydney
+IVR.AX,Investigator Silver Ltd,Sydney
+SPL.AX,Starpharma Holdings Ltd,Sydney
+MAU.AX,Magnetic Resources NL,Sydney
+BTR.AX,Brightstar Resources Ltd,Sydney
+MVP.AX,Medical Developments International Ltd,Sydney
+AHC.AX,Austco Healthcare Ltd,Sydney
+OCL.AX,Objective Corp Ltd,Sydney
+MYG.AX,Mayfield Group Holdings Ltd,Sydney
+BCM.AX,Brazilian Critical Minerals Ltd,Sydney
+MSB.AX,Mesoblast Ltd,Sydney
+LYL.AX,Lycopodium Ltd,Sydney
+DEV.AX,DevEx Resources Ltd,Sydney
+FML.AX,Focus Minerals Ltd,Sydney
+FSA.AX,FSA Group Ltd,Sydney
+KSN.AX,Kingston Resources Ltd,Sydney
+EYE.AX,Nova Eye Medical Ltd,Sydney
+JAN.AX,Janison Education Group Ltd,Sydney
+CUV.AX,Clinuvel Pharmaceuticals Ltd,Sydney
+LMG.AX,Latrobe Magnesium Ltd,Sydney
+MEK.AX,Meeka Metals Ltd,Sydney
+MGX.AX,MGX Resources Ltd,Sydney
+IRI.AX,Integrated Research Ltd,Sydney
+BXN.AX,Bioxyne Ltd,Sydney
+NMT.AX,Neometals Ltd,Sydney
+PNC.AX,Pioneer Credit Ltd,Sydney
+CMP.AX,Compumedics Ltd,Sydney
+AUR.AX,Auris Minerals Ltd,Sydney
+ADV.AX,Ardiden Ltd,Sydney
+SDV.AX,SciDev Ltd,Sydney
+GPR.AX,Geopacific Resources Ltd,Sydney
+AMA.AX,AMA Group Ltd,Sydney
+PAC.AX,Pacific Current Group Ltd,Sydney
+FEX.AX,Fenix Resources Ltd,Sydney
+ANG.AX,Austin Engineering Ltd,Sydney
+NMG.AX,New Murchison Gold Ltd,Sydney
+CGS.AX,Cogstate Ltd,Sydney
+TSO.AX,Tesoro Gold Ltd,Sydney
+IBR.AX,Iron Bear Resources Ltd,Sydney
+EHL.AX,Emeco Holdings Ltd,Sydney
+CLA.AX,Celsius Resources Ltd,Sydney
+PYC.AX,PYC Therapeutics Ltd,Sydney
+AAC.AX,Australian Agricultural Co Ltd,Sydney
+SKY.AX,Sky Metals Ltd,Sydney
+OBL.AX,Omni Bridgeway Ltd,Sydney
+AGI.AX,Ainsworth Game Technology Ltd,Sydney
+ALA.AX,Arovella Therapeutics Ltd,Sydney
+EGH.AX,Eureka Group Holdings Ltd,Sydney
+COI.AX,Comet Ridge Ltd,Sydney
+RXL.AX,Rox Resources Ltd/Australia,Sydney
+SHN.AX,Sunshine Metals Ltd/Australia,Sydney
+EWC.AX,Energy World Corp Ltd,Sydney
+KGL.AX,KGL Resources Ltd/Australia,Sydney
+EXR.AX,Elixir Energy Ltd,Sydney
+GRR.AX,Grange Resources Ltd,Sydney
+AEL.AX,Amplitude Energy Ltd,Sydney
+CTP.AX,Central Petroleum Ltd,Sydney
+ION.AX,Iondrive Ltd,Sydney
+MAT.AX,Matsa Resources Ltd,Sydney
+EOS.AX,Electro Optic Systems Holdings Ltd,Sydney
+HLO.AX,Helloworld Travel Ltd,Sydney
+IIQ.AX,INOVIQ Ltd,Sydney
+OBM.AX,Ora Banda Mining Ltd,Sydney
+CAF.AX,Centrepoint Alliance Ltd,Sydney
+JLL.AX,Jindalee Lithium Ltd,Sydney
+CVV.AX,Caravel Minerals Ltd,Sydney
+EGG.AX,Enero Group Ltd,Sydney
+SPZ.AX,Smart Parking Ltd,Sydney
+STX.AX,Strike Energy Ltd,Sydney
+MTH.AX,Mithril Silver And Gold Ltd,Sydney
+CUF.AX,Cufe Ltd,Sydney
+SIG.AX,Sigma Healthcare Ltd,Sydney
+CXU.AX,Cauldron Energy Ltd,Sydney
+BML.AX,Boab Metals Ltd,Sydney
+COG.AX,COG Financial Services Ltd,Sydney
+AEF.AX,Australian Ethical Investment Ltd,Sydney
+LRM.AX,Lion Rock Minerals Ltd,Sydney
+NH3.AX,NH3 Clean Energy Ltd,Sydney
+SSM.AX,Service Stream Ltd,Sydney
+SKK.AX,Stakk Ltd,Sydney
+HAS.AX,Hastings Technology Metals Ltd,Sydney
+BKY.AX,Berkeley Energia Ltd,Sydney
+BIS.AX,Bisalloy Steel Group Ltd,Sydney
+STN.AX,Saturn Metals Ltd,Sydney
+PPC.AX,Peet Ltd,Sydney
+MEI.AX,Meteoric Resources NL,Sydney
+EDU.AX,Edu Holdings Ltd,Sydney
+ORN.AX,Orion Minerals Ltd,Sydney
+ARU.AX,Arafura Rare Earths Ltd,Sydney
+LOT.AX,Lotus Resources Ltd,Sydney
+AFG.AX,Australian Finance Group Ltd,Sydney
+MLX.AX,Metals X Ltd,Sydney
+SOM.AX,SomnoMed Ltd,Sydney
+AVL.AX,Australian Vanadium Ltd,Sydney
+STM.AX,Sunstone Metals Ltd,Sydney
+AEU.AX,Atomic Eagle Ltd,Sydney
+JMS.AX,Jupiter Mines Ltd,Sydney
+HUM.AX,Humm Group Ltd,Sydney
+A4N.AX,Alpha HPA Ltd,Sydney
+SRZ.AX,Stellar Resources Ltd/Australia,Sydney
+FFM.AX,FireFly Metals Ltd,Sydney
+DRX.AX,Diatreme Resources Ltd,Sydney
+XRF.AX,XRF Scientific Ltd,Sydney
+CRI.AX,Critica Ltd,Sydney
+SRG.AX,SRG Global Ltd,Sydney
+AKM.AX,Aspire Mining Ltd,Sydney
+M7T.AX,Mach7 Technologies Ltd,Sydney
+SXL.AX,Southern Cross Media Group Ltd,Sydney
+CC5.AX,Clever Culture Systems Ltd,Sydney
+EML.AX,EML Payments Ltd,Sydney
+RHI.AX,Red Hill Minerals Ltd,Sydney
+SVM.AX,Sovereign Metals Ltd,Sydney
+E25.AX,Element 25 Ltd,Sydney
+NTU.AX,Northern Minerals Ltd/Australia,Sydney
+TOE.AX,Toro Energy Ltd,Sydney
+ENR.AX,Encounter Resources Ltd,Sydney
+STK.AX,Strickland Metals Ltd,Sydney
+NGI.AX,Navigator Global Investments Ltd,Sydney
+EDE.AX,Eden Innovations Ltd,Sydney
+AEE.AX,Aura Energy Ltd,Sydney
+SHO.AX,SportsHero Ltd,Sydney
+WWI.AX,West Wits Mining Ltd,Sydney
+EQR.AX,EQ Resources Ltd,Sydney
+PPS.AX,Praemium Ltd,Sydney
+CAV.AX,Carnavale Resources Ltd,Sydney
+ETM.AX,Energy Transition Minerals Ltd,Sydney
+RFG.AX,Retail Food Group Ltd,Sydney
+CYL.AX,Catalyst Metals Ltd,Sydney
+ACW.AX,Actinogen Medical Ltd,Sydney
+CZR.AX,CZR Resources Ltd,Sydney
+SVR.AX,Solvar Ltd,Sydney
+TTM.AX,Titan Minerals Ltd,Sydney
+SVL.AX,Silver Mines Ltd,Sydney
+CYC.AX,Cyclopharm Ltd,Sydney
+EOL.AX,Energy One Ltd,Sydney
+LML.AX,Lincoln Minerals Ltd,Sydney
+QPM.AX,QPM Energy Ltd,Sydney
+SNS.AX,SenSen Networks Ltd,Sydney
+PEX.AX,Peel Mining Ltd,Sydney
+MEU.AX,Marmota Ltd,Sydney
+L1G.AX,L1 Group Ltd,Sydney
+AMI.AX,Aurelia Metals Ltd,Sydney
+ZNC.AX,Zenith Minerals Ltd,Sydney
+AXE.AX,Archer Materials Ltd,Sydney
+VLS.AX,Vita Life Sciences Ltd,Sydney
+GBM.AX,GBM Resources Ltd,Sydney
+AZY.AX,Antipa Minerals Ltd,Sydney
+LBL.AX,Laserbond Ltd,Sydney
+IPD.AX,ImpediMed Ltd,Sydney
+SRL.AX,Sunrise Energy Metals Ltd,Sydney
+CEL.AX,Challenger Gold Ltd,Sydney
+ACF.AX,Acrow Ltd,Sydney
+VYS.AX,Vysarn Ltd,Sydney
+CYP.AX,Cynata Therapeutics Ltd,Sydney
+GEM.AX,G8 Education Ltd,Sydney
+INR.AX,ioneer Ltd,Sydney
+SXE.AX,Southern Cross Electrical Engineering Ltd,Sydney
+VBC.AX,Verbrec Ltd,Sydney
+BFG.AX,Bell Financial Group Ltd,Sydney
+ERM.AX,Emmerson Resources Ltd,Sydney
+BRL.AX,Bathurst Resources Ltd,Sydney
+AVM.AX,Advance Metals Ltd,Sydney
+FLC.AX,Fluence Corp Ltd,Sydney
+ARD.AX,Argent Minerals Ltd,Sydney
+LCY.AX,Legacy Iron Ore Ltd,Sydney
+RUL.AX,RPMGlobal Holdings Ltd,Sydney
+NXD.AX,NextEd Group Ltd,Sydney
+MYS.AX,MyState Ltd,Sydney
+ELT.AX,Elementos Ltd,Sydney
+ZEO.AX,Zeotech Ltd,Sydney
+ATC.AX,Altech Batteries Ltd,Sydney
+PSC.AX,Prospect Resources Ltd,Sydney
+KMD.AX,KMD Brands Ltd,Sydney
+MMI.AX,Metro Mining Ltd,Sydney
+MCE.AX,Matrix Composites & Engineering Ltd,Sydney
+PHO.AX,Phosco Ltd,Sydney
+AUC.AX,Ausgold Ltd,Sydney
+FHE.AX,Frontier Energy Ltd,Sydney
+ZIP.AX,Zip Co Ltd,Sydney
+VNL.AX,Vinyl Group Ltd,Sydney
+HCH.AX,Hot Chili Ltd,Sydney
+CAY.AX,Canyon Resources Ltd,Sydney
+ASN.AX,Anson Resources Ltd,Sydney
+TER.AX,Terracom Ltd,Sydney
+IFT.AX,Infratil Ltd,Sydney
+SGLLV.AX,Ricegrowers Ltd,Sydney
+EGR.AX,Ecograf Ltd,Sydney
+SGQ.AX,St George Mining Ltd,Sydney
+EUR.AX,European Lithium Ltd,Sydney
+PDI.AX,Predictive Discovery Ltd,Sydney
+WGR.AX,Western Gold Resources Ltd,Sydney
+YOJ.AX,Yojee Ltd,Sydney
+ARR.AX,American Rare Earths Ltd,Sydney
+WIA.AX,WIA Gold Ltd,Sydney
+KGD.AX,Kula Gold Ltd,Sydney
+RNU.AX,Renascor Resources Ltd,Sydney
+EIQ.AX,ECHOiQ Ltd,Sydney
+DLI.AX,Delta Lithium Ltd,Sydney
+AGE.AX,Alligator Energy Ltd,Sydney
+VRX.AX,VRX Silica Ltd,Sydney
+CUP.AX,Count Ltd,Sydney
+SHA.AX,Shape Australia Pty Ltd,Sydney
+AHX.AX,Apiam Animal Health Ltd,Sydney
+VEE.AX,Veem Ltd,Sydney
+IPG.AX,IPD Group Ltd/Australia,Sydney
+GNG.AX,GR Engineering Services Ltd,Sydney
+AIS.AX,Aeris Resources Ltd,Sydney
+TGM.AX,Theta Gold Mines Ltd,Sydney
+MCA.AX,Murray Cod Australia Ltd,Sydney
+TM1.AX,Terra Metals Ltd,Sydney
+DTR.AX,Dateline Resources Ltd,Sydney
+RTR.AX,Rumble Resources Ltd,Sydney
+ALC.AX,Alcidion Group Ltd,Sydney
+ALR.AX,Altair Minerals Ltd,Sydney
+KKO.AX,Kinetiko Energy Ltd,Sydney
+MSV.AX,Mitchell Services Ltd,Sydney
+OR3.AX,Ore Resources Ltd,Sydney
+PWR.AX,Peter Warren Automotive Holdings Ltd,Sydney
+MGH.AX,Maas Group Holdings Ltd,Sydney
+COD.AX,Coda Minerals Ltd,Sydney
+AQZ.AX,Alliance Aviation Services Ltd,Sydney
+WCE.AX,West Coast Silver Ltd,Sydney
+PCK.AX,Painchek Ltd,Sydney
+SPG.AX,SPC Global Holdings Ltd,Sydney
+BWN.AX,Bhagwan Marine Ltd,Sydney
+ESR.AX,Estrella Resources Ltd,Sydney
+UNI.AX,Universal Store Holdings Ltd,Sydney
+EMH.AX,European Metals Holdings Ltd,Sydney
+DUR.AX,Duratec Ltd,Sydney
+CXL.AX,Calix Ltd,Sydney
+AQI.AX,Alicanto Minerals Ltd,Sydney
+PTN.AX,Patronus Resources Ltd,Sydney
+MPW.AX,Metal Powder Works Ltd,Sydney
+WTM.AX,Waratah Minerals Ltd,Sydney
+TGN.AX,Tungsten Mining NL,Sydney
+AV1.AX,AdVeritas Ltd,Sydney
+FMN.AX,Famien Resources Ltd,Sydney
+PXX.AX,Polarx Ltd,Sydney
+MTO.AX,MotorCycle Holdings Ltd,Sydney
+SMI.AX,Santana Minerals Ltd,Sydney
+SHJ.AX,Shine Justice Ltd,Sydney
+MCY.AX,Mercury NZ Ltd,Sydney
+GYG.AX,Guzman y Gomez Ltd,Sydney
+OFX.AX,OFX Group Ltd,Sydney
+MEZ.AX,Meridian Energy Ltd,Sydney
+ATX.AX,Amplia Therapeutics Ltd,Sydney
+QGL.AX,Quantum Graphite Ltd,Sydney
+EBO.AX,EBOS Group Ltd,Sydney
+TYR.AX,Tyro Payments Ltd,Sydney
+BLX.AX,Beacon Lighting Group Ltd,Sydney
+GNE.AX,Genesis Energy Ltd,Sydney
+MVF.AX,Monash IVF Group Ltd,Sydney
+GTK.AX,Gentrack Group Ltd,Sydney
+OCC.AX,Orthocell Ltd,Sydney
+LGI.AX,LGI Ltd/Australia,Sydney
+VGL.AX,Vista Group International Ltd,Sydney
+UBN.AX,Urbanise.com Ltd,Sydney
+REG.AX,Regis Healthcare Ltd,Sydney
+MLG.AX,MLG OZ Ltd,Sydney
+PIQ.AX,Proteomics International Laboratories Ltd,Sydney
+CAT.AX,Catapult Sports Ltd,Sydney
+OML.AX,oOh!media Ltd,Sydney
+APX.AX,Appen Ltd,Sydney
+FID.AX,Fiducian Group Ltd,Sydney
+EXP.AX,Experience Co Ltd,Sydney
+FPR.AX,FleetPartners Group Ltd,Sydney
+SLC.AX,Superloop Ltd,Sydney
+ART.AX,Airtasker Ltd,Sydney
+ADH.AX,Adairs Ltd,Sydney
+PPL.AX,Pureprofile Ltd,Sydney
+KSL.AX,Kina Securities Ltd,Sydney
+PAR.AX,Paradigm Biopharmaceuticals Ltd,Sydney
+KYP.AX,Kinatico Ltd,Sydney
+KPG.AX,Kelly Partners Group Holdings Ltd,Sydney
+RCE.AX,Recce Pharmaceuticals Ltd,Sydney
+BBN.AX,Baby Bunting Group Ltd,Sydney
+CEN.AX,Contact Energy Ltd,Sydney
+HZR.AX,Hazer Group Ltd,Sydney
+MX1.AX,Micro-X Ltd,Sydney
+IGL.AX,IVE Group Ltd,Sydney
+EQT.AX,EQT Holdings Ltd,Sydney
+BET.AX,Betmakers Technology Group Ltd,Sydney
+ASM.AX,Australian Strategic Materials Ltd,Sydney
+IPX.AX,IperionX Ltd,Sydney
+USL.AX,Unico Silver Ltd,Sydney
+ATG.AX,Articore Group Ltd,Sydney
+DRO.AX,DroneShield Ltd,Sydney
+RAC.AX,Racura Oncology Ltd,Sydney
+CCA.AX,Change Financial Ltd,Sydney
+SSG.AX,Shaver Shop Group Ltd,Sydney
+NZM.AX,NZME Ltd,Sydney
+MHJ.AX,Michael Hill International Ltd,Sydney
+QOR.AX,Qoria Ltd,Sydney
+RIV.AX,Rivco Australia Ltd,Sydney
+FDV.AX,Frontier Digital Ventures Ltd,Sydney
+ARL.AX,Ardea Resources Ltd,Sydney
+CNB.AX,Carnaby Resources Ltd,Sydney
+GBR.AX,Great Boulder Resources Ltd,Sydney
+WRK.AX,WRKR LTD,Sydney
+KZR.AX,Kalamazoo Resources Ltd,Sydney
+HRN.AX,Horizon Gold Ltd,Sydney
+ASG.AX,Autosports Group Ltd,Sydney
+BVS.AX,Bravura Solutions Ltd,Sydney
+BSX.AX,Blackstone Minerals Ltd,Sydney
+SM1.AX,Synlait Milk Ltd,Sydney
+COB.AX,Cobalt Blue Holdings Ltd,Sydney
+IKE.AX,ikeGPS Group Ltd,Sydney
+MTC.AX,MetalsTech Ltd,Sydney
+VR1.AX,Vection Technologies Ltd,Sydney
+MAF.AX,MA Financial Group Ltd,Sydney
+BRI.AX,Big River Industries Ltd,Sydney
+MKR.AX,Manuka Resources Ltd,Sydney
+ELS.AX,Elsight Ltd,Sydney
+TTT.AX,Titomic Ltd,Sydney
+RML.AX,Resolution Minerals Ltd,Sydney
+ABY.AX,Adore Beauty Group Ltd,Sydney
+NOL.AX,NobleOak Life Ltd,Sydney
+HPG.AX,Hipages Group Holdings Ltd,Sydney
+PFP.AX,Propel Funeral Partners Ltd,Sydney
+PPE.AX,PeopleIN Ltd,Sydney
+DBF.AX,Duxton Farms Ltd,Sydney
+WGN.AX,Wagners Holding Co Ltd,Sydney
+CY5.AX,Cygnus Metals Ltd,Sydney
+BC8.AX,Black Cat Syndicate Ltd,Sydney
+POD.AX,Podium Minerals Ltd,Sydney
+AT4.AX,American Tungsten & Antimony Ltd,Sydney
+RZI.AX,Raiz Invest Ltd,Sydney
+GAL.AX,Galileo Mining Ltd,Sydney
+MM1.AX,Midas Minerals Ltd,Sydney
+ARN.AX,Aldoro Resources Ltd,Sydney
+SGI.AX,Stealth Group Holdings Ltd,Sydney
+AR9.AX,Archtis Ltd,Sydney
+CRS.AX,Caprice Resources Ltd,Sydney
+NVU.AX,Nanoveu Ltd,Sydney
+CEH.AX,Coast Entertainment Holdings Ltd,Sydney
+WWG.AX,Wiseway Group Ltd,Sydney
+YRL.AX,Yandal Resources Ltd,Sydney
+HGH.AX,Heartland Group Holdings Ltd,Sydney
+ENP.AX,Entropy Neurodynamics Ltd,Sydney
+EMV.AX,EMvision Medical Devices Ltd,Sydney
+A1G.AX,African Gold Ltd,Sydney
+RDY.AX,ReadyTech Holdings Ltd,Sydney
+VVA.AX,Viva Leisure Ltd,Sydney
+RPL.AX,Regal Partners Ltd,Sydney
+PBH.AX,PointsBet Holdings Ltd,Sydney
+LDX.AX,Lumos Diagnostics Holdings Ltd,Sydney
+MAD.AX,Mader Group Ltd,Sydney
+LFS.AX,Latitude Group Holdings Ltd,Sydney
+3DA.AX,Amaero Ltd,Sydney
+MME.AX,MoneyMe Ltd,Sydney
+COS.AX,COSOL Ltd,Sydney
+CBE.AX,Cobre Ltd,Sydney
+KAU.AX,Kaiser Reef Ltd,Sydney
+AR1.AX,Austral Resources Australia Ltd,Sydney
+BMR.AX,Ballymore Resources Ltd,Sydney
+AL3.AX,AML3D Ltd,Sydney
+FLG.AX,Flagship Minerals Ltd,Sydney
+TUA.AX,Tuas Ltd,Sydney
+AIM.AX,AI-Media Technologies Ltd,Sydney
+4DX.AX,4DMedical Ltd,Sydney
+ARX.AX,Aroa Biosurgery Ltd,Sydney
+AWJ.AX,Auric Mining Ltd,Sydney
+DUG.AX,DUG Technology Ltd,Sydney
+ERD.AX,Eroad Ltd,Sydney
+PLT.AX,Plenti Group Ltd,Sydney
+CCR.AX,Credit Clear Ltd,Sydney
+CSX.AX,Cleanspace Holdings Ltd,Sydney
+TNC.AX,True North Copper Ltd,Sydney
+AI1.AX,Adisyn Ltd,Sydney
+NMR.AX,Native Mineral Resources Holdings Ltd,Sydney
+DSK.AX,Dusk Group Ltd,Sydney
+OMA.AX,Omega Oil & Gas Ltd,Sydney
+AGC.AX,Australian Gold & Copper Ltd,Sydney
+DAI.AX,Decidr AI Industries Ltd,Sydney
+NXL.AX,Nuix Ltd,Sydney
+GNP.AX,GenusPlus Group Ltd,Sydney
+MM8.AX,Medallion Metals Ltd,Sydney
+PLY.AX,Playside Studios Ltd,Sydney
+ACE.AX,Acusensus Ltd,Sydney
+LRV.AX,Larvotto Resources Ltd,Sydney
+LIS.AX,Li-S Energy Ltd,Sydney
+SHG.AX,Singular Health Group Ltd,Sydney
+EZZ.AX,Ezz Life Science Holdings Ltd,Sydney
+FXG.AX,Felix Gold Ltd,Sydney
+B4P.AX,Beforepay Group Ltd,Sydney
+FRB.AX,Firebird Metals Ltd,Sydney
+C79.AX,Chrysos Corp Ltd,Sydney
+ILA.AX,Island Pharmaceuticals Ltd,Sydney
+POL.AX,Polymetals Resources Ltd,Sydney
+FRS.AX,Forrestania Resources Ltd,Sydney
+BCA.AX,Black Canyon Ltd,Sydney
+GL1.AX,Global Lithium Resources Ltd,Sydney
+ACL.AX,Australian Clinical Labs Ltd,Sydney
+TOR.AX,Torque Metals Ltd,Sydney
+SPD.AX,Southern Palladium Ltd,Sydney
+PPM.AX,Pepper Money Ltd/Australia,Sydney
+AYA.AX,Artrya Ltd,Sydney
+LM8.AX,Lunnon Metals Ltd,Sydney
+TRJ.AX,Trajan Group Holdings Ltd,Sydney
+BGD.AX,Barton Gold Holdings Ltd,Sydney
+BFL.AX,BSP Financial Group Ltd,Sydney
+LKY.AX,Locksley Resources Ltd,Sydney
+AR3.AX,Australian Rare Earths Ltd,Sydney
+29M.AX,29Metals Ltd,Sydney
+MTM.AX,Metallium Ltd,Sydney
+G50.AX,G50 Corp Ltd,Sydney
+BBT.AX,betr Entertainment Ltd,Sydney
+PGO.AX,Pacgold Ltd,Sydney
+VTM.AX,Victory Metals Ltd,Sydney
+CU6.AX,Clarity Pharmaceuticals Ltd,Sydney
+CBO.AX,Cobram Estate Olives Ltd,Sydney
+MI6.AX,Minerals 260 Ltd,Sydney
+ASL.AX,Andean Silver Ltd,Sydney
+AUE.AX,Aurum Resources Ltd,Sydney
+WR1.AX,Winsome Resources Ltd,Sydney
+VBX.AX,VBX Ltd,Sydney
+VTX.AX,Vertex Minerals Ltd,Sydney
+VSL.AX,Vulcan Steel Ltd,Sydney
+JDO.AX,Judo Capital Holdings Ltd,Sydney
+STP.AX,Step One Clothing Ltd,Sydney
+RAD.AX,Radiopharm Theranostics Ltd,Sydney
+M79.AX,Mammoth Minerals Ltd,Sydney
+ROC.AX,Rocketboots Ltd,Sydney
+BIO.AX,Biome Australia Ltd,Sydney
+FAL.AX,Falcon Metals Ltd/Australia,Sydney
+AW1.AX,American West Metals ltd,Sydney
+HAR.AX,Haranga Resources Ltd,Sydney
+RCM.AX,Rapid Critical Metals Ltd,Sydney
+ATA.AX,Atturra ltd,Sydney
+FEG.AX,Far East Gold Ltd,Sydney
+VMM.AX,Viridis Mining and Minerals Ltd,Sydney
+QAL.AX,Qualitas Ltd,Sydney
+MPK.AX,Many Peaks Minerals Ltd,Sydney
+SLS.AX,Solstice Minerals Ltd,Sydney
+MAP.AX,Microba Life Sciences Ltd,Sydney
+OSM.AX,Osmond Resources Ltd,Sydney
+MMA.AX,Maronan Metals Pty Ltd,Sydney
+FDR.AX,Finder Energy Holdings Ltd,Sydney
+TOK.AX,Tolu Minerals Ltd,Sydney
+THL.AX,Tourism Holdings Ltd,Sydney
+NNL.AX,Nordic Resources Ltd,Sydney
+BHM.AX,Broken Hill Mines Ltd,Sydney
+A11.AX,Atlantic Lithium Ltd,Sydney
+TRE.AX,Toubani Resources Ltd,Sydney
+VHM.AX,VHM Ltd,Sydney
+GHY.AX,Gold Hydrogen Ltd,Sydney
+CHW.AX,Chilwa Minerals Ltd,Sydney
+EVO.AX,Embark Early Education Ltd,Sydney
+COV.AX,Cleo Diagnostics Ltd,Sydney
+BKB.AX,Black Bear Minerals Ltd,Sydney
+NDO.AX,Nido Education Ltd,Sydney
+NEM.AX,Newmont Corp,Sydney
+LTP.AX,LTR Pharma Ltd,Sydney
+BRE.AX,Brazilian Rare Earths Ltd,Sydney
+SS1.AX,Sun Silver Ltd,Sydney
+IVZ.AX,Invictus Energy Ltd,Sydney
+BB1.AX,Blinklab Ltd,Sydney
+TEA.AX,Tasmea Ltd,Sydney
+AAL.AX,Alfabs Australia Ltd,Sydney
+ORD.AX,Ordell Minerals Ltd,Sydney
+CVL.AX,Civmec Australia Ltd,Sydney
+EV8.AX,Everlast Minerals Ltd,Sydney
+SYL.AX,Symal Group Ltd,Sydney
+BM1.AX,Ballard Mining Ltd,Sydney
+GGP.AX,Greatland Resources Ltd,Sydney
+LNQ.AX,LinQ Minerals Ltd,Sydney
+VGN.AX,Virgin Australia Holdings Ltd,Sydney
+TTX.AX,Tetratherix Ltd,Sydney
 PRICB.ST,Pricer AB,Stockholm  Stock Exchange
 ARTO.PA,Societe Industrielle et Financiere de l'Artois SA,Euronext Paris
 AALLON.HE,Aallon Group Oyj,Helsinki Stock Exchange
 INDUC.ST,Industrivarden AB,Stockholm  Stock Exchange
 DUNI.ST,Duni AB,Stockholm  Stock Exchange
-BEVER.NV,Bever Holding NV,Euronext Amsterdam
+BEVER.AS,Bever Holding NV,Euronext Amsterdam
 BERGB.ST,Bergman & Beving AB,Stockholm  Stock Exchange
 SACI.PA,Fiducial Office Solutions,Euronext Paris
 EEM.PA,ELECTRICITE ET EAUX DE MADAGASCAR,Euronext Paris
 ELUXA.ST,Electrolux AB,Stockholm  Stock Exchange
 ABLD.PA,ABL Diagnostics SACA,Euronext Paris
 FIPP.PA,FIPP,Euronext Paris
-NSE.NV,New Sources Energy NV,Euronext Amsterdam
-PORF.NV,Koninklijke Porceleyne Fles NV,Euronext Amsterdam
+NSE.AS,New Sources Energy NV,Euronext Amsterdam
+PORF.AS,Koninklijke Porceleyne Fles NV,Euronext Amsterdam
 CBE.PA,Robertet SA,Euronext Paris
 SABE.PA,Saint Jean Groupe SA,Euronext Paris
 AAA.PA,Alan Allman Associates SACA,Euronext Paris
@@ -9097,7 +8943,7 @@ SVOLB.ST,Svolder AB,Stockholm  Stock Exchange
 HDP.PA,Les Hotels de Paris,Euronext Paris
 FPARA.ST,FastPartner AB,Stockholm  Stock Exchange
 BUI.PA,Barbara Bui SA,Euronext Paris
-HYDRA.NV,Hydratec Industries NV,Euronext Amsterdam
+HYDRA.AS,Hydratec Industries NV,Euronext Amsterdam
 CNCJOB.ST,Concejo AB,Stockholm  Stock Exchange
 HEBAB.ST,Heba Fastighets AB,Stockholm  Stock Exchange
 TRH1V.HE,Trainers House Oyj,Helsinki Stock Exchange
@@ -9160,7 +9006,7 @@ EXEL.HE,Exel Composites Oyj,Helsinki Stock Exchange
 ENEA.ST,Enea AB,Stockholm  Stock Exchange
 LEBL.PA,Fonciere 7 Invest,Euronext Paris
 REKA.HE,Reka Industrial Oyj,Helsinki Stock Exchange
-LVIDE.NV,Lavide Holding NV,Euronext Amsterdam
+LVIDE.AS,Lavide Holding NV,Euronext Amsterdam
 RAP1V.HE,Rapala VMC Oyj,Helsinki Stock Exchange
 KSL.HE,Keskisuomalainen Oyj,Helsinki Stock Exchange
 SAGAA.ST,Sagax AB,Stockholm  Stock Exchange
@@ -9220,7 +9066,7 @@ EOS.PA,Acteos,Euronext Paris
 PROAC.PA,Proactis Sarl,Euronext Paris
 ALSEC.PA,Soditech Ingenierie SA,Euronext Paris
 SFPI.PA,Groupe SFPI,Euronext Paris
-ERC.NV,ER Capital NV,Euronext Amsterdam
+ERC.AS,ER Capital NV,Euronext Amsterdam
 STRINV.CO,Strategic Investments A/S,Copenhagen Stock Exchange
 TEL2A.ST,Tele2 AB,Stockholm  Stock Exchange
 SINT.ST,SinterCast AB,Stockholm  Stock Exchange
@@ -9286,7 +9132,7 @@ BOUL.ST,Boule Diagnostics AB,Stockholm  Stock Exchange
 LAMOR.HE,Lamor Corp Oyj,Helsinki Stock Exchange
 EWRK.ST,Ework Group AB,Stockholm  Stock Exchange
 BERNERB.ST,Berner Industrier AB,Stockholm  Stock Exchange
-AGIL.NV,Agility Capital Holding Inc,Euronext Amsterdam
+AGIL.AS,Agility Capital Holding Inc,Euronext Amsterdam
 VOLO.ST,Volati AB,Stockholm  Stock Exchange
 DAB.CO,Danske Andelskassers Bank A/S,Copenhagen Stock Exchange
 ARISE.ST,Arise AB,Stockholm  Stock Exchange
@@ -9390,7 +9236,7 @@ BHG.ST,BHG Group AB,Stockholm  Stock Exchange
 IPCO.ST,International Petroleum Corp,Stockholm  Stock Exchange
 IRLABA.ST,Irlab Therapeutics AB,Stockholm  Stock Exchange
 ISOFOL.ST,Isofol Medical AB,Stockholm  Stock Exchange
-MTRK.NV,MotorK PLC,Euronext Amsterdam
+MTRK.AS,MotorK PLC,Euronext Amsterdam
 ATIC.ST,Actic Group AB,Stockholm  Stock Exchange
 INSTAL.ST,Instalco AB,Stockholm  Stock Exchange
 BOOZT.ST,Boozt AB,Stockholm  Stock Exchange
@@ -9457,19 +9303,19 @@ VIVA.ST,Viva Wine Group AB,Stockholm  Stock Exchange
 CTEK.ST,Ctek AB,Stockholm  Stock Exchange
 ALMEX.PA,Mexedia SPA-SB,Euronext Paris
 NORBB.ST,Nordisk Bergteknik AB,Stockholm  Stock Exchange
-CABLE.NV,Global InterConnection Group Ltd,Euronext Amsterdam
+CABLE.AS,Global InterConnection Group Ltd,Euronext Amsterdam
 NETEL.ST,Netel Holding AB,Stockholm  Stock Exchange
 EMILB.ST,Fastighetsbolaget Emilshus AB,Stockholm  Stock Exchange
 LOGIB.ST,Logistea AB,Stockholm  Stock Exchange
 KARNELB.ST,Karnell Group AB,Stockholm  Stock Exchange
-SHELL.NV,Shell PLC,Euronext Amsterdam
+SHELL.AS,Shell PLC,Euronext Amsterdam
 AELIS.PA,Aelis Farma SAS,Euronext Paris
 LAPWALL.HE,Lapwall Oyj,Helsinki Stock Exchange
-YOUNI.NV,Younited Financial SA,Euronext Amsterdam
+YOUNI.AS,Younited Financial SA,Euronext Amsterdam
 ASUNTO.HE,Asuntosalkku Oyj,Helsinki Stock Exchange
 SAMPOSEK.ST,Sampo Oyj,Stockholm  Stock Exchange
 TEKOVA.HE,Tekova Oyj,Helsinki Stock Exchange
-FERGR.NV,Ferrari Group PLC,Euronext Amsterdam
+FERGR.AS,Ferrari Group PLC,Euronext Amsterdam
 PRISMA.ST,Prisma Properties AB,Stockholm  Stock Exchange
 SAMPO.CO,Sampo Oyj,Copenhagen Stock Exchange
 CARA.ST,Carasent AB,Stockholm  Stock Exchange
@@ -10239,7 +10085,6 @@ CPHC,Canterbury Park Holding Corp,Nasdaq
 QTTB,Q32 Bio Inc,Nasdaq
 COE,51 Talk Online Education Group,NYSE
 PROF,Profound Medical Corp,Nasdaq
-BLMZ.DELISTED,Harrison Global Holdings Inc,Nasdaq
 ACIU,AC Immune SA,Nasdaq
 GECC,Great Elm Capital Corp,Nasdaq
 GRDX,GridAI Technologies Corp,Nasdaq
@@ -10274,7 +10119,6 @@ ISOU,IsoEnergy Ltd,NYSE
 AZTR,Azitra Inc,NYSE
 SRL,Scully Royalty Ltd,NYSE
 FRGT,Freight Technologies Inc,Nasdaq
-BEDU.DELISTED,Bright Scholar Education Holdings Ltd,NYSE
 LTRN,Lantern Pharma Inc,Nasdaq
 SLI,Standard Lithium Ltd,NYSE
 NTRB,Nutriband Inc,Nasdaq
@@ -10414,7 +10258,6 @@ APRE,Aprea Therapeutics Inc,Nasdaq
 ADCT,ADC Therapeutics SA,NYSE
 BSBK,Bogota Financial Corp,Nasdaq
 PERF,Perfect Corp,NYSE
-YGMZ.DELISTED,MingZhu Logistics Holdings Ltd,Nasdaq
 DRM1051153,Drm1051153,Nasdaq
 XHG,XChange TEC Inc,Nasdaq
 QTEX,QTREX Quantum Ltd,Nasdaq
@@ -11261,26 +11104,26 @@ FIGX,FIGX Capital Acquisition Corp,Nasdaq
 POAS,Phaos Technology Holdings Cayman Ltd,NYSE
 CMBTO.OL,CMB Tech NV,Oslo Stock Exchange
 VELO,Velo3D Inc,Nasdaq
-PC2.ASX,PC Gold Ltd,Sydney
+PC2.AX,PC Gold Ltd,Sydney
 DBGI,Digital Brands Group Inc,Nasdaq
 ETS,Elite Express Holding Inc,Nasdaq
 CCII,Cohen Circle Acquisition Corp II,Nasdaq
 VNME,Vendome Acquisition Corp I,Nasdaq
 LBRX,LB Pharmaceuticals Inc,Nasdaq
-APZ.ASX,Aspen Group Ltd/Australia,Sydney
-ABG.ASX,Abacus Group,Sydney
-GDI.ASX,GDI Property Group Partnership,Sydney
-DXI.ASX,Dexus Industria REIT,Sydney
-RFF.ASX,Rural Funds Trust,Sydney
-COF.ASX,Centuria Office REIT,Sydney
-TOT.ASX,360 Capital REIT,Sydney
-GDF.ASX,Garda Property Group,Sydney
-AOF.ASX,Australian Unity Office Fund,Sydney
-DXC.ASX,Dexus Convenience Retail REIT,Sydney
-HCW.ASX,HealthCo REIT,Sydney
-REP.ASX,RAM Essential Services Property Fund,Sydney
-ASK.ASX,Abacus Storage King,Sydney
-DGT.ASX,DigiCo Infrastructure REIT,Sydney
+APZ.AX,Aspen Group Ltd/Australia,Sydney
+ABG.AX,Abacus Group,Sydney
+GDI.AX,GDI Property Group Partnership,Sydney
+DXI.AX,Dexus Industria REIT,Sydney
+RFF.AX,Rural Funds Trust,Sydney
+COF.AX,Centuria Office REIT,Sydney
+TOT.AX,360 Capital REIT,Sydney
+GDF.AX,Garda Property Group,Sydney
+AOF.AX,Australian Unity Office Fund,Sydney
+DXC.AX,Dexus Convenience Retail REIT,Sydney
+HCW.AX,HealthCo REIT,Sydney
+REP.AX,RAM Essential Services Property Fund,Sydney
+ASK.AX,Abacus Storage King,Sydney
+DGT.AX,DigiCo Infrastructure REIT,Sydney
 IOR,Income Opportunity Realty Investors Inc,NYSE
 PW,Power REIT,NYSE
 CMCT,Creative Media & Community Trust Corp,Nasdaq
@@ -11336,7 +11179,7 @@ VSURE.ST,Verisure PLC,Stockholm  Stock Exchange
 HVMC,Highview Merger Corp,Nasdaq
 SSEA,Starry Sea Acquisition Corp,Nasdaq
 MKLY,McKinley Acquisition Corp,Nasdaq
-AIH.ASX,Advanced Innergy Holdings Ltd,Sydney
+AIH.AX,Advanced Innergy Holdings Ltd,Sydney
 TLNC,Talon Capital Corp,Nasdaq
 POSTI.HE,Posti Group Oyj,Helsinki Stock Exchange
 EVMN,Evommune Inc,NYSE
@@ -11345,7 +11188,7 @@ BDCI,BTC Development Corp,Nasdaq
 MBVI,M3-Brigade Acquisition VI Corp,Nasdaq
 GSRF,GSR IV Acquisition Corp,Nasdaq
 EMIS,Emmis Acquisition Corp,Nasdaq
-CMA.ASX,Carma Ltd,Sydney
+CMA.AX,Carma Ltd,Sydney
 FUSE,Fusemachines Inc,Nasdaq
 YCY,AA Mission Acquisition Corp II,NYSE
 BLZR,Trailblazer Acquisition Corp,Nasdaq
@@ -11357,9 +11200,9 @@ CEPV,Cantor Equity Partners V Inc,Nasdaq
 MEHA,Functional Brands Inc,Nasdaq
 LKSP,Lake Superior Acquisition Corp,Nasdaq
 BCSS,Bain Capital GSS Investment Corp,NYSE
-EPI.ASX,Epiminder Ltd,Sydney
+EPI.AX,Epiminder Ltd,Sydney
 CABR,Caring Brands Inc,Nasdaq
-UM1.ASX,Unity Metals Ltd,Sydney
+UM1.AX,Unity Metals Ltd,Sydney
 DYOR,Insight Digital Partners II,Nasdaq
 ALIS,Calisa Acquisition Corp,Nasdaq
 CLI.MI,Centrale del Latte d'Italia,Borsa Italiana
@@ -11477,7 +11320,7 @@ SYS.MI,SYS-DAT SpA,Borsa Italiana
 DNMX,Dynamix Corp III,Nasdaq
 AIIA,AI Infrastructure Acquisition Corp,NYSE
 FCRS,FutureCrest Acquisition Corp,NYSE
-AEM.ASX,Advanced Energy Minerals Ltd,Sydney
+AEM.AX,Advanced Energy Minerals Ltd,Sydney
 VIVEBTA.ST,Vivesto AB,Stockholm  Stock Exchange
 CBC,Central BanCo Inc,Nasdaq
 TII,Titan Mining Corp,NYSE
@@ -11496,7 +11339,7 @@ MMTX,Miluna Acquisition Corp,Nasdaq
 HAVA,Harvard Ave Acquisition Corp,Nasdaq
 BIXI,Bitcoin Infrastructure Acquisition Corp Ltd,Nasdaq
 FJET,Starfighters Space Inc,NYSE
-EQU.ASX,Equus Energy Ltd,Sydney
+EQU.AX,Equus Energy Ltd,Sydney
 MORROW.ST,Morrow Bank AB,Stockholm  Stock Exchange
 RSP,Invesco S&P 500 Equal Weight ETF ,NYSE
 ESGU,iShares ESG Aware MSCI USA ETF,Nasdaq
@@ -11830,15 +11673,14 @@ IBTG,iShares iBonds Dec 2026 Term Treasury ETF,Nasdaq
 IBTF,iShares iBonds Dec 2025 Term Treasury ETF,Nasdaq
 IBTE,iShares iBonds Dec 2024 Term Treasury ETF,Nasdaq
 ID27.L,iShares iBonds Dec 2027 Term $ Corp UCITS ETF,LSE
-VAS.ASX,Vanguard Australian Shares Index ETF,Sydney
-VGS.ASX,Vanguard MSCI Index International Shares ETF,Sydney
-IVV.ASX,iShares S&P 500 ETF,Sydney
-A200.ASX,Betashares Australia 200 ETF,Sydney
-QUAL.ASX,VanEck MSCI International Quality ETF,Sydney
-NDQ.ASX,Betashares NASDAQ 100 ETF,Sydney
-IOZ.ASX,iShares Core S&P/ASX 200 ETF,Sydney
-VGAD.ASX,Vanguard MSCI Index International Shares (Hedged) ETF,Sydney
-DRM.ETF35,Dormant ETF35,LSE
+VAS.AX,Vanguard Australian Shares Index ETF,Sydney
+VGS.AX,Vanguard MSCI Index International Shares ETF,Sydney
+IVV.AX,iShares S&P 500 ETF,Sydney
+A200.AX,Betashares Australia 200 ETF,Sydney
+QUAL.AX,VanEck MSCI International Quality ETF,Sydney
+NDQ.AX,Betashares NASDAQ 100 ETF,Sydney
+IOZ.AX,iShares Core S&P/ASX 200 ETF,Sydney
+VGAD.AX,Vanguard MSCI Index International Shares (Hedged) ETF,Sydney
 IITB.MI,Ishares Italy Govt Bond,Borsa Italiana
 BTP10.MI,Lyxor Euromts 10Y Itl Gv Bnd,Borsa Italiana
 BTP13.MI,Lyxor Euromts 1-3Y It Btp Gv,Borsa Italiana
@@ -11985,12 +11827,12 @@ ITA,iShares US Aerospace & Defense ETF,Chicago Board Options Exchange
 NOBL,ProShares S&P 500 Dividend Aristocrats ETF,Chicago Board Options Exchange
 FLQM,Franklin U.S. Mid Cap Multifactor Index ETF,Chicago Board Options Exchange
 ARKX,ARK Space And Innovation ETF,Chicago Board Options Exchange
-VTS.ASX,Vanguard US Total Market Shares Index ETF,Sydney
-STW.ASX,SPDR S&P/ASX 200 ETF,Sydney
-VHY.ASX,Vanguard Australian Shares High Yield ETF,Sydney
-GOLD.ASX,Global X Physical Gold,Sydney
-IOO.ASX,iShares Global 100 ETF,Sydney
-VEU.ASX,Vanguard All-World ex US Shares Index ETF,Sydney
+VTS.AX,Vanguard US Total Market Shares Index ETF,Sydney
+STW.AX,SPDR S&P/ASX 200 ETF,Sydney
+VHY.AX,Vanguard Australian Shares High Yield ETF,Sydney
+GOLD.AX,Global X Physical Gold,Sydney
+IOO.AX,iShares Global 100 ETF,Sydney
+VEU.AX,Vanguard All-World ex US Shares Index ETF,Sydney
 CNDX.L,iShares NASDAQ 100 UCITS ETF usd,LSE
 CNYA,iShares MSCI China A UCITS ETF,LSE
 BTEC,iShares Nasdaq US Biotechnology UCITS ETF,LSE
@@ -12005,10 +11847,7 @@ SXLY,SPDR S&P U.S. Consumer Discretionary Select Sector UCITS ETF,LSE
 SXLP,SPDR S&P U.S. Consumer Staples Select Sector UCITS ETF,LSE
 SXLK,SPDR S&P U.S. Technology Select Sector UCITS ETF,LSE
 EXS3,iShares MDAX UCITS ETF DE,Xetra ETFs
-EXH1.DUP10606,iShares STOXX Europe 600 Oil & Gas UCITS ETF DE,Xetra ETFs
-EXV4.DUP10618,iShares STOXX Europe 600 Health Care UCITS ETF DE,Xetra ETFs
 EXSA,iShares STOXX Europe 600 UCITS ETF DE,Xetra ETFs
-ISPA.DUP10572,iShares STOXX Global Select Dividend 100 UCITS ETF DE,Xetra ETFs
 RBTX,iShares Automation & Robotics UCITS ETF,LSE
 SHLD.LN,iShares Digital Security UCITS ETF,LSE
 IMV,iShares Edge MSCI Europe Minimum Volatility UCITS ETF,LSE
@@ -12021,7 +11860,6 @@ EMH5,SPDR ICE BofA 0-5 Year EM USD Government Bond UCITS ETF,LSE
 STZ.PA,SPDR MSCI Europe Financials UCITS ETF,Euronext Paris
 CES1,iShares MSCI EMU Small Cap UCITS ETF,LSE
 CSMIB,iShares FTSE MIB UCITS ETF EUR Acc,SIX
-EXH1.DUP10647,iShares STOXX Europe 600 Telecommunications UCITS ETF DE,Xetra ETFs
 QQQJ,Invesco NASDAQ Next Gen 100 ETF,Nasdaq
 MJ,ETFMG Alternative Harvest ETF,NYSE
 QCLN,First Trust NASDAQ Clean Edge Green Energy Index Fund,Nasdaq
@@ -12310,8 +12148,8 @@ FSIG,First Trust Limited Duration Investment Grade Corporate ETF,NYSE
 NASA,Tema Space Innovators ETF,NYSE
 YCSH.DE,iShares EUR Cash UCITS ETF,Xetra ETFs
 LYXCSH.DE,Amundi EUR Overnight Return UCITS ETF,Xetra ETFs
-VUSA.NV,Vanguard S&P 500 UCITS ETF,Euronext Amsterdam
-VFEM.NV,Vanguard FTSE Emerging Markets UCITS ETF USD,Euronext Amsterdam
+VUSA.AS,Vanguard S&P 500 UCITS ETF,Euronext Amsterdam
+VFEM.AS,Vanguard FTSE Emerging Markets UCITS ETF USD,Euronext Amsterdam
 CETH.DE,CoinShares Physical Staked Ethereum,Xetra ETFs
 SLNC.DE,CoinShares Physical Staked Solana,Xetra ETFs
 WXRP.DE,WisdomTree Physical XRP,Xetra ETFs
@@ -12331,7 +12169,6 @@ CD91.DE,Amundi Gold Miners UCITS ETF,Xetra ETFs
 LCUJ.DE,Amundi MSCI Japan UCITS ETF,Xetra ETFs
 KWEB.DH,KraneShares CSI China Internet ETF,Abu Dhabi
 KRBN.DH,KraneShares Global Carbon Strategy ETF,Abu Dhabi
-DRM.14425,"Test - Fees from Balance, Us ETFs",NYSE
 DBMF,iMGP DBi Managed Futures Strategy ETF,NYSE
 CRAK,VanEck Oil Refiners ETF,NYSE
 HEAT.L,WisdomTree Heating Oil,LSE
@@ -12344,7 +12181,7 @@ CEU2.L,Amundi Index MSCI Europe UCITS ETF ,LSE
 LCJD.L,Amundi MSCI Japan UCITS ETF Acc,LSE
 SP5C.L,Amundi S&P 500 II UCITS ETF Acc,LSE
 WEL7.DE,Amundi S&P World Financials Screened UCITS ETF Acc,Xetra ETFs
-GLDU.NV,Amundi NYSE Arca Gold Bugs UCITS ETF Dist,Euronext Amsterdam
+GLDU.AS,Amundi NYSE Arca Gold Bugs UCITS ETF Dist,Euronext Amsterdam
 WEL5.DE,Amundi S&P World Energy Screened UCITS ETF Acc,Xetra ETFs
 CP9U.PA,Amundi MSCI Pacific Ex Japan SRI Climate Paris Aligned UCITS ETF,Euronext Paris
 RS2U.PA,Amundi Russell 2000 UCITS ETF,Euronext Paris
@@ -12379,8 +12216,6 @@ NVDY,YieldMax NVDA Option Income Strategy ETF,NYSE
 GOOY,YieldMax GOOGL Option Income Strategy ETF,NYSE
 R1GR.L,iShares Russell 1000 Growth UCITS ETF USD (Acc),LSE
 IUIS.L,iShares S&P 500 Industrials Sector UCITS ETF USD A,LSE
-DRM.14493,Dormant ETF 14493,LSE
-DRM.14494,Dormant ETF 14494,LSE
 ERNS.L,iShares GBP Ultrashort Bond UCITS ETF,LSE
 CSH2.L,Amundi Smart Overnight Return GBP Hedged UCITS ETF Acc,LSE
 L100.L,Amundi FTSE 100 UCITS ETF Acc,LSE
@@ -12396,18 +12231,18 @@ ITBL.IM,WisdomTree Multi Asset Issuer PLC,Borsa Italiana
 29GA.IM,iShares iBonds Dec 2029 Term ? Corp UCITS ETF,Borsa Italiana
 28IA.IM,iShares iBonds Dec 2028 Term ? Italy Govt Bond UCITS ETF,Borsa Italiana
 30IA.IM,iShares iBonds Dec 2030 Term ? Corp UCITS ETF,Borsa Italiana
-EMPA.NV,iShares MSCI EMU Paris-Aligd Clmt UCITS ETF EUR A,Euronext Amsterdam
-TI5A.NV,iShares TIPS 0-5 UCITS ETF,Euronext Amsterdam
+EMPA.AS,iShares MSCI EMU Paris-Aligd Clmt UCITS ETF EUR A,Euronext Amsterdam
+TI5A.AS,iShares TIPS 0-5 UCITS ETF,Euronext Amsterdam
 CYBU.AS,iShares China CNY Bond UCITS ETF,Euronext Amsterdam
-EXCH.NV,iShares MSCI EM ex China UCITS ETF,Euronext Amsterdam
-GOVT.NV,iShares USD Treasury Bond UCITS ETF,Euronext Amsterdam
-ICHN.NV,iShares MSCI China UCITS ETF,Euronext Amsterdam
+EXCH.AS,iShares MSCI EM ex China UCITS ETF,Euronext Amsterdam
+GOVT.AS,iShares USD Treasury Bond UCITS ETF,Euronext Amsterdam
+ICHN.AS,iShares MSCI China UCITS ETF,Euronext Amsterdam
 IU28.AS,iShares iBonds Dec 2028 Term $ High Yield Corp UCITS ETF,Euronext Amsterdam
 IU29.AS,iShares iBonds Dec 2029 Term $ High Yield Corp UCITS ETF,Euronext Amsterdam
 DI35.AS,iShares iBonds Dec 2035 Term $ Corp UCITS ETF,Euronext Amsterdam
-MAXS.NV,iShares US Large Cap Max Buffer Sep UCITS ETF,Euronext Amsterdam
+MAXS.AS,iShares US Large Cap Max Buffer Sep UCITS ETF,Euronext Amsterdam
 USDB.AS,iShares US Large Cap Deep Buffer UCITS ETF,Euronext Amsterdam
-IESE.NV,iShares MSCI Europe SRI UCITS ETF EUR (Acc),Euronext Amsterdam
+IESE.AS,iShares MSCI Europe SRI UCITS ETF EUR (Acc),Euronext Amsterdam
 CSH.PA,Amundi EUR Overnight Return UCITS ETF,Euronext Paris
 WLDHC.PA,Amundi MSCI World II UCITS ETF EUR Hedged Acc,Euronext Paris
 ACWI.PA,Amundi MSCI All Country World UCITS ETF EUR Acc,Euronext Paris
@@ -12548,7 +12383,7 @@ ISAC.L,iShares MSCI ACWI UCITS ETF,LSE
 HLQD.L,iShares $ Corp Bond Interest Rate Hedged UCITS ETF,LSE
 CCAU.L,iShares MSCI Canada UCITS ETF,LSE
 CEMA.L,iShares MSCI EM Asia UCITS ETF,LSE
-CEUU.NV,iShares Core MSCI EMU UCITS ETF,Euronext Amsterdam
+CEUU.AS,iShares Core MSCI EMU UCITS ETF,Euronext Amsterdam
 CPXJ.L,iShares Core MSCI Pacific ex-Japan UCITS ETF,LSE
 CUSS.L,iShares MSCI USA Small Cap ESG Enhanced CTB UCITS ETF,LSE
 EIMI.L,iShares Core MSCI EM IMI UCITS ETF,LSE
@@ -12634,7 +12469,6 @@ EMUEUA.DE,UBS Core MSCI EMU UCITS ETF EUR dis,Xetra ETFs
 XD5E.DE,Xtrackers MSCI EMU UCITS ETF 1D,Xetra ETFs
 SX7EEX.DE,iShares EURO STOXX Banks 30-15 UCITS ETF DE,Xetra ETFs
 SXXEEX.DE,iShares EURO STOXX UCITS ETF (DE),Xetra ETFs
-DRM.15518,Dormant ETF15518,Xetra ETFs
 ZPR1.DE,SS SPDR Bloomberg 1-3 Month T-Bill UCITS ETF,Xetra ETFs
 FVSA.DE,Franklin Euro Short Maturity UCITS ETF,Xetra ETFs
 WEXU.DE,Amundi MSCI World Ex USA UCITS ETF Acc,Xetra ETFs
@@ -12660,10 +12494,6 @@ IMF,Invesco Managed Futures Strategy ETF,NYSE
 WTMF,WISDOMTREE MGD FUTURES STRAT,NYSE
 NLR,VanEck Uranium and Nuclear ETF,NYSE
 DRAM,Roundhill Memory ETF,NYSE
-DRM.15645,Dormant ETF15645,NYSE
-DRM.15646,Dormant ETF15646,NYSE
-DRM.15647,Dormant ETF15647,NYSE
-DRM.15648,Dormant ETF15648,NYSE
 URAN,Themes Uranium & Nuclear ETF,NYSE
 CG9.PA,Amundi MSCI Europe Growth UCITS ETF Acc,Euronext Paris
 QCEU.PA,Amundi MSCI Europe Quality Factor UCITS ETF - EUR (C),Euronext Paris
@@ -12684,49 +12514,22 @@ WMFS.DE,Amundi MSCI World Small Cap ESG Broad Transition UCITS ETF ACC,Xetra ETF
 WEBN.DE,Amundi Prime All Country World UCITS ETF Acc,Xetra ETFs
 EQSP.DE,Amundi S&P 500 Equal Weight UCITS ETF Acc,Xetra ETFs
 WEBA.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
-DRM.15669,Dormant ETF15669,Xetra ETFs
-DRM.15670,Dormant ETF15670,Xetra ETFs
-DRM.15671,Dormant ETF15671,Xetra ETFs
-DRM.15672,Dormant ETF15672,Xetra ETFs
-DRM.15673,Dormant ETF15673,Xetra ETFs
-DRM.15674,Dormant ETF15674,Xetra ETFs
 2800.HK,Tracker Fund of Hong Kong Ltd,Hong Kong Exchanges
 2828.HK,Hang Seng China Enterprises Index ETF HKD,Hong Kong Exchanges
 3033.HK,CSOP Hang Seng Tech Index ETF,Hong Kong Exchanges
 7226.HK,CSOP Hang Seng TECH Index Daily (2x) Lvrgd Prod,Hong Kong Exchanges
 FFUT,FIDELITY MANAGED FUTURES ETF,Nasdaq
-MIVU.NV,Amundi MSCI USA Minimum Volatility Factor UCITS ETF (C),Euronext Amsterdam
-AIAA.NV,iShares AI Adopters & Applications UCITS ETF,Euronext Amsterdam
-BLKC.NV,iShares Blockchain Technology UCITS ETF,Euronext Amsterdam
-INRA.NV,iShares Global Clean Energy Transition UCITS ETF,Euronext Amsterdam
-CTEC.NV,iShares MSCI China Tech UCITS ETF,Euronext Amsterdam
-METL.NV,iShares Essential Metals Producers UCITS ETF,Euronext Amsterdam
-COPM.NV,iShares Copper Miners UCITS ETF,Euronext Amsterdam
-AINF.NV,iShares AI Infrastructure UCITS ETF,Euronext Amsterdam
+MIVU.AS,Amundi MSCI USA Minimum Volatility Factor UCITS ETF (C),Euronext Amsterdam
+AIAA.AS,iShares AI Adopters & Applications UCITS ETF,Euronext Amsterdam
+BLKC.AS,iShares Blockchain Technology UCITS ETF,Euronext Amsterdam
+INRA.AS,iShares Global Clean Energy Transition UCITS ETF,Euronext Amsterdam
+CTEC.AS,iShares MSCI China Tech UCITS ETF,Euronext Amsterdam
+METL.AS,iShares Essential Metals Producers UCITS ETF,Euronext Amsterdam
+COPM.AS,iShares Copper Miners UCITS ETF,Euronext Amsterdam
+AINF.AS,iShares AI Infrastructure UCITS ETF,Euronext Amsterdam
 JPHU.PA,Amundi JPX-Nikkei 400 UCITS ETF - DAILY HEDGED USD (C),Euronext Paris
-DRM.15714,Dormant ETF15714,Nasdaq
-DRM.15715,Dormant ETF15715,Nasdaq
-DRM.15716,Dormant ETF15716,Nasdaq
-DRM.15717,Dormant ETF15717,Nasdaq
-DRM.15718,Dormant ETF15718,Nasdaq
-DRM.15719,Dormant ETF15719,Nasdaq
-DRM.15720,Dormant ETF15720,Nasdaq
-DRM.15721,Dormant ETF15721,Nasdaq
-DRM.15722,Dormant ETF15722,Nasdaq
-DRM.15723,Dormant ETF15723,Nasdaq
-DRM.15724,Dormant ETF15724,Nasdaq
-DRM.15725,Dormant ETF15725,Nasdaq
-DRM.15726,Dormant ETF15726,Nasdaq
-DRM.15727,Dormant ETF15727,Nasdaq
-DRM.15728,Dormant ETF15728,Nasdaq
-DRM.15729,Dormant ETF15729,Nasdaq
-DRM.15730,Dormant ETF15730,Nasdaq
-DRM.15731,Dormant ETF15731,Nasdaq
-DRM.15732,Dormant ETF15732,Nasdaq
-DRM.15733,Dormant ETF15733,Nasdaq
 C50U.L,Amundi Core EURO STOXX 50 UCITS ETF USD Acc,LSE
 MEUH.L,Amundi Core Stoxx Europe 600 UCITS ETF USD Hedged Acc,LSE
-DRM.15736,Dormant ETF15736,LSE
 AASU.L,Amundi MSCI Em Asia UCITS ETF - USD (C),LSE
 FINW.L,Amundi MSCI World Financials UCITS ETF USD Acc,LSE
 NDIA.L,iShares MSCI India UCITS ETF,LSE
@@ -12739,18 +12542,4 @@ AMEV.DE,Amundi Core MSCI Japan UCITS ETF USD Hedged Acc,Xetra ETFs
 WEBL.DE,Amundi Core MSCI USA UCITS ETF Acc,Xetra ETFs
 MEGU.DE,Amundi MSCI USA Mega Cap UCITS ETF Acc,Xetra ETFs
 WEBB.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
-DRM.15749,Dormant ETF15749,LSE
 FSFL.L,Foresight Solar Fund Ltd,LSE
-DRM.15751,Dormant ETF15751,LSE
-DRM.15752,Dormant ETF15752,LSE
-DRM.15753,Dormant ETF15753,LSE
-DRM.15754,Dormant ETF15754,LSE
-DRM.15755,Dormant ETF15755,LSE
-DRM.15756,Dormant ETF15756,LSE
-DRM.15757,Dormant ETF15757,LSE
-DRM.15758,Dormant ETF15758,LSE
-DRM.15759,Dormant ETF15759,LSE
-DRM.15760,Dormant ETF15760,LSE
-DRM.15761,Dormant ETF15761,LSE
-DRM.15762,Dormant ETF15762,LSE
-DRM.15763,Dormant ETF15763,LSE

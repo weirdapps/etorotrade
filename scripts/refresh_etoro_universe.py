@@ -55,19 +55,52 @@ def is_etorian_alias(item: dict) -> bool:
 
 _HK_PAD_WIDTH = 4
 
+_SUFFIX_REMAP = {
+    ".ASX": ".AX",
+    ".ZU": ".SW",
+    ".NV": ".AS",
+    ".LSB": ".LS",
+}
+
+_DROP_SUFFIXES = frozenset({
+    ".RTH", ".DELISTED", ".TEST", ".OLD", ".EXT", ".24-7",
+    ".CALL1", ".CALL2", ".PUT1", ".PUT2",
+    ".TENDER", ".CASHRESERVED", ".MOEX",
+    ".RIGHT", ".WS", ".PFD",
+})
+
+
+def _is_junk_suffix(suffix: str) -> bool:
+    """True if the suffix is a known junk/placeholder (CVR, DUP, or long numeric ID)."""
+    if suffix in _DROP_SUFFIXES:
+        return True
+    s = suffix.lstrip(".")
+    if s.startswith(("CVR", "DUP", "ETF", "STOCK")):
+        return True
+    if s.isdigit() and len(s) > 3:
+        return True
+    return False
+
 
 def normalize_symbol(symbol: str) -> str | None:
     """Normalize eToro symbol to Yahoo Finance format.
 
-    Returns None for symbols that should be skipped entirely (.RTH variants).
+    Returns None for symbols that should be skipped (RTH variants, junk instruments).
     """
     upper = symbol.upper().strip()
-    if upper.endswith(".RTH"):
-        return None
+
+    if "." in upper:
+        base, dot_suffix = upper.rsplit(".", 1)
+        full_suffix = f".{dot_suffix}"
+        if _is_junk_suffix(full_suffix):
+            return None
+        if full_suffix in _SUFFIX_REMAP:
+            upper = base + _SUFFIX_REMAP[full_suffix]
+
     if upper.endswith(".US"):
         upper = upper[:-3]
     if upper.endswith(".HK"):
-        base = upper[: -3]
+        base = upper[:-3]
         if base.isdigit() and len(base) > _HK_PAD_WIDTH:
             upper = base.lstrip("0").zfill(_HK_PAD_WIDTH) + ".HK"
     return upper
