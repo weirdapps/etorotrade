@@ -37,3 +37,16 @@ def is_stock_or_etf(item: dict) -> bool:
 def is_etorian_alias(item: dict) -> bool:
     """True if InstrumentDisplayName starts with 'ETORIAN' (deprecated alias placeholder)."""
     return (item.get("InstrumentDisplayName") or "").startswith("ETORIAN")
+
+
+def dedupe_by_symbol(rows: list[dict]) -> list[dict]:
+    """Remove duplicate rows by 'symbol' key, preserving first occurrence and overall order."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for row in rows:
+        sym = row["symbol"]
+        if sym in seen:
+            continue
+        seen.add(sym)
+        out.append(row)
+    return out

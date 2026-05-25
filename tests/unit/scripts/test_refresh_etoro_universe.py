@@ -20,6 +20,7 @@ _spec.loader.exec_module(refresh_etoro_universe)
 extract_symbol = refresh_etoro_universe.extract_symbol
 is_stock_or_etf = refresh_etoro_universe.is_stock_or_etf
 is_etorian_alias = refresh_etoro_universe.is_etorian_alias
+dedupe_by_symbol = refresh_etoro_universe.dedupe_by_symbol
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -100,3 +101,28 @@ class TestIsEtorianAlias:
 
     def test_missing_name_not_flagged(self):
         assert not is_etorian_alias({"InstrumentID": 1})
+
+
+class TestDedupeBySymbol:
+    def test_removes_duplicate_symbol_keeps_first(self):
+        rows = [
+            {"symbol": "AAPL", "company": "Apple", "exchange": "NASDAQ"},
+            {"symbol": "MSFT", "company": "Microsoft", "exchange": "NASDAQ"},
+            {"symbol": "AAPL", "company": "Apple Duplicate", "exchange": "NASDAQ"},
+        ]
+        result = dedupe_by_symbol(rows)
+        assert len(result) == 2
+        assert result[0]["company"] == "Apple"  # First wins
+        assert result[1]["symbol"] == "MSFT"
+
+    def test_preserves_order_of_unique_rows(self):
+        rows = [
+            {"symbol": "B", "company": "Bee"},
+            {"symbol": "A", "company": "Ay"},
+            {"symbol": "C", "company": "See"},
+        ]
+        result = dedupe_by_symbol(rows)
+        assert [r["symbol"] for r in result] == ["B", "A", "C"]
+
+    def test_empty_list(self):
+        assert dedupe_by_symbol([]) == []
