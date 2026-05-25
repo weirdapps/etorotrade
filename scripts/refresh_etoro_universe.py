@@ -8,7 +8,10 @@ and atomically overwrites the input file.
 import csv
 import os
 import re
+import time
 from collections import Counter, defaultdict
+
+import requests
 
 _MARKET_AVATAR_RE = re.compile(r"/market-avatars/([^/]+)/")
 
@@ -127,3 +130,34 @@ def normalize_to_yahoo(
     if not suffix:
         return sym_upper, False
     return f"{sym_upper}.{suffix}", False
+
+
+BULK_URL = (
+    "https://api.etorostatic.com/sapi/instrumentsmetadata/V1.1/"
+    "instruments/bulk?bulkNumber=1&totalBulks=1"
+)
+_HTTP_TIMEOUT_SEC = 30
+
+
+def fetch_bulk(url: str = BULK_URL, max_retries: int = 3) -> dict:
+    """GET the bulk instruments endpoint with exponential-backoff retry.
+
+    Backoff: 2^attempt seconds between tries (2s, 4s, 8s for 3 attempts).
+    Raises RuntimeError if all attempts fail.
+    """
+    last_error: str | None = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.get(url, timeout=_HTTP_TIMEOUT_SEC)
+            if response.status_code == 200:
+                return response.json()
+            last_error = f"HTTP {response.status_code}: {response.text[:200]}"
+        except requests.RequestException as e:
+            last_error = f"{type(e).__name__}: {e}"
+
+        if attempt < max_retries:
+            time.sleep(2**attempt)
+
+    raise RuntimeError(
+        f"fetch_bulk: all {max_retries} attempts failed. Last error: {last_error}"
+    )

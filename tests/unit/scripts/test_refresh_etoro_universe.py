@@ -4,6 +4,7 @@ import csv
 import importlib.util
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -24,6 +25,8 @@ is_etorian_alias = refresh_etoro_universe.is_etorian_alias
 dedupe_by_symbol = refresh_etoro_universe.dedupe_by_symbol
 build_exchange_map = refresh_etoro_universe.build_exchange_map
 normalize_to_yahoo = refresh_etoro_universe.normalize_to_yahoo
+fetch_bulk = refresh_etoro_universe.fetch_bulk
+BULK_URL = refresh_etoro_universe.BULK_URL
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -212,3 +215,51 @@ class TestNormalizeToYahoo:
         sym, unmapped = normalize_to_yahoo("wxyz", 9999, MAPPING)
         assert sym == "WXYZ"  # no suffix, just uppercased
         assert unmapped is True
+
+
+class TestFetchBulk:
+    def test_success_first_try(self):
+        with patch.object(refresh_etoro_universe.requests, "get") as mock_get:
+            mock_get.return_value = MagicMock(
+                status_code=200,
+                json=lambda: {"InstrumentDisplayDatas": [{"InstrumentID": 1}]},
+            )
+            result = fetch_bulk()
+            assert "InstrumentDisplayDatas" in result
+            assert len(result["InstrumentDisplayDatas"]) == 1
+            mock_get.assert_called_once()
+
+    def test_retries_on_500_then_succeeds(self):
+        responses = [
+            MagicMock(status_code=500, text="server error"),
+            MagicMock(
+                status_code=200,
+                json=lambda: {"InstrumentDisplayDatas": []},
+            ),
+        ]
+        with patch.object(refresh_etoro_universe.requests, "get") as mock_get, \
+             patch.object(refresh_etoro_universe.time, "sleep"):
+            mock_get.side_effect = responses
+            result = fetch_bulk()
+            assert result["InstrumentDisplayDatas"] == []
+            assert mock_get.call_count == 2
+
+    def test_raises_after_max_retries(self):
+        with patch.object(refresh_etoro_universe.requests, "get") as mock_get, \
+             patch.object(refresh_etoro_universe.time, "sleep"):
+            mock_get.return_value = MagicMock(status_code=500, text="boom")
+            with pytest.raises(RuntimeError, match="fetch_bulk: all 3 attempts failed"):
+                fetch_bulk(max_retries=3)
+            assert mock_get.call_count == 3
+
+    def test_uses_correct_url(self):
+        with patch.object(refresh_etoro_universe.requests, "get") as mock_get:
+            mock_get.return_value = MagicMock(
+                status_code=200,
+                json=lambda: {"InstrumentDisplayDatas": []},
+            )
+            fetch_bulk()
+            url_arg = mock_get.call_args[0][0]
+            assert "instrumentsmetadata/V1.1/instruments/bulk" in url_arg
+            assert "bulkNumber=1" in url_arg
+            assert "totalBulks=1" in url_arg
