@@ -1,5 +1,6 @@
 """Unit tests for scripts/refresh_etoro_universe.py."""
 
+import csv
 import importlib.util
 import json
 from pathlib import Path
@@ -21,6 +22,7 @@ extract_symbol = refresh_etoro_universe.extract_symbol
 is_stock_or_etf = refresh_etoro_universe.is_stock_or_etf
 is_etorian_alias = refresh_etoro_universe.is_etorian_alias
 dedupe_by_symbol = refresh_etoro_universe.dedupe_by_symbol
+build_exchange_map = refresh_etoro_universe.build_exchange_map
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -126,3 +128,38 @@ class TestDedupeBySymbol:
 
     def test_empty_list(self):
         assert dedupe_by_symbol([]) == []
+
+
+class TestBuildExchangeMap:
+    def test_builds_from_cross_reference(self, bulk_data, tmp_path):
+        # Seed current input/etoro.csv with known suffix mappings
+        csv_path = tmp_path / "etoro.csv"
+        with open(csv_path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["symbol", "company", "price", "exchange"])
+            w.writerow(["aapl", "Apple", "150", ""])       # NASDAQ → no suffix → "" in 'exchange'
+            w.writerow(["msft", "Microsoft", "300", ""])
+            w.writerow(["sap.de", "SAP", "150", "DE"])
+            w.writerow(["0700.hk", "Tencent", "440", "HK"])
+            w.writerow(["azn.l", "AstraZeneca", "120", "L"])
+
+        mapping = build_exchange_map(bulk_data, str(csv_path))
+
+        assert mapping[4] == ""    # NASDAQ (AAPL, MSFT both confirm)
+        assert mapping[5] == "DE"  # XETRA
+        assert mapping[9] == "HK"  # Hong Kong
+        assert mapping[7] == "L"   # LSE
+
+    def test_unknown_exchange_not_in_map(self, bulk_data, tmp_path):
+        csv_path = tmp_path / "etoro.csv"
+        with open(csv_path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["symbol", "company", "price", "exchange"])
+            w.writerow(["aapl", "Apple", "150", ""])
+
+        mapping = build_exchange_map(bulk_data, str(csv_path))
+        assert 9999 not in mapping  # The ExchangeID 9999 from fixture has no cross-reference
+
+    def test_missing_csv_returns_empty_map(self, bulk_data, tmp_path):
+        mapping = build_exchange_map(bulk_data, str(tmp_path / "does-not-exist.csv"))
+        assert mapping == {}

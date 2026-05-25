@@ -5,7 +5,10 @@ extracts ticker symbols from image URIs, normalizes to Yahoo Finance format,
 and atomically overwrites the input file.
 """
 
+import csv
+import os
 import re
+from collections import Counter, defaultdict
 
 _MARKET_AVATAR_RE = re.compile(r"/market-avatars/([^/]+)/")
 
@@ -50,3 +53,40 @@ def dedupe_by_symbol(rows: list[dict]) -> list[dict]:
         seen.add(sym)
         out.append(row)
     return out
+
+
+def build_exchange_map(bulk_data: dict, current_csv_path: str) -> dict[int, str]:
+    """Derive {ExchangeID: yahoo_suffix} mapping by cross-referencing the bulk pull
+    against the current input/etoro.csv.
+
+    For each (symbol, ExchangeID) in the bulk pull, look up `exchange` column
+    in current CSV. The mode (most common) suffix per ExchangeID wins.
+
+    Returns empty dict if current_csv_path doesn't exist.
+    """
+    if not os.path.exists(current_csv_path):
+        return {}
+
+    # symbol (case-insensitive) → exchange suffix from current CSV
+    current_suffixes: dict[str, str] = {}
+    with open(current_csv_path) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            sym = (row.get("symbol") or "").strip().lower()
+            exch = (row.get("exchange") or "").strip()
+            if sym:
+                current_suffixes[sym] = exch
+
+    # For each bulk item, vote ExchangeID → suffix
+    votes: dict[int, Counter] = defaultdict(Counter)
+    for item in bulk_data.get("InstrumentDisplayDatas", []):
+        exch_id = item.get("ExchangeID")
+        sym = extract_symbol(item)
+        if exch_id is None or sym is None:
+            continue
+        suffix = current_suffixes.get(sym.lower())
+        if suffix is not None:
+            votes[exch_id][suffix] += 1
+
+    # Resolve to mode per ExchangeID
+    return {exch_id: counter.most_common(1)[0][0] for exch_id, counter in votes.items()}
