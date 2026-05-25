@@ -1,0 +1,28 @@
+{
+  "page": 1,
+  "pageSize": 20,
+  "totalItems": 20,
+  "lastUpdateTime": "2026-05-25T10:50:06.467",
+  "items": [
+    {"instrumentId": 610, "symbol": "ETORIAN610", "displayName": "ETORIAN610", "assetClass": "Stocks", "exchangeName": "Nasdaq"},
+    {"instrumentId": 1001, "symbol": "AAPL", "displayName": "Apple", "assetClass": "Stocks", "exchangeName": "Nasdaq"},
+    {"instrumentId": 1004, "symbol": "MSFT", "displayName": "Microsoft", "assetClass": "Stocks", "exchangeName": "Nasdaq"},
+    {"instrumentId": 1111, "symbol": "TSLA", "displayName": "Tesla Motors, Inc.", "assetClass": "Stocks", "exchangeName": "Nasdaq"},
+    {"instrumentId": 1137, "symbol": "NVDA", "displayName": "NVIDIA Corporation", "assetClass": "Stocks", "exchangeName": "Nasdaq"},
+    {"instrumentId": 2001, "symbol": "SAP.DE", "displayName": "SAP SE", "assetClass": "Stocks", "exchangeName": "FRA"},
+    {"instrumentId": 2002, "symbol": "0700.HK", "displayName": "Tencent Holdings", "assetClass": "Stocks", "exchangeName": "Hong Kong Exchanges"},
+    {"instrumentId": 2003, "symbol": "ASML.AS", "displayName": "ASML Holding", "assetClass": "Stocks", "exchangeName": "Amsterdam"},
+    {"instrumentId": 2004, "symbol": "AZN.L", "displayName": "AstraZeneca", "assetClass": "Stocks", "exchangeName": "London"},
+    {"instrumentId": 3001, "symbol": "SPY", "displayName": "SPDR S&P 500", "assetClass": "ETF", "exchangeName": "NYSE Arca"},
+    {"instrumentId": 3002, "symbol": "IEMG", "displayName": "iShares Core MSCI EM", "assetClass": "ETF", "exchangeName": "NYSE Arca"},
+    {"instrumentId": 7004, "symbol": "AAPL", "displayName": "Apple Duplicate", "assetClass": "Stocks", "exchangeName": "Nasdaq"},
+    {"instrumentId": 7005, "symbol": "ETORIAN999", "displayName": "Random Filler", "assetClass": "Stocks", "exchangeName": "Nasdaq"},
+    {"instrumentId": 7006, "symbol": "BRK.A", "displayName": "Berkshire Hathaway", "assetClass": "Stocks", "exchangeName": "NYSE"},
+    {"instrumentId": 7007, "symbol": "BRK.B", "displayName": "Berkshire Hathaway B", "assetClass": "Stocks", "exchangeName": "NYSE"},
+    {"instrumentId": 7008, "symbol": "9988.HK", "displayName": "Alibaba", "assetClass": "Stocks", "exchangeName": "Hong Kong Exchanges"},
+    {"instrumentId": 7009, "symbol": "NOVO-B.CO", "displayName": "Novo Nordisk", "assetClass": "Stocks", "exchangeName": "Copenhagen"},
+    {"instrumentId": 8001, "symbol": "BTC", "displayName": "Bitcoin", "assetClass": "Crypto", "exchangeName": "Crypto"},
+    {"instrumentId": 8002, "symbol": "VOO", "displayName": "Vanguard 500", "assetClass": "ETF", "exchangeName": "NYSE Arca"},
+    {"instrumentId": 8003, "symbol": "", "displayName": "MissingSymbol", "assetClass": "Stocks", "exchangeName": "Nasdaq"}
+  ]
+}
