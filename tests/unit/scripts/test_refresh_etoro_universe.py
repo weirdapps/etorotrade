@@ -21,6 +21,7 @@ _spec.loader.exec_module(refresh_etoro_universe)
 
 # Public functions exposed by the module — aliased here so test bodies stay terse.
 is_etorian_alias = refresh_etoro_universe.is_etorian_alias
+normalize_symbol = refresh_etoro_universe.normalize_symbol
 dedupe_by_symbol = refresh_etoro_universe.dedupe_by_symbol
 fetch_page = refresh_etoro_universe.fetch_page
 fetch_all_assets = refresh_etoro_universe.fetch_all_assets
@@ -63,6 +64,38 @@ class TestIsEtorianAlias:
 
     def test_missing_fields_not_flagged(self):
         assert not is_etorian_alias({"instrumentId": 1})
+
+
+class TestNormalizeSymbol:
+    def test_us_stock_no_change(self):
+        assert normalize_symbol("AAPL") == "AAPL"
+
+    def test_strips_us_suffix(self):
+        assert normalize_symbol("STX.US") == "STX"
+
+    def test_strips_us_suffix_lowercase(self):
+        assert normalize_symbol("cvx.us") == "CVX"
+
+    def test_drops_rth_variant(self):
+        assert normalize_symbol("STX.RTH") is None
+
+    def test_hk_5_digit_to_4(self):
+        assert normalize_symbol("00001.HK") == "0001.HK"
+
+    def test_hk_4_digit_unchanged(self):
+        assert normalize_symbol("0700.HK") == "0700.HK"
+
+    def test_hk_5_digit_no_leading_zeros(self):
+        assert normalize_symbol("09988.HK") == "9988.HK"
+
+    def test_de_suffix_unchanged(self):
+        assert normalize_symbol("SAP.DE") == "SAP.DE"
+
+    def test_brk_class_share_unchanged(self):
+        assert normalize_symbol("BRK.B") == "BRK.B"
+
+    def test_novo_dash_unchanged(self):
+        assert normalize_symbol("NOVO-B.CO") == "NOVO-B.CO"
 
 
 class TestDedupeBySymbol:

@@ -2,8 +2,9 @@
 
 Fetches stocks + ETFs from https://www.etoro.com/api/public/v1/instruments/discover
 and atomically overwrites the input file with one row per (symbol, company, exchange).
-Symbols come back from the API in Yahoo-Finance-compatible format already
-(0700.HK, SAP.DE, BRK.B, etc.) — no normalization needed.
+Symbols come back from the API mostly in Yahoo-Finance format but need
+light normalization: strip .US suffix, drop .RTH duplicates, trim HK
+5-digit to 4-digit (00001.HK → 0001.HK).
 """
 
 import csv
@@ -50,6 +51,26 @@ def is_etorian_alias(item: dict) -> bool:
     sym = (item.get("symbol") or "").upper()
     name = (item.get("displayName") or "").upper()
     return sym.startswith("ETORIAN") or name.startswith("ETORIAN")
+
+
+_HK_PAD_WIDTH = 4
+
+
+def normalize_symbol(symbol: str) -> str | None:
+    """Normalize eToro symbol to Yahoo Finance format.
+
+    Returns None for symbols that should be skipped entirely (.RTH variants).
+    """
+    upper = symbol.upper().strip()
+    if upper.endswith(".RTH"):
+        return None
+    if upper.endswith(".US"):
+        upper = upper[:-3]
+    if upper.endswith(".HK"):
+        base = upper[: -3]
+        if base.isdigit() and len(base) > _HK_PAD_WIDTH:
+            upper = base.lstrip("0").zfill(_HK_PAD_WIDTH) + ".HK"
+    return upper
 
 
 def dedupe_by_symbol(rows: list[dict]) -> list[dict]:
@@ -251,27 +272,32 @@ def main(
         )
         return 1
 
-    # Filter ETORIAN aliases + missing/empty symbols
+    # Filter ETORIAN aliases + empty symbols + normalize (.US, .RTH, HK 5→4 digit)
     rows: list[dict] = []
     skipped_no_symbol = 0
     skipped_alias = 0
+    skipped_rth = 0
     for item in items:
         if is_etorian_alias(item):
             skipped_alias += 1
             continue
-        symbol = (item.get("symbol") or "").strip()
-        if not symbol:
+        raw_symbol = (item.get("symbol") or "").strip()
+        if not raw_symbol:
             skipped_no_symbol += 1
             continue
+        normalized = normalize_symbol(raw_symbol)
+        if normalized is None:
+            skipped_rth += 1
+            continue
         rows.append({
-            "symbol": symbol.upper(),
+            "symbol": normalized,
             "company": item.get("displayName", ""),
             "exchange": item.get("exchangeName", ""),
         })
 
     logger.info(
-        "After filters: %d candidates (skipped %d aliases, %d empty symbols)",
-        len(rows), skipped_alias, skipped_no_symbol,
+        "After filters: %d candidates (skipped %d aliases, %d empty, %d RTH)",
+        len(rows), skipped_alias, skipped_no_symbol, skipped_rth,
     )
 
     deduped = dedupe_by_symbol(rows)
