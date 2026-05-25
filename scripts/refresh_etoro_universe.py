@@ -106,6 +106,59 @@ def normalize_symbol(symbol: str) -> str | None:
     return upper
 
 
+_SCANDI_SUFFIXES = frozenset({".ST", ".CO", ".HE", ".OL"})
+_SHARE_CLASS_KEYWORDS = ("ser.", "series", "class", "klass", "aktie")
+
+
+def fix_share_classes(rows: list[dict]) -> list[dict]:
+    """Insert hyphen before Scandinavian share-class letters (A/B).
+
+    Detects share classes via two strategies:
+    1. A/B pair: both BASEA.ST and BASEB.ST exist → insert hyphen in both
+    2. Company name: contains 'ser.', 'Series', 'Class', etc. → insert hyphen
+
+    Already-hyphenated symbols (ASSA-B.ST) are left alone.
+    """
+    all_symbols = {r["symbol"] for r in rows}
+
+    def _needs_hyphen(sym: str, company: str) -> bool:
+        for suf in _SCANDI_SUFFIXES:
+            if not sym.endswith(suf):
+                continue
+            base = sym[: -len(suf)]
+            if len(base) < 2 or base[-1] not in ("A", "B") or "-" in base:
+                return False
+            other_class = "A" if base[-1] == "B" else "B"
+            other_sym = base[:-1] + other_class + suf
+            other_hyph = base[:-1] + "-" + other_class + suf
+            if other_sym in all_symbols or other_hyph in all_symbols:
+                return True
+            if any(kw in company.lower() for kw in _SHARE_CLASS_KEYWORDS):
+                return True
+            return False
+        return False
+
+    def _insert_hyphen(sym: str) -> str:
+        for suf in _SCANDI_SUFFIXES:
+            if sym.endswith(suf):
+                base = sym[: -len(suf)]
+                return base[:-1] + "-" + base[-1] + suf
+        return sym
+
+    out: list[dict] = []
+    fixed = 0
+    for row in rows:
+        sym = row["symbol"]
+        company = row.get("company", "")
+        if _needs_hyphen(sym, company):
+            row = {**row, "symbol": _insert_hyphen(sym)}
+            fixed += 1
+        out.append(row)
+    if fixed:
+        logger.info("Fixed %d Scandinavian share-class symbols (inserted hyphen)", fixed)
+    return out
+
+
 def dedupe_by_symbol(rows: list[dict]) -> list[dict]:
     """Remove duplicate rows by 'symbol' key, preserving first occurrence and overall order."""
     seen: set[str] = set()
@@ -333,6 +386,7 @@ def main(
         len(rows), skipped_alias, skipped_no_symbol, skipped_rth,
     )
 
+    rows = fix_share_classes(rows)
     deduped = dedupe_by_symbol(rows)
     logger.info("After dedupe: %d unique symbols", len(deduped))
 
