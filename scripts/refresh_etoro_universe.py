@@ -6,10 +6,12 @@ and atomically overwrites the input file.
 """
 
 import csv
+import json
 import os
 import re
 import time
 from collections import Counter, defaultdict
+from datetime import UTC, datetime
 
 import requests
 
@@ -177,3 +179,38 @@ def write_universe_csv(rows: list[dict], path: str) -> None:
         writer.writeheader()
         writer.writerows(rows)
     os.replace(tmp_path, path)
+
+
+_SAMPLE_LIMIT = 50
+
+
+def write_delta_log(
+    path: str,
+    new_symbols: list[str],
+    removed_symbols: list[str],
+    total_count: int,
+) -> None:
+    """Write a JSON snapshot of this run's delta."""
+    payload = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "total_count": total_count,
+        "new_count": len(new_symbols),
+        "removed_count": len(removed_symbols),
+        "sample_new": sorted(new_symbols)[:_SAMPLE_LIMIT],
+        "sample_removed": sorted(removed_symbols)[:_SAMPLE_LIMIT],
+    }
+    with open(path, "w") as f:
+        json.dump(payload, f, indent=2)
+
+
+def write_unmapped_exchanges_log(path: str, unmapped: dict[int, list[str]]) -> None:
+    """Write a JSON snapshot of unmapped ExchangeIDs and the symbols affected."""
+    payload = {
+        str(exch_id): {
+            "count": len(symbols),
+            "sample_symbols": sorted(symbols)[:_SAMPLE_LIMIT],
+        }
+        for exch_id, symbols in sorted(unmapped.items())
+    }
+    with open(path, "w") as f:
+        json.dump(payload, f, indent=2)

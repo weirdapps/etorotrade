@@ -28,6 +28,8 @@ normalize_to_yahoo = refresh_etoro_universe.normalize_to_yahoo
 fetch_bulk = refresh_etoro_universe.fetch_bulk
 BULK_URL = refresh_etoro_universe.BULK_URL
 write_universe_csv = refresh_etoro_universe.write_universe_csv
+write_delta_log = refresh_etoro_universe.write_delta_log
+write_unmapped_exchanges_log = refresh_etoro_universe.write_unmapped_exchanges_log
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -293,3 +295,52 @@ class TestWriteUniverseCsv:
         write_universe_csv([{"symbol": "X", "company": "Y", "exchange": ""}], str(path))
         assert path.exists()
         assert not (tmp_path / "etoro.csv.tmp").exists()
+
+
+class TestWriteDeltaLog:
+    def test_writes_expected_fields(self, tmp_path):
+        path = tmp_path / ".universe-refresh-log.json"
+        write_delta_log(
+            path=str(path),
+            new_symbols=["NEW1", "NEW2"],
+            removed_symbols=["OLD1"],
+            total_count=5000,
+        )
+        data = json.loads(path.read_text())
+        assert data["total_count"] == 5000
+        assert data["new_count"] == 2
+        assert data["removed_count"] == 1
+        assert "NEW1" in data["sample_new"]
+        assert "OLD1" in data["sample_removed"]
+        assert "timestamp" in data
+
+    def test_truncates_samples_to_50(self, tmp_path):
+        path = tmp_path / "log.json"
+        write_delta_log(
+            path=str(path),
+            new_symbols=[f"N{i}" for i in range(200)],
+            removed_symbols=[],
+            total_count=5000,
+        )
+        data = json.loads(path.read_text())
+        assert data["new_count"] == 200
+        assert len(data["sample_new"]) == 50
+
+
+class TestWriteUnmappedExchangesLog:
+    def test_writes_sorted_exchange_ids(self, tmp_path):
+        path = tmp_path / ".unmapped-exchanges.json"
+        write_unmapped_exchanges_log(
+            path=str(path),
+            unmapped={9999: ["WXYZ", "FOOB"], 5000: ["BAZ"]},
+        )
+        data = json.loads(path.read_text())
+        assert "5000" in data
+        assert "9999" in data
+        assert data["5000"]["sample_symbols"] == ["BAZ"]
+        assert data["9999"]["count"] == 2
+
+    def test_empty_input_writes_empty_object(self, tmp_path):
+        path = tmp_path / "x.json"
+        write_unmapped_exchanges_log(path=str(path), unmapped={})
+        assert json.loads(path.read_text()) == {}
