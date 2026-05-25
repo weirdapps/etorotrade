@@ -1121,9 +1121,9 @@ jinja2==3.1.6 ; python_version >= "3.10" and python_version < "4.0" \
 joblib==1.5.3 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713 \
     --hash=sha256:8561a3269e6801106863fd0d6d84bb737be9e7631e33aaed3fb9ce5953688da3
-joserfc==1.6.5 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:1482a7db78fb4602e44ed89e51b599d052e091288c7c532c5b694e20149dec48 \
-    --hash=sha256:e9878a0f8243fe7b95e11fdda81374ca9f7a689e302751579d3dfdeec559675e
+joserfc==1.6.7 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:6999fe89457069ecacd8cc797c88a805f83054dd883333fa0409f74b46479fd7 \
+    --hash=sha256:9e51e4a64840aa1734a058258e80a4480e2ff2d5686e480e7c92c954a92fbe05
 kiwisolver==1.5.0 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:012b1eb16e28718fa782b5e61dc6f2da1f0792ca73bd05d54de6cb9561665fc9 \
     --hash=sha256:01808c6d15f4c3e8559595d6d1fe6411c68e4a3822b4b9972b44473b24f4e679 \
@@ -2746,9 +2746,9 @@ rich==15.0.0 ; python_version >= "3.10" and python_version < "4.0" \
 ruamel-yaml==0.19.1 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93 \
     --hash=sha256:53eb66cd27849eff968ebf8f0bf61f46cdac2da1d1f3576dd4ccee9b25c31993
-safety-schemas==0.0.16 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:3bb04d11bd4b5cc79f9fa183c658a6a8cf827a9ceec443a5ffa6eed38a50a24e \
-    --hash=sha256:6760515d3fd1e6535b251cd73014bd431d12fe0bfb8b6e8880a9379b5ab7aa44
+safety-schemas==0.0.18 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:3a127a53baee0a8825306b5d1be48666692cf98baace9785d17bf604e906494a \
+    --hash=sha256:d9307808ee4db8bcdaa8ba255465962d32b87a9e995ded9ad443936dccfc9034
 safety==3.7.0 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:65e71db45eb832e8840e3456333d44c23927423753d5610596a09e909a66d2bf \
     --hash=sha256:daec15a393cafc32b846b7ef93f9c952a1708863e242341ab5bde2e4beabb54e
