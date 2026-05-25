@@ -90,3 +90,40 @@ def build_exchange_map(bulk_data: dict, current_csv_path: str) -> dict[int, str]
 
     # Resolve to mode per ExchangeID
     return {exch_id: counter.most_common(1)[0][0] for exch_id, counter in votes.items()}
+
+
+_HK_SUFFIX = "HK"
+_HK_PAD_WIDTH = 4
+
+
+def normalize_to_yahoo(
+    symbol: str, exchange_id: int, exchange_map: dict[int, str]
+) -> tuple[str, bool]:
+    """Apply Yahoo Finance suffix conventions.
+
+    Returns (yahoo_symbol, was_unmapped).
+    - Uppercases the symbol
+    - Adds suffix if not already present
+    - Special case: HK base symbol < 4 digits gets zero-padded to 4
+
+    If exchange_id is not in exchange_map, returns the uppercased symbol with no suffix
+    and was_unmapped=True so the caller can log it.
+    """
+    sym_upper = symbol.upper()
+
+    if exchange_id not in exchange_map:
+        return sym_upper, True
+
+    suffix = exchange_map[exchange_id]
+
+    # If symbol already carries a suffix (contains "."), leave as-is and uppercase
+    if "." in sym_upper:
+        base, existing_suffix = sym_upper.rsplit(".", 1)
+        if existing_suffix == _HK_SUFFIX and base.isdigit() and len(base) < _HK_PAD_WIDTH:
+            base = base.zfill(_HK_PAD_WIDTH)
+        return f"{base}.{existing_suffix}", False
+
+    # No dot in symbol — append suffix from mapping (if non-empty)
+    if not suffix:
+        return sym_upper, False
+    return f"{sym_upper}.{suffix}", False

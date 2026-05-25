@@ -23,6 +23,7 @@ is_stock_or_etf = refresh_etoro_universe.is_stock_or_etf
 is_etorian_alias = refresh_etoro_universe.is_etorian_alias
 dedupe_by_symbol = refresh_etoro_universe.dedupe_by_symbol
 build_exchange_map = refresh_etoro_universe.build_exchange_map
+normalize_to_yahoo = refresh_etoro_universe.normalize_to_yahoo
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -163,3 +164,51 @@ class TestBuildExchangeMap:
     def test_missing_csv_returns_empty_map(self, bulk_data, tmp_path):
         mapping = build_exchange_map(bulk_data, str(tmp_path / "does-not-exist.csv"))
         assert mapping == {}
+
+
+MAPPING = {4: "", 5: "DE", 6: "AS", 7: "L", 9: "HK"}
+
+
+class TestNormalizeToYahoo:
+    def test_nasdaq_no_suffix(self):
+        sym, unmapped = normalize_to_yahoo("aapl", 4, MAPPING)
+        assert sym == "AAPL"
+        assert unmapped is False
+
+    def test_xetra_with_de_suffix_already_in_symbol(self):
+        # The bulk endpoint returns "sap.de" — we should NOT double-append
+        sym, unmapped = normalize_to_yahoo("sap.de", 5, MAPPING)
+        assert sym == "SAP.DE"
+        assert unmapped is False
+
+    def test_xetra_without_suffix_in_symbol(self):
+        # Defensive: if symbol has no suffix, we add it
+        sym, unmapped = normalize_to_yahoo("bmw", 5, MAPPING)
+        assert sym == "BMW.DE"
+        assert unmapped is False
+
+    def test_hk_padding_4_digits(self):
+        sym, unmapped = normalize_to_yahoo("700.hk", 9, MAPPING)
+        assert sym == "0700.HK"
+        assert unmapped is False
+
+    def test_hk_already_padded(self):
+        sym, unmapped = normalize_to_yahoo("0700.hk", 9, MAPPING)
+        assert sym == "0700.HK"
+        assert unmapped is False
+
+    def test_hk_5_digit_symbol_left_alone(self):
+        # Some HK tickers are 5 digits (e.g. 09988.HK for Alibaba)
+        sym, unmapped = normalize_to_yahoo("9988.hk", 9, MAPPING)
+        assert sym == "9988.HK"  # No padding for 4+ digit base; keep as-is uppercased
+        assert unmapped is False
+
+    def test_lse_with_l_suffix(self):
+        sym, unmapped = normalize_to_yahoo("azn.l", 7, MAPPING)
+        assert sym == "AZN.L"
+        assert unmapped is False
+
+    def test_unmapped_exchange_returns_unmapped_true(self):
+        sym, unmapped = normalize_to_yahoo("wxyz", 9999, MAPPING)
+        assert sym == "WXYZ"  # no suffix, just uppercased
+        assert unmapped is True
