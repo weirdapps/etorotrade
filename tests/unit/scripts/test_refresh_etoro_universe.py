@@ -30,6 +30,8 @@ BULK_URL = refresh_etoro_universe.BULK_URL
 write_universe_csv = refresh_etoro_universe.write_universe_csv
 write_delta_log = refresh_etoro_universe.write_delta_log
 write_unmapped_exchanges_log = refresh_etoro_universe.write_unmapped_exchanges_log
+main = refresh_etoro_universe.main
+MIN_INSTRUMENTS_THRESHOLD = refresh_etoro_universe.MIN_INSTRUMENTS_THRESHOLD
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -344,3 +346,84 @@ class TestWriteUnmappedExchangesLog:
         path = tmp_path / "x.json"
         write_unmapped_exchanges_log(path=str(path), unmapped={})
         assert json.loads(path.read_text()) == {}
+
+
+class TestMain:
+    def test_end_to_end_with_fixture(self, bulk_data, tmp_path):
+        """Smoke test: fixture goes in, expected CSV comes out."""
+        # Pad bulk_data to meet MIN_INSTRUMENTS_THRESHOLD (1000)
+        # The fixture has ~20 real items; we'll add 980 padding items that get filtered out
+        padding = [
+            {"InstrumentID": 9000 + i, "InstrumentTypeID": 1}  # Type 1 = Forex, filtered
+            for i in range(980)
+        ]
+        padded_bulk = {
+            "InstrumentDisplayDatas": bulk_data["InstrumentDisplayDatas"] + padding
+        }
+
+        # Seed a current input/etoro.csv so build_exchange_map gets a mapping
+        input_csv = tmp_path / "etoro.csv"
+        with open(input_csv, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["symbol", "company", "price", "exchange"])
+            w.writerow(["aapl", "Apple", "150", ""])
+            w.writerow(["sap.de", "SAP", "150", "DE"])
+            w.writerow(["azn.l", "AstraZeneca", "120", "L"])
+            w.writerow(["asml.as", "ASML", "700", "AS"])
+            w.writerow(["0700.hk", "Tencent", "440", "HK"])
+
+        log_path = tmp_path / ".universe-refresh-log.json"
+        unmapped_path = tmp_path / ".unmapped-exchanges.json"
+
+        with patch.object(refresh_etoro_universe, "fetch_bulk", return_value=padded_bulk):
+            exit_code = main(
+                output_csv_path=str(input_csv),
+                delta_log_path=str(log_path),
+                unmapped_log_path=str(unmapped_path),
+            )
+
+        assert exit_code == 0
+
+        # Read back the output
+        with open(input_csv) as f:
+            content = f.read()
+
+        # Expected included
+        assert "AAPL,Apple" in content
+        assert "MSFT,Microsoft" in content
+        assert "SAP.DE,SAP SE,DE" in content
+        assert "0700.HK,Tencent Holdings,HK" in content
+        assert "SPY,SPDR S&P 500" in content  # ETF type 6 passes
+
+        # Expected excluded
+        assert "EUR/USD" not in content
+        assert "ETORIAN" not in content
+        assert "Bitcoin" not in content
+        assert "Gold" not in content
+        assert "MalformedStock" not in content
+        assert "NoMarketAvatarStock" not in content
+
+        # Dedupe — only one AAPL row
+        assert content.count("AAPL,") == 1
+
+        # Unmapped log captures ExchangeID 9999
+        unmapped = json.loads(unmapped_path.read_text())
+        assert "9999" in unmapped
+        assert "WXYZ" in unmapped["9999"]["sample_symbols"]
+
+    def test_aborts_when_bulk_too_small(self, tmp_path):
+        with patch.object(
+            refresh_etoro_universe, "fetch_bulk",
+            return_value={"InstrumentDisplayDatas": [{"InstrumentID": 1} for _ in range(10)]},
+        ):
+            exit_code = main(
+                output_csv_path=str(tmp_path / "etoro.csv"),
+                delta_log_path=str(tmp_path / "log.json"),
+                unmapped_log_path=str(tmp_path / "unmapped.json"),
+            )
+        assert exit_code == 1
+        # Output file should NOT have been written
+        assert not (tmp_path / "etoro.csv").exists()
+
+    def test_min_threshold_is_1000(self):
+        assert MIN_INSTRUMENTS_THRESHOLD == 1000

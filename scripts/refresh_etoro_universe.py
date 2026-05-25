@@ -7,13 +7,18 @@ and atomically overwrites the input file.
 
 import csv
 import json
+import logging
 import os
 import re
+import sys
 import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
+from pathlib import Path
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 _MARKET_AVATAR_RE = re.compile(r"/market-avatars/([^/]+)/")
 
@@ -214,3 +219,136 @@ def write_unmapped_exchanges_log(path: str, unmapped: dict[int, list[str]]) -> N
     }
     with open(path, "w") as f:
         json.dump(payload, f, indent=2)
+
+
+MIN_INSTRUMENTS_THRESHOLD = 1000
+
+_DEFAULT_OUTPUT_CSV = str(
+    Path(__file__).parent.parent / "yahoofinance" / "input" / "etoro.csv"
+)
+_DEFAULT_DELTA_LOG = str(
+    Path(__file__).parent.parent
+    / "yahoofinance"
+    / "input"
+    / ".universe-refresh-log.json"
+)
+_DEFAULT_UNMAPPED_LOG = str(
+    Path(__file__).parent.parent
+    / "yahoofinance"
+    / "input"
+    / ".unmapped-exchanges.json"
+)
+
+
+def _read_existing_symbols(path: str) -> set[str]:
+    """Return the set of symbols currently in input/etoro.csv (uppercase). Empty if missing."""
+    if not os.path.exists(path):
+        return set()
+    out: set[str] = set()
+    with open(path) as f:
+        for row in csv.DictReader(f):
+            sym = (row.get("symbol") or "").strip().upper()
+            if sym:
+                out.add(sym)
+    return out
+
+
+def main(
+    output_csv_path: str = _DEFAULT_OUTPUT_CSV,
+    delta_log_path: str = _DEFAULT_DELTA_LOG,
+    unmapped_log_path: str = _DEFAULT_UNMAPPED_LOG,
+) -> int:
+    """Run the refresh pipeline. Returns exit code (0 success, 1 error)."""
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+    )
+
+    logger.info("Fetching eToro bulk instruments...")
+    try:
+        bulk_data = fetch_bulk()
+    except RuntimeError as e:
+        logger.error(str(e))
+        return 1
+
+    raw_count = len(bulk_data.get("InstrumentDisplayDatas", []))
+    logger.info("Fetched %d raw instruments", raw_count)
+
+    if raw_count < MIN_INSTRUMENTS_THRESHOLD:
+        logger.error(
+            "Refusing to proceed: only %d instruments returned (threshold %d). "
+            "API may be broken.",
+            raw_count,
+            MIN_INSTRUMENTS_THRESHOLD,
+        )
+        return 1
+
+    existing_symbols = _read_existing_symbols(output_csv_path)
+    exchange_map = build_exchange_map(bulk_data, output_csv_path)
+    logger.info("Derived %d ExchangeID mappings from existing CSV", len(exchange_map))
+
+    extracted: list[dict] = []
+    skipped_no_symbol = 0
+    unmapped_by_exchange: dict[int, list[str]] = defaultdict(list)
+
+    for item in bulk_data["InstrumentDisplayDatas"]:
+        if not is_stock_or_etf(item):
+            continue
+        if is_etorian_alias(item):
+            continue
+        symbol = extract_symbol(item)
+        if symbol is None:
+            skipped_no_symbol += 1
+            continue
+        exch_id = item.get("ExchangeID", -1)
+        yahoo_sym, was_unmapped = normalize_to_yahoo(symbol, exch_id, exchange_map)
+        if was_unmapped:
+            unmapped_by_exchange[exch_id].append(yahoo_sym)
+
+        extracted.append(
+            {
+                "symbol": yahoo_sym,
+                "company": item.get("InstrumentDisplayName", ""),
+                "exchange": exchange_map.get(exch_id, ""),
+            }
+        )
+
+    logger.info(
+        "Extracted %d candidates (skipped %d with no symbol)",
+        len(extracted),
+        skipped_no_symbol,
+    )
+
+    deduped = dedupe_by_symbol(extracted)
+    logger.info("After dedupe: %d unique symbols", len(deduped))
+
+    new_symbols_set = {r["symbol"] for r in deduped}
+    new_symbols = sorted(new_symbols_set - existing_symbols)
+    removed_symbols = sorted(existing_symbols - new_symbols_set)
+    logger.info(
+        "Delta: +%d new, -%d removed (vs %d existing)",
+        len(new_symbols),
+        len(removed_symbols),
+        len(existing_symbols),
+    )
+
+    write_universe_csv(deduped, output_csv_path)
+    write_delta_log(
+        delta_log_path,
+        new_symbols=new_symbols,
+        removed_symbols=removed_symbols,
+        total_count=len(deduped),
+    )
+    write_unmapped_exchanges_log(unmapped_log_path, dict(unmapped_by_exchange))
+
+    logger.info("Wrote %s", output_csv_path)
+    logger.info(
+        "Logs: %s, %s (unmapped exchanges: %d)",
+        delta_log_path,
+        unmapped_log_path,
+        len(unmapped_by_exchange),
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
