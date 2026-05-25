@@ -27,6 +27,7 @@ build_exchange_map = refresh_etoro_universe.build_exchange_map
 normalize_to_yahoo = refresh_etoro_universe.normalize_to_yahoo
 fetch_bulk = refresh_etoro_universe.fetch_bulk
 BULK_URL = refresh_etoro_universe.BULK_URL
+write_universe_csv = refresh_etoro_universe.write_universe_csv
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -263,3 +264,32 @@ class TestFetchBulk:
             assert "instrumentsmetadata/V1.1/instruments/bulk" in url_arg
             assert "bulkNumber=1" in url_arg
             assert "totalBulks=1" in url_arg
+
+
+class TestWriteUniverseCsv:
+    def test_writes_csv_with_expected_columns(self, tmp_path):
+        path = tmp_path / "etoro.csv"
+        rows = [
+            {"symbol": "AAPL", "company": "Apple", "exchange": ""},
+            {"symbol": "SAP.DE", "company": "SAP SE", "exchange": "DE"},
+        ]
+        write_universe_csv(rows, str(path))
+
+        with open(path) as f:
+            content = f.read()
+        assert content.startswith("symbol,company,exchange")
+        assert "AAPL,Apple," in content
+        assert "SAP.DE,SAP SE,DE" in content
+
+    def test_overwrites_existing_file(self, tmp_path):
+        path = tmp_path / "etoro.csv"
+        path.write_text("old content")
+        write_universe_csv([{"symbol": "X", "company": "Y", "exchange": ""}], str(path))
+        assert "old content" not in path.read_text()
+        assert "X,Y," in path.read_text()
+
+    def test_atomic_no_tmp_left_behind(self, tmp_path):
+        path = tmp_path / "etoro.csv"
+        write_universe_csv([{"symbol": "X", "company": "Y", "exchange": ""}], str(path))
+        assert path.exists()
+        assert not (tmp_path / "etoro.csv.tmp").exists()

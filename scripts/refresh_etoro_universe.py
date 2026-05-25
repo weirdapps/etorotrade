@@ -161,3 +161,19 @@ def fetch_bulk(url: str = BULK_URL, max_retries: int = 3) -> dict:
     raise RuntimeError(
         f"fetch_bulk: all {max_retries} attempts failed. Last error: {last_error}"
     )
+
+
+_CSV_COLUMNS = ["symbol", "company", "exchange"]
+
+
+def write_universe_csv(rows: list[dict], path: str) -> None:
+    """Atomically write rows to a CSV at `path`.
+
+    Writes to `path + ".tmp"` first, then os.replace() to final location.
+    """
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=_CSV_COLUMNS, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+    os.replace(tmp_path, path)
