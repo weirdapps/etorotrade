@@ -21,7 +21,7 @@ permissions:
 jobs:
   generate-signals:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 540  # ~9h; universe grew from 5K to 12.5K tickers
     permissions:
       contents: write  # Required for git push
 
