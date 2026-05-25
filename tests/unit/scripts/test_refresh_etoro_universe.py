@@ -97,6 +97,40 @@ class TestNormalizeSymbol:
     def test_novo_dash_unchanged(self):
         assert normalize_symbol("NOVO-B.CO") == "NOVO-B.CO"
 
+    def test_asx_remapped_to_ax(self):
+        assert normalize_symbol("XYZ.ASX") == "XYZ.AX"
+
+    def test_zu_remapped_to_sw(self):
+        assert normalize_symbol("NESN.ZU") == "NESN.SW"
+
+    def test_nv_remapped_to_as(self):
+        assert normalize_symbol("HAVAS.NV") == "HAVAS.AS"
+
+    def test_lsb_remapped_to_ls(self):
+        assert normalize_symbol("CA366.LSB") == "CA366.LS"
+
+    def test_drops_delisted(self):
+        assert normalize_symbol("BLMZ.DELISTED") is None
+
+    def test_drops_test(self):
+        assert normalize_symbol("DUCO.TEST") is None
+
+    def test_drops_cvr(self):
+        assert normalize_symbol("SURF.CVR") is None
+
+    def test_drops_numeric_suffix(self):
+        assert normalize_symbol("DRM.15255") is None
+
+    def test_drops_dup(self):
+        assert normalize_symbol("EXH1.DUP10606") is None
+
+    def test_drops_call_put(self):
+        assert normalize_symbol("TSLA.CALL1") is None
+        assert normalize_symbol("TSLA.PUT2") is None
+
+    def test_keeps_short_numeric_suffix(self):
+        assert normalize_symbol("6758.T") == "6758.T"
+
 
 class TestDedupeBySymbol:
     def test_removes_duplicate_keeps_first(self):
