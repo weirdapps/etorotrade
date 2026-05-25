@@ -22,6 +22,7 @@ _spec.loader.exec_module(refresh_etoro_universe)
 # Public functions exposed by the module — aliased here so test bodies stay terse.
 is_etorian_alias = refresh_etoro_universe.is_etorian_alias
 normalize_symbol = refresh_etoro_universe.normalize_symbol
+fix_share_classes = refresh_etoro_universe.fix_share_classes
 dedupe_by_symbol = refresh_etoro_universe.dedupe_by_symbol
 fetch_page = refresh_etoro_universe.fetch_page
 fetch_all_assets = refresh_etoro_universe.fetch_all_assets
@@ -130,6 +131,56 @@ class TestNormalizeSymbol:
 
     def test_keeps_short_numeric_suffix(self):
         assert normalize_symbol("6758.T") == "6758.T"
+
+
+class TestFixShareClasses:
+    def test_ab_pair_gets_hyphen(self):
+        rows = [
+            {"symbol": "KINVA.ST", "company": "Kinnevik AB ser. A"},
+            {"symbol": "KINVB.ST", "company": "Kinnevik AB ser. B"},
+            {"symbol": "AAPL", "company": "Apple"},
+        ]
+        result = fix_share_classes(rows)
+        assert result[0]["symbol"] == "KINV-A.ST"
+        assert result[1]["symbol"] == "KINV-B.ST"
+        assert result[2]["symbol"] == "AAPL"  # unaffected
+
+    def test_already_hyphenated_left_alone(self):
+        rows = [
+            {"symbol": "ASSA-B.ST", "company": "ASSA ABLOY AB ser. B"},
+            {"symbol": "ASSA-A.ST", "company": "ASSA ABLOY AB ser. A"},
+        ]
+        result = fix_share_classes(rows)
+        assert result[0]["symbol"] == "ASSA-B.ST"
+        assert result[1]["symbol"] == "ASSA-A.ST"
+
+    def test_single_class_with_keyword_gets_hyphen(self):
+        rows = [
+            {"symbol": "EKTAB.ST", "company": "Elekta AB Ser. B"},
+        ]
+        result = fix_share_classes(rows)
+        assert result[0]["symbol"] == "EKTA-B.ST"
+
+    def test_false_positive_no_keyword_no_pair(self):
+        rows = [
+            {"symbol": "DNB.OL", "company": "DNB Bank ASA"},
+        ]
+        result = fix_share_classes(rows)
+        assert result[0]["symbol"] == "DNB.OL"  # unchanged
+
+    def test_non_scandi_suffix_ignored(self):
+        rows = [
+            {"symbol": "TESTB.DE", "company": "Test Ser. B"},
+        ]
+        result = fix_share_classes(rows)
+        assert result[0]["symbol"] == "TESTB.DE"  # non-scandi, unchanged
+
+    def test_single_char_base_ignored(self):
+        rows = [
+            {"symbol": "AB.ST", "company": "AB Volvo"},
+        ]
+        result = fix_share_classes(rows)
+        assert result[0]["symbol"] == "AB.ST"  # base "A" too short → leave alone
 
 
 class TestDedupeBySymbol:

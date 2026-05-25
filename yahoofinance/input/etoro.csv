@@ -715,10 +715,10 @@ EVO.ST,Evolution AB ,Stockholm  Stock Exchange
 ATCO-B.ST,Atlas Copco AB ser. B,Stockholm  Stock Exchange
 SINCH.ST,Sinch AB,Stockholm  Stock Exchange
 SKF-B.ST,SKF AB Class B,Stockholm  Stock Exchange
-ELUXB.ST,AB Electrolux Class B,Stockholm  Stock Exchange
-SCAB.ST,  Svenska Cellulosa Aktiebolaget SCA,Stockholm  Stock Exchange
-KINVB.ST,Kinnevik AB Class B,Stockholm  Stock Exchange
-BETSB.ST,Betsson AB Class B,Stockholm  Stock Exchange
+ELUX-B.ST,AB Electrolux Class B,Stockholm  Stock Exchange
+SCA-B.ST,  Svenska Cellulosa Aktiebolaget SCA,Stockholm  Stock Exchange
+KINV-B.ST,Kinnevik AB Class B,Stockholm  Stock Exchange
+BETS-B.ST,Betsson AB Class B,Stockholm  Stock Exchange
 IBCK.DE11,iShares Edge S&P 500 Minimum Volatility UCITS ETF11,Euronext Paris
 SOI.PA,Soitec S.A.,Euronext Paris
 SXRG.DE11,iShares MSCI USA Small Cap ESG Enhanced UCITS ETF USD11,Euronext Paris
@@ -727,7 +727,7 @@ EUN0.DE11,iShares Edge MSCI Europe Minimum Volatility UCITS ETF11,Euronext Paris
 ACLN.SW,Accelleron Industries Ltd,SIX
 LISP.SW,Chocoladefabriken Lindt & Sprungli AG,SIX
 DBK.DE,Deutsche Bank Aktiengesellschaft,FRA
-CARLB.CO,Carlsberg A/S Class B,Copenhagen Stock Exchange
+CARL-B.CO,Carlsberg A/S Class B,Copenhagen Stock Exchange
 NOD.OL,Nordic Semiconductor ASA,Oslo Stock Exchange
 MPCC.OL,MPC Container Ships ASA,Oslo Stock Exchange
 SXR2.DE11,iShares MSCI Canada UCITS ETF11,Bolsa De Madrid
@@ -942,7 +942,7 @@ TRYG.CO,Tryg A/S,Copenhagen Stock Exchange
 DSV.CO,DSV A/S,Copenhagen Stock Exchange
 DEMANT.CO, Demant A/S,Copenhagen Stock Exchange
 ISS.CO,ISS A/S,Copenhagen Stock Exchange
-HLUNB.CO,H. Lundbeck A/S,Copenhagen Stock Exchange
+HLUN-B.CO,H. Lundbeck A/S,Copenhagen Stock Exchange
 GMAB.CO,Genmab A/S,Copenhagen Stock Exchange
 COLO-B.CO,Coloplast B A/S,Copenhagen Stock Exchange
 CEMG.DE11,iShares MSCI EM Consumer Growth UCITS ETF11,FRA
@@ -2209,10 +2209,10 @@ UNI.MC,Unicaja Banco SA,Bolsa De Madrid
 VIS.MC,Viscofan SA,Bolsa De Madrid
 DBV.PA,DBV Technologies,Euronext Paris
 IRE.MI,Iren,Borsa Italiana
-MAERSKB.CO,A P Moller Maersk,Copenhagen Stock Exchange
+MAERSK-B.CO,A P Moller Maersk,Copenhagen Stock Exchange
 HIAB.HE,Hiab Oyj,Helsinki Stock Exchange
 HUH1V.HE,Huhtamaki Oyj,Helsinki Stock Exchange
-METSB.HE,Metsa Board,Helsinki Stock Exchange
+METS-B.HE,Metsa Board,Helsinki Stock Exchange
 NOKIA.HE,Nokia Corp.,Helsinki Stock Exchange
 OUT1V.HE,Outokumpu Oyj,Helsinki Stock Exchange
 METSO.HE,Metso Corporation,Helsinki Stock Exchange
@@ -2299,7 +2299,7 @@ AMBUB.CO,Ambu A/S,Copenhagen Stock Exchange
 FLS.CO,FLSmidth & Co. A/S,Copenhagen Stock Exchange
 GN.CO,GN Store Nord A/S,Copenhagen Stock Exchange
 JYSK.CO,Jyske Bank A/S,Copenhagen Stock Exchange
-ROCKB.CO,Rockwool International B A/S,Copenhagen Stock Exchange
+ROCK-B.CO,Rockwool International B A/S,Copenhagen Stock Exchange
 RBREW.CO,Royal Unibrew A/S,Copenhagen Stock Exchange
 LKFT.AS,Lakefront Biotherapeutics,Euronext Amsterdam
 INGA.AS,ING Groep NV,Euronext Amsterdam
@@ -2342,7 +2342,7 @@ SPIE.PA,Spie SA,Euronext Paris
 TEP.PA,Teleperformance SE,Euronext Paris
 MF.PA,Wendel,Euronext Paris
 WLN.PA,Worldline SA,Euronext Paris
-KESKOB.HE,Kesko Oyj B,Helsinki Stock Exchange
+KESKO-B.HE,Kesko Oyj B,Helsinki Stock Exchange
 KCR.HE,Konecranes Oyj,Helsinki Stock Exchange
 ORNBV.HE,Orion Oyj Class B,Helsinki Stock Exchange
 VALMT.HE,Valmet Corporation,Helsinki Stock Exchange
@@ -2384,20 +2384,20 @@ MRL.MC,Merlin Properties SOCIMI SA,Bolsa De Madrid
 AAK.ST,AAK AB,Stockholm  Stock Exchange
 CAST.ST,Castellum AB,Stockholm  Stock Exchange
 DOM.ST,Dometic Group AB,Stockholm  Stock Exchange
-EKTAB.ST,Elekta AB Ser. B,Stockholm  Stock Exchange
-EPIA.ST,Epiroc AB,Stockholm  Stock Exchange
-ESSITYB.ST,Essity AB ser. B,Stockholm  Stock Exchange
+EKTA-B.ST,Elekta AB Ser. B,Stockholm  Stock Exchange
+EPI-A.ST,Epiroc AB,Stockholm  Stock Exchange
+ESSITY-B.ST,Essity AB ser. B,Stockholm  Stock Exchange
 FABG.ST,Fabege AB,Stockholm  Stock Exchange
-BALDB.ST,Fastighets AB Balder ser. B,Stockholm  Stock Exchange
-GETIB.ST,Getinge AB Ser. B,Stockholm  Stock Exchange
-HPOLB.ST,HEXPOL AB ser. B,Stockholm  Stock Exchange
-HUSQB.ST,Husqvarna AB Ser. B,Stockholm  Stock Exchange
-INVEB.ST,Investor AB ser. B,Stockholm  Stock Exchange
+BALD-B.ST,Fastighets AB Balder ser. B,Stockholm  Stock Exchange
+GETI-B.ST,Getinge AB Ser. B,Stockholm  Stock Exchange
+HPOL-B.ST,HEXPOL AB ser. B,Stockholm  Stock Exchange
+HUSQ-B.ST,Husqvarna AB Ser. B,Stockholm  Stock Exchange
+INVE-B.ST,Investor AB ser. B,Stockholm  Stock Exchange
 LOOMIS.ST,Loomis AB,Stockholm  Stock Exchange
-NIBEB.ST,Nibe Industrier AB Ser. B,Stockholm  Stock Exchange
-SAABB.ST,Saab AB Ser. B,Stockholm  Stock Exchange
+NIBE-B.ST,Nibe Industrier AB Ser. B,Stockholm  Stock Exchange
+SAAB-B.ST,Saab AB Ser. B,Stockholm  Stock Exchange
 SOBI.ST,Swedish Orphan Biovitrum AB,Stockholm  Stock Exchange
-TEL2B.ST,Tele2 AB Ser. B,Stockholm  Stock Exchange
+TEL2-B.ST,Tele2 AB Ser. B,Stockholm  Stock Exchange
 PAH3.DE,Porsche Automobil Holding SE,FRA
 FDJU.PA,FDJ United,Euronext Paris
 RNG,RingCentral Inc,NYSE
@@ -7582,11 +7582,11 @@ LIFCOB.ST,Lifco AB (publ),Stockholm  Stock Exchange
 ADDTB.ST,Addtech AB,Stockholm  Stock Exchange
 INDT.ST,Indutrade AB,Stockholm  Stock Exchange
 BEIJB.ST,Beijer Ref AB (publ),Stockholm  Stock Exchange
-SAGAB.ST,Sagax AB,Stockholm  Stock Exchange
+SAGA-B.ST,Sagax AB,Stockholm  Stock Exchange
 AXFO.ST,Axfood AB,Stockholm  Stock Exchange
 SECTB.ST,Sectra AB,Stockholm  Stock Exchange
-HOLMB.ST,Holmen AB,Stockholm  Stock Exchange
-SWECB.ST,Sweco AB (publ),Stockholm  Stock Exchange
+HOLM-B.ST,Holmen AB,Stockholm  Stock Exchange
+SWEC-B.ST,Sweco AB (publ),Stockholm  Stock Exchange
 AVANZ.ST,Avanza Bank Holding AB,Stockholm  Stock Exchange
 LAGRB.ST,Lagercrantz Group AB,Stockholm  Stock Exchange
 MYCR.ST,Mycronic AB (publ),Stockholm  Stock Exchange
@@ -7609,7 +7609,7 @@ ATRLJB.ST,Atrium Ljungberg AB,Stockholm  Stock Exchange
 MCOVB.ST,Medicover AB,Stockholm  Stock Exchange
 SYSR.ST,Systemair AB,Stockholm  Stock Exchange
 PEABB.ST,Peab AB,Stockholm  Stock Exchange
-NCCB.ST,NCC AB,Stockholm  Stock Exchange
+NCC-B.ST,NCC AB,Stockholm  Stock Exchange
 ALIFB.ST,AddLife AB,Stockholm  Stock Exchange
 HACK.ST,Hacksaw AB,Stockholm  Stock Exchange
 IPCOR.ST,International Petroleum Corp,Stockholm  Stock Exchange
@@ -7642,10 +7642,10 @@ CIBUS.ST,Cibus Real Estate AB (publ),Stockholm  Stock Exchange
 NOLAB.ST,Nolato AB,Stockholm  Stock Exchange
 DYVOX.ST,Dynavox Group AB,Stockholm  Stock Exchange
 KARNO.ST,Karnov Group AB (publ),Stockholm  Stock Exchange
-RATOB.ST,Ratos AB,Stockholm  Stock Exchange
+RATO-B.ST,Ratos AB,Stockholm  Stock Exchange
 RUSTA.ST,Rusta AB (publ),Stockholm  Stock Exchange
 YUBICO.ST,Yubico AB,Stockholm  Stock Exchange
-MTGB.ST,Modern Times Group MTG AB,Stockholm  Stock Exchange
+MTG-B.ST,Modern Times Group MTG AB,Stockholm  Stock Exchange
 SKISB.ST,SkiStar AB,Stockholm  Stock Exchange
 BILIA.ST,Bilia AB,Stockholm  Stock Exchange
 INWI.ST,Inwido AB (publ),Stockholm  Stock Exchange
@@ -7749,7 +7749,7 @@ APETIT.HE,Apetit Oyj,Helsinki Stock Exchange
 RAUTE.HE,Raute Oyj,Helsinki Stock Exchange
 KBHL.CO,Copenhagen Airports AS,Copenhagen Stock Exchange
 RILBA.CO,Ringkjoebing Landbobank AS,Copenhagen Stock Exchange
-HLUNA.CO,H Lundbeck AS,Copenhagen Stock Exchange
+HLUN-A.CO,H Lundbeck AS,Copenhagen Stock Exchange
 ALMB.CO,ALM Brand AS,Copenhagen Stock Exchange
 SCHO.CO,Schouw & Co AS,Copenhagen Stock Exchange
 EMBLA.CO,Embla Medical hf,Copenhagen Stock Exchange
@@ -7785,7 +7785,7 @@ KRE.CO,Kreditbanken AS,Copenhagen Stock Exchange
 NORTHM.CO,North Media AS,Copenhagen Stock Exchange
 HUSCO.CO,HusCompagniet AS,Copenhagen Stock Exchange
 NRDF.CO,Nordfyns Bank AS,Copenhagen Stock Exchange
-GYLDB.CO,Gyldendal AS,Copenhagen Stock Exchange
+GYLD-B.CO,Gyldendal AS,Copenhagen Stock Exchange
 FFARMS.CO,Firstfarms AS,Copenhagen Stock Exchange
 FLUGB.CO,Flugger group AS,Copenhagen Stock Exchange
 LOLB.CO,Lollands Bank AS,Copenhagen Stock Exchange
@@ -8899,7 +8899,7 @@ BEVER.AS,Bever Holding NV,Euronext Amsterdam
 BERGB.ST,Bergman & Beving AB,Stockholm  Stock Exchange
 SACI.PA,Fiducial Office Solutions,Euronext Paris
 EEM.PA,ELECTRICITE ET EAUX DE MADAGASCAR,Euronext Paris
-ELUXA.ST,Electrolux AB,Stockholm  Stock Exchange
+ELUX-A.ST,Electrolux AB,Stockholm  Stock Exchange
 ABLD.PA,ABL Diagnostics SACA,Euronext Paris
 FIPP.PA,FIPP,Euronext Paris
 NSE.AS,New Sources Energy NV,Euronext Amsterdam
@@ -8909,37 +8909,37 @@ SABE.PA,Saint Jean Groupe SA,Euronext Paris
 AAA.PA,Alan Allman Associates SACA,Euronext Paris
 HVID.CO,Hvidbjerg Bank A/S,Copenhagen Stock Exchange
 TLT1V.HE,Teleste Oyj,Helsinki Stock Exchange
-NCCA.ST,NCC AB,Stockholm  Stock Exchange
+NCC-A.ST,NCC AB,Stockholm  Stock Exchange
 STG.CO,Scandinavian Tobacco Group A/S,Copenhagen Stock Exchange
 SEBC.ST,Skandinaviska Enskilda Banken AB,Stockholm  Stock Exchange
 GABR.CO,Gabriel Holding A/S,Copenhagen Stock Exchange
 ELANB.ST,Elanders AB,Stockholm  Stock Exchange
-SHBB.ST,Svenska Handelsbanken AB,Stockholm  Stock Exchange
+SHB-B.ST,Svenska Handelsbanken AB,Stockholm  Stock Exchange
 ORES.ST,Investment AB Oresund,Stockholm  Stock Exchange
-SSABA.ST,SSAB AB,Stockholm  Stock Exchange
-SCAA.ST,Svenska Cellulosa AB SCA,Stockholm  Stock Exchange
+SSAB-A.ST,SSAB AB,Stockholm  Stock Exchange
+SCA-A.ST,Svenska Cellulosa AB SCA,Stockholm  Stock Exchange
 NOHO.HE,NoHo Partners Oyj,Helsinki Stock Exchange
 MSABB.ST,Micro Systemation AB,Stockholm  Stock Exchange
-KESKOA.HE,Kesko Oyj,Helsinki Stock Exchange
+KESKO-A.HE,Kesko Oyj,Helsinki Stock Exchange
 GJAJ.PA,Groupe JAJ,Euronext Paris
-SSABB.ST,SSAB AB,Stockholm  Stock Exchange
+SSAB-B.ST,SSAB AB,Stockholm  Stock Exchange
 XANOB.ST,XANO Industri AB,Stockholm  Stock Exchange
 KABEB.ST,Kabe Group AB,Stockholm  Stock Exchange
 VBGB.ST,VBG Group AB,Stockholm  Stock Exchange
 RROS.ST,Rottneros AB,Stockholm  Stock Exchange
 ACTI.ST,Active Biotech AB,Stockholm  Stock Exchange
-HAKIB.ST,HAKI Safety AB,Stockholm  Stock Exchange
+HAKI-B.ST,HAKI Safety AB,Stockholm  Stock Exchange
 AGFB.CO,AGF A/S,Copenhagen Stock Exchange
 SIG.CO,Scandinavian Investment Group A/S,Copenhagen Stock Exchange
-CATA.ST,Catella AB,Stockholm  Stock Exchange
-CATB.ST,Catella AB,Stockholm  Stock Exchange
-RATOA.ST,Ratos AB,Stockholm  Stock Exchange
+CAT-A.ST,Catella AB,Stockholm  Stock Exchange
+CAT-B.ST,Catella AB,Stockholm  Stock Exchange
+RATO-A.ST,Ratos AB,Stockholm  Stock Exchange
 SAFETYB.ST,Mysafety Group AB,Stockholm  Stock Exchange
-HAKIA.ST,HAKI Safety AB,Stockholm  Stock Exchange
+HAKI-A.ST,HAKI Safety AB,Stockholm  Stock Exchange
 IS.ST,Image Systems AB,Stockholm  Stock Exchange
 ALIV.ST,Autoliv Inc,Stockholm  Stock Exchange
-SVOLA.ST,Svolder AB,Stockholm  Stock Exchange
-SVOLB.ST,Svolder AB,Stockholm  Stock Exchange
+SVOL-A.ST,Svolder AB,Stockholm  Stock Exchange
+SVOL-B.ST,Svolder AB,Stockholm  Stock Exchange
 HDP.PA,Les Hotels de Paris,Euronext Paris
 FPARA.ST,FastPartner AB,Stockholm  Stock Exchange
 BUI.PA,Barbara Bui SA,Euronext Paris
@@ -8957,12 +8957,12 @@ WUF1V.HE,Wulff-Group PLC,Helsinki Stock Exchange
 SVEDB.ST,Svedbergs Group AB,Stockholm  Stock Exchange
 FAG.ST,Fagerhult Group AB,Stockholm  Stock Exchange
 HAVB.ST,Havsfrun Investment AB,Stockholm  Stock Exchange
-KINVA.ST,Kinnevik AB,Stockholm  Stock Exchange
+KINV-A.ST,Kinnevik AB,Stockholm  Stock Exchange
 KLEEB.CO,BRD Klee A/S,Copenhagen Stock Exchange
 BIFB.CO,Broendbyernes IF Fodbold A/S,Copenhagen Stock Exchange
-CARLA.CO,Carlsberg AS,Copenhagen Stock Exchange
+CARL-A.CO,Carlsberg AS,Copenhagen Stock Exchange
 REBL.HE,Rebl Group Oyj,Helsinki Stock Exchange
-MAERSKA.CO,AP Moller - Maersk A/S,Copenhagen Stock Exchange
+MAERSK-A.CO,AP Moller - Maersk A/S,Copenhagen Stock Exchange
 DANTB.CO,Dantax A/S,Copenhagen Stock Exchange
 PARKSTA.CO,Park Street A/S,Copenhagen Stock Exchange
 MVIR.ST,Medivir AB,Stockholm  Stock Exchange
@@ -8971,7 +8971,7 @@ DPT.PA,ST Dupont SA,Euronext Paris
 STER.ST,Stora Enso Oyj,Stockholm  Stock Exchange
 STEA.ST,Stora Enso Oyj,Stockholm  Stock Exchange
 GJ.CO,Glunz & Jensen Holding A/S,Copenhagen Stock Exchange
-GYLDA.CO,Gyldendalske Boghandel,Copenhagen Stock Exchange
+GYLD-A.CO,Gyldendalske Boghandel,Copenhagen Stock Exchange
 ILKKA1.HE,Ilkka Oyj,Helsinki Stock Exchange
 SOFB.ST,Softronic AB,Stockholm  Stock Exchange
 NTG.CO,NTG Nordic Transport Group A/S,Copenhagen Stock Exchange
@@ -8980,16 +8980,16 @@ INVEST.HE,Investors House Oyj,Helsinki Stock Exchange
 ANOT.ST,Anoto Group AB,Stockholm  Stock Exchange
 PROFB.ST,Profilgruppen AB,Stockholm  Stock Exchange
 OKEAC.CO,Ostasiatiske Kompagni A/S,Copenhagen Stock Exchange
-COREA.ST,Corem Property Group AB,Stockholm  Stock Exchange
+CORE-A.ST,Corem Property Group AB,Stockholm  Stock Exchange
 BONG.ST,Bong AB,Stockholm  Stock Exchange
-SWECA.ST,Sweco AB,Stockholm  Stock Exchange
+SWEC-A.ST,Sweco AB,Stockholm  Stock Exchange
 RAIKV.HE,Raisio Oyj,Helsinki Stock Exchange
 RIASB.CO,Rias A/S,Copenhagen Stock Exchange
 RBLNB.CO,Roblon A/S,Copenhagen Stock Exchange
 MEABB.ST,Malmbergs Elektriska AB,Stockholm  Stock Exchange
-ROCKA.CO,ROCKWOOL A/S,Copenhagen Stock Exchange
+ROCK-A.CO,ROCKWOOL A/S,Copenhagen Stock Exchange
 CBDG.PA,Cie du Cambodge,Euronext Paris
-MTGA.ST,Modern Times Group MTG AB,Stockholm  Stock Exchange
+MTG-A.ST,Modern Times Group MTG AB,Stockholm  Stock Exchange
 PFINV.CO,Papirfabrikken Invest A/S,Copenhagen Stock Exchange
 CTT.ST,CTT Systems AB,Stockholm  Stock Exchange
 AUGR.PA,Augros Cosmetic Packaging,Euronext Paris
@@ -9009,15 +9009,15 @@ REKA.HE,Reka Industrial Oyj,Helsinki Stock Exchange
 LVIDE.AS,Lavide Holding NV,Euronext Amsterdam
 RAP1V.HE,Rapala VMC Oyj,Helsinki Stock Exchange
 KSL.HE,Keskisuomalainen Oyj,Helsinki Stock Exchange
-SAGAA.ST,Sagax AB,Stockholm  Stock Exchange
+SAGA-A.ST,Sagax AB,Stockholm  Stock Exchange
 KNOW.ST,KNOW IT AB,Stockholm  Stock Exchange
 AZN.ST,AstraZeneca PLC,Stockholm  Stock Exchange
 STWK.ST,Stockwik Forvaltning AB,Stockholm  Stock Exchange
 FINM.PA,Financiere Marjos,Euronext Paris
 LAMMB.ST,Lammhults Design Group AB,Stockholm  Stock Exchange
 NETIB.ST,Net Insight AB,Stockholm  Stock Exchange
-MSONB.ST,Midsona AB,Stockholm  Stock Exchange
-MSONA.ST,Midsona AB,Stockholm  Stock Exchange
+MSON-B.ST,Midsona AB,Stockholm  Stock Exchange
+MSON-A.ST,Midsona AB,Stockholm  Stock Exchange
 BIOBV.HE,Biohit Oyj,Helsinki Stock Exchange
 ABB.ST,ABB Ltd,Stockholm  Stock Exchange
 PIONB.ST,PION Group AB,Stockholm  Stock Exchange
@@ -9038,7 +9038,7 @@ BRINB.ST,Brinova Fastigheter AB,Stockholm  Stock Exchange
 G5EN.ST,G5 Entertainment AB,Stockholm  Stock Exchange
 FORE.PA,La Forestiere Equatoriale,Euronext Paris
 NEOBO.ST,Neobo Fastigheter AB,Stockholm  Stock Exchange
-HOLMA.ST,Holmen AB,Stockholm  Stock Exchange
+HOLM-A.ST,Holmen AB,Stockholm  Stock Exchange
 TRAD.ST,TradeDoubler AB,Stockholm  Stock Exchange
 MEKO.ST,MEKO AB,Stockholm  Stock Exchange
 BOREO.HE,Boreo Oyj,Helsinki Stock Exchange
@@ -9056,7 +9056,7 @@ MOMENT.ST,Moment Group AB,Stockholm  Stock Exchange
 EPEN.ST,Ependion AB,Stockholm  Stock Exchange
 ESG.CO,Ennogie Solar Group A/S,Copenhagen Stock Exchange
 SPG.CO,SP Group A/S,Copenhagen Stock Exchange
-STARB.ST,Starbreeze AB,Stockholm  Stock Exchange
+STAR-B.ST,Starbreeze AB,Stockholm  Stock Exchange
 CEMAT.CO,Cemat A/S,Copenhagen Stock Exchange
 NEWCAP.CO,Newcap Holding A/S,Copenhagen Stock Exchange
 ENRO.ST,Eniro Group AB,Stockholm  Stock Exchange
@@ -9068,7 +9068,7 @@ ALSEC.PA,Soditech Ingenierie SA,Euronext Paris
 SFPI.PA,Groupe SFPI,Euronext Paris
 ERC.AS,ER Capital NV,Euronext Amsterdam
 STRINV.CO,Strategic Investments A/S,Copenhagen Stock Exchange
-TEL2A.ST,Tele2 AB,Stockholm  Stock Exchange
+TEL2-A.ST,Tele2 AB,Stockholm  Stock Exchange
 SINT.ST,SinterCast AB,Stockholm  Stock Exchange
 CTH1V.HE,Componenta Oyj,Helsinki Stock Exchange
 GLA1V.HE,Glaston OYJ ABP,Helsinki Stock Exchange
@@ -9078,7 +9078,7 @@ COUR.PA,Courtois SA,Euronext Paris
 TELIA1.HE,Telia Co AB,Helsinki Stock Exchange
 ORIA.PA,Fiducial Real Estate SA,Euronext Paris
 AREIT.PA,Altareit SCA,Euronext Paris
-METSA.HE,Metsa Board Oyj,Helsinki Stock Exchange
+METS-A.HE,Metsa Board Oyj,Helsinki Stock Exchange
 BTSB.ST,BTS Group AB,Stockholm  Stock Exchange
 BINV.ST,BioInvent International AB,Stockholm  Stock Exchange
 AGAT.CO,Agat Ejendomme A/S,Copenhagen Stock Exchange
@@ -9097,7 +9097,7 @@ REJLB.ST,Rejlers AB,Stockholm  Stock Exchange
 CLAB.ST,Cloetta AB,Stockholm  Stock Exchange
 PEGA.CO,Pharma Equity Group A/S,Copenhagen Stock Exchange
 NOTE.ST,Note AB,Stockholm  Stock Exchange
-HUSQA.ST,Husqvarna AB,Stockholm  Stock Exchange
+HUSQ-A.ST,Husqvarna AB,Stockholm  Stock Exchange
 HNSA.ST,Hansa Biopharma AB,Stockholm  Stock Exchange
 BORG.ST,Bjorn Borg AB,Stockholm  Stock Exchange
 NAXS.ST,NAXS AB,Stockholm  Stock Exchange
@@ -9121,7 +9121,7 @@ CBR.PA,Robertet SA,Euronext Paris
 EOLUB.ST,Eolus AB,Stockholm  Stock Exchange
 NOKIASEK.ST,Nokia Oyj,Stockholm  Stock Exchange
 NMAN.ST,Nederman Holding AB,Stockholm  Stock Exchange
-LOGIA.ST,Logistea AB,Stockholm  Stock Exchange
+LOGI-A.ST,Logistea AB,Stockholm  Stock Exchange
 OREGE.PA,Orege SA,Euronext Paris
 GERHSP.CO,German High Street Properties,Copenhagen Stock Exchange
 RAIL.ST,Railcare Group AB,Stockholm  Stock Exchange
@@ -9201,7 +9201,7 @@ KAR.ST,Karnov Group AB,Stockholm  Stock Exchange
 HUM.ST,Humana AB,Stockholm  Stock Exchange
 ARTE.PA,Artea SARLU,Euronext Paris
 AJAB.ST,Byggmastare Anders J Ahlstrom Holding AB,Stockholm  Stock Exchange
-ACRIA.ST,Acrinova AB,Stockholm  Stock Exchange
+ACRI-A.ST,Acrinova AB,Stockholm  Stock Exchange
 LUG.ST,Lundin Gold Inc,Stockholm  Stock Exchange
 ELTEL.ST,Eltel AB,Stockholm  Stock Exchange
 TAMTRON.HE,Tamtron Group Oyj,Helsinki Stock Exchange
@@ -9211,7 +9211,7 @@ TOBII.ST,Tobii AB,Stockholm  Stock Exchange
 TRANS.ST,Transtema Group AB,Stockholm  Stock Exchange
 ACAST.ST,Acast AB,Stockholm  Stock Exchange
 PNDXB.ST,Pandox AB,Stockholm  Stock Exchange
-STARA.ST,Starbreeze AB,Stockholm  Stock Exchange
+STAR-A.ST,Starbreeze AB,Stockholm  Stock Exchange
 COOR.ST,Coor Service Management Holding AB,Stockholm  Stock Exchange
 ALIG.ST,Alimak Group AB,Stockholm  Stock Exchange
 NICA.ST,Nanologica AB,Stockholm  Stock Exchange
@@ -9219,16 +9219,16 @@ SFAB.ST,Solid Forsakring AB,Stockholm  Stock Exchange
 IMMNOV.ST,Immunovia AB,Stockholm  Stock Exchange
 SHOT.ST,Scandic Hotels Group AB,Stockholm  Stock Exchange
 XBRANE.ST,Xbrane Biopharma AB,Stockholm  Stock Exchange
-BONAVA.ST,Bonava AB,Stockholm  Stock Exchange
+BONAV-A.ST,Bonava AB,Stockholm  Stock Exchange
 CTM.ST,Catena Media PLC,Stockholm  Stock Exchange
 IBTB.ST,Infant Bacterial Therapeutics AB,Stockholm  Stock Exchange
 ORTHEX.HE,Orthex Oyj,Helsinki Stock Exchange
 KAMUX.HE,Kamux Corp,Helsinki Stock Exchange
-BONAVB.ST,Bonava AB,Stockholm  Stock Exchange
+BONAV-B.ST,Bonava AB,Stockholm  Stock Exchange
 SYNACT.ST,SynAct Pharma AB,Stockholm  Stock Exchange
 ACAD.ST,AcadeMedia AB,Stockholm  Stock Exchange
 MAHAA.ST,Maha Capital AB,Stockholm  Stock Exchange
-ESSITYA.ST,Essity AB,Stockholm  Stock Exchange
+ESSITY-A.ST,Essity AB,Stockholm  Stock Exchange
 SAGAD.ST,Sagax AB,Stockholm  Stock Exchange
 FLERIE.ST,Flerie AB,Stockholm  Stock Exchange
 BICO.ST,BICO Group AB,Stockholm  Stock Exchange
@@ -9250,22 +9250,22 @@ MODU.HE,Modulight Oy,Helsinki Stock Exchange
 FNM.ST,Ferronordic AB,Stockholm  Stock Exchange
 TITAN.HE,Titanium Oyj,Helsinki Stock Exchange
 EG7.ST,Enad Global 7 AB,Stockholm  Stock Exchange
-COREB.ST,Corem Property Group AB,Stockholm  Stock Exchange
+CORE-B.ST,Corem Property Group AB,Stockholm  Stock Exchange
 QLINEA.ST,Q-Linea AB,Stockholm  Stock Exchange
 INFREA.ST,Infrea AB,Stockholm  Stock Exchange
-EPIB.ST,Epiroc AB,Stockholm  Stock Exchange
+EPI-B.ST,Epiroc AB,Stockholm  Stock Exchange
 ACE.ST,Ascelia Pharma AB,Stockholm  Stock Exchange
 ARIONSDB.ST,Arion Banki HF,Stockholm  Stock Exchange
 EEZY.HE,Eezy Oyj,Helsinki Stock Exchange
 BETCODKK.CO,Better Collective A/S,Copenhagen Stock Exchange
 NDA.HE,Nordea Bank Abp,Helsinki Stock Exchange
 NDA.CO,Nordea Bank Abp,Copenhagen Stock Exchange
-VPLAYA.ST,Viaplay Group AB,Stockholm  Stock Exchange
+VPLAY-A.ST,Viaplay Group AB,Stockholm  Stock Exchange
 VIAFIN.HE,Viafin Service Oyj,Helsinki Stock Exchange
 LIME.ST,Lime Technologies AB,Stockholm  Stock Exchange
 NIVIB.ST,Nivika Fastigheter AB,Stockholm  Stock Exchange
 SBBD.ST,Samhallsbyggnadsbolaget i Norden AB,Stockholm  Stock Exchange
-VPLAYB.ST,Viaplay Group AB,Stockholm  Stock Exchange
+VPLAY-B.ST,Viaplay Group AB,Stockholm  Stock Exchange
 NR21.PA,NR21 SA,Euronext Paris
 JOMA.ST,John Mattson Fastighetsforetagen AB,Stockholm  Stock Exchange
 K2AB.ST,K2A Knaust & Andersson Fastigheter AB,Stockholm  Stock Exchange
@@ -9287,7 +9287,7 @@ SFAST.ST,Stenhus Fastigheter I Norden AB,Stockholm  Stock Exchange
 FG.ST,Fasadgruppen Group AB,Stockholm  Stock Exchange
 ANNEB.ST,Annehem Fastigheter AB,Stockholm  Stock Exchange
 TRACT.PA,Teract SA,Euronext Paris
-ACRIB.ST,Acrinova AB,Stockholm  Stock Exchange
+ACRI-B.ST,Acrinova AB,Stockholm  Stock Exchange
 CINT.ST,Cint Group AB,Stockholm  Stock Exchange
 KREATE.HE,Kreate Group Oyj,Helsinki Stock Exchange
 PIERCE.ST,Pierce Group AB,Stockholm  Stock Exchange
@@ -9306,7 +9306,7 @@ NORBB.ST,Nordisk Bergteknik AB,Stockholm  Stock Exchange
 CABLE.AS,Global InterConnection Group Ltd,Euronext Amsterdam
 NETEL.ST,Netel Holding AB,Stockholm  Stock Exchange
 EMILB.ST,Fastighetsbolaget Emilshus AB,Stockholm  Stock Exchange
-LOGIB.ST,Logistea AB,Stockholm  Stock Exchange
+LOGI-B.ST,Logistea AB,Stockholm  Stock Exchange
 KARNELB.ST,Karnell Group AB,Stockholm  Stock Exchange
 SHELL.AS,Shell PLC,Euronext Amsterdam
 AELIS.PA,Aelis Farma SAS,Euronext Paris
