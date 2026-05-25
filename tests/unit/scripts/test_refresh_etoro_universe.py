@@ -18,6 +18,8 @@ _spec.loader.exec_module(refresh_etoro_universe)
 
 # Public functions exposed by the module — aliased here so test bodies stay terse.
 extract_symbol = refresh_etoro_universe.extract_symbol
+is_stock_or_etf = refresh_etoro_universe.is_stock_or_etf
+is_etorian_alias = refresh_etoro_universe.is_etorian_alias
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -64,3 +66,37 @@ class TestExtractSymbol:
     def test_returns_none_when_images_key_missing(self):
         item = {"InstrumentID": 9999, "InstrumentDisplayName": "X"}
         assert extract_symbol(item) is None
+
+
+class TestIsStockOrEtf:
+    def test_stock_passes(self, bulk_data):
+        assert is_stock_or_etf(find(bulk_data, 1001))  # Apple, type 5
+
+    def test_etf_passes(self, bulk_data):
+        assert is_stock_or_etf(find(bulk_data, 3001))  # SPY, type 6
+
+    def test_forex_filtered(self, bulk_data):
+        assert not is_stock_or_etf(find(bulk_data, 1))  # EUR/USD, type 1
+
+    def test_crypto_filtered(self, bulk_data):
+        assert not is_stock_or_etf(find(bulk_data, 4001))  # Bitcoin, type 10
+
+    def test_commodity_filtered(self, bulk_data):
+        assert not is_stock_or_etf(find(bulk_data, 5001))  # Gold, type 2
+
+    def test_index_filtered(self, bulk_data):
+        assert not is_stock_or_etf(find(bulk_data, 6001))  # S&P 500, type 4
+
+    def test_missing_type_id_filtered(self):
+        assert not is_stock_or_etf({"InstrumentID": 1})
+
+
+class TestIsEtorianAlias:
+    def test_etorian_prefix_flagged(self, bulk_data):
+        assert is_etorian_alias(find(bulk_data, 610))  # ETORIAN610
+
+    def test_normal_name_not_flagged(self, bulk_data):
+        assert not is_etorian_alias(find(bulk_data, 1001))  # Apple
+
+    def test_missing_name_not_flagged(self):
+        assert not is_etorian_alias({"InstrumentID": 1})
