@@ -212,7 +212,25 @@ def _load_tickers_from_file(file_path: str, ticker_column: list[str]) -> list[st
                     logger.debug(f"Smart ordering: {len(df)} tickers sorted by analyst_count")
 
                 tickers = df[ticker_col].dropna().astype(str).str.strip().tolist()
-                return [t for t in tickers if t]
+                tickers = [t for t in tickers if t]
+
+                # Apply skip list (yfinance failures + low-analyst tickers)
+                skip_path = FILE_PATHS.get("SKIP_FILE", "")
+                if skip_path and os.path.exists(skip_path):
+                    try:
+                        skip_df = pd.read_csv(skip_path)
+                        skip_col = next((c for c in ["symbol", "Symbol", "SYMBOL"] if c in skip_df.columns), None)
+                        if skip_col:
+                            skip_set = set(skip_df[skip_col].dropna().astype(str).str.strip().str.upper())
+                            before = len(tickers)
+                            tickers = [t for t in tickers if t.upper() not in skip_set]
+                            skipped = before - len(tickers)
+                            if skipped:
+                                logger.info(f"Skip list applied: {skipped} tickers skipped ({len(tickers)} remaining)")
+                    except Exception as e:
+                        logger.debug(f"Skip list not applied: {e}")
+
+                return tickers
 
             except Exception as e:
                 logger.debug(f"Fallback to standard loading: {e}")

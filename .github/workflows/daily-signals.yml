@@ -126,6 +126,12 @@ jobs:
           done
           echo "All output files verified"
 
+      - name: Regenerate skip list for next run
+        run: |
+          echo "Regenerating yfinance skip list..."
+          python scripts/generate_skip_list.py --min-analysts 3
+          echo "Skip list regenerated"
+
       - name: Configure Git
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -138,6 +144,9 @@ jobs:
 
           # Add output files
           git add yahoofinance/output/*.csv || true
+
+          # Add skip list (regenerated after each run)
+          git add yahoofinance/input/yfinance_skip.csv || true
 
           # Add portfolio snapshot for P&L tracking
           git add yahoofinance/snapshots/*.csv || true

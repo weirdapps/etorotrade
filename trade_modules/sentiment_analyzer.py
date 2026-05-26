@@ -505,8 +505,8 @@ def _fetch_yfinance_news(ticker: str) -> list[tuple[str, str]]:
 
 # Source registry: (fetcher_function, name)
 # Order matters — higher priority / higher quality sources first.
-# Premium filtered sources come before broad to win dedup priority.
-_NEWS_SOURCES = [
+# Set SENTIMENT_MAX_SOURCES env var to limit (default: 2 for speed; 7 = all).
+_ALL_NEWS_SOURCES = [
     (_fetch_premium_news, "premium"),
     (_fetch_finviz_news, "finviz"),
     (_fetch_google_news, "google_news"),
@@ -515,6 +515,8 @@ _NEWS_SOURCES = [
     (_fetch_cnbc_rss, "cnbc"),
     (_fetch_yfinance_news, "yfinance"),
 ]
+_MAX_SOURCES = int(os.environ.get("SENTIMENT_MAX_SOURCES", "2"))
+_NEWS_SOURCES = _ALL_NEWS_SOURCES[:_MAX_SOURCES]
 
 
 def _fetch_news(ticker: str) -> list[str]:
