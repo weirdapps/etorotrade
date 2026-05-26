@@ -449,6 +449,7 @@ _LEGACY_FILE_PATHS = {
     "ETORO_FILE": os.path.join(PATHS["INPUT_DIR"], "etoro.csv"),
     "YFINANCE_FILE": os.path.join(PATHS["INPUT_DIR"], "yfinance.csv"),
     "NOTRADE_FILE": os.path.join(PATHS["INPUT_DIR"], "notrade.csv"),
+    "SKIP_FILE": os.path.join(PATHS["INPUT_DIR"], "yfinance_skip.csv"),
     "CONS_FILE": os.path.join(PATHS["INPUT_DIR"], "cons.csv"),
     "US_TICKERS_FILE": os.path.join(PATHS["INPUT_DIR"], "us_tickers.csv"),
     "EUROPE_FILE": os.path.join(PATHS["INPUT_DIR"], "europe.csv"),
