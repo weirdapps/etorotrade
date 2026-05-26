@@ -762,9 +762,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                         )
                         continue
 
-            # For non-equity assets (crypto, ETF, commodity), use momentum-based signals
-            # since analyst coverage is not applicable
-            if asset_type in ("crypto", "etf", "commodity"):
+            # For non-equity assets, use momentum-based signals for crypto/commodity only.
+            # ETFs are excluded — momentum-only classification on passive instruments
+            # produces noise (83 phantom BUYs in a bull market). ETFs lack analyst targets,
+            # PE ratios, and fundamentals that make signals actionable.
+            if asset_type == "etf":
+                actions.loc[idx] = "I"
+                continue
+            if asset_type in ("crypto", "commodity"):
                 # Use price momentum (52-week high %) and technical indicators
                 row_pct_52w = pct_52w.loc[idx]
                 row_above_200dma = above_200dma.loc[idx]
