@@ -484,9 +484,9 @@ def log_signal(
     except Exception:
         pass
 
-    # Get sentiment score (finBERT) — only for actionable signals (B/S)
+    # Get sentiment score (finBERT) — only for BUY signals (sentiment doesn't change sell decisions)
     sentiment_score = None
-    if signal in ("B", "S"):
+    if signal == "B":
         try:
             from trade_modules.sentiment_analyzer import get_ticker_sentiment
 
