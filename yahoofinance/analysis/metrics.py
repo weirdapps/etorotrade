@@ -14,8 +14,6 @@ while maintaining the same functionality.
 from dataclasses import dataclass
 from typing import Any
 
-from yahoofinance.core.errors import YFinanceError
-
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.errors import YFinanceError
 from ..core.logging import get_logger
