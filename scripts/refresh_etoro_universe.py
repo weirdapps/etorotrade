@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -35,14 +35,9 @@ _USER_AGENT = (
 )
 _INTER_PAGE_DELAY_SEC = 0.5
 
-_DEFAULT_OUTPUT_CSV = str(
-    Path(__file__).parent.parent / "yahoofinance" / "input" / "etoro.csv"
-)
+_DEFAULT_OUTPUT_CSV = str(Path(__file__).parent.parent / "yahoofinance" / "input" / "etoro.csv")
 _DEFAULT_DELTA_LOG = str(
-    Path(__file__).parent.parent
-    / "yahoofinance"
-    / "input"
-    / ".universe-refresh-log.json"
+    Path(__file__).parent.parent / "yahoofinance" / "input" / ".universe-refresh-log.json"
 )
 
 
@@ -62,12 +57,26 @@ _SUFFIX_REMAP = {
     ".LSB": ".LS",
 }
 
-_DROP_SUFFIXES = frozenset({
-    ".RTH", ".DELISTED", ".TEST", ".OLD", ".EXT", ".24-7",
-    ".CALL1", ".CALL2", ".PUT1", ".PUT2",
-    ".TENDER", ".CASHRESERVED", ".MOEX",
-    ".RIGHT", ".WS", ".PFD",
-})
+_DROP_SUFFIXES = frozenset(
+    {
+        ".RTH",
+        ".DELISTED",
+        ".TEST",
+        ".OLD",
+        ".EXT",
+        ".24-7",
+        ".CALL1",
+        ".CALL2",
+        ".PUT1",
+        ".PUT2",
+        ".TENDER",
+        ".CASHRESERVED",
+        ".MOEX",
+        ".RIGHT",
+        ".WS",
+        ".PFD",
+    }
+)
 
 
 def _is_junk_suffix(suffix: str) -> bool:
@@ -180,7 +189,10 @@ def _get_credential(env_var: str, keychain_service: str) -> str | None:
     try:
         result = subprocess.run(
             ["security", "find-generic-password", "-a", "etoro-api", "-s", keychain_service, "-w"],
-            capture_output=True, text=True, timeout=5, check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -266,7 +278,11 @@ def fetch_all_assets(
             all_items.extend(items)
             logger.info(
                 "  %s page %d: +%d items (running total this class: %d / %d)",
-                asset_class, page, len(items), min(page * page_size, total), total,
+                asset_class,
+                page,
+                len(items),
+                min(page * page_size, total),
+                total,
             )
             if not items or page * page_size >= total:
                 break
@@ -302,7 +318,7 @@ def write_delta_log(
 ) -> None:
     """Write a JSON snapshot of this run's delta."""
     payload = {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_count": total_count,
         "new_count": len(new_symbols),
         "removed_count": len(removed_symbols),
@@ -331,9 +347,7 @@ def main(
     delta_log_path: str = _DEFAULT_DELTA_LOG,
 ) -> int:
     """Run the refresh pipeline. Returns exit code (0 success, 1 error)."""
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     try:
         api_key, user_key = get_credentials()
@@ -352,9 +366,9 @@ def main(
 
     if len(items) < MIN_INSTRUMENTS_THRESHOLD:
         logger.error(
-            "Refusing to proceed: only %d items returned (threshold %d). "
-            "API may be broken.",
-            len(items), MIN_INSTRUMENTS_THRESHOLD,
+            "Refusing to proceed: only %d items returned (threshold %d). API may be broken.",
+            len(items),
+            MIN_INSTRUMENTS_THRESHOLD,
         )
         return 1
 
@@ -375,15 +389,20 @@ def main(
         if normalized is None:
             skipped_rth += 1
             continue
-        rows.append({
-            "symbol": normalized,
-            "company": item.get("displayName", ""),
-            "exchange": item.get("exchangeName", ""),
-        })
+        rows.append(
+            {
+                "symbol": normalized,
+                "company": item.get("displayName", ""),
+                "exchange": item.get("exchangeName", ""),
+            }
+        )
 
     logger.info(
         "After filters: %d candidates (skipped %d aliases, %d empty, %d RTH)",
-        len(rows), skipped_alias, skipped_no_symbol, skipped_rth,
+        len(rows),
+        skipped_alias,
+        skipped_no_symbol,
+        skipped_rth,
     )
 
     rows = fix_share_classes(rows)
@@ -396,7 +415,9 @@ def main(
     removed_symbols = sorted(existing_symbols - new_symbols_set)
     logger.info(
         "Delta: +%d new, -%d removed (vs %d existing)",
-        len(new_symbols), len(removed_symbols), len(existing_symbols),
+        len(new_symbols),
+        len(removed_symbols),
+        len(existing_symbols),
     )
 
     write_universe_csv(deduped, output_csv_path)
