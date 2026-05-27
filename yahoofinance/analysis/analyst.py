@@ -11,8 +11,6 @@ from typing import Any
 
 import pandas as pd
 
-from yahoofinance.core.errors import YFinanceError
-
 from ..core.config import POSITIVE_GRADES
 from ..core.errors import YFinanceError
 from ..core.logging import get_logger
@@ -275,7 +273,7 @@ class AnalystData:
     analyst_count: int | None = None
 
 
-from .base_analysis import BaseAnalysisService
+from .base_analysis import BaseAnalysisService  # noqa: E402
 
 
 class AnalystRatingsService(BaseAnalysisService):

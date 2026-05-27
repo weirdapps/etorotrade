@@ -16,9 +16,9 @@ import pandas as pd
 
 # Trading criteria moved to centralized trade configuration
 from trade_modules.trade_config import TradeConfig
-from yahoofinance.core.errors import YFinanceError
 
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
+from ..core.errors import YFinanceError
 from ..core.logging import get_logger
 from ..utils.data.ticker_utils import normalize_ticker
 from .market_filters import (
@@ -29,7 +29,6 @@ from .market_filters import (
 
 # Define constants for repeated strings
 BUY_PERCENTAGE_DISPLAY = "% BUY"
-from ..core.errors import YFinanceError
 
 logger = get_logger(__name__)
 

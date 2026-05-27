@@ -7,8 +7,6 @@ to ensure they are properly formatted for API calls.
 
 import re
 
-from yahoofinance.core.errors import ValidationError
-
 from ...core.config import SPECIAL_TICKERS
 from ...core.errors import ValidationError
 

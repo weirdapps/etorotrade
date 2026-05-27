@@ -15,8 +15,6 @@ from typing import Any
 
 import pandas as pd
 
-from yahoofinance.core.errors import YFinanceError
-
 from ..core.errors import YFinanceError
 from ..core.logging import get_logger
 from .base_analysis import BaseAnalysisService
