@@ -373,6 +373,11 @@ def _is_etf_asset(ticker: str, company_name: str | None = None) -> bool:
         "GXC",
         "TAO",  # China ETFs
         "LYXGRE.DE",  # Lyxor Green Bond (EUR) ETF
+        # Volatility products (ProShares / Barclays)
+        "UVXY",  # ProShares Ultra VIX Short-Term Futures
+        "VXX",  # iPath S&P 500 VIX Short-Term Futures
+        "VIXY",  # ProShares VIX Short-Term Futures
+        "SVXY",  # ProShares Short VIX Short-Term Futures
     }
 
     return ticker in known_etfs

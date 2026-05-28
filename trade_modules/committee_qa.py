@@ -101,16 +101,17 @@ def normalize_agent_reports(
     if indicators.get("oil_brent") and not indicators.get("brent_crude"):
         indicators["brent_crude"] = indicators["oil_brent"]
         fixes.append("macro: oil_brent → brent_crude alias")
+    # Flat key aliases: agent writes yield_10y / eurusd, QA + synthesis read us_10y_yield / eur_usd
+    if indicators.get("yield_10y") and not indicators.get("us_10y_yield"):
+        indicators["us_10y_yield"] = indicators["yield_10y"]
+        fixes.append("macro: yield_10y → us_10y_yield alias")
+    if indicators.get("eurusd") and not indicators.get("eur_usd"):
+        indicators["eur_usd"] = indicators["eurusd"]
+        fixes.append("macro: eurusd → eur_usd alias")
     # Write back under both keys so synthesis finds it
     if indicators:
         macro["indicators"] = indicators
         macro["macro_indicators"] = indicators
-
-    # ── Macro: regime as string vs dict ──
-    regime = macro.get("regime")
-    if isinstance(regime, str) and regime:
-        macro["regime"] = {"classification": regime}
-        fixes.append(f"macro: regime string '{regime}' → dict")
 
     # ── Census: missing_popular as list vs dict ──
     # Synthesis reads: census["missing_popular"].get("stocks_not_in_portfolio_but_popular")
@@ -489,7 +490,14 @@ def validate_pre_html(
     if not fund_stocks:
         gap(CRITICAL, "Fundamental", "stocks", "No fundamental stock data")
     else:
-        no_score = [t for t, d in fund_stocks.items() if not d.get("fundamental_score")]
+        from yahoofinance.utils.data.asset_type_utils import classify_asset_type
+
+        def _is_equity(t: str, d: dict) -> bool:
+            return classify_asset_type(t, company_name=d.get("name")) == "stock"
+
+        no_score = [
+            t for t, d in fund_stocks.items() if not d.get("fundamental_score") and _is_equity(t, d)
+        ]
         if no_score:
             gap(
                 WARNING,
@@ -498,7 +506,9 @@ def validate_pre_html(
                 f"{len(no_score)} stocks missing fundamental_score: {', '.join(no_score[:5])}",
             )
         no_km = [
-            t for t, d in fund_stocks.items() if not d.get("key_metrics") and not d.get("piotroski")
+            t
+            for t, d in fund_stocks.items()
+            if not d.get("key_metrics") and not d.get("piotroski") and _is_equity(t, d)
         ]
         if no_km:
             gap(

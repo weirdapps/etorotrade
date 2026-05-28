@@ -5703,6 +5703,9 @@ def generate_synthesis_output(
     # Normalise eurusd → eur_usd (agent writes without underscore)
     if indicators.get("eurusd") and not indicators.get("eur_usd"):
         indicators["eur_usd"] = indicators["eurusd"]
+    # Normalise yield_10y → us_10y_yield (agent writes flat key)
+    if indicators.get("yield_10y") and not indicators.get("us_10y_yield"):
+        indicators["us_10y_yield"] = indicators["yield_10y"]
     # v33.0: VIX often at top-level of macro report, not inside indicators
     if not indicators.get("vix"):
         vix_data = macro_report.get("vix", {})
