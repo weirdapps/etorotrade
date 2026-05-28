@@ -47,7 +47,7 @@ us_mega:
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
     max_target_dispersion: 150  # Tier-scaled: mega cap (120→150)
     require_above_200dma: false  # Relaxed for MEGA caps - quality stocks may dip below temporarily
-    min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for MEGA caps
+    min_analyst_momentum: -5  # T+30 backtest: AM<-5 has 16.6% alpha hit (junk)
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
   sell:
@@ -89,7 +89,7 @@ us_large:
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
     max_target_dispersion: 130  # Tier-scaled: large cap (120→130)
     require_above_200dma: false  # Relaxed for LARGE caps - quality stocks may dip below temporarily
-    min_analyst_momentum: -10  # Relaxed from -8 - allow more AM flexibility for LARGE caps
+    min_analyst_momentum: -5  # T+30 backtest: AM<-5 has 16.6% alpha hit (junk)
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
   sell:
@@ -250,7 +250,7 @@ eu_mega:
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
     max_target_dispersion: 150  # Tier-scaled: mega cap (120→150)
     require_above_200dma: false  # CHANGED from true - quality stocks may dip below temporarily
-    min_analyst_momentum: -12  # Relaxed from -10 - allow more AM flexibility for EU MEGA caps
+    min_analyst_momentum: -5  # T+30 backtest: AM<-5 has 16.6% alpha hit (junk)
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
   sell:
@@ -292,7 +292,7 @@ eu_large:
     max_upside_buy: 100  # Filter unrealistic targets (>100% upside suggests stale/outlier estimates)
     max_target_dispersion: 130  # Tier-scaled: large cap (120→130)
     require_above_200dma: false  # CHANGED from true - quality stocks may dip below temporarily
-    min_analyst_momentum: -12  # Relaxed from -10 - allow more AM flexibility for EU LARGE caps
+    min_analyst_momentum: -5  # T+30 backtest: AM<-5 has 16.6% alpha hit (junk)
     quality_override: true  # Allow positive AM to lower analyst threshold by 1
     max_pe_vs_sector: 1.5
   sell:
@@ -333,7 +333,7 @@ eu_mid:
     max_upside_buy: 100  # Filter unrealistic targets
     max_target_dispersion: 120  # Filter extreme analyst disagreement
     require_above_200dma: true
-    min_analyst_momentum: -8
+    min_analyst_momentum: -5  # T+30 backtest: AM<-5 has 16.6% alpha hit (junk)
     max_pe_vs_sector: 1.4
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
@@ -453,7 +453,7 @@ hk_mega:
     max_upside_buy: 100  # Filter unrealistic targets
     max_target_dispersion: 150  # Tier-scaled: mega cap (120→150)
     require_above_200dma: false  # Relaxed - HK market in prolonged downtrend, quality stocks below 200DMA
-    min_analyst_momentum: -12  # Relaxed from -8 - allow more AM flexibility for HK MEGA caps
+    min_analyst_momentum: -5  # T+30 backtest: AM<-5 has 16.6% alpha hit (junk)
     max_pe_vs_sector: 1.5
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
@@ -494,7 +494,7 @@ hk_large:
     max_upside_buy: 100  # Filter unrealistic targets
     max_target_dispersion: 130  # Tier-scaled: large cap (120→130)
     require_above_200dma: false  # Relaxed - HK market in prolonged downtrend, quality stocks below 200DMA
-    min_analyst_momentum: -12  # Relaxed from -8 - allow more AM flexibility for HK LARGE caps
+    min_analyst_momentum: -5  # T+30 backtest: AM<-5 has 16.6% alpha hit (junk)
     max_pe_vs_sector: 1.5
   sell:
     # Fully Valued thresholds - stocks at fair value with high consensus are not SELL
@@ -749,26 +749,26 @@ default_sell_scoring:
   # Quality override (bypass SELL - protect strong stocks)
   quality_override_buy_pct: 85     # 85%+ analyst buy
   quality_override_upside: 20      # 20%+ upside
-  # CIO Review S2: Rebalanced weights - reduced analyst (EXRET tautology),
-  # increased fundamentals and momentum (orthogonal factors)
-  # Original: analyst=0.35, momentum=0.25, valuation=0.20, fundamental=0.20
-  weight_analyst: 0.20   # Reduced from 0.25 — analyst sentiment includes EXRET tautology
-  weight_momentum: 0.25
-  weight_valuation: 0.20  # Increased from 0.15 — PET is academically strongest value signal
-  weight_fundamental: 0.25
-  weight_analyst_momentum: 0.10
+  # Medium-term weights (30d-12M horizon, T+30 alpha backtest + literature)
+  # Value (PEF r=-0.130) + Quality (ROE r=+0.117, D/E r=-0.113) dominate
+  weight_analyst: 0.20
+  weight_momentum: 0.10   # 12M-1M proxy; short-term momentum reverses at T+30
+  weight_valuation: 0.25  # Fama-French 1992 — value premium strongest at 6-12M
+  weight_fundamental: 0.25  # Asness 2019 Quality Minus Junk
+  weight_analyst_momentum: 0.15  # Bernard-Thomas 1989 PEAD drift 60-90 days
 
 default_buy_scoring:
   enabled: true
-  # CIO Review S2: Rebalanced weights - reduced upside/consensus dependency,
-  # increased fundamental weight (FCF yield, ROE are genuinely orthogonal)
-  # Original: upside=0.30, consensus=0.25, momentum=0.20, valuation=0.15, fundamental=0.10
-  weight_upside: 0.22
-  weight_consensus: 0.13  # Reduced from 0.18 — buy% is contrarian indicator, floor role only
-  weight_momentum: 0.20
-  weight_valuation: 0.18  # Increased from 0.13 — PET is academically strongest value signal
-  weight_fundamental: 0.17
-  weight_analyst_momentum: 0.10
+  # Medium-term weights (30d-12M horizon, calibrated from T+30 alpha backtest)
+  # Factor predictiveness at T+30 vs SPY:
+  #   PEF r=-0.130, ROE r=+0.117, D/E r=-0.113, upside r=+0.134
+  #   52W r=-0.020 (zero), buy% r=-0.007 (zero)
+  weight_upside: 0.20     # Analyst 12M targets (r=+0.134)
+  weight_consensus: 0.05  # Confirmed zero predictive power (r=-0.007)
+  weight_momentum: 0.10   # 12M-1M proxy; pure momentum reverses at T+30
+  weight_valuation: 0.25  # PET+FCF yield — value premium (Fama-French 1992)
+  weight_fundamental: 0.25  # ROE+D/E — quality factor (Asness 2019)
+  weight_analyst_momentum: 0.15  # PEAD drift 60-90 days (Bernard-Thomas 1989)
 
 # === CIO REVIEW: NEW CONFIGURATION SECTIONS ===
 

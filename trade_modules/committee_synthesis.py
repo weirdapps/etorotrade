@@ -128,87 +128,53 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-__version__ = "v36.0"
+__version__ = "v42.0"
 
-# CIO v36.0 — Empirical Refoundation (2026-05-04)
+# CIO v42.0 — Empirical Consolidation (2026-05-28)
 #
-# Two modifier sets coexist:
+# Single modifier set based on T+30 Spearman rho calibration (n=5,801 obs).
+# Only modifiers with PREDICTIVE verdict (|rho|>0.1, p<0.05) or strong
+# SHADOW evidence (rho>0.1, approaching significance) are active.
 #
-# V35_ACTIVE_MODIFIERS (22, literature-validated) — the historical default.
-# V36_ACTIVE_MODIFIERS (6, empirically-validated by M11 calibrator).
+# Replaces the dual V35/V36 A/B system. The env var CIO_V36_NEW_MODIFIERS
+# is no longer checked.
 #
-# ACTIVE_MODIFIERS resolves at import time based on the
-# CIO_V36_NEW_MODIFIERS env var:
-#   unset / "0"  → V35_ACTIVE_MODIFIERS (safe default)
-#   "1"          → V36_ACTIVE_MODIFIERS (new empirically-grounded set)
-#
-# Best-practice rationale (CIO v36 N3): the v35 → v36 swap is a research
-# conclusion that needs A/B shadow validation before becoming default.
-# Operators run with the env var ON to test; default stays V35 until
-# accumulated forward-return evidence justifies the flip.
-#
-# To switch to v36 in production:
-#     export CIO_V36_NEW_MODIFIERS=1
-#
-# Re-run scripts/calibrate_modifiers_t30.py weekly. Promote a modifier to
-# V36 only when verdict is PREDICTIVE or WEAK with n≥100. Demote SHADOW
-# entries with n≥150 confirming no edge.
+# Calibration source: ~/.weirdapps-trading/committee/modifier_t30_calibration.json
+# Re-run scripts/calibrate_modifiers_t30.py weekly to update verdicts.
 
-V35_ACTIVE_MODIFIERS = {
-    # Literature-validated set (CIO v35.0), pruned in CIO v41 (2026-05-16).
-    # See V37_DEPRECATED below for the 4 removals and rationale.
-    "census_alignment",  # +5 (CIO v41: gated to div_score < -30 only)
-    "revenue_growth",  # -5/+8 (Novy-Marx 2013) — calibration WORKS (+2.95% alpha)
-    "eps_revisions_up",  # +5/+8 (PEAD literature)
-    "eps_revisions_down",  # -5
-    "earnings_surprise",  # -5/+10 (Bernard & Thomas 1989)
-    "iv_low_entry",  # +5
-    "news_catalyst_neg",  # -8 (Tetlock 2007)
-    "news_catalyst_pos",  # +5 — calibration WORKS (+3.66% alpha)
-    "target_consensus",  # +2 (Diether et al. 2002)
-    "piotroski_quality",  # +3 (Asness et al. quality factor)
-    "currency_risk_HKD",  # -2 — calibration WORKS (-8.89% alpha when fired)
-    "currency_risk_JPY",  # -2
-    "currency_risk_GBP",  # -2
-    "signal_velocity",  # -5/+5 — calibration WORKS (-4.33% alpha when fired)
-    "sector_rotation",  # -5/+5 (Conover et al. 2008)
-    "dividend_yield_trap",  # -5 (Fuller & Goldstein 2011)
-    "iv_x_earnings",  # -5 (Ni et al. 2008) — calibration WORKS (-6.86% alpha)
-    "volume_confirm",  # +3 (Campbell et al. 1993)
+ACTIVE_MODIFIERS = {
+    "sector_concentration",  # PREDICTIVE  rho=-0.321  n=202  (restored from V37_DEPRECATED)
+    "piotroski_quality",  # PREDICTIVE  rho=-0.230  n=136
+    "tech_disagree",  # PREDICTIVE  rho=+0.259  n= 66
+    "consensus_crowded",  # PREDICTIVE  rho=+0.180  n=226
+    "revenue_growth",  # SHADOW      rho=+0.128  n=180  (near threshold, Novy-Marx 2013)
 }
 
-# CIO v41 (2026-05-16): Modifiers removed from active set based on T+30
-# calibration showing wrong-direction effect. Kept here as a documented
-# deprecation record so future re-evaluation knows their history.
-# Calibration source: ~/.weirdapps-trading/committee/calibration_report.json
-V37_DEPRECATED = {
-    "currency_risk_USD",  # n=83  delta=-3.00 → alpha +2.64% (penalized winners)
-    "fcf_quality_strong",  # n=57  delta=+1.93 → alpha -5.84% (rewarded losers)
-    "sector_concentration",  # n=281 delta=-4.46 → alpha +2.08% (penalized winners)
-    "short_interest_weakness",  # n=32 delta=-3.00 → alpha +5.08% (penalized winners)
+# Historical record of deprecated modifiers.
+# V37: wrong-direction effect at T+30. V42: DROP/SHADOW verdicts at T+30.
+V_DEPRECATED = {
+    # V37 deprecations (2026-05-16) — wrong-direction effect
+    "currency_risk_USD",  # n=83  penalized winners
+    "fcf_quality_strong",  # n=57  rewarded losers
+    "short_interest_weakness",  # n=32  penalized winners
+    # V42 deprecations (2026-05-28) — DROP verdict (null rho, no predictive value)
+    "census_alignment",  # n=759  rho=-0.003  (was firing on 89% of stocks as noise)
+    "eps_revisions_up",  # n=184  rho=+0.024  SHADOW but too weak
+    "eps_revisions_down",  # n= 42  DROP
+    "earnings_surprise",  # INSUFFICIENT_DATA (n<30)
+    "iv_low_entry",  # n= 50  DROP
+    "news_catalyst_neg",  # n= 87  DROP
+    "news_catalyst_pos",  # n= 41  DROP
+    "target_consensus",  # n=318  DROP
+    "currency_risk_HKD",  # n= 36  DROP
+    "currency_risk_JPY",  # n= 15  DROP
+    "currency_risk_GBP",  # n=  1  DROP
+    "signal_velocity",  # n= 33  rho=-0.016  SHADOW but near-zero
+    "sector_rotation",  # n= 20  DROP
+    "dividend_yield_trap",  # n= 20  DROP
+    "iv_x_earnings",  # n= 15  DROP
+    "volume_confirm",  # n=  4  DROP
 }
-
-V36_ACTIVE_MODIFIERS = {
-    # Empirically-validated set from M11 calibrator (n=5,801 obs T+30).
-    # See ~/.weirdapps-trading/committee/modifier_t30_calibration.json.
-    "sector_concentration",  # PREDICTIVE  ρ=−0.32 n=202 (-10/+1)
-    "consensus_crowded",  # PREDICTIVE  ρ=+0.18 n=226
-    "tech_disagree",  # PREDICTIVE  ρ=+0.26 n= 66
-    "revenue_growth",  # MARGINAL    ρ=+0.13 n=180
-    "earnings_surprise",  # PEAD precedent; n<30 calibration sample
-    "signal_velocity",  # SHADOW      n= 33 too small to drop
-}
-
-
-def _resolve_active_modifiers():
-    """Pick V35 or V36 based on env var. Re-evaluated on every import."""
-    flag = os.environ.get("CIO_V36_NEW_MODIFIERS", "0")
-    if str(flag).strip().lower() in ("1", "true", "yes", "on"):
-        return V36_ACTIVE_MODIFIERS
-    return V35_ACTIVE_MODIFIERS
-
-
-ACTIVE_MODIFIERS = _resolve_active_modifiers()
 
 CIRCUIT_BREAKER_PATH = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
 
