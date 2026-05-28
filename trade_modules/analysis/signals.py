@@ -232,74 +232,65 @@ def calculate_buy_score(
     analyst_momentum: float = np.nan,
 ) -> float:
     """
-    Calculate BUY conviction score (0-100) using continuous multi-factor analysis.
+    Calculate BUY conviction score (0-100) for 30-day to 12-month holding periods.
 
-    All components use np.interp for continuous scoring (no step-function cliffs).
-    EXRET removed — triple-counted derivative of upside × buy%.
-    Consensus flattened to constant 50 — buy% is contrarian above quality floor (r=-0.069).
-    200DMA now continuous via price/200dma ratio instead of binary boolean.
+    Weights calibrated from T+30 alpha backtest + academic literature:
+    - Value + Quality dominate (Fama-French 1992, Asness 2019)
+    - Momentum uses 12M-1M approximation (Jegadeesh-Titman 1993)
+    - Analyst momentum captures PEAD drift (Bernard-Thomas 1989)
 
-    Components:
-    - Upside (higher = higher score) - 22% weight
-    - Consensus (flat 50 — contrarian above floor) - 13% weight
-    - Momentum (52W continuous + 200DMA continuous) - 20% weight
-    - Valuation (PET inverted-U + PEF/PET ratio) - 18% weight
-    - Fundamentals (ROE + D/E + FCF) - 17% weight
-    - Analyst momentum (rising buy% trend) - 10% weight
-
-    Args:
-        upside: Upside to price target (%)
-        buy_pct: Percentage of analysts with buy rating
-        pct_52w: Percentage from 52-week high
-        price_200dma_pct: Price as % of 200DMA (e.g., 105 = 5% above)
-        pef: Forward P/E ratio
-        pet: Trailing P/E ratio
-        roe: Return on equity (%)
-        de: Debt to equity ratio (%)
-        fcf_yield: Free cash flow yield (%)
-        buy_scoring_config: Configuration dict with weights
-        analyst_momentum: 3-month change in buy% (e.g., +5 means buy% rose 5pp)
-
-    Returns:
-        Score 0-100 (higher = stronger BUY conviction)
+    Components and weights:
+    - Valuation (PET + PEF/PET + FCF yield) — 25%
+    - Quality (ROE + D/E) — 25%
+    - Upside (analyst targets) — 20%
+    - Analyst momentum (earnings revision drift) — 15%
+    - Momentum (12M-1M proxy via 52W sweet spot) — 10%
+    - Consensus (flat — confirmed r=-0.007 at T+30) — 5%
     """
-    w_upside = buy_scoring_config.get("weight_upside", 0.22)
-    w_consensus = buy_scoring_config.get("weight_consensus", 0.13)
-    w_momentum = buy_scoring_config.get("weight_momentum", 0.20)
-    w_valuation = buy_scoring_config.get("weight_valuation", 0.18)
-    w_fundamental = buy_scoring_config.get("weight_fundamental", 0.17)
-    w_analyst_momentum = buy_scoring_config.get("weight_analyst_momentum", 0.10)
+    w_upside = buy_scoring_config.get("weight_upside", 0.20)
+    w_consensus = buy_scoring_config.get("weight_consensus", 0.05)
+    w_momentum = buy_scoring_config.get("weight_momentum", 0.10)
+    w_valuation = buy_scoring_config.get("weight_valuation", 0.25)
+    w_fundamental = buy_scoring_config.get("weight_fundamental", 0.25)
+    w_analyst_momentum = buy_scoring_config.get("weight_analyst_momentum", 0.15)
 
-    # === UPSIDE (0-100) — continuous ===
+    # === UPSIDE (0-100) — analyst 12M targets (r=+0.134 at T+30) ===
     upside_score = float(
         np.interp(
             upside, [0, 8, 10, 12, 15, 20, 25, 30, 40, 50], [0, 15, 25, 35, 45, 55, 65, 75, 90, 100]
         )
     )
 
-    # === CONSENSUS (flat 50) — buy% is contrarian indicator above quality floor ===
+    # === CONSENSUS (flat 50) — confirmed zero predictive power (r=-0.007 at T+30) ===
     consensus_score = 50.0
 
-    # === MOMENTUM (0-100) — 52W continuous + 200DMA continuous ===
+    # === MOMENTUM (0-100) — 12M-1M proxy (Jegadeesh-Titman 1993) ===
+    # Stocks at 75-90% of 52W high = strong intermediate trend with recent pullback
+    # (the "skip month" zone). Near-peak (95%+) penalized for short-term reversal.
+    # 200DMA used as risk filter: below = penalty, above = no bonus.
     if not pd.isna(pct_52w):
         pct52w_score = float(
             np.interp(
-                pct_52w, [40, 55, 65, 70, 75, 80, 85, 90, 95], [0, 5, 15, 22, 28, 34, 40, 46, 50]
+                pct_52w,
+                [40, 55, 65, 75, 80, 85, 90, 95, 100],
+                [0, 5, 20, 45, 50, 50, 45, 30, 20],
             )
         )
     else:
-        pct52w_score = 25.0  # Neutral if unknown
+        pct52w_score = 25.0
 
+    # 200DMA: risk filter only — below penalizes, above is neutral
+    dma200_penalty = 0.0
     if not pd.isna(price_200dma_pct):
-        dma200_score = float(
-            np.interp(price_200dma_pct, [90, 95, 100, 105, 110, 120], [0, 10, 25, 40, 50, 50])
-        )
-    else:
-        dma200_score = 20.0  # Partial score if unknown
+        if price_200dma_pct < 100:
+            dma200_penalty = float(
+                np.interp(price_200dma_pct, [80, 90, 95, 100], [-30, -15, -5, 0])
+            )
 
-    momentum_score = pct52w_score + dma200_score  # Both contribute, max ~100
+    momentum_score = float(np.clip(pct52w_score * 2 + dma200_penalty, 0, 100))
 
-    # === VALUATION (0-100) — PET inverted-U (sweet spot 12-25) + PEF/PET ratio ===
+    # === VALUATION (0-100) — PET + PEF/PET + FCF yield (r=-0.130 at T+30) ===
+    # FCF yield promoted from fundamental to valuation (Sloan 1996, Lakonishok 1994)
     if not pd.isna(pet) and pet > 0:
         pet_valuation = float(
             np.interp(
@@ -309,9 +300,9 @@ def calculate_buy_score(
             )
         )
     elif not pd.isna(pet) and pet < 0:
-        pet_valuation = 10.0  # Losses
+        pet_valuation = 10.0
     else:
-        pet_valuation = 40.0  # Neutral if unknown
+        pet_valuation = 40.0
 
     pef_pet_adj = 0.0
     if not pd.isna(pef) and not pd.isna(pet) and pet > 10 and pef > 10:
@@ -322,35 +313,37 @@ def calculate_buy_score(
             )
         )
 
-    valuation_score = float(np.clip(pet_valuation + pef_pet_adj, 0, 100))
+    fcf_val_adj = 0.0
+    if not pd.isna(fcf_yield):
+        fcf_val_adj = float(
+            np.interp(fcf_yield, [-5, 0, 2, 4, 6, 8, 12], [-10, 0, 8, 15, 22, 28, 35])
+        )
 
-    # === FUNDAMENTAL (0-100) — ROE base + D/E adjustment + FCF adjustment ===
+    valuation_score = float(np.clip(pet_valuation + pef_pet_adj + fcf_val_adj, 0, 100))
+
+    # === QUALITY (0-100) — ROE + D/E (r=+0.117 and r=-0.113 at T+30) ===
     if not pd.isna(roe):
         roe_score = float(
             np.interp(roe, [0, 5, 8, 10, 12, 15, 20, 25, 30], [15, 25, 35, 45, 55, 65, 80, 90, 100])
         )
     else:
-        roe_score = 40.0  # Neutral if unknown
+        roe_score = 40.0
 
     de_adj = 0.0
     if not pd.isna(de):
         de_adj = float(
-            np.interp(de, [0, 30, 50, 80, 100, 150, 200, 300], [20, 15, 10, 5, 0, -10, -20, -30])
+            np.interp(de, [0, 30, 50, 80, 100, 150, 200, 300], [25, 20, 12, 5, 0, -12, -25, -40])
         )
 
-    fcf_adj = 0.0
-    if not pd.isna(fcf_yield):
-        fcf_adj = float(np.interp(fcf_yield, [-5, 0, 1, 2, 3, 5, 8], [-5, 0, 3, 6, 8, 12, 18]))
+    fundamental_score = float(np.clip(roe_score + de_adj, 0, 100))
 
-    fundamental_score = float(np.clip(roe_score + de_adj + fcf_adj, 0, 100))
-
-    # === ANALYST MOMENTUM (0-100) — continuous ===
+    # === ANALYST MOMENTUM (0-100) — PEAD drift (Bernard-Thomas 1989) ===
     if not pd.isna(analyst_momentum):
         am_score = float(
             np.interp(analyst_momentum, [-15, -10, -5, 0, 5, 10, 15], [0, 15, 30, 50, 70, 85, 100])
         )
     else:
-        am_score = 50.0  # Neutral if unknown
+        am_score = 50.0
 
     # === WEIGHTED TOTAL ===
     total_score = (

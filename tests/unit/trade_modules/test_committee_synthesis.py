@@ -7379,44 +7379,46 @@ class TestV41OverweightQualityGate:
         assert "overweight_forced_trim" not in waterfall
 
 
-class TestV41ModifierDeprecations:
-    """CIO v41: 4 V35-active modifiers moved to V37_DEPRECATED after calibration.
+class TestV42EmpiricalModifiers:
+    """CIO v42: Single empirically-grounded modifier set from T+30 calibration.
 
-    Calibration data (n=1504 obs, T+30) showed these had wrong-direction effect:
-    - currency_risk_USD: -3 penalty but stocks went +2.64% alpha
-    - fcf_quality_strong: +2 bonus but stocks went -5.84% alpha
-    - sector_concentration: -4.46 penalty but stocks went +2.08% alpha
-    - short_interest_weakness: -3 penalty but stocks went +5.08% alpha
+    5 active modifiers (PREDICTIVE or strong SHADOW).
+    sector_concentration restored (was wrongly deprecated in V37 — calibration
+    shows rho=-0.321, the strongest PREDICTIVE signal).
     """
 
-    def test_currency_risk_usd_not_in_active(self):
-        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
+    def test_active_modifiers_is_empirical_set(self):
+        from trade_modules.committee_synthesis import ACTIVE_MODIFIERS
 
-        assert "currency_risk_USD" not in V35_ACTIVE_MODIFIERS
+        assert "piotroski_quality" in ACTIVE_MODIFIERS
+        assert "consensus_crowded" in ACTIVE_MODIFIERS
+        assert "sector_concentration" in ACTIVE_MODIFIERS
+        assert "tech_disagree" in ACTIVE_MODIFIERS
+        assert "revenue_growth" in ACTIVE_MODIFIERS
+        assert len(ACTIVE_MODIFIERS) == 5
 
-    def test_fcf_quality_strong_not_in_active(self):
-        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
+    def test_deprecated_noise_modifiers_not_active(self):
+        from trade_modules.committee_synthesis import ACTIVE_MODIFIERS
 
-        assert "fcf_quality_strong" not in V35_ACTIVE_MODIFIERS
+        for noise in [
+            "census_alignment",
+            "currency_risk_USD",
+            "fcf_quality_strong",
+            "short_interest_weakness",
+            "iv_low_entry",
+            "news_catalyst_neg",
+            "news_catalyst_pos",
+            "target_consensus",
+            "volume_confirm",
+        ]:
+            assert noise not in ACTIVE_MODIFIERS, f"{noise} should be deprecated"
 
-    def test_sector_concentration_not_in_active(self):
-        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
+    def test_deprecated_set_documents_removals(self):
+        from trade_modules.committee_synthesis import V_DEPRECATED
 
-        assert "sector_concentration" not in V35_ACTIVE_MODIFIERS
-
-    def test_short_interest_weakness_not_in_active(self):
-        from trade_modules.committee_synthesis import V35_ACTIVE_MODIFIERS
-
-        assert "short_interest_weakness" not in V35_ACTIVE_MODIFIERS
-
-    def test_deprecated_v37_set_documents_removals(self):
-        """V37_DEPRECATED set exists and contains the 4 disabled modifiers."""
-        from trade_modules.committee_synthesis import V37_DEPRECATED
-
-        assert "currency_risk_USD" in V37_DEPRECATED
-        assert "fcf_quality_strong" in V37_DEPRECATED
-        assert "sector_concentration" in V37_DEPRECATED
-        assert "short_interest_weakness" in V37_DEPRECATED
+        assert "currency_risk_USD" in V_DEPRECATED
+        assert "census_alignment" in V_DEPRECATED
+        assert "volume_confirm" in V_DEPRECATED
 
 
 class TestV41KillThesisPenaltyReduced:
@@ -7509,10 +7511,10 @@ class TestV41CensusAlignmentTightened:
         waterfall = result.get("conviction_waterfall", {})
         assert "census_alignment" not in waterfall
 
-    def test_strong_divergence_fires(self):
-        """div_score < -30 still fires +5 (strong contrarian signal preserved)."""
+    def test_strong_divergence_shadow_tracked(self):
+        """div_score < -30 computed but shadow-tracked (V42: census_alignment deprecated)."""
         result = synthesize_stock(**self._kw(div_score=-35))
         waterfall = result.get("conviction_waterfall", {})
-        assert waterfall.get("census_alignment") == 5, (
-            f"Expected census_alignment=+5 for div_score=-35, got {waterfall.get('census_alignment')}"
+        assert waterfall.get("~census_alignment") == 5, (
+            f"Expected ~census_alignment=+5 (shadow) for div_score=-35, got waterfall: {waterfall}"
         )

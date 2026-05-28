@@ -59,7 +59,7 @@ class BacktestEngine:
         self.signal_log_path = signal_log_path or SIGNAL_LOG_PATH
         self.output_dir = output_dir or OUTPUT_DIR
         self.cache_path = cache_path or CACHE_PATH
-        self.horizons = horizons or [7, 30]
+        self.horizons = horizons or [7, 30, 90]
 
     def run(self) -> None:
         """Execute the full backtest pipeline."""
@@ -72,13 +72,19 @@ class BacktestEngine:
             return
         print(f"Loaded {len(signals_df)} unique signal-date pairs")
 
-        # Step 2: Fetch price data
+        # Step 2: Fetch price data (always include SPY for alpha calculation)
         tickers = signals_df["ticker"].unique().tolist()
+        if "SPY" not in tickers:
+            tickers.append("SPY")
         min_date = signals_df["date"].min() - timedelta(days=5)
         max_date = datetime.now().date()
         print(f"Fetching price history for {len(tickers)} tickers...")
         price_data, spy_data = self.fetch_price_history(tickers, min_date, max_date)
         print(f"Price data: {len(price_data.columns)} tickers, {len(price_data)} trading days")
+        if spy_data.empty:
+            print("  WARNING: SPY data unavailable — alpha will not be computed")
+        else:
+            print(f"  SPY data: {len(spy_data)} trading days")
 
         # Step 3: Backfill missing signal prices
         signals_df = self.backfill_signal_prices(signals_df, price_data)
@@ -271,7 +277,7 @@ class BacktestEngine:
             except Exception as e:
                 logger.debug(f"Cache save failed: {e}")
 
-        # Fetch SPY separately
+        # Extract SPY from batch data (SPY is now always included in tickers)
         spy_data = pd.Series(dtype=float)
         if "SPY" in price_data.columns:
             spy_data = price_data["SPY"].dropna()
@@ -285,9 +291,15 @@ class BacktestEngine:
                     auto_adjust=True,
                 )
                 if not spy_raw.empty:
-                    spy_data = spy_raw["Close"].squeeze()
+                    close_col = spy_raw.get("Close")
+                    if close_col is not None:
+                        spy_data = (
+                            close_col.squeeze() if hasattr(close_col, "squeeze") else close_col
+                        )
+                    else:
+                        spy_data = spy_raw.iloc[:, 0]
             except Exception as e:
-                logger.warning(f"Failed to fetch SPY: {e}")
+                logger.warning(f"Failed to fetch SPY benchmark: {e}")
 
         # Ensure index is DatetimeIndex
         if not isinstance(price_data.index, pd.DatetimeIndex):
