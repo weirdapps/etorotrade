@@ -23,6 +23,7 @@ from yahoofinance.utils.dependency_injection import registry
 
 from .analysis.tiers import _parse_market_cap
 from .cli import get_user_source_choice
+from .sharding import apply_shard_from_env
 from .utils import get_file_paths
 
 
@@ -1090,6 +1091,15 @@ async def main_async_with_args(args, app_logger=None):
                 app_logger.info("Handling eToro analysis")
 
             tickers = display.load_tickers("E")
+            # Optional sharding: when SHARD_COUNT>1 (set per matrix job in CI),
+            # process only this shard's slice so each parallel job stays under
+            # GitHub's 6h runner cap. No-op for local/committee runs.
+            tickers = apply_shard_from_env(tickers)
+            if app_logger and os.environ.get("SHARD_COUNT", "1") != "1":
+                app_logger.info(
+                    f"Sharded universe: {len(tickers)} tickers "
+                    f"(shard {os.environ.get('SHARD_INDEX', '0')}/{os.environ.get('SHARD_COUNT')})"
+                )
             await display_market_report(
                 display, tickers, "E", verbose=True, get_provider=provider, app_logger=app_logger
             )
