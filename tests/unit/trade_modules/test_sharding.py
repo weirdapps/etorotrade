@@ -134,3 +134,15 @@ def test_merge_csvs_roundtrip(tmp_path):
 def test_merge_csvs_errors_on_no_shards(tmp_path):
     with pytest.raises(FileNotFoundError):
         merge_shard_csvs(str(tmp_path), str(tmp_path / "etoro.csv"))
+
+
+def test_merge_shards_cli_main(tmp_path):
+    from scripts.merge_shards import main
+
+    _frame([["AAPL", "Apple", "3T", "B"]]).to_csv(tmp_path / "etoro_shard_0.csv", index=False)
+    _frame([["MSFT", "Microsoft", "2T", "H"]]).to_csv(tmp_path / "etoro_shard_1.csv", index=False)
+    out = tmp_path / "etoro.csv"
+    rc = main(["--shard-dir", str(tmp_path), "--output", str(out)])
+    assert rc == 0
+    assert out.exists()
+    assert sorted(pd.read_csv(out)["TKR"]) == ["AAPL", "MSFT"]
