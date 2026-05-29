@@ -7,6 +7,8 @@ Covers the daily-signals sharding helpers:
 - merge_shard_frames / merge_shard_csvs: recombine per-shard outputs into etoro.csv
 """
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -146,3 +148,32 @@ def test_merge_shards_cli_main(tmp_path):
     assert rc == 0
     assert out.exists()
     assert sorted(pd.read_csv(out)["TKR"]) == ["AAPL", "MSFT"]
+
+
+def test_merge_shards_runs_as_script(tmp_path):
+    """`python scripts/merge_shards.py` (how CI invokes it) must resolve the
+    trade_modules import. Script mode puts scripts/ on sys.path, not the repo
+    root, so the script must bootstrap the root itself. Importing main() (above)
+    can't catch this regression — only executing the script as a subprocess does."""
+    import subprocess
+    import sys
+
+    repo_root = Path(__file__).resolve().parents[3]
+    _frame([["AAPL", "Apple", "3T", "B"]]).to_csv(tmp_path / "etoro_shard_0.csv", index=False)
+    _frame([["MSFT", "Microsoft", "2T", "H"]]).to_csv(tmp_path / "etoro_shard_1.csv", index=False)
+    out = tmp_path / "etoro.csv"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "merge_shards.py"),
+            "--shard-dir",
+            str(tmp_path),
+            "--output",
+            str(out),
+        ],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert out.exists()
