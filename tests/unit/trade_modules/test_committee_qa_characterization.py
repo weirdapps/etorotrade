@@ -379,7 +379,7 @@ class TestNormalizeAgentReportsCharacterization:
         # Macro normalizations
         assert "indicators" in macro
         assert macro["indicators"]["vix"] == pytest.approx(19.2)
-        assert macro["regime"]["classification"] == "CAUTIOUS"
+        assert macro["regime"] == "CAUTIOUS"
         assert "portfolio_implications" in macro
         assert macro["portfolio_implications"]["AAA"]["fit"] == "FAVORABLE"
         # sector_rankings NOT enriched because portfolio_implications exists
