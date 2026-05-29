@@ -2,11 +2,10 @@ name: Daily Trading Signals
 
 on:
   schedule:
-    # Run at 22:00 UTC daily (after US market close at 21:00 UTC)
-    # This is 00:00 Athens time (winter) or 01:00 Athens time (summer)
-    # Trade takes ~4-5 hours, so finishes by ~02:00-03:00 UTC
-    # Census runs at 00:00 UTC (~02:00-03:00 UTC actual)
-    # Both complete well before morning briefing at 12:00 UTC (07:00 ET)
+    # Run at 22:00 UTC daily (after US market close at 21:00 UTC).
+    # 00:00 Athens (winter) / 01:00 (summer). The market scan is sharded across
+    # parallel jobs so each finishes well under GitHub's hard 6h per-job cap;
+    # the merge job recombines the slices, derives buy/sell/hold, and commits.
     - cron: '0 22 * * *'
   workflow_dispatch: # Allow manual triggering
 
@@ -19,9 +18,64 @@ permissions:
   contents: read
 
 jobs:
-  generate-signals:
+  # ---------------------------------------------------------------------------
+  # Stage 1 — scan the universe in parallel shards, each safely under the 6h cap.
+  # Pure compute: no secrets, no push. Each shard uploads its slice as an artifact.
+  # ---------------------------------------------------------------------------
+  scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 540  # ~9h; universe grew from 5K to 12.5K tickers
+    timeout-minutes: 330  # 5.5h — under GitHub's hard 6h hosted-runner cap, so a
+                          # genuinely stuck shard fails cleanly instead of being
+                          # opaquely killed at 6h.
+    env:
+      SHARD_COUNT: "6"  # MUST equal the length of matrix.shard below
+    strategy:
+      fail-fast: false  # one slow/failed shard shouldn't abort the others
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install production deps (hashed lockfile)
+        run: |
+          pip install --only-binary :all: --require-hashes -r requirements-lock.txt
+
+      - name: Validate configuration
+        run: python trade.py --validate-config
+
+      - name: Run market/eToro signals for this shard (trade e)
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}  # SHARD_COUNT inherited from job env
+        run: |
+          echo "Scanning shard ${SHARD_INDEX}/${SHARD_COUNT}..."
+          python trade.py -o e
+          mv yahoofinance/output/etoro.csv "etoro_shard_${SHARD_INDEX}.csv"
+          echo "Shard ${SHARD_INDEX} complete: $(wc -l < etoro_shard_${SHARD_INDEX}.csv) lines"
+
+      - name: Upload shard output
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: etoro-shard-${{ matrix.shard }}
+          path: etoro_shard_${{ matrix.shard }}.csv
+          retention-days: 1
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Stage 2 — merge shard slices into etoro.csv, refresh portfolio, derive
+  # buy/sell/hold, health-check, and commit. Needs secrets + write; runs once,
+  # only after every shard succeeds.
+  # ---------------------------------------------------------------------------
+  merge:
+    runs-on: ubuntu-latest
+    needs: scan
+    timeout-minutes: 45
     permissions:
       contents: write  # Required for git push
 
@@ -43,6 +97,19 @@ jobs:
 
       - name: Validate configuration
         run: python trade.py --validate-config
+
+      - name: Download shard outputs
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: etoro-shard-*
+          path: shards
+          merge-multiple: true
+
+      - name: Merge shards into etoro.csv
+        run: |
+          echo "Merging shard slices..."
+          python scripts/merge_shards.py --shard-dir shards --output yahoofinance/output/etoro.csv
+          echo "Merge complete: $(wc -l < yahoofinance/output/etoro.csv) lines"
 
       - name: Download fresh portfolio from eToro
         env:
@@ -71,12 +138,6 @@ jobs:
           echo "Running portfolio analysis..."
           python trade.py -o p
           echo "Portfolio signals complete"
-
-      - name: Run market/eToro signals (trade e)
-        run: |
-          echo "Running market analysis..."
-          python trade.py -o e
-          echo "Market signals complete"
 
       - name: Generate filtered trade files (buy/sell/hold)
         run: |
@@ -195,10 +256,10 @@ jobs:
             yahoofinance/output/hold.csv
           retention-days: 30
 
-  # Failure notification
+  # Failure notification (fires if any shard or the merge fails)
   notify-failure:
     runs-on: ubuntu-latest
-    needs: generate-signals
+    needs: [scan, merge]
     if: failure()
     permissions:
       contents: read
@@ -209,7 +270,9 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const runUrl =
+              `https://github.com/${context.repo.owner}/${context.repo.repo}` +
+              `/actions/runs/${context.runId}`;
             const date = new Date().toISOString().split('T')[0];
 
             // Check for existing open issues
@@ -236,7 +299,14 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: `Daily Signals Failed - ${date}`,
-                body: `## Daily Trading Signals Generation Failed\n\n**Date**: ${date}\n**Workflow Run**: ${runUrl}\n\n### Common Issues\n- Yahoo Finance API rate limiting\n- Network timeouts\n- Configuration validation failure\n\n---\n*Auto-created by signals failure alerting*`,
+                body:
+                  `## Daily Trading Signals Generation Failed\n\n` +
+                  `**Date**: ${date}\n**Workflow Run**: ${runUrl}\n\n` +
+                  `### Common Issues\n` +
+                  `- Yahoo Finance API rate limiting\n` +
+                  `- Network timeouts\n` +
+                  `- Configuration validation failure\n\n` +
+                  `---\n*Auto-created by signals failure alerting*`,
                 labels: ['signals-failure', 'automated', 'bug']
               });
             }
