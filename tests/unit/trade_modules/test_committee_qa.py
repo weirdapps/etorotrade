@@ -198,11 +198,10 @@ class TestNormalize:
         normalize_agent_reports(macro, {}, {}, {}, {})
         assert macro["indicators"] == macro["macro_indicators"]
 
-    def test_regime_string_to_dict(self):
+    def test_regime_string_passthrough(self):
         macro = {"regime": "RISK_ON"}
-        fixes = normalize_agent_reports(macro, {}, {}, {}, {})
-        assert macro["regime"] == {"classification": "RISK_ON"}
-        assert any("regime" in f for f in fixes)
+        normalize_agent_reports(macro, {}, {}, {}, {})
+        assert macro["regime"] == "RISK_ON"
 
     def test_regime_dict_unchanged(self):
         macro = {"regime": {"classification": "CAUTIOUS", "confidence": 80}}
