@@ -870,18 +870,14 @@ class TestConfigYaml:
         with open("config.yaml") as f:
             config = yaml.safe_load(f)
         sell = config["default_sell_scoring"]
-        assert sell["weight_analyst"] == pytest.approx(0.20)  # Reduced — EXRET tautology
-        assert sell["weight_valuation"] == pytest.approx(
-            0.20
-        )  # Increased — PET is strongest value signal
+        assert sell["weight_analyst"] == pytest.approx(0.20)
+        assert sell["weight_valuation"] == pytest.approx(0.25)
         assert sell["weight_fundamental"] == pytest.approx(0.25)
+        assert sell["weight_analyst_momentum"] == pytest.approx(0.15)
 
         buy = config["default_buy_scoring"]
-        assert buy["weight_consensus"] == pytest.approx(
-            0.13
-        )  # Reduced — buy% is contrarian indicator
-        assert buy["weight_valuation"] == pytest.approx(
-            0.18
-        )  # Increased — PET is strongest value signal
-        assert buy["weight_fundamental"] == pytest.approx(0.17)
-        assert buy["weight_upside"] == pytest.approx(0.22)
+        assert buy["weight_consensus"] == pytest.approx(0.05)
+        assert buy["weight_valuation"] == pytest.approx(0.25)
+        assert buy["weight_fundamental"] == pytest.approx(0.25)
+        assert buy["weight_upside"] == pytest.approx(0.20)
+        assert buy["weight_analyst_momentum"] == pytest.approx(0.15)
