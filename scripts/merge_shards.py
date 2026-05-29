@@ -15,11 +15,15 @@ import logging
 import sys
 from pathlib import Path
 
-from trade_modules.sharding import merge_shard_csvs
+_ROOT = Path(__file__).resolve().parent.parent
+# Running as a script (`python scripts/merge_shards.py`) puts scripts/ on
+# sys.path, not the repo root — bootstrap the root so trade_modules imports.
+sys.path.insert(0, str(_ROOT))
+
+from trade_modules.sharding import merge_shard_csvs  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-_ROOT = Path(__file__).parent.parent
 _DEFAULT_OUTPUT = str(_ROOT / "yahoofinance" / "output" / "etoro.csv")
 
 
