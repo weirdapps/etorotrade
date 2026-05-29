@@ -79,11 +79,11 @@ class TestACTIVE_MODIFIERSv36:
                 f"{mod} fires constant Δ in our data (NaN ρ) — drop from ACTIVE"
             )
 
-    def test_inverted_piotroski_is_not_active(self):
-        """Piotroski has ρ=−0.23 (high quality → LOWER returns) — drop pending review."""
+    def test_piotroski_is_active(self):
+        """Piotroski has ρ=−0.230 n=136 — PREDICTIVE (negative rho is correct for penalty modifier)."""
         from trade_modules.committee_synthesis import ACTIVE_MODIFIERS
 
-        assert "piotroski_quality" not in ACTIVE_MODIFIERS
+        assert "piotroski_quality" in ACTIVE_MODIFIERS
 
     def test_shadow_modifiers_with_large_n_are_not_active(self):
         """SHADOW with n≥150 confirms no edge → remove."""
