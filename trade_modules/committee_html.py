@@ -3023,13 +3023,17 @@ def generate_report_html(
         # already-detected clusters (combined weight is the gap this table had).
         _cluster_exposures: list[dict[str, Any]] = []
         _cluster_alerts: list[dict[str, Any]] = []
+        _soft_cap, _hard_cap = 30.0, 35.0
         if display_clusters:
             try:
                 from trade_modules.cluster_monitor import (
+                    DEFAULT_HARD_PCT,
+                    DEFAULT_SOFT_PCT,
                     check_cluster_alerts,
                     exposure_from_known_clusters,
                 )
 
+                _soft_cap, _hard_cap = DEFAULT_SOFT_PCT, DEFAULT_HARD_PCT
                 _cluster_exposures = exposure_from_known_clusters(_cur_pos_map, display_clusters)
                 _cluster_alerts = check_cluster_alerts(_cluster_exposures)
             except Exception:  # never let a monitor glitch break the report
@@ -3062,8 +3066,8 @@ def generate_report_html(
                 )
                 _wt_color = (
                     _C["bear"]
-                    if _wt >= 35.0
-                    else (_C["warn_text"] if _wt >= 30.0 else _C["text_dark"])
+                    if _wt >= _hard_cap
+                    else (_C["warn_text"] if _wt >= _soft_cap else _C["text_dark"])
                 )
                 h.append(
                     f'<tr style="background:{bg};">'
@@ -3091,7 +3095,7 @@ def generate_report_html(
                     f"<b>&#9888; {e(_al['level'])} concentration</b> &mdash; "
                     f"{e(', '.join(_al['tickers'][:6]))} = "
                     f"<b>{_al['combined_weight_pct']:.1f}%</b> of book "
-                    f"(limit {_al['limit_pct']:.0f}%). Deliberate hold — keep monitored.</div>"
+                    f"(limit {_al['limit_pct']:.0f}%). Deliberate hold &mdash; keep monitored.</div>"
                 )
 
         # Correlation regime shift warning
