@@ -554,3 +554,20 @@ def test_report_renders_cluster_weight_and_hard_alert():
     assert "Weight" in html
     assert "36.0%" in html
     assert "HARD concentration" in html
+
+
+def test_report_renders_currency_exposure_section():
+    synth = _minimal_synth()
+    synth.setdefault("portfolio_constraints", {})["current_stock_exposures"] = {
+        "NVDA": 30.0,
+        "GLD": 10.0,
+        "0700.HK": 25.0,
+        "DTE.DE": 20.0,
+        "6758.T": 15.0,
+    }
+    html = generate_report_html(
+        synth, fund={}, tech={}, macro={}, census={}, news={}, opps={}, risk={}
+    )
+    assert "Currency Exposure" in html
+    assert "USD bloc" in html
+    assert "65.0%" in html  # USD(40 NVDA+GLD) + HKD(25), USD-pegged
