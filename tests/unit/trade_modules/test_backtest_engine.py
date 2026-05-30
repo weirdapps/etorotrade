@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 
 from trade_modules.backtest_engine import (
+    MIN_PROVEN_OBSERVATIONS,
     TEST_TICKER_RE,
     BacktestEngine,
     ThresholdAnalyzer,
@@ -738,3 +739,23 @@ class TestConfidenceIntervals:
         # With small sample near 50%, CI should span 50
         if stats["hit_rate_ci_lo"] < 50 < stats["hit_rate_ci_hi"]:
             assert stats.get("proven_signal") is False
+
+
+def _cell(n, ret=1.0, alpha=1.0):
+    return pd.DataFrame({"stock_return": [ret] * n, "alpha": [alpha] * n})
+
+
+class TestProvenSampleFloor:
+    def test_min_proven_observations_is_30(self):
+        assert MIN_PROVEN_OBSERVATIONS == 30
+
+    def test_small_sample_is_not_proven_even_if_ci_excludes_50(self):
+        # 10 winners -> hit-rate CI excludes 50 but n < floor
+        stats = BacktestEngine._compute_group_stats(_cell(10), "B")
+        assert stats["count"] == 10
+        assert stats["low_sample"] is True
+        assert stats["proven_signal"] is False
+
+    def test_large_sample_with_ci_excluding_50_is_proven(self):
+        stats = BacktestEngine._compute_group_stats(_cell(200), "B")
+        assert stats["proven_signal"] is True

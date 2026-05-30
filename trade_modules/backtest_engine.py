@@ -35,6 +35,11 @@ TEST_TICKER_RE = re.compile(r"^(STOCK\d+|BUY\d+|SELL\d+|HOLD\d+|WEAK\d*)$")
 # Valid signals for analysis
 VALID_SIGNALS = {"B", "S", "H"}
 
+# A signal cell is only "proven" with at least this many observations.
+# Mirrors the existing low_sample threshold (n<30); prevents tiny cells
+# (e.g. a 10-obs T+90 cell) from being flagged proven on CI width alone.
+MIN_PROVEN_OBSERVATIONS = 30
+
 
 class BacktestEngine:
     """
@@ -493,10 +498,12 @@ class BacktestEngine:
             bootstrap_ci(returns.values, stat_fn=np.mean) if len(returns) > 0 else (np.nan, np.nan)
         )
 
-        # Proven signal: CI doesn't span 50%
-        proven = True
-        if not np.isnan(ci_lo) and not np.isnan(ci_hi):
+        # Proven signal: enough observations AND hit-rate CI doesn't span 50%.
+        proven = n >= MIN_PROVEN_OBSERVATIONS
+        if proven and not np.isnan(ci_lo) and not np.isnan(ci_hi):
             proven = not (ci_lo < 50 < ci_hi)
+        elif np.isnan(ci_lo) or np.isnan(ci_hi):
+            proven = False
 
         return {
             "count": n,
