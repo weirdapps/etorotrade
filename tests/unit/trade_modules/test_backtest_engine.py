@@ -759,3 +759,57 @@ class TestProvenSampleFloor:
     def test_large_sample_with_ci_excluding_50_is_proven(self):
         stats = BacktestEngine._compute_group_stats(_cell(200), "B")
         assert stats["proven_signal"] is True
+
+
+# ============================================================
+# Phase 2 Task 1: beta-adjusted + EUR-denominated alpha
+# ============================================================
+
+
+def _bt():
+    return BacktestEngine.__new__(BacktestEngine)
+
+
+def test_trailing_beta_recovers_known_beta():
+    rng = np.random.default_rng(0)
+    dates = pd.bdate_range("2025-01-01", periods=160)
+    spy_ret = rng.normal(0, 0.01, len(dates))
+    spy = pd.Series(100 * np.cumprod(1 + spy_ret), index=dates)
+    stock = pd.Series(100 * np.cumprod(1 + 2.0 * spy_ret), index=dates)
+    b = BacktestEngine._trailing_beta(stock, spy, dates[-1], lookback=120, min_obs=30)
+    assert abs(b - 2.0) < 0.05
+
+
+def test_trailing_beta_nan_when_insufficient():
+    dates = pd.bdate_range("2025-01-01", periods=10)
+    s = pd.Series(range(1, 11), index=dates, dtype=float)
+    assert np.isnan(BacktestEngine._trailing_beta(s, s, dates[-1], lookback=120, min_obs=30))
+
+
+def test_eur_alpha_columns_present_and_usd_alpha_unchanged():
+    dates = pd.bdate_range("2025-01-01", periods=40)
+    stock = pd.Series(np.linspace(100, 110, 40), index=dates)  # +10%
+    spy = pd.Series(np.linspace(100, 105, 40), index=dates)  # +5%
+    eurusd = pd.Series(np.linspace(1.00, 1.10, 40), index=dates)  # EUR strengthens 10%
+    price_data = pd.DataFrame({"AAA": stock})
+    signals = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "signal": "B",
+                "date": dates[0],
+                "price_at_signal": 100.0,
+                "tier": "MID",
+                "region": "US",
+            }
+        ]
+    )
+    eng = _bt()
+    out = eng.calculate_returns(signals, price_data, spy, horizon=39, fx_data={"USD": eurusd})
+    row = out.iloc[0]
+    assert abs(row["alpha"] - (row["stock_return"] - row["spy_return"])) < 1e-6
+    assert abs(row["stock_return"] - 10.0) < 0.5
+    assert abs(row["stock_return_eur"] - 0.0) < 0.5  # 10% USD gain offset by 10% EUR strength
+    assert (
+        "beta" in out.columns and "alpha_eur" in out.columns and "beta_adj_alpha_eur" in out.columns
+    )

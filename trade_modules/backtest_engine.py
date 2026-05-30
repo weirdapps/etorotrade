@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from trade_modules.fx_sizing import currency_for_ticker
+
 logger = logging.getLogger(__name__)
 
 # Paths
@@ -39,6 +41,21 @@ VALID_SIGNALS = {"B", "S", "H"}
 # Mirrors the existing low_sample threshold (n<30); prevents tiny cells
 # (e.g. a 10-obs T+90 cell) from being flagged proven on CI width alone.
 MIN_PROVEN_OBSERVATIONS = 30
+
+# CIO Phase 2: EUR-base FX pairs (XXX per 1 EUR) for EUR-denominated alpha.
+_CCY_TO_EUR_PAIR = {
+    "USD": "EURUSD=X",
+    "JPY": "EURJPY=X",
+    "HKD": "EURHKD=X",
+    "GBP": "EURGBP=X",
+    "CHF": "EURCHF=X",
+    "AUD": "EURAUD=X",
+    "CAD": "EURCAD=X",
+    "SEK": "EURSEK=X",
+    "NOK": "EURNOK=X",
+    "KRW": "EURKRW=X",
+    "CNY": "EURCNY=X",
+}
 
 
 class BacktestEngine:
@@ -85,6 +102,8 @@ class BacktestEngine:
         max_date = datetime.now().date()
         print(f"Fetching price history for {len(tickers)} tickers...")
         price_data, spy_data = self.fetch_price_history(tickers, min_date, max_date)
+        _ccys = {currency_for_ticker(t) for t in signals_df["ticker"].unique()}
+        fx_data = self.fetch_fx_history(_ccys, min_date, max_date)
         print(f"Price data: {len(price_data.columns)} tickers, {len(price_data)} trading days")
         if spy_data.empty:
             print("  WARNING: SPY data unavailable — alpha will not be computed")
@@ -100,7 +119,9 @@ class BacktestEngine:
         all_results = []
         for horizon in self.horizons:
             print(f"\nCalculating T+{horizon} returns...")
-            results = self.calculate_returns(signals_df, price_data, spy_data, horizon)
+            results = self.calculate_returns(
+                signals_df, price_data, spy_data, horizon, fx_data=fx_data
+            )
             if not results.empty:
                 results["horizon"] = horizon
                 all_results.append(results)
@@ -314,6 +335,26 @@ class BacktestEngine:
 
         return price_data, spy_data
 
+    def fetch_fx_history(self, currencies, start_date, end_date) -> dict[str, pd.Series]:
+        """{currency: EUR-base daily FX Series}; missing pairs omitted. Always
+        includes USD (SPY is USD). Best-effort — never raises into the backtest."""
+        wanted = {c for c in currencies if c in _CCY_TO_EUR_PAIR}
+        wanted.add("USD")
+        pairs = {c: _CCY_TO_EUR_PAIR[c] for c in wanted}
+        try:
+            fx_df, _ = self._fetch_price_history_legacy(list(pairs.values()), start_date, end_date)
+        except Exception as exc:
+            logger.warning("FX fetch failed: %s", exc)
+            return {}
+        out: dict[str, pd.Series] = {}
+        for ccy, sym in pairs.items():
+            cols = getattr(fx_df, "columns", [])
+            if sym in cols:
+                s = fx_df[sym].dropna()
+                if not s.empty:
+                    out[ccy] = s
+        return out
+
     def backfill_signal_prices(
         self, signals_df: pd.DataFrame, price_data: pd.DataFrame
     ) -> pd.DataFrame:
@@ -347,12 +388,31 @@ class BacktestEngine:
 
         return df
 
+    @staticmethod
+    def _trailing_beta(
+        ticker_prices, spy_data, signal_date, lookback: int = 120, min_obs: int = 30
+    ) -> float:
+        """cov/var beta from daily returns over the lookback window ending at signal_date."""
+        s = ticker_prices[ticker_prices.index <= signal_date].tail(lookback + 1)
+        m = spy_data[spy_data.index <= signal_date].tail(lookback + 1)
+        sr = s.pct_change().dropna()
+        mr = m.pct_change().dropna()
+        idx = sr.index.intersection(mr.index)
+        if len(idx) < min_obs:
+            return float("nan")
+        sr, mr = sr.loc[idx], mr.loc[idx]
+        var = float(mr.var())
+        if var <= 0 or np.isnan(var):
+            return float("nan")
+        return float(sr.cov(mr) / var)
+
     def calculate_returns(
         self,
         signals_df: pd.DataFrame,
         price_data: pd.DataFrame,
         spy_data: pd.Series,
         horizon: int,
+        fx_data: dict[str, pd.Series] | None = None,
     ) -> pd.DataFrame:
         """
         Calculate actual returns at T+horizon trading days for each signal.
@@ -400,6 +460,39 @@ class BacktestEngine:
                         spy_return = (spy_future - spy_at_signal) / spy_at_signal * 100
                         alpha = stock_return - spy_return
 
+            beta = self._trailing_beta(ticker_prices, spy_data, signal_date)
+
+            def _fx_factor(ccy):
+                if ccy == "EUR":
+                    return 1.0
+                if not fx_data:
+                    return None
+                fx = fx_data.get(ccy)
+                if fx is None:
+                    return None
+                try:
+                    s_idx = fx.index[fx.index >= signal_date]
+                    f_idx = fx.index[fx.index >= future_date]
+                    if len(s_idx) == 0 or len(f_idx) == 0:
+                        return None
+                    fx_s = float(fx.loc[s_idx[0]])
+                    fx_f = float(fx.loc[f_idx[0]])
+                    return (fx_s / fx_f) if (fx_s > 0 and fx_f > 0) else None
+                except (IndexError, KeyError):
+                    return None
+
+            stock_return_eur = spy_return_eur = alpha_eur = beta_adj_alpha_eur = np.nan
+            _sfx = _fx_factor(currency_for_ticker(ticker))
+            _mfx = _fx_factor("USD")
+            if _sfx is not None:
+                stock_return_eur = ((1 + stock_return / 100.0) * _sfx - 1) * 100.0
+            if _mfx is not None and not np.isnan(spy_return):
+                spy_return_eur = ((1 + spy_return / 100.0) * _mfx - 1) * 100.0
+            if not np.isnan(stock_return_eur) and not np.isnan(spy_return_eur):
+                alpha_eur = stock_return_eur - spy_return_eur
+                if not np.isnan(beta):
+                    beta_adj_alpha_eur = stock_return_eur - beta * spy_return_eur
+
             results.append(
                 {
                     "ticker": ticker,
@@ -412,6 +505,11 @@ class BacktestEngine:
                     "stock_return": stock_return,
                     "spy_return": spy_return,
                     "alpha": alpha,
+                    "beta": beta,
+                    "stock_return_eur": stock_return_eur,
+                    "spy_return_eur": spy_return_eur,
+                    "alpha_eur": alpha_eur,
+                    "beta_adj_alpha_eur": beta_adj_alpha_eur,
                 }
             )
 
@@ -468,6 +566,13 @@ class BacktestEngine:
         n = len(gdf)
         returns = gdf["stock_return"].dropna()
         alphas = gdf["alpha"].dropna()
+        betas = gdf["beta"].dropna() if "beta" in gdf else pd.Series(dtype=float)
+        alphas_eur = gdf["alpha_eur"].dropna() if "alpha_eur" in gdf else pd.Series(dtype=float)
+        baa_eur = (
+            gdf["beta_adj_alpha_eur"].dropna()
+            if "beta_adj_alpha_eur" in gdf
+            else pd.Series(dtype=float)
+        )
 
         if signal_type == "B":
             hits_arr = (returns > 0).astype(int).values
@@ -524,6 +629,9 @@ class BacktestEngine:
             "mean_return_ci_hi": round(ret_ci_hi, 2) if not np.isnan(ret_ci_hi) else None,
             "median_return": round(returns.median(), 2) if len(returns) > 0 else None,
             "avg_alpha": round(alphas.mean(), 2) if len(alphas) > 0 else None,
+            "avg_beta": round(betas.mean(), 2) if len(betas) > 0 else None,
+            "avg_alpha_eur": round(alphas_eur.mean(), 2) if len(alphas_eur) > 0 else None,
+            "avg_beta_adj_alpha_eur": round(baa_eur.mean(), 2) if len(baa_eur) > 0 else None,
             "low_sample": n < 30,
             "proven_signal": proven,
         }
