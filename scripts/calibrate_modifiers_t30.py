@@ -507,7 +507,7 @@ def analyze_modifier(
     return out
 
 
-def _spearman_rho_p_value(rec: dict[str, Any]) -> float:
+def _record_rho(rec: dict[str, Any]) -> float:
     """Return a modifier record's ρ as a float (NaN if None) for the classifier."""
     r = rec.get("spearman_rho")
     return float("nan") if r is None else float(r)
@@ -650,7 +650,7 @@ def main(
         rec["bh_significant"] = bh.get(name, False)
         if rigorous and "ci_lower" in rec:
             rec["verdict"] = classify_verdict_rigorous(
-                _spearman_rho_p_value(rec),
+                _record_rho(rec),
                 rec["n"],
                 ci_lower=rec.get("ci_lower"),
                 ci_upper=rec.get("ci_upper"),

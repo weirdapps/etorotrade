@@ -299,3 +299,34 @@ class TestGatePolicyCarryForward:
         # Carried forward — NOT restamped to today.
         assert data["gate_policy"]["last_review"] == "2026-01-01"
         assert data["gate_policy"]["cadence_days"] == 90
+
+
+class TestMainRigorousVerdict:
+    def test_rigorous_main_marks_strong_modifier_predictive(self, tmp_path, monkeypatch):
+        import json as _json
+
+        from scripts import calibrate_modifiers_t30 as mod
+
+        hist_dir = tmp_path / "history"
+        hist_dir.mkdir()
+        for date in ["2026-01-01", "2026-01-02", "2026-01-03"]:
+            rows = [
+                {"ticker": f"T{j:03d}", "conviction_waterfall": {"good_mod": float(j - 20)}}
+                for j in range(40)
+            ]
+            with open(hist_dir / f"concordance-{date}.json", "w") as f:
+                _json.dump({"date": date, "concordance": rows}, f)
+
+        def fake_alpha_lookup(observations, **_kwargs):
+            return {(o["ticker"], o["date"]): o["value"] for o in observations}
+
+        monkeypatch.setattr(mod, "compute_alpha_lookup", fake_alpha_lookup)
+        out_path = tmp_path / "calibration.json"
+        mod.main(history_dir=hist_dir, output_path=out_path, rigorous=True)
+
+        data = _json.loads(out_path.read_text())
+        good = data["modifiers"]["good_mod"]
+        assert good["bh_significant"] is True
+        assert (
+            good["verdict"] == "PREDICTIVE"
+        )  # rigorous classifier ran in main(), not the provisional basic verdict
