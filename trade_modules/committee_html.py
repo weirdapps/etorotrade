@@ -3178,7 +3178,7 @@ def generate_report_html(
         if _fx_exp and _fx_exp["by_currency"]:
             h.append(
                 _section_open(
-                    "Currency Exposure & FX Hedge",
+                    "Currency Exposure &amp; FX Hedge",
                     "EUR-home view: currency split of the book and the EURUSD hedge implied "
                     "at 0/50/100% of the USD bloc (recommend-only &mdash; no standing hedge set).",
                 )
