@@ -5084,6 +5084,45 @@ class TestEnrichWithPositionSizes:
         assert risk_off_conc[0]["suggested_size_usd"] < normal_conc[0]["suggested_size_usd"]
 
 
+class TestClusterPenaltyInSizing:
+    """Phase 1.5: gated cluster haircut in the live sizing path."""
+
+    def _buy_entry(self, ticker="NVDA", conviction=70):
+        return {
+            "ticker": ticker,
+            "action": "BUY",
+            "conviction": conviction,
+            "market_cap": "Large Cap",
+        }
+
+    def test_flag_defaults_off(self):
+        import trade_modules.conviction_sizer as cz
+
+        assert cz.APPLY_CLUSTER_PENALTY_IN_SIZING is False
+
+    def test_clusters_ignored_when_flag_off(self):
+        from trade_modules.committee_synthesis import enrich_with_position_sizes
+
+        clusters = [{"stocks": ["NVDA", "MSFT", "AVGO", "AMD"]}]
+        a = [self._buy_entry()]
+        enrich_with_position_sizes(a, correlation_clusters=clusters)
+        b = [self._buy_entry()]
+        enrich_with_position_sizes(b, correlation_clusters=None)
+        assert a[0]["suggested_size_usd"] == b[0]["suggested_size_usd"]
+
+    def test_clustered_ticker_is_smaller_when_flag_on(self, monkeypatch):
+        import trade_modules.conviction_sizer as cz
+        from trade_modules.committee_synthesis import enrich_with_position_sizes
+
+        monkeypatch.setattr(cz, "APPLY_CLUSTER_PENALTY_IN_SIZING", True)
+        clusters = [{"stocks": ["NVDA", "MSFT", "AVGO", "AMD"]}]  # size 4 -> 0.5x
+        clustered = [self._buy_entry("NVDA")]
+        enrich_with_position_sizes(clustered, correlation_clusters=clusters)
+        uncl = [self._buy_entry("NVDA")]
+        enrich_with_position_sizes(uncl, correlation_clusters=[{"stocks": ["XOM", "CVX", "COP"]}])
+        assert clustered[0]["suggested_size_usd"] < uncl[0]["suggested_size_usd"]
+
+
 # ============================================================
 # CIO v14.0: Conviction Effectiveness Review Tests
 # ============================================================
