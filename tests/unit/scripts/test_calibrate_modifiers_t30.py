@@ -260,3 +260,42 @@ class TestEligibilityForActivation:
             is_eligible_for_activation(n=300, rho=-0.3, bh_significant=True, prior_rho=None)
             is False
         )
+
+
+class TestGatePolicyCarryForward:
+    def test_main_carries_forward_prior_last_review(self, tmp_path, monkeypatch):
+        import json as _json
+
+        from scripts import calibrate_modifiers_t30 as mod
+
+        out_path = tmp_path / "calibration.json"
+        # Seed a prior calibration whose gate was last reviewed long ago.
+        out_path.write_text(
+            _json.dumps(
+                {
+                    "gate_policy": {"cadence_days": 90, "last_review": "2026-01-01"},
+                    "modifiers": {},
+                }
+            )
+        )
+
+        hist_dir = tmp_path / "history"
+        hist_dir.mkdir()
+        for date in ["2026-05-01", "2026-05-02"]:
+            rows = [
+                {"ticker": f"T{j:03d}", "conviction_waterfall": {"good_mod": float(j - 20)}}
+                for j in range(40)
+            ]
+            with open(hist_dir / f"concordance-{date}.json", "w") as f:
+                _json.dump({"date": date, "concordance": rows}, f)
+
+        def fake_alpha_lookup(observations, **_kwargs):
+            return {(o["ticker"], o["date"]): o["value"] for o in observations}
+
+        monkeypatch.setattr(mod, "compute_alpha_lookup", fake_alpha_lookup)
+        mod.main(history_dir=hist_dir, output_path=out_path)
+
+        data = _json.loads(out_path.read_text())
+        # Carried forward — NOT restamped to today.
+        assert data["gate_policy"]["last_review"] == "2026-01-01"
+        assert data["gate_policy"]["cadence_days"] == 90
