@@ -228,13 +228,19 @@ class BacktestEngine:
         start_date,
         end_date,
         batch_size: int = 500,
+        cache: bool = True,
     ) -> tuple[pd.DataFrame, pd.Series]:
-        """Legacy price fetching via direct yfinance calls."""
+        """Legacy price fetching via direct yfinance calls.
+
+        When ``cache`` is False, both the cache read and the cache write are
+        skipped — used for FX-pair fetches so EUR=X symbols never pollute the
+        shared equity price cache.
+        """
         import yfinance as yf
 
         # Load cache if available
         cached_df = pd.DataFrame()
-        if self.cache_path.exists():
+        if cache and self.cache_path.exists():
             try:
                 cached_df = pd.read_parquet(self.cache_path)
                 logger.info(f"Loaded price cache: {cached_df.shape}")
@@ -295,7 +301,7 @@ class BacktestEngine:
             price_data = pd.DataFrame()
 
         # Save updated cache
-        if not price_data.empty and new_frames:
+        if cache and not price_data.empty and new_frames:
             try:
                 self.cache_path.parent.mkdir(parents=True, exist_ok=True)
                 price_data.to_parquet(self.cache_path)
@@ -342,7 +348,9 @@ class BacktestEngine:
         wanted.add("USD")
         pairs = {c: _CCY_TO_EUR_PAIR[c] for c in wanted}
         try:
-            fx_df, _ = self._fetch_price_history_legacy(list(pairs.values()), start_date, end_date)
+            fx_df, _ = self._fetch_price_history_legacy(
+                list(pairs.values()), start_date, end_date, cache=False
+            )
         except Exception as exc:
             logger.warning("FX fetch failed: %s", exc)
             return {}
@@ -393,6 +401,17 @@ class BacktestEngine:
         ticker_prices, spy_data, signal_date, lookback: int = 120, min_obs: int = 30
     ) -> float:
         """cov/var beta from daily returns over the lookback window ending at signal_date."""
+        if (
+            spy_data is None
+            or getattr(spy_data, "empty", True)
+            or ticker_prices is None
+            or ticker_prices.empty
+        ):
+            return float("nan")
+        if not isinstance(spy_data.index, pd.DatetimeIndex) or not isinstance(
+            ticker_prices.index, pd.DatetimeIndex
+        ):
+            return float("nan")
         s = ticker_prices[ticker_prices.index <= signal_date].tail(lookback + 1)
         m = spy_data[spy_data.index <= signal_date].tail(lookback + 1)
         sr = s.pct_change().dropna()
@@ -491,6 +510,9 @@ class BacktestEngine:
             if not np.isnan(stock_return_eur) and not np.isnan(spy_return_eur):
                 alpha_eur = stock_return_eur - spy_return_eur
                 if not np.isnan(beta):
+                    # NOTE: beta is estimated in USD daily returns but applied to EUR-
+                    # converted returns (FX-beta drift ignored) — acceptable for this
+                    # measurement overlay, not a strict EUR-CAPM.
                     beta_adj_alpha_eur = stock_return_eur - beta * spy_return_eur
 
             results.append(
