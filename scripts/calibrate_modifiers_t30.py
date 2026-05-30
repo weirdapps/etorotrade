@@ -300,7 +300,7 @@ def classify_verdict(rho: float, p_value: float, n: int) -> str:
 # CIO v36 N4 — research-rigor utilities for the calibrator
 #
 # These add three best-practice guards to the verdict pipeline:
-#   1. Bonferroni multiple-comparison correction across modifiers tested
+#   1. Benjamini-Hochberg FDR control across all modifiers tested
 #   2. Bootstrap 95% CI around each ρ — only PREDICTIVE if lower-CI > 0
 #   3. Walk-forward train/test split — test on data the calibration didn't see
 #
@@ -308,11 +308,25 @@ def classify_verdict(rho: float, p_value: float, n: int) -> str:
 # at α=0.05) to <1 expected over many tests.
 
 
-def bonferroni_threshold(n_tests: int, alpha: float = 0.05) -> float:
-    """Bonferroni-adjusted significance threshold for n_tests."""
-    if n_tests <= 0:
-        return alpha
-    return alpha / n_tests
+def benjamini_hochberg(pvalues: dict[str, float], alpha: float = 0.05) -> dict[str, bool]:
+    """Benjamini-Hochberg FDR control across all tested modifiers.
+
+    Returns {name: True/False} where True == survives FDR at `alpha`.
+    Controlling the false-discovery rate is the right correction when
+    screening many modifiers (Harvey-Liu-Zhu 2016): testing ~80 modifiers
+    at nominal p<0.05 guarantees spurious hits. BH is a *set* procedure —
+    it needs every p-value at once, which is why it lives here and is applied
+    in main(), not inside the per-modifier classifier.
+    """
+    if not pvalues:
+        return {}
+    items = sorted(pvalues.items(), key=lambda kv: kv[1])
+    m = len(items)
+    max_k = 0
+    for k, (_name, p) in enumerate(items, start=1):
+        if p <= (k / m) * alpha:
+            max_k = k
+    return {name: (rank <= max_k) for rank, (name, _p) in enumerate(items, start=1)}
 
 
 def bootstrap_spearman_ci(
@@ -388,20 +402,15 @@ def walk_forward_splits(
 
 def classify_verdict_rigorous(
     rho: float,
-    p_value: float,
     n: int,
     ci_lower: float | None = None,
     ci_upper: float | None = None,
-    n_modifiers_tested: int = 1,
+    bh_significant: bool = False,
 ) -> str:
-    """Verdict that applies Bonferroni + bootstrap CI gates on top of basics.
+    """Verdict that applies BH (FDR) + bootstrap-CI gates on top of the basics.
 
-    PREDICTIVE requires:
-      - p_value passes Bonferroni-adjusted threshold (0.05 / n_modifiers_tested)
-      - Bootstrap 95% CI lower bound is above 0 (sign confidence)
-      - |ρ| ≥ PREDICTIVE_RHO
-
-    WEAK requires nominal p<0.05 and |ρ| ≥ WEAK_RHO regardless of CI/Bonferroni.
+    PREDICTIVE requires: survives BH, bootstrap 95% CI not straddling 0, |ρ|≥PREDICTIVE_RHO.
+    WEAK requires: survives BH and |ρ|≥WEAK_RHO (without BH it's a likely false positive).
     """
     if isinstance(rho, float) and math.isnan(rho):
         return "DROP"
@@ -409,42 +418,71 @@ def classify_verdict_rigorous(
         return "INSUFFICIENT_DATA"
 
     abs_rho = abs(rho)
-    bonf_alpha = bonferroni_threshold(n_modifiers_tested)
-    passes_bonf = p_value < bonf_alpha
-
-    # CI must not straddle zero for PREDICTIVE
     ci_strictly_positive = (
         ci_lower is not None
         and ci_upper is not None
         and ((ci_lower > 0 and ci_upper > 0) or (ci_lower < 0 and ci_upper < 0))
     )
 
-    if abs_rho >= PREDICTIVE_RHO and passes_bonf and ci_strictly_positive:
+    if abs_rho >= PREDICTIVE_RHO and bh_significant and ci_strictly_positive:
         return "PREDICTIVE"
-    # WEAK under rigor requires Bonferroni-adjusted significance too.
-    # Without it, a nominal p<0.05 win is likely a false positive given
-    # how many modifiers we test simultaneously — demote to SHADOW.
-    if abs_rho >= WEAK_RHO and passes_bonf:
+    if abs_rho >= WEAK_RHO and bh_significant:
         return "WEAK"
     return "SHADOW"
+
+
+def is_eligible_for_activation(
+    *,
+    n: int,
+    rho: float | None,
+    bh_significant: bool,
+    prior_rho: float | None,
+    min_obs: int = MIN_OBSERVATIONS,
+    min_rho: float = PREDICTIVE_RHO,
+) -> bool:
+    """A modifier may enter ACTIVE_MODIFIERS only if ALL hold:
+    1. n >= min_obs (default 30)
+    2. |rho| >= min_rho (default 0.10)
+    3. survives Benjamini-Hochberg FDR
+    4. SIGN HYSTERESIS: same sign as the previous review (prior_rho).
+       prior_rho is None (no prior review) -> NOT yet eligible: a modifier
+       must persist across two consecutive reviews. Direct fix for the
+       sector_concentration 12-day sign-flip.
+    """
+    if rho is None or (isinstance(rho, float) and math.isnan(rho)):
+        return False
+    if n < min_obs:
+        return False
+    if abs(rho) < min_rho:
+        return False
+    if not bh_significant:
+        return False
+    if prior_rho is None:
+        return False
+    return (rho >= 0) == (prior_rho >= 0)
+
+
+def _load_prior_calibration(output_path: Path) -> dict:
+    """Load the previous calibration JSON (for prior_rho + freeze date), or {}."""
+    try:
+        with open(output_path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 
 def analyze_modifier(
     name: str,
     values: list[float],
     alphas: list[float],
-    n_modifiers_tested: int = 1,
     rigorous: bool = False,
 ) -> dict[str, Any]:
     """Compute predictive metrics for one modifier.
 
-    Returns: {modifier, n, spearman_rho, p_value, sign, verdict}.
-    `sign` is +1 if rho > 0, -1 if < 0, 0 if NaN. The synthesis pipeline
-    can use this to detect inverted modifiers (sign opposite of expected).
-
-    CIO v36 N4: when rigorous=True, also computes bootstrap 95% CI and
-    applies Bonferroni correction across n_modifiers_tested. The verdict
-    field uses the rigorous classifier.
+    Returns {modifier, n, spearman_rho, p_value, sign, verdict}. In rigorous
+    mode also adds ci_lower/ci_upper; the final rigorous verdict and
+    bh_significant are assigned by main() once every modifier's p-value is
+    known (BH is a set procedure).
     """
     rho, p = _spearman_rho_p(values, alphas)
     n = len(values)
@@ -458,26 +496,21 @@ def analyze_modifier(
         "spearman_rho": None if math.isnan(rho) else round(rho, 4),
         "p_value": round(p, 4),
         "sign": sign,
+        "verdict": classify_verdict(rho, p, n),  # provisional in rigorous mode
     }
 
     if rigorous and n >= MIN_OBSERVATIONS:
         ci_lo, ci_hi = bootstrap_spearman_ci(values, alphas, n_resamples=300, seed=42)
         out["ci_lower"] = round(ci_lo, 4) if ci_lo is not None else None
         out["ci_upper"] = round(ci_hi, 4) if ci_hi is not None else None
-        out["bonferroni_alpha"] = round(bonferroni_threshold(n_modifiers_tested), 6)
-        out["verdict"] = classify_verdict_rigorous(
-            rho,
-            p,
-            n,
-            ci_lower=ci_lo,
-            ci_upper=ci_hi,
-            n_modifiers_tested=n_modifiers_tested,
-        )
-        out["verdict_legacy"] = classify_verdict(rho, p, n)
-    else:
-        out["verdict"] = classify_verdict(rho, p, n)
 
     return out
+
+
+def _spearman_rho_p_value(rec: dict[str, Any]) -> float:
+    """Return a modifier record's ρ as a float (NaN if None) for the classifier."""
+    r = rec.get("spearman_rho")
+    return float("nan") if r is None else float(r)
 
 
 # ─── Main entry ─────────────────────────────────────────────────────────────
@@ -572,6 +605,9 @@ def main(
     output_path = Path(output_path)
     cache_dir = Path(cache_dir)
 
+    prior = _load_prior_calibration(output_path)
+    prior_mods = prior.get("modifiers", {}) if isinstance(prior, dict) else {}
+
     obs = extract_modifier_observations(history_dir)
     if not obs:
         logger.warning("No modifier observations extracted from %s", history_dir)
@@ -598,16 +634,31 @@ def main(
         by_mod[o["modifier"]].append((o["value"], alpha))
 
     modifiers = {}
-    n_tested = len(by_mod)
     for name, pairs in sorted(by_mod.items()):
         values = [p[0] for p in pairs]
         alphas = [p[1] for p in pairs]
-        modifiers[name] = analyze_modifier(
-            name,
-            values,
-            alphas,
-            n_modifiers_tested=n_tested,
-            rigorous=rigorous,
+        modifiers[name] = analyze_modifier(name, values, alphas, rigorous=rigorous)
+
+    # Benjamini-Hochberg across every modifier with a p-value (set procedure).
+    bh = benjamini_hochberg(
+        {k: v["p_value"] for k, v in modifiers.items() if v.get("p_value") is not None}
+    )
+    for name, rec in modifiers.items():
+        rec["bh_significant"] = bh.get(name, False)
+        if rigorous and "ci_lower" in rec:
+            rec["verdict"] = classify_verdict_rigorous(
+                _spearman_rho_p_value(rec),
+                rec["n"],
+                ci_lower=rec.get("ci_lower"),
+                ci_upper=rec.get("ci_upper"),
+                bh_significant=rec["bh_significant"],
+            )
+        prior_rho = (prior_mods.get(name, {}) or {}).get("spearman_rho")
+        rec["eligible_for_activation"] = is_eligible_for_activation(
+            n=rec["n"],
+            rho=rec.get("spearman_rho"),
+            bh_significant=rec["bh_significant"],
+            prior_rho=prior_rho,
         )
 
     result = {
@@ -631,6 +682,18 @@ def main(
                 k for k, v in modifiers.items() if v["verdict"] == "INSUFFICIENT_DATA"
             ),
         },
+        "gate_policy": {
+            "cadence_days": 90,
+            "last_review": datetime.now().strftime("%Y-%m-%d"),
+            "note": (
+                "Modifiers enter ACTIVE_MODIFIERS only when eligible_for_activation "
+                "is True in TWO consecutive quarterly reviews. Do not hand-edit the "
+                "set off-cadence."
+            ),
+        },
+        "eligible_for_activation": sorted(
+            k for k, v in modifiers.items() if v.get("eligible_for_activation")
+        ),
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -659,7 +722,12 @@ def _cli() -> int:
     parser.add_argument(
         "--rigorous",
         action="store_true",
-        help="Apply Bonferroni correction + bootstrap CI to verdicts",
+        help="Apply Benjamini-Hochberg FDR correction + bootstrap CI to verdicts",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Print the eligible ACTIVE_MODIFIERS set. Refused inside the 90-day freeze.",
     )
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
@@ -674,6 +742,22 @@ def _cli() -> int:
         benchmark=args.benchmark,
         rigorous=args.rigorous,
     )
+
+    if args.apply:
+        prior = _load_prior_calibration(args.output)
+        last = (prior.get("gate_policy") or {}).get("last_review")
+        if last:
+            days = (datetime.now() - datetime.strptime(last, "%Y-%m-%d")).days
+            if days < 90:
+                print(
+                    f"REFUSED: gate frozen — last review {last} ({days}d ago, <90). "
+                    "Re-run after the freeze window."
+                )
+                return 2
+        print("ELIGIBLE modifiers (BH + sign-hysteresis, 2-review confirmed):")
+        for k in result.get("eligible_for_activation", []):
+            print(f"  {k}")
+        return 0
 
     # Console summary
     print("=" * 70)
