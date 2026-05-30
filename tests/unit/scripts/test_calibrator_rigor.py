@@ -4,30 +4,32 @@ N4: Research-rigor improvements to the M11 modifier calibrator.
 Adds three best-practice statistical improvements:
 1. Walk-forward validation: split observations into rolling train/test
    windows so we test on data the calibration didn't see.
-2. Multiple-comparison correction (Bonferroni): with 63 modifiers
-   tested, ~3 will look "p<0.05" by pure chance. Adjust threshold.
+2. Multiple-comparison correction (Benjamini-Hochberg FDR): with ~80
+   modifiers tested, several will look "p<0.05" by pure chance. BH
+   controls the false-discovery rate across the whole set.
 3. Bootstrap 95% CI on every Spearman ρ: only mark PREDICTIVE if the
    lower CI bound is above zero (not just the point estimate).
 """
 
-import pytest
 
+class TestBenjaminiHochberg:
+    def test_smallest_p_survives_largest_does_not(self):
+        from scripts.calibrate_modifiers_t30 import benjamini_hochberg
 
-class TestBonferroniCorrection:
-    def test_bonferroni_adjusted_threshold_default(self):
-        from scripts.calibrate_modifiers_t30 import bonferroni_threshold
+        adj = benjamini_hochberg({"a": 0.001, "b": 0.20, "c": 0.04, "d": 0.9}, alpha=0.05)
+        assert adj["a"] is True
+        assert adj["d"] is False
 
-        # 63 modifiers tested at α=0.05 → adjusted = 0.05 / 63 ≈ 0.000794
-        assert bonferroni_threshold(63, alpha=0.05) == pytest.approx(
-            0.05 / 63,
-            abs=1e-6,
-        )
+    def test_all_null_none_survive(self):
+        from scripts.calibrate_modifiers_t30 import benjamini_hochberg
 
-    def test_bonferroni_with_one_test(self):
-        from scripts.calibrate_modifiers_t30 import bonferroni_threshold
+        adj = benjamini_hochberg({"a": 0.6, "b": 0.7, "c": 0.9}, alpha=0.05)
+        assert adj == {"a": False, "b": False, "c": False}
 
-        # Single test → no correction needed
-        assert bonferroni_threshold(1, alpha=0.05) == pytest.approx(0.05)
+    def test_empty_returns_empty(self):
+        from scripts.calibrate_modifiers_t30 import benjamini_hochberg
+
+        assert benjamini_hochberg({}, alpha=0.05) == {}
 
 
 class TestBootstrapCI:
@@ -87,49 +89,28 @@ class TestWalkForwardSplit:
 
 
 class TestVerdictWithRigor:
-    """classify_verdict should be more conservative with rigor enabled."""
+    """classify_verdict_rigorous consumes a precomputed BH boolean + bootstrap CI."""
 
-    def test_significant_p_but_fails_bonferroni_demoted_to_shadow(self):
+    def test_fails_bh_demoted_to_shadow(self):
         from scripts.calibrate_modifiers_t30 import classify_verdict_rigorous
 
-        # ρ above threshold + nominal p<0.05 but FAILS Bonferroni 0.000794
         verdict = classify_verdict_rigorous(
-            rho=0.15,
-            p_value=0.04,
-            n=200,
-            ci_lower=0.05,
-            ci_upper=0.25,
-            n_modifiers_tested=63,
+            rho=0.15, n=200, ci_lower=0.05, ci_upper=0.25, bh_significant=False
         )
-        # Bonferroni-corrected α=0.000794, p=0.04 fails → SHADOW
         assert verdict == "SHADOW"
 
-    def test_passes_all_rigor_gates_marked_predictive(self):
+    def test_passes_all_gates_marked_predictive(self):
         from scripts.calibrate_modifiers_t30 import classify_verdict_rigorous
 
-        # Strong rho, very low p, lower CI > 0
         verdict = classify_verdict_rigorous(
-            rho=0.30,
-            p_value=1e-8,
-            n=300,
-            ci_lower=0.20,
-            ci_upper=0.40,
-            n_modifiers_tested=63,
+            rho=0.30, n=300, ci_lower=0.20, ci_upper=0.40, bh_significant=True
         )
         assert verdict == "PREDICTIVE"
 
-    def test_lower_ci_below_zero_demoted_to_weak(self):
+    def test_lower_ci_below_zero_not_predictive(self):
         from scripts.calibrate_modifiers_t30 import classify_verdict_rigorous
 
-        # Point estimate looks fine but bootstrap CI includes 0
         verdict = classify_verdict_rigorous(
-            rho=0.12,
-            p_value=0.0001,
-            n=200,
-            ci_lower=-0.02,
-            ci_upper=0.26,
-            n_modifiers_tested=63,
+            rho=0.12, n=200, ci_lower=-0.02, ci_upper=0.26, bh_significant=True
         )
-        # CI straddles 0 → not enough confidence for PREDICTIVE
-        assert verdict in ("WEAK", "SHADOW")
         assert verdict != "PREDICTIVE"

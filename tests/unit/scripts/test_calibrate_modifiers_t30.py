@@ -219,3 +219,44 @@ class TestMain:
         assert data["modifiers"]["good_mod"]["verdict"] == "PREDICTIVE"
         # noise_mod constant value → DROP
         assert data["modifiers"]["noise_mod"]["verdict"] == "DROP"
+
+
+class TestEligibilityForActivation:
+    def test_passes_all_gates_including_sign_consistency(self):
+        from scripts.calibrate_modifiers_t30 import is_eligible_for_activation
+
+        assert (
+            is_eligible_for_activation(n=202, rho=-0.321, bh_significant=True, prior_rho=-0.28)
+            is True
+        )
+
+    def test_sign_flip_vs_prior_is_blocked(self):
+        from scripts.calibrate_modifiers_t30 import is_eligible_for_activation
+
+        assert (
+            is_eligible_for_activation(n=202, rho=+0.20, bh_significant=True, prior_rho=-0.28)
+            is False
+        )
+
+    def test_too_few_obs_blocked(self):
+        from scripts.calibrate_modifiers_t30 import is_eligible_for_activation
+
+        assert (
+            is_eligible_for_activation(n=15, rho=-0.4, bh_significant=True, prior_rho=-0.3) is False
+        )
+
+    def test_fails_multiple_testing_blocked(self):
+        from scripts.calibrate_modifiers_t30 import is_eligible_for_activation
+
+        assert (
+            is_eligible_for_activation(n=300, rho=0.12, bh_significant=False, prior_rho=0.12)
+            is False
+        )
+
+    def test_no_prior_review_blocked(self):
+        from scripts.calibrate_modifiers_t30 import is_eligible_for_activation
+
+        assert (
+            is_eligible_for_activation(n=300, rho=-0.3, bh_significant=True, prior_rho=None)
+            is False
+        )
