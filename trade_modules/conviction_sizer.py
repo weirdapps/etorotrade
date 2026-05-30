@@ -329,12 +329,15 @@ def get_cluster_size_adjustment(
     """
     Calculate position size adjustment for correlation clusters.
 
-    CIO Legacy C4: Dampened adjustment that considers conviction and
-    correlation strength. The original 1/sqrt(N) is mathematically sound
-    for independent positions but too aggressive because:
-    1. Correlated stocks may have different factor exposures
-    2. Correlations change, especially in regime shifts
-    3. High-conviction stocks deserve a smaller penalty
+    CIO v43 (default, CLUSTER_PENALTY_USES_CONVICTION=False): returns the
+    pure 1/sqrt(N) correlation penalty, independent of conviction. Conviction
+    has ~zero forward-alpha correlation (see CONVICTION_CLAMP_TO_UNITY), so
+    using it to shrink a *risk* penalty would hand noisy "high-conviction"
+    names less risk control — backwards.
+
+    Legacy CIO C4 (CLUSTER_PENALTY_USES_CONVICTION=True): dampens the penalty
+    by conviction so higher-conviction names in a correlated cluster take a
+    smaller cut. Preserved for backtesting; backtest the flip before promoting.
 
     Task #6: Integrate correlation clusters into position sizing.
 
@@ -342,10 +345,12 @@ def get_cluster_size_adjustment(
         ticker: Stock ticker symbol
         clusters: List of cluster dicts from portfolio_risk.flag_correlation_clusters()
                  Each cluster has 'tickers' key with list of ticker symbols
-        conviction: Stock's conviction score (0-100), used to dampen the penalty
+        conviction: Stock's conviction score (0-100). Inert by default; only
+                 dampens the penalty when CLUSTER_PENALTY_USES_CONVICTION=True.
 
     Returns:
-        Adjustment multiplier (1.0 if not in cluster, dampened 1/sqrt(N) otherwise)
+        Adjustment multiplier: 1.0 if not in cluster; pure 1/sqrt(N) by
+        default, or conviction-dampened 1/sqrt(N) when the flag is on.
     """
     for cluster in clusters:
         cluster_tickers = cluster.get("tickers", [])
