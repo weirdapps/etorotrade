@@ -3019,6 +3019,23 @@ def generate_report_html(
                     )
             display_clusters.sort(key=lambda x: -x.get("avg_correlation", 0))
 
+        # Phase 1.5: portfolio-weight exposure + concentration alerts for the
+        # already-detected clusters (combined weight is the gap this table had).
+        _cluster_exposures: list[dict[str, Any]] = []
+        _cluster_alerts: list[dict[str, Any]] = []
+        if display_clusters:
+            try:
+                from trade_modules.cluster_monitor import (
+                    check_cluster_alerts,
+                    exposure_from_known_clusters,
+                )
+
+                _cluster_exposures = exposure_from_known_clusters(_cur_pos_map, display_clusters)
+                _cluster_alerts = check_cluster_alerts(_cluster_exposures)
+            except Exception:  # never let a monitor glitch break the report
+                _cluster_exposures = []
+                _cluster_alerts = []
+
         if display_clusters:
             h.append(
                 f'<div style="{_LABEL}color:{_C["bear"]};margin:16px 0 8px 0;">Correlation Clusters</div>'
@@ -3028,6 +3045,7 @@ def generate_report_html(
                 f'<tr style="border-bottom:2px solid {_C["border"]};">'
                 f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Cluster</th>'
                 f'<th style="padding:6px 10px;text-align:center;{_LABEL}width:60px;">Corr</th>'
+                f'<th style="padding:6px 10px;text-align:center;{_LABEL}width:70px;">Weight</th>'
                 f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Risk Note</th></tr>'
             )
             for i, cl in enumerate(display_clusters[:5]):
@@ -3037,6 +3055,16 @@ def generate_report_html(
                 bg = _C["bear_bg"] if i % 2 == 0 else _C["bg_white"]
                 bar_w = min(ac * 100, 100)
                 pills = _pill_list(stks[:5], _C["bg_alt"], _C["text_dark"], _C["border"])
+                _wt = (
+                    _cluster_exposures[i]["combined_weight_pct"]
+                    if i < len(_cluster_exposures)
+                    else 0.0
+                )
+                _wt_color = (
+                    _C["bear"]
+                    if _wt >= 35.0
+                    else (_C["warn_text"] if _wt >= 30.0 else _C["text_dark"])
+                )
                 h.append(
                     f'<tr style="background:{bg};">'
                     f'<td style="padding:6px 10px;">{pills}</td>'
@@ -3045,10 +3073,26 @@ def generate_report_html(
                     f'<div style="height:3px;background:{_C["border"]};margin-top:3px;">'
                     f'<div style="height:100%;background:{_C["bear"]};'
                     f'width:{bar_w:.0f}%;"></div></div></td>'
+                    f'<td style="padding:6px 10px;text-align:center;{_MONO}'
+                    f'font-weight:700;color:{_wt_color};">{_wt:.1f}%</td>'
                     f'<td style="padding:6px 10px;font-size:11px;color:{_C["text_muted"]};">'
                     f"{e(str(rn)[:80])}</td></tr>"
                 )
             h.append("</table>")
+
+            for _al in _cluster_alerts:
+                _bc = _C["bear"] if _al["level"] == "HARD" else _C["warn_text"]
+                _bbg = _C["bear_bg"] if _al["level"] == "HARD" else _C["warn_bg"]
+                _bbd = _C["bear_border"] if _al["level"] == "HARD" else _C["warn_border"]
+                h.append(
+                    f'<div style="background:{_bbg};border:1px solid {_bbd};'
+                    f"border-left:4px solid {_bc};padding:10px 14px;margin:10px 0;"
+                    f'font-size:12px;color:{_bc};">'
+                    f"<b>&#9888; {e(_al['level'])} concentration</b> &mdash; "
+                    f"{e(', '.join(_al['tickers'][:6]))} = "
+                    f"<b>{_al['combined_weight_pct']:.1f}%</b> of book "
+                    f"(limit {_al['limit_pct']:.0f}%). Deliberate hold — keep monitored.</div>"
+                )
 
         # Correlation regime shift warning
         if corr_regime.get("warning"):

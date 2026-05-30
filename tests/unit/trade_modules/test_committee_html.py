@@ -528,3 +528,29 @@ class TestTrackRecordSection:
         assert "ADD (n=5)" in html
         assert "SELL (n=2)" in html
         assert "80%" in html
+
+
+def test_report_renders_cluster_weight_and_hard_alert():
+    """S8 correlation-cluster table shows combined weight % and a HARD alert."""
+    synth = _minimal_synth()
+    synth.setdefault("portfolio_constraints", {})["current_stock_exposures"] = {
+        "NVDA": 14.0,
+        "MSFT": 13.0,
+        "AVGO": 9.0,
+        "JPM": 4.0,
+    }
+    risk = {
+        "correlation_clusters": [
+            {
+                "stocks": ["NVDA", "MSFT", "AVGO"],
+                "avg_correlation": 0.86,
+                "risk": "3 correlated positions",
+            }
+        ]
+    }
+    html = generate_report_html(
+        synth, fund={}, tech={}, macro={}, census={}, news={}, opps={}, risk=risk
+    )
+    assert "Weight" in html
+    assert "36.0%" in html
+    assert "HARD concentration" in html
