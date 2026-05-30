@@ -52,6 +52,12 @@ REGIME_POSITION_MULTIPLIERS = {
 # evidence accumulates, flip to False. Backtest the flip before promoting.
 CONVICTION_CLAMP_TO_UNITY = True
 
+# CIO v43: conviction has ~zero correlation with forward alpha (see
+# CONVICTION_CLAMP_TO_UNITY). Using it to *reduce* the correlation-cluster
+# risk penalty means noisy "high-conviction" names get LESS risk control —
+# backwards. Default OFF: the cluster penalty is now conviction-independent.
+CLUSTER_PENALTY_USES_CONVICTION = False
+
 # Uniform expected α used in Kelly when the clamp is on. Equal to the
 # conviction-table value at the highest threshold so positions are sized as
 # if every BUY had top conviction — matching the equal-weight philosophy
@@ -347,13 +353,17 @@ def get_cluster_size_adjustment(
             cluster_size = len(cluster_tickers)
             # Base adjustment: 1/sqrt(N)
             base_adj = 1.0 / math.sqrt(cluster_size)
-            # CIO Legacy C4: Dampen based on conviction — high-conviction
-            # stocks in correlated clusters get a smaller penalty
-            conviction_factor = min(conviction / 100.0, 0.8)
-            adjustment = base_adj + (1.0 - base_adj) * conviction_factor * 0.3
+            if CLUSTER_PENALTY_USES_CONVICTION:
+                # CIO Legacy C4 (now opt-in): dampen by conviction.
+                conviction_factor = min(conviction / 100.0, 0.8)
+                adjustment = base_adj + (1.0 - base_adj) * conviction_factor * 0.3
+            else:
+                # CIO v43 default: pure 1/sqrt(N), conviction-independent.
+                adjustment = base_adj
             logger.debug(
                 f"{ticker} in correlation cluster of {cluster_size} stocks, "
-                f"conviction={conviction:.0f}, adjustment: {adjustment:.2f}"
+                f"conviction_used={CLUSTER_PENALTY_USES_CONVICTION}, "
+                f"adjustment: {adjustment:.2f}"
             )
             return adjustment
 

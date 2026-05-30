@@ -78,6 +78,12 @@ class TestContinuousConviction:
 class TestClusterAdjustment:
     """Test Task #6: Correlation cluster sizing."""
 
+    @pytest.fixture(autouse=True)
+    def _enable_conviction_dampening(self, monkeypatch):
+        import trade_modules.conviction_sizer as cz
+
+        monkeypatch.setattr(cz, "CLUSTER_PENALTY_USES_CONVICTION", True)
+
     def test_not_in_cluster(self):
         """Ticker not in any cluster should have 1.0 adjustment."""
         clusters = [

@@ -530,6 +530,12 @@ class TestApplyPortfolioConstraints:
 class TestDampenedClusterSizing:
     """Tests for CIO Legacy C4: conviction-aware cluster adjustment."""
 
+    @pytest.fixture(autouse=True)
+    def _enable_conviction_dampening(self, monkeypatch):
+        import trade_modules.conviction_sizer as cz
+
+        monkeypatch.setattr(cz, "CLUSTER_PENALTY_USES_CONVICTION", True)
+
     def test_not_in_cluster_returns_1(self):
         """Ticker not in any cluster should get 1.0 (no adjustment)."""
         from trade_modules.conviction_sizer import get_cluster_size_adjustment
@@ -663,3 +669,34 @@ class TestOpportunityCostSizing:
         from trade_modules.conviction_sizer import adjust_sizes_for_opportunity_cost
 
         assert adjust_sizes_for_opportunity_cost([]) == []
+
+
+class TestClusterPenaltyConvictionIndependent:
+    """CIO v43: cluster RISK penalty must not be dampened by (noise) conviction."""
+
+    def test_flag_defaults_off(self):
+        from trade_modules.conviction_sizer import CLUSTER_PENALTY_USES_CONVICTION
+
+        assert CLUSTER_PENALTY_USES_CONVICTION is False
+
+    def test_penalty_is_conviction_independent_by_default(self):
+        import math
+
+        from trade_modules.conviction_sizer import get_cluster_size_adjustment
+
+        clusters = [{"tickers": ["A", "B", "C", "D"]}]
+        low = get_cluster_size_adjustment("A", clusters, conviction=10)
+        high = get_cluster_size_adjustment("A", clusters, conviction=95)
+        assert low == high  # conviction no longer changes it
+        assert low == pytest.approx(1.0 / math.sqrt(4))  # pure 1/sqrt(4) = 0.5
+
+    def test_flag_on_restores_conviction_dampening(self, monkeypatch):
+        import math
+
+        import trade_modules.conviction_sizer as cz
+
+        monkeypatch.setattr(cz, "CLUSTER_PENALTY_USES_CONVICTION", True)
+        clusters = [{"tickers": ["A", "B", "C", "D"]}]
+        base = 1.0 / math.sqrt(4)
+        adj = cz.get_cluster_size_adjustment("A", clusters, conviction=80)
+        assert adj > base  # legacy dampening path intact
