@@ -6093,6 +6093,7 @@ def enrich_with_position_sizes(
     fx_aware: bool = False,
     ref_currency: str = "EUR",
     vol_scale: float = 1.0,
+    correlation_clusters: list[dict[str, Any]] | None = None,
 ) -> None:
     """
     CIO v13.0 S2: Enrich BUY/ADD concordance entries with suggested position sizes.
@@ -6200,6 +6201,19 @@ def enrich_with_position_sizes(
 
         tier_mult = tier_multipliers.get(tier, 3.0)
 
+        # Phase 1.5: optional correlation-cluster size penalty (default OFF).
+        # Referenced as a module attribute so tests can monkeypatch the flag.
+        import trade_modules.conviction_sizer as _cs
+
+        cluster_adjustment = 1.0
+        if _cs.APPLY_CLUSTER_PENALTY_IN_SIZING and correlation_clusters:
+            # risk.json clusters use 'stocks'; get_cluster_size_adjustment wants 'tickers'.
+            _clusters_norm = [
+                {"tickers": (c.get("tickers") or c.get("stocks") or [])}
+                for c in correlation_clusters
+            ]
+            cluster_adjustment = _cs.get_cluster_size_adjustment(ticker, _clusters_norm, conviction)
+
         result = calculate_conviction_size(
             base_position_size=base_position_size,
             tier_multiplier=tier_mult,
@@ -6208,6 +6222,7 @@ def enrich_with_position_sizes(
             portfolio_value=portfolio_value,
             max_position_pct=5.0,
             tier=tier,
+            cluster_adjustment=cluster_adjustment,
         )
 
         position_usd = result.get("position_size", 0)

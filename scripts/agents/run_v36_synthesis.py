@@ -309,6 +309,7 @@ def main():
         base_position_pct=0.005,
         fx_aware=True,
         ref_currency="EUR",
+        correlation_clusters=risk.get("correlation_clusters", []),
     )
 
     # Compute changes vs previous run

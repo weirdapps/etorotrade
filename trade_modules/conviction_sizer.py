@@ -58,6 +58,13 @@ CONVICTION_CLAMP_TO_UNITY = True
 # backwards. Default OFF: the cluster penalty is now conviction-independent.
 CLUSTER_PENALTY_USES_CONVICTION = False
 
+# CIO v43 (Phase 1.5): apply the correlation-cluster size penalty in the live
+# sizing path. Default OFF — the penalty (pure 1/sqrt(N) via
+# get_cluster_size_adjustment) is wired but dormant so it can be backtested /
+# eyeballed against the concentration monitor before it moves real position
+# sizes. Flip to True to activate.
+APPLY_CLUSTER_PENALTY_IN_SIZING = False
+
 # Uniform expected α used in Kelly when the clamp is on. Equal to the
 # conviction-table value at the highest threshold so positions are sized as
 # if every BUY had top conviction — matching the equal-weight philosophy
