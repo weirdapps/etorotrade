@@ -128,7 +128,15 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-__version__ = "v42.0"
+__version__ = "v43.0"
+
+# CIO v43 (2026-05-30): the adversarial Bull/Bear debate is SHADOWED.
+# debate_scorecard 2026-05-28 reported weighted excess alpha = -5.78pp
+# (control_n=776) with verdict "HARMFUL — disable". The debate keeps
+# RUNNING for narrative/audit (theses, conceded points, kill-thesis seeds)
+# but contributes ZERO to conviction until a future scorecard shows a
+# positive edge and this flag is flipped back on.
+DEBATE_AFFECTS_CONVICTION = False
 
 # CIO v42.0 — Empirical Consolidation (2026-05-28)
 #
@@ -198,9 +206,9 @@ def _is_always_active_modifier(key: str) -> bool:
     # CIO v37+: position-overweight family (dynamic ratio in label)
     if key.startswith("overweight_"):
         return True
-    # Adversarial debate adjustments (always active when present)
+    # Adversarial debate adjustments: shadowed unless explicitly re-enabled (v43).
     if key.startswith("debate_"):
-        return True
+        return DEBATE_AFFECTS_CONVICTION
     # Trim-regime gate marker
     if key == "trim_regime_gate":
         return True
@@ -3581,18 +3589,24 @@ def synthesize_stock(
     # the prevailing view. Applied AFTER kill thesis (like kill thesis, this
     # is a meta-signal about signal quality, not a data-driven modifier).
     if debate_conviction_signal and debate_conviction_signal != "DEADLOCK":
+        # Shadowed v43: the _w[...] entries are ALWAYS recorded for audit, but
+        # they move conviction ONLY when DEBATE_AFFECTS_CONVICTION is True.
         if debate_conviction_signal == "STRENGTHEN_BULL" and signal == "B":
-            conviction += 5
             _w["debate_strengthen_bull"] = 5
+            if DEBATE_AFFECTS_CONVICTION:
+                conviction += 5
         elif debate_conviction_signal == "WEAKEN_BULL":
-            conviction -= 5
             _w["debate_weaken_bull"] = -5
+            if DEBATE_AFFECTS_CONVICTION:
+                conviction -= 5
         elif debate_conviction_signal == "STRENGTHEN_BEAR":
-            conviction -= 5
             _w["debate_strengthen_bear"] = -5
+            if DEBATE_AFFECTS_CONVICTION:
+                conviction -= 5
         elif debate_conviction_signal == "WEAKEN_BEAR":
-            conviction += 3
             _w["debate_weaken_bear"] = 3
+            if DEBATE_AFFECTS_CONVICTION:
+                conviction += 3
 
     # Step 5: Apply floors
     # CIO v12.0 R1: When kill thesis is triggered, only apply the unconditional
