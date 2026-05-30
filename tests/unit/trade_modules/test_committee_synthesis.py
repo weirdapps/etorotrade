@@ -5095,14 +5095,17 @@ class TestClusterPenaltyInSizing:
             "market_cap": "Large Cap",
         }
 
-    def test_flag_defaults_off(self):
+    def test_flag_defaults_on(self):
         import trade_modules.conviction_sizer as cz
 
-        assert cz.APPLY_CLUSTER_PENALTY_IN_SIZING is False
+        # Activated 2026-05-31 (dry-run showed zero impact on current candidates).
+        assert cz.APPLY_CLUSTER_PENALTY_IN_SIZING is True
 
-    def test_clusters_ignored_when_flag_off(self):
+    def test_clusters_ignored_when_flag_off(self, monkeypatch):
+        import trade_modules.conviction_sizer as cz
         from trade_modules.committee_synthesis import enrich_with_position_sizes
 
+        monkeypatch.setattr(cz, "APPLY_CLUSTER_PENALTY_IN_SIZING", False)
         clusters = [{"stocks": ["NVDA", "MSFT", "AVGO", "AMD"]}]
         a = [self._buy_entry()]
         enrich_with_position_sizes(a, correlation_clusters=clusters)
