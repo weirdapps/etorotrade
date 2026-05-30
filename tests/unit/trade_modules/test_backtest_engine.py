@@ -813,3 +813,74 @@ def test_eur_alpha_columns_present_and_usd_alpha_unchanged():
     assert (
         "beta" in out.columns and "alpha_eur" in out.columns and "beta_adj_alpha_eur" in out.columns
     )
+
+
+def test_calculate_returns_no_crash_on_empty_spy():
+    """Regression: empty SPY (RangeIndex, not normalized) must not crash the row;
+    beta and alpha stay NaN since SPY is unavailable."""
+    dates = pd.bdate_range("2025-01-01", periods=40)
+    stock = pd.Series(np.linspace(100, 110, 40), index=dates)
+    price_data = pd.DataFrame({"AAA": stock})
+    empty_spy = pd.Series(dtype=float)  # RangeIndex, NOT a DatetimeIndex
+    signals = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "signal": "B",
+                "date": dates[0],
+                "price_at_signal": 100.0,
+                "tier": "MID",
+                "region": "US",
+            }
+        ]
+    )
+    eng = _bt()
+    out = eng.calculate_returns(signals, price_data, empty_spy, horizon=39, fx_data=None)
+    assert len(out) == 1
+    row = out.iloc[0]
+    assert np.isnan(row["beta"])
+    assert np.isnan(row["alpha"])
+    assert abs(row["stock_return"] - 10.0) < 0.5
+
+
+def test_non_usd_ticker_uses_its_own_fx_pair():
+    """A .T (JPY) ticker must convert via its EURJPY pair, not USD; a .PA (EUR)
+    ticker must use factor 1.0 (stock_return_eur == stock_return)."""
+    dates = pd.bdate_range("2025-01-01", periods=40)
+    jpy_stock = pd.Series(np.linspace(100, 110, 40), index=dates)  # +10% in JPY
+    eur_stock = pd.Series(np.linspace(100, 110, 40), index=dates)  # +10% in EUR
+    spy = pd.Series(np.linspace(100, 105, 40), index=dates)  # +5%
+    eurusd_flat = pd.Series(np.full(40, 1.10), index=dates)  # USD flat vs EUR (factor 1.0)
+    eurjpy = pd.Series(np.linspace(150, 165, 40), index=dates)  # JPY weakens 10% vs EUR
+    price_data = pd.DataFrame({"AAA.T": jpy_stock, "BBB.PA": eur_stock})
+    signals = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA.T",
+                "signal": "B",
+                "date": dates[0],
+                "price_at_signal": 100.0,
+                "tier": "MID",
+                "region": "JP",
+            },
+            {
+                "ticker": "BBB.PA",
+                "signal": "B",
+                "date": dates[0],
+                "price_at_signal": 100.0,
+                "tier": "MID",
+                "region": "EU",
+            },
+        ]
+    )
+    eng = _bt()
+    out = eng.calculate_returns(
+        signals, price_data, spy, horizon=39, fx_data={"USD": eurusd_flat, "JPY": eurjpy}
+    )
+    jpy_row = out[out["ticker"] == "AAA.T"].iloc[0]
+    eur_row = out[out["ticker"] == "BBB.PA"].iloc[0]
+    # JPY weakened 10% → 10% JPY gain converts to ~0% in EUR. If USD (flat) were
+    # wrongly used it would be ~10%, so this distinguishes the per-ticker path.
+    assert abs(jpy_row["stock_return_eur"] - 0.0) < 0.5
+    # EUR ticker: factor 1.0 → EUR return equals the native return.
+    assert abs(eur_row["stock_return_eur"] - eur_row["stock_return"]) < 1e-6
