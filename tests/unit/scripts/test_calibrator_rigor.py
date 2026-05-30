@@ -31,6 +31,16 @@ class TestBenjaminiHochberg:
 
         assert benjamini_hochberg({}, alpha=0.05) == {}
 
+    def test_step_up_rescues_intermediate_failure(self):
+        from scripts.calibrate_modifiers_t30 import benjamini_hochberg
+
+        # m=3, alpha=0.05. Thresholds: r1=0.0167, r2=0.0333, r3=0.05.
+        # b=0.04 FAILS its own rank-2 threshold (0.0333), but c passes at
+        # rank 3 (0.045 <= 0.05), so the step-up rejects ALL ranks <= 3.
+        # A naive per-element implementation would wrongly return b=False.
+        adj = benjamini_hochberg({"a": 0.001, "b": 0.04, "c": 0.045}, alpha=0.05)
+        assert adj == {"a": True, "b": True, "c": True}
+
 
 class TestBootstrapCI:
     def test_perfect_correlation_yields_tight_ci_above_zero(self):
