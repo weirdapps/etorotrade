@@ -34,7 +34,10 @@ def compute_cluster_exposure(
     """Return correlated clusters among holdings with their summed weight.
 
     weights: {ticker: weight} as fractions (0.15) or percents (15) — normalized
-             internally to percent for the output.
+             internally to percent for the output. Format is auto-detected by
+             magnitude: sum(|w|) <= 1.5 is treated as fractions (scaled x100).
+             A leveraged/short book whose fractions sum above 1.5 will be
+             mis-scaled (under-reported) — pass already-percent weights then.
     returns: daily returns DataFrame, one column per held ticker.
     Returns: list of {tickers, combined_weight_pct, avg_correlation}.
     """
