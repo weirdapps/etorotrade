@@ -607,6 +607,9 @@ def main(
 
     prior = _load_prior_calibration(output_path)
     prior_mods = prior.get("modifiers", {}) if isinstance(prior, dict) else {}
+    prior_last_review = (prior.get("gate_policy") or {}).get(
+        "last_review"
+    )  # carry forward; None on first creation
 
     obs = extract_modifier_observations(history_dir)
     if not obs:
@@ -684,7 +687,7 @@ def main(
         },
         "gate_policy": {
             "cadence_days": 90,
-            "last_review": datetime.now().strftime("%Y-%m-%d"),
+            "last_review": prior_last_review,  # carried forward; advanced only by a successful --apply
             "note": (
                 "Modifiers enter ACTIVE_MODIFIERS only when eligible_for_activation "
                 "is True in TWO consecutive quarterly reviews. Do not hand-edit the "
@@ -744,8 +747,10 @@ def _cli() -> int:
     )
 
     if args.apply:
-        prior = _load_prior_calibration(args.output)
-        last = (prior.get("gate_policy") or {}).get("last_review")
+        cal = _load_prior_calibration(
+            args.output
+        )  # the file main() just wrote (last_review carried forward)
+        last = (cal.get("gate_policy") or {}).get("last_review")
         if last:
             days = (datetime.now() - datetime.strptime(last, "%Y-%m-%d")).days
             if days < 90:
@@ -754,9 +759,13 @@ def _cli() -> int:
                     "Re-run after the freeze window."
                 )
                 return 2
+        # Not frozen: adopt now — list the eligible set AND advance last_review to today.
         print("ELIGIBLE modifiers (BH + sign-hysteresis, 2-review confirmed):")
         for k in result.get("eligible_for_activation", []):
             print(f"  {k}")
+        cal.setdefault("gate_policy", {})["last_review"] = datetime.now().strftime("%Y-%m-%d")
+        with open(args.output, "w") as f:
+            json.dump(cal, f, indent=2)
         return 0
 
     # Console summary
