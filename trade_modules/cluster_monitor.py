@@ -66,6 +66,41 @@ def compute_cluster_exposure(
     return out
 
 
+def exposure_from_known_clusters(
+    weights: dict[str, float],
+    clusters: list[dict[str, Any]],
+    *,
+    weights_in_pct: bool = True,
+) -> list[dict[str, Any]]:
+    """Sum portfolio weight over PRE-COMPUTED correlation clusters.
+
+    Companion to compute_cluster_exposure for the case where clusters are
+    already known (e.g. risk.json correlation_clusters) and NO returns matrix
+    is available — so no clustering is re-run here. Cluster members are read
+    from 'stocks' or 'tickers' (whichever is present), matching the committee
+    report's convention. Weights are treated as percent by default (e.g.
+    10.84); pass weights_in_pct=False for fractions (scaled x100).
+
+    Returns {tickers, combined_weight_pct, avg_correlation} aligned 1:1 with
+    the input clusters (same order, including zero-weight entries) so callers
+    can zip the result against the cluster rows they render.
+    """
+    out: list[dict[str, Any]] = []
+    for cl in clusters:
+        members = cl.get("stocks") or cl.get("tickers") or []
+        combined = sum(weights.get(t, 0.0) for t in members)
+        if not weights_in_pct:
+            combined *= 100.0
+        out.append(
+            {
+                "tickers": list(members),
+                "combined_weight_pct": round(combined, 2),
+                "avg_correlation": cl.get("avg_correlation", cl.get("average_correlation")),
+            }
+        )
+    return out
+
+
 def check_cluster_alerts(
     exposures: list[dict[str, Any]],
     *,
