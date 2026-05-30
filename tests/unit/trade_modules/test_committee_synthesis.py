@@ -6510,23 +6510,52 @@ class TestDebateConvictionModifiers:
             "regime": "",
         }
 
-    def test_strengthen_bull_adds_conviction(self):
+    def test_debate_flag_defaults_off(self):
+        # Scorecard 2026-05-28: debate adjustments = -5.78pp excess alpha. Default OFF.
+        import trade_modules.committee_synthesis as cs
+
+        assert cs.DEBATE_AFFECTS_CONVICTION is False
+
+    def test_debate_modifier_shadowed_in_gate_when_disabled(self):
+        import trade_modules.committee_synthesis as cs
+
+        # debate_* no longer bypasses the active-modifier gate while disabled
+        assert cs._is_always_active_modifier("debate_strengthen_bull") is False
+        # non-debate always-active markers are unaffected
+        assert cs._is_always_active_modifier("kill_thesis") is True
+
+    def test_debate_modifier_bypasses_gate_when_enabled(self, monkeypatch):
+        import trade_modules.committee_synthesis as cs
+
+        monkeypatch.setattr(cs, "DEBATE_AFFECTS_CONVICTION", True)
+        assert cs._is_always_active_modifier("debate_strengthen_bull") is True
+
+    def test_strengthen_bull_shadowed_conviction_unchanged(self):
         from trade_modules.committee_synthesis import synthesize_stock
 
         kw = self._base_kwargs()
         r1 = synthesize_stock("TEST", **kw)
         r2 = synthesize_stock("TEST", **kw, debate_conviction_signal="STRENGTHEN_BULL")
-        assert r2["conviction"] > r1["conviction"]
-        assert r2["conviction_waterfall"].get("debate_strengthen_bull") == 5
+        assert r2["conviction"] == r1["conviction"]  # shadowed: no effect
+        assert r2["conviction_waterfall"].get("debate_strengthen_bull") == 5  # still audited
 
-    def test_weaken_bull_reduces_conviction(self):
+    def test_weaken_bull_shadowed_conviction_unchanged(self):
         from trade_modules.committee_synthesis import synthesize_stock
 
         kw = self._base_kwargs()
         r1 = synthesize_stock("TEST", **kw)
         r2 = synthesize_stock("TEST", **kw, debate_conviction_signal="WEAKEN_BULL")
-        assert r2["conviction"] < r1["conviction"]
+        assert r2["conviction"] == r1["conviction"]
         assert r2["conviction_waterfall"].get("debate_weaken_bull") == -5
+
+    def test_strengthen_bull_applies_when_flag_enabled(self, monkeypatch):
+        import trade_modules.committee_synthesis as cs
+
+        monkeypatch.setattr(cs, "DEBATE_AFFECTS_CONVICTION", True)
+        kw = self._base_kwargs()
+        r1 = cs.synthesize_stock("TEST", **kw)
+        r2 = cs.synthesize_stock("TEST", **kw, debate_conviction_signal="STRENGTHEN_BULL")
+        assert r2["conviction"] > r1["conviction"]  # active path intact
 
     def test_deadlock_no_change(self):
         from trade_modules.committee_synthesis import synthesize_stock
