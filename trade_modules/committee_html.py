@@ -3165,6 +3165,57 @@ def generate_report_html(
 
         h.append(_section_close())
 
+        # CIO Phase 2: Currency Exposure & FX Hedge (monitor only).
+        try:
+            from trade_modules.fx_hedge_monitor import (
+                compute_currency_exposure,
+                hedge_pct_table,
+            )
+
+            _fx_exp = compute_currency_exposure(_cur_pos_map)
+        except Exception:
+            _fx_exp = None
+        if _fx_exp and _fx_exp["by_currency"]:
+            h.append(
+                _section_open(
+                    "Currency Exposure & FX Hedge",
+                    "EUR-home view: currency split of the book and the EURUSD hedge implied "
+                    "at 0/50/100% of the USD bloc (recommend-only &mdash; no standing hedge set).",
+                )
+            )
+            h.append(f'<table style="{_TABLE}">')
+            h.append(
+                f'<tr style="border-bottom:2px solid {_C["border"]};">'
+                f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Currency</th>'
+                f'<th style="padding:6px 10px;text-align:right;{_LABEL}">Weight</th></tr>'
+            )
+            for _row in _fx_exp["by_currency"]:
+                h.append(
+                    f'<tr><td style="padding:6px 10px;">{e(_row["currency"])}</td>'
+                    f'<td style="padding:6px 10px;text-align:right;{_MONO}">'
+                    f"{_row['weight_pct']:.1f}%</td></tr>"
+                )
+            h.append("</table>")
+            _usd = _fx_exp["usd_bloc_pct"]
+            h.append(
+                f'<div style="{_LABEL}margin:12px 0 6px 0;">USD bloc (USD + USD-pegged HKD): '
+                f"<b>{_usd:.1f}%</b> of book &mdash; EURUSD hedge implied:</div>"
+            )
+            h.append(f'<table style="{_TABLE}">')
+            h.append(
+                f'<tr style="border-bottom:2px solid {_C["border"]};">'
+                f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Hedge ratio</th>'
+                f'<th style="padding:6px 10px;text-align:right;{_LABEL}">EURUSD long (% of equity)</th></tr>'
+            )
+            for _hr in hedge_pct_table(_usd):
+                h.append(
+                    f'<tr><td style="padding:6px 10px;">{int(_hr["ratio"] * 100)}%</td>'
+                    f'<td style="padding:6px 10px;text-align:right;{_MONO}">'
+                    f"{_hr['hedge_pct_of_equity']:.1f}%</td></tr>"
+                )
+            h.append("</table>")
+            h.append(_section_close())
+
     # ══════════════════════════════════════════════════════════════════
     # ACT III: DEEP CONTEXT (full mode only)
     # ══════════════════════════════════════════════════════════════════
