@@ -1394,13 +1394,13 @@ KNF,Knife River Corp,NYSE
 IS0D.DE11,iShares Oil & Gas Exploration & Production UCITS ETF11,Euronext Paris
 IS3Q.DE11,iShares Edge MSCI World Quality Factor UCITS ETF11,Euronext Paris
 AMRZ.SW,AMRIZE LTD,SIX
-CA231.SW,CA231,SIX
-CA232.SW,CA232,SIX
-CA233.SW,CA233,SIX
-CA234.SW,CA234,SIX
-CA235.SW,CA235,SIX
-CA236.SW,CA236,SIX
-CA237.SW,CA237,SIX
+NOVN.SW,Novartis AG,SIX
+GALD.SW,Galderma Group AG,SIX
+SDZ.SW,Sandoz Group AG,SIX
+BEAN.SW,Belimo Holding AG,SIX
+UBSGE.SW,UBS Group AG,SIX
+LISN.SW,Chocoladefabriken Lindt & Spruengli AG,SIX
+SQN.SW,Swissquote Group Holding SA,SIX
 CA238.SW,CA238,SIX
 CA239.SW,CA239,SIX
 CA240.SW,CA240,SIX
@@ -4415,7 +4415,7 @@ TNC,Tennant Company,NYSE
 BANF,BancFirst Corporation,Nasdaq
 UMH,UMH Properties Inc,NYSE
 XNCR,Xencor Inc,Nasdaq
-TSEOF,Trinseo Plc,NYSE
+TSEOQ,Trinseo Plc,NYSE
 ECPG,Encore Capital Group Inc,Nasdaq
 KFRC,Kforce Inc,NYSE
 EFSC,Enterprise Financial Services Corp,Nasdaq
@@ -6397,7 +6397,7 @@ CLIQ.DE,CLIQ Digital AG,FRA
 DBAN.DE,Deutsche Beteiligungs AG,FRA
 2GB.DE,2G Energy AG,FRA
 BDT.DE,Bertrandt AG,FRA
-D6H.DE,Datagroup SE,FRA
+D6H0.DE,Datagroup SE,FRA
 ACT.DE,Alzchem Group AG,FRA
 RY4C.DE,Ryanair Holdings PLC,FRA
 VOS.DE,Vossloh AG,FRA
@@ -7815,7 +7815,7 @@ RACE.MI,Ferrari NV,Borsa Italiana
 EASOR.HE,Easor Oyj,Helsinki Stock Exchange
 ADCBRI.DH,Locked for Abu Dhabi Rights,Abu Dhabi
 GLIBK,GCI Liberty Inc,Nasdaq
-GLIBA,GCI Liberty Inc,Nasdaq
+GLIBA,Liberty Capital Corp,Nasdaq
 XXI,Twenty One Capital Inc,Nasdaq
 NXTT,Next Technology Holding Inc,Nasdaq
 HOLO,Microcloud Hologram,Nasdaq
@@ -7833,7 +7833,7 @@ PSIX,Power Solutions International Inc,Nasdaq
 LX,Lexinfintech Holdings Ltd,Nasdaq
 DGICA,Donegal Group Inc,Nasdaq
 NUTX,Nutex Health Inc,Nasdaq
-BTM,Bitcoin Depot Inc,Nasdaq
+BTMCQ,Bitcoin Depot Inc,OTC Markets Stock Exchange
 KSPI,Kaspi.kz,Nasdaq
 WBA US CVR,WBA US merger CVR,Nasdaq
 ITOS US CVR,ITOS US merger CVR,Nasdaq
@@ -8267,6 +8267,19 @@ SBMT,Silver Bow Mining Corp,NYSE
 GMRS,GMR Solutions Inc,NYSE
 BXDC,Blackstone Digital Infrastructure Trust Inc,NYSE
 EROK,"EagleRock Land, LLC",NYSE
+WLFC,Willis Lease Finance Corp,Nasdaq
+SHAZ,SharonAI Holdings Inc,Nasdaq
+ALLT,Allot Ltd,Nasdaq
+TMCR,Metals Royalty Company Inc,Nasdaq
+HQ,Horizon Quantum Holdings Ltd,Nasdaq
+EMAT,Evolution Metals & Technologies Corp,Nasdaq
+FUFU,BitFuFu Inc,Nasdaq
+BRAI,Braiin Ltd,Nasdaq
+GIX,GigCapital9 Corp,Nasdaq
+IEAG,Infinite Eagle Acquisition Corp,Nasdaq
+LCLN,Lincoln International Inc,NYSE
+INR,Infinity Natural Resources Inc,NYSE
+BALY,Bally's Corp,NYSE
 CVR.AVDL,Avadel Pharmaceuticals CVR,Nasdaq
 SGP,SpyGlass Pharma Inc,Nasdaq
 GENB,"Generate Biomedicines, Inc",Nasdaq
@@ -8279,6 +8292,7 @@ PAYP, PayPay Corporation,Nasdaq
 HMH,HMH Holding Inc.,Nasdaq
 ARXS,"Arxis, Inc",Nasdaq
 SWMR,Swarmer Inc,Nasdaq
+SPACEX.IPO,Space X initial public offering,Nasdaq
 ALMR,"Alamar Biosciences, Inc",Nasdaq
 KLRA,"Kailera Therapeutics, Inc",Nasdaq
 YSWY,"Yesway, Inc",Nasdaq
@@ -8301,6 +8315,8 @@ STRF,Strategy Prf F (Strife 10%),Nasdaq
 STRC,Strategy Prf A (Stretch var.),Nasdaq
 STRK,Strategy Prf (Strike 8%),Nasdaq
 STRD,Strategy Prf D (Stride 10%),Nasdaq
+SPCX,Space Exploration Technologies Corp,Nasdaq
+FISN,"Deep Fission, Inc",Nasdaq
 TRAX,First Tracks Biotherapeutics Inc,Nasdaq
 BVR.AX,Bellavista Resources Ltd,Sydney
 KMAR.OL,Kongsberg Maritime AS,Oslo Stock Exchange
@@ -8450,7 +8466,7 @@ NMT.AX,Neometals Ltd,Sydney
 PNC.AX,Pioneer Credit Ltd,Sydney
 CMP.AX,Compumedics Ltd,Sydney
 AUR.AX,Auris Minerals Ltd,Sydney
-ADV.AX,Ardiden Ltd,Sydney
+LAC.AX,Lac Gold Ltd,Sydney
 SDV.AX,SciDev Ltd,Sydney
 GPR.AX,Geopacific Resources Ltd,Sydney
 AMA.AX,AMA Group Ltd,Sydney
@@ -9092,7 +9108,7 @@ MALT.PA,Malteries Franco Belges,Euronext Paris
 BALCO.ST,Balco Group AB,Stockholm  Stock Exchange
 3NOV25.CO,Investeringsselskabet af 3. november 2025 A/S,Copenhagen Stock Exchange
 HMS.ST,HMS Networks AB,Stockholm  Stock Exchange
-ITAB.ST,ITAB Shop Concept AB,Stockholm  Stock Exchange
+ITAB.ST,ITAB Group AB,Stockholm  Stock Exchange
 REJLB.ST,Rejlers AB,Stockholm  Stock Exchange
 CLAB.ST,Cloetta AB,Stockholm  Stock Exchange
 PEGA.CO,Pharma Equity Group A/S,Copenhagen Stock Exchange
@@ -9380,7 +9396,7 @@ MLP,Maui Land & Pineapple Co Inc,NYSE
 MOG-B,Moog Inc,NYSE
 NC,NACCO Industries Inc,NYSE
 CRD-B,Crawford & Co,NYSE
-NL,NL Industries Inc,NYSE
+NL,NLI Holdings Inc,NYSE
 NTIP,Network-1 Technologies Inc,NYSE
 PDS,Precision Drilling Corp,NYSE
 PEBK,Peoples Bancorp of North Carolina Inc,Nasdaq
@@ -9618,7 +9634,6 @@ SGRP,SPAR Group Inc,Nasdaq
 AGM-A,Federal Agricultural Mortgage Corp,NYSE
 ELA,Envela Corp,NYSE
 OPXS,Optex Systems Holdings Inc,Nasdaq
-ALLT,Allot Ltd,Nasdaq
 FNLC,First Bancorp Inc/The,Nasdaq
 SPCB,SuperCom Ltd,Nasdaq
 GAIA,Gaia Inc,Nasdaq
@@ -9956,7 +9971,7 @@ ZTEK,Zentek Ltd,Nasdaq
 EPOW,E-Power Inc,Nasdaq
 NIPG,NIP Group Inc,Nasdaq
 SNES,Senestech Inc,Nasdaq
-HOTH,Hoth Therapeutics Inc,Nasdaq
+RKTO,Rocket One Inc,Nasdaq
 TSQ,Townsquare Media Inc,NYSE
 IMMP,Immutep Ltd,Nasdaq
 TMQ,Trilogy Metals Inc,NYSE
@@ -10149,7 +10164,7 @@ BFRI,Biofrontera Inc,Nasdaq
 SPRO,Spero Therapeutics Inc,Nasdaq
 AXIL,AXIL Brands Inc,NYSE
 FEDU,Four Seasons Education Cayman Inc,NYSE
-AGAE,Allied Gaming & Entertainment Inc,Nasdaq
+AIFA,All In FutureTech Alliance Inc,Nasdaq
 RFL,Rafael Holdings Inc,NYSE
 KXIN,Kaixin Holdings,Nasdaq
 MNPR,Monopar Therapeutics Inc,Nasdaq
@@ -10311,7 +10326,7 @@ SNSE,Sensei Biotherapeutics Inc,Nasdaq
 NYC,American Strategic Investment Co,NYSE
 SST,System1 Inc,NYSE
 DDI,DoubleDown Interactive Co Ltd,Nasdaq
-QHUOD,Quhuo Ltd,Nasdaq
+QH,Quhuo Ltd,Nasdaq
 IVA,Inventiva SACA,Nasdaq
 REAX,Real Brokerage Inc/The,Nasdaq
 ARTV,Artiva Biotherapeutics Inc,Nasdaq
@@ -10595,7 +10610,7 @@ YMAT,J-Star Holding Co Ltd,Nasdaq
 LCFY,Locafy Ltd,Nasdaq
 PMEC,Primech Holdings Ltd,Nasdaq
 ONFO,Onfolio Holdings Inc,Nasdaq
-STSS,Sharps Technology Inc,Nasdaq
+SKYA,SkyAI Inc,Nasdaq
 TGL,Treasure Global Inc,Nasdaq
 LRHC,La Rosa Holdings Corp,Nasdaq
 MEGL,Magic Empire Global Ltd,Nasdaq
@@ -10709,7 +10724,6 @@ NIVF,NewGenIvf Group Ltd,Nasdaq
 MSS,Maison Solutions Inc,Nasdaq
 CISS,C3is Inc,Nasdaq
 INTJ,Intelligent Group Ltd,Nasdaq
-FUFU,BitFuFu Inc,Nasdaq
 MTAL,MAC Copper Ltd,NYSE
 TNMG,TNL Mediagene,Nasdaq
 ROMA,Roma Green Finance Ltd,Nasdaq
@@ -10884,7 +10898,7 @@ ELOG,Eastern International Ltd / CN,Nasdaq
 MIMI,Mint Incorporation Ltd,Nasdaq
 AVR,Anteris Technologies Global Corp,Nasdaq
 JEM,707 Cayman Holdings Ltd,Nasdaq
-GIG,GigCapital7 Corp,Nasdaq
+HDRN,Hadron Energy Inc,OTC Markets Stock Exchange
 FCHL,Fitness Champs Holdings Ltd,Nasdaq
 EURK,Eureka Acquisition Corp,Nasdaq
 DTSQ,DT Cloud Star Acquisition Corp,Nasdaq
@@ -10903,7 +10917,6 @@ VACH,Voyager Acquisition Corp,Nasdaq
 NCT,Intercont Cayman Ltd,Nasdaq
 MPU,Mega Matrix Inc,NYSE
 LSE,Leishen Energy Holding Co Ltd,Nasdaq
-INR,Infinity Natural Resources Inc,NYSE
 SLGB,Smart Logistics Global Ltd,Nasdaq
 DXST,Decent Holding Inc,Nasdaq
 VNTG,Vantage Corp,NYSE
@@ -11004,7 +11017,7 @@ GSHR,Gesher Acquisition Corp II,Nasdaq
 QSEA,Quartzsea Acquisition Corp,Nasdaq
 CEPT,Cantor Equity Partners II Inc,Nasdaq
 TACH,Titan Acquisition Corp,Nasdaq
-IPOD,Dune Acquisition Corp II,Nasdaq
+CCAQ,Collective Acquisition Corp,Nasdaq
 TVAI,Thayer Ventures Acquisition Corp II,Nasdaq
 BMHL,Bluemount Holdings Ltd,Nasdaq
 SZZL,Sizzle Acquisition Corp II,Nasdaq
@@ -11163,7 +11176,7 @@ SMJF,SMJ International Holdings Inc,NYSE
 STKE,Sol Strategies Inc,Nasdaq
 RNGT,Range Capital Acquisition Corp II,Nasdaq
 CBK,Commercial Bancgroup Inc,Nasdaq
-OTH,Off The Hook YS Inc,NYSE
+NXB,NextBoat Inc,NYSE
 SEV,Aptera Motors Corp,Nasdaq
 TTRX,Turn Therapeutics Inc,Nasdaq
 OWLS,OBOOK Holdings Inc,Nasdaq
@@ -11341,6 +11354,7 @@ BIXI,Bitcoin Infrastructure Acquisition Corp Ltd,Nasdaq
 FJET,Starfighters Space Inc,NYSE
 EQU.AX,Equus Energy Ltd,Sydney
 MORROW.ST,Morrow Bank AB,Stockholm  Stock Exchange
+FVAV,Fortress Value Acquisition Corp V,Nasdaq
 RSP,Invesco S&P 500 Equal Weight ETF ,NYSE
 ESGU,iShares ESG Aware MSCI USA ETF,Nasdaq
 IGSB,iShares 1-5 Year Investment Grade Corporate Bond ETF ,Nasdaq
