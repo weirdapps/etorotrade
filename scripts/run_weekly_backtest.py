@@ -489,8 +489,16 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
     # Add key signal metrics at top level for easy access
     buy_t7 = signal_summary.get("t7_B", {})
     buy_t30 = signal_summary.get("t30_B", {})
+    buy_t60 = signal_summary.get("t60_B", {})
+    buy_t90 = signal_summary.get("t90_B", {})
+    buy_t180 = signal_summary.get("t180_B", {})
+    buy_t250 = signal_summary.get("t250_B", {})
     sell_t7 = signal_summary.get("t7_S", {})
     sell_t30 = signal_summary.get("t30_S", {})
+    sell_t60 = signal_summary.get("t60_S", {})
+    sell_t90 = signal_summary.get("t90_S", {})
+    sell_t180 = signal_summary.get("t180_S", {})
+    sell_t250 = signal_summary.get("t250_S", {})
 
     # CIO v17 op: empty-data sentinel (0 not None) so workflow validators
     # never crash on `assert h.get('buy_count_t7') is not None`. The
@@ -503,20 +511,59 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
         return default if v is None else v
 
     report["headline"] = {
+        # T+7
         "buy_hit_rate_t7": _h(buy_t7, "hit_rate"),
         "buy_alpha_hit_rate_t7": _h(buy_t7, "alpha_hit_rate"),
-        "buy_hit_rate_t30": _h(buy_t30, "hit_rate"),
-        "buy_alpha_hit_rate_t30": _h(buy_t30, "alpha_hit_rate"),
         "buy_avg_alpha_t7": _h(buy_t7, "avg_alpha"),
-        "buy_avg_alpha_t30": _h(buy_t30, "avg_alpha"),
         "buy_count_t7": _h(buy_t7, "count"),
         "sell_hit_rate_t7": _h(sell_t7, "hit_rate"),
         "sell_alpha_hit_rate_t7": _h(sell_t7, "alpha_hit_rate"),
+        "sell_avg_alpha_t7": _h(sell_t7, "avg_alpha"),
+        "sell_count_t7": _h(sell_t7, "count"),
+        # T+30
+        "buy_hit_rate_t30": _h(buy_t30, "hit_rate"),
+        "buy_alpha_hit_rate_t30": _h(buy_t30, "alpha_hit_rate"),
+        "buy_avg_alpha_t30": _h(buy_t30, "avg_alpha"),
         "sell_hit_rate_t30": _h(sell_t30, "hit_rate"),
         "sell_alpha_hit_rate_t30": _h(sell_t30, "alpha_hit_rate"),
-        "sell_avg_alpha_t7": _h(sell_t7, "avg_alpha"),
         "sell_avg_alpha_t30": _h(sell_t30, "avg_alpha"),
-        "sell_count_t7": _h(sell_t7, "count"),
+        # T+60
+        "buy_hit_rate_t60": _h(buy_t60, "hit_rate"),
+        "buy_alpha_hit_rate_t60": _h(buy_t60, "alpha_hit_rate"),
+        "buy_avg_alpha_t60": _h(buy_t60, "avg_alpha"),
+        "buy_count_t60": _h(buy_t60, "count"),
+        "sell_hit_rate_t60": _h(sell_t60, "hit_rate"),
+        "sell_alpha_hit_rate_t60": _h(sell_t60, "alpha_hit_rate"),
+        "sell_avg_alpha_t60": _h(sell_t60, "avg_alpha"),
+        "sell_count_t60": _h(sell_t60, "count"),
+        # T+90
+        "buy_hit_rate_t90": _h(buy_t90, "hit_rate"),
+        "buy_alpha_hit_rate_t90": _h(buy_t90, "alpha_hit_rate"),
+        "buy_avg_alpha_t90": _h(buy_t90, "avg_alpha"),
+        "buy_count_t90": _h(buy_t90, "count"),
+        "sell_hit_rate_t90": _h(sell_t90, "hit_rate"),
+        "sell_alpha_hit_rate_t90": _h(sell_t90, "alpha_hit_rate"),
+        "sell_avg_alpha_t90": _h(sell_t90, "avg_alpha"),
+        "sell_count_t90": _h(sell_t90, "count"),
+        # T+180
+        "buy_hit_rate_t180": _h(buy_t180, "hit_rate"),
+        "buy_alpha_hit_rate_t180": _h(buy_t180, "alpha_hit_rate"),
+        "buy_avg_alpha_t180": _h(buy_t180, "avg_alpha"),
+        "buy_count_t180": _h(buy_t180, "count"),
+        "sell_hit_rate_t180": _h(sell_t180, "hit_rate"),
+        "sell_alpha_hit_rate_t180": _h(sell_t180, "alpha_hit_rate"),
+        "sell_avg_alpha_t180": _h(sell_t180, "avg_alpha"),
+        "sell_count_t180": _h(sell_t180, "count"),
+        # T+250
+        "buy_hit_rate_t250": _h(buy_t250, "hit_rate"),
+        "buy_alpha_hit_rate_t250": _h(buy_t250, "alpha_hit_rate"),
+        "buy_avg_alpha_t250": _h(buy_t250, "avg_alpha"),
+        "buy_count_t250": _h(buy_t250, "count"),
+        "sell_hit_rate_t250": _h(sell_t250, "hit_rate"),
+        "sell_alpha_hit_rate_t250": _h(sell_t250, "alpha_hit_rate"),
+        "sell_avg_alpha_t250": _h(sell_t250, "avg_alpha"),
+        "sell_count_t250": _h(sell_t250, "count"),
+        # CI and status
         "buy_hit_rate_ci_t7": [
             _h(buy_t7, "hit_rate_ci_lo", None),
             _h(buy_t7, "hit_rate_ci_hi", None),
