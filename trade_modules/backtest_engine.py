@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from trade_modules.committee_backtester import _round_trip_cost_pct
 from trade_modules.fx_sizing import currency_for_ticker
 
 logger = logging.getLogger(__name__)
@@ -515,6 +516,16 @@ class BacktestEngine:
                     # measurement overlay, not a strict EUR-CAPM.
                     beta_adj_alpha_eur = stock_return_eur - beta * spy_return_eur
 
+            # Net-of-cost alpha: deduct eToro tier-based round-trip cost
+            tier = row.get("tier") or "MID"
+            is_crypto = ticker.endswith("-USD")
+            round_trip_cost = _round_trip_cost_pct(
+                tier=tier,
+                holding_days=horizon,
+                is_crypto=is_crypto,
+            )
+            net_alpha = alpha - round_trip_cost if not np.isnan(alpha) else np.nan
+
             results.append(
                 {
                     "ticker": ticker,
@@ -527,6 +538,8 @@ class BacktestEngine:
                     "stock_return": stock_return,
                     "spy_return": spy_return,
                     "alpha": alpha,
+                    "net_alpha": net_alpha,
+                    "round_trip_cost": round_trip_cost,
                     "beta": beta,
                     "stock_return_eur": stock_return_eur,
                     "spy_return_eur": spy_return_eur,
@@ -588,6 +601,7 @@ class BacktestEngine:
         n = len(gdf)
         returns = gdf["stock_return"].dropna()
         alphas = gdf["alpha"].dropna()
+        net_alphas = gdf["net_alpha"].dropna() if "net_alpha" in gdf else pd.Series(dtype=float)
         betas = gdf["beta"].dropna() if "beta" in gdf else pd.Series(dtype=float)
         alphas_eur = gdf["alpha_eur"].dropna() if "alpha_eur" in gdf else pd.Series(dtype=float)
         baa_eur = (
@@ -620,6 +634,21 @@ class BacktestEngine:
             alpha_ci_lo = None
             alpha_ci_hi = None
 
+        # Net-alpha (after eToro transaction costs) hit rate
+        n_net_alpha = len(net_alphas)
+        if n_net_alpha > 0:
+            if signal_type == "B":
+                net_alpha_hits_arr = (net_alphas > 0).astype(int).values
+            elif signal_type == "S":
+                net_alpha_hits_arr = (net_alphas < 0).astype(int).values
+            else:
+                net_alpha_hits_arr = (net_alphas.abs() < 2).astype(int).values
+            net_alpha_hr, net_alpha_ci_lo, net_alpha_ci_hi = hit_rate_ci(net_alpha_hits_arr)
+        else:
+            net_alpha_hr = None
+            net_alpha_ci_lo = None
+            net_alpha_ci_hi = None
+
         # Return CI
         ret_ci_lo, ret_ci_hi = (
             bootstrap_ci(returns.values, stat_fn=np.mean) if len(returns) > 0 else (np.nan, np.nan)
@@ -651,6 +680,16 @@ class BacktestEngine:
             "mean_return_ci_hi": round(ret_ci_hi, 2) if not np.isnan(ret_ci_hi) else None,
             "median_return": round(returns.median(), 2) if len(returns) > 0 else None,
             "avg_alpha": round(alphas.mean(), 2) if len(alphas) > 0 else None,
+            "net_avg_alpha": round(net_alphas.mean(), 2) if len(net_alphas) > 0 else None,
+            "net_alpha_hit_rate": round(net_alpha_hr, 1)
+            if net_alpha_hr is not None and not np.isnan(net_alpha_hr)
+            else None,
+            "net_alpha_hit_rate_ci_lo": round(net_alpha_ci_lo, 1)
+            if net_alpha_ci_lo is not None and not np.isnan(net_alpha_ci_lo)
+            else None,
+            "net_alpha_hit_rate_ci_hi": round(net_alpha_ci_hi, 1)
+            if net_alpha_ci_hi is not None and not np.isnan(net_alpha_ci_hi)
+            else None,
             "avg_beta": round(betas.mean(), 2) if len(betas) > 0 else None,
             "avg_alpha_eur": round(alphas_eur.mean(), 2) if len(alphas_eur) > 0 else None,
             "avg_beta_adj_alpha_eur": round(baa_eur.mean(), 2) if len(baa_eur) > 0 else None,
