@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
+
 DEFAULT_TARGET_VOL = 0.12  # 12% annualized
 TRADING_DAYS_PER_YEAR = 252
 MIN_OBSERVATIONS = 5
@@ -61,21 +63,49 @@ def vol_scale_factor(
 
 
 def estimate_portfolio_vol_from_history(
-    history_dir: str | None = None,
-    benchmark: str = "SPY",
-    days: int = 60,
+    weights: dict[str, float],
+    daily_returns: dict[str, np.ndarray] | None = None,
+    lookback_days: int = 120,
 ) -> float | None:
-    """Estimate portfolio realized vol from concordance history.
+    """Estimate annualized portfolio volatility from trailing daily returns.
 
-    Best-effort: walks recent concordance files, computes daily portfolio
-    returns weighted by suggested_size_usd, returns annualized vol. Falls
-    back to None when insufficient data.
-
-    For now this is a stub the operator can call to feed vol_scale_factor.
-    The full implementation would need price-cache-backed daily returns
-    per-position, weighted by current portfolio composition.
+    Computes weighted-sum portfolio return series, then std * sqrt(252).
+    Requires >= 60 trading days of overlap across held names.
+    Returns None if insufficient data.
     """
-    # Stub for tomorrow's wiring — requires per-day portfolio composition
-    # tracking that doesn't exist yet. Operator can pass realized vol
-    # directly to vol_scale_factor() in the meantime.
-    return None
+    if daily_returns is None or len(weights) < 2:
+        return None
+
+    tickers = sorted(weights.keys() & daily_returns.keys())
+    if len(tickers) < 2:
+        return None
+
+    min_len = min(len(daily_returns[t]) for t in tickers)
+    if min_len < 60:
+        return None
+
+    use_len = min(min_len, lookback_days)
+    port_returns = sum(weights[t] * daily_returns[t][-use_len:] for t in tickers)
+    daily_vol = float(np.std(port_returns))
+    if daily_vol <= 0:
+        return None
+    return daily_vol * np.sqrt(252)
+
+
+def compute_vol_scale(
+    estimated_vol: float | None,
+    target_vol: float = DEFAULT_TARGET_VOL,
+    floor: float = 0.5,
+    cap: float = 1.5,
+) -> float:
+    """Compute position-size scaling factor from portfolio vol vs target.
+
+    Returns 1.0 when vol matches target. < 1.0 when vol exceeds target
+    (scale down positions). > 1.0 when vol is below target (scale up).
+    Clamped to [floor, cap] to prevent extreme adjustments.
+    Returns 1.0 if estimated_vol is None (no data = no adjustment).
+    """
+    if estimated_vol is None or estimated_vol <= 0:
+        return 1.0
+    raw = target_vol / estimated_vol
+    return max(floor, min(cap, raw))
