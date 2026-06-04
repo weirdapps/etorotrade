@@ -1070,7 +1070,13 @@ class ThresholdAnalyzer:
         Compare current config thresholds against data-optimal values.
 
         Only suggests changes where improvement > 5% hit rate and n >= 50.
+        After collecting all candidate suggestions, applies Benjamini-Hochberg
+        FDR correction (via ``fdr_correction``) so that only statistically
+        significant threshold improvements are emitted.  Each suggestion is
+        tagged with ``fdr_significant: bool``.
         """
+        from trade_modules.backtest_stats import fdr_correction
+
         try:
             with open(self.config_path) as f:
                 config = yaml.safe_load(f)
@@ -1152,6 +1158,28 @@ class ThresholdAnalyzer:
                     suggestion["signal_type"] = "SELL"
                     suggestions.append(suggestion)
 
+        # --- BH FDR correction across all collected suggestions ---
+        n_tested = len(suggestions)
+        if n_tested > 0:
+            p_values = {
+                f"{s['tier_region']}_{s['signal_type']}_{s['config_key']}": s["p_value"]
+                for s in suggestions
+            }
+            significant_names = set(fdr_correction(p_values))
+
+            for s in suggestions:
+                key = f"{s['tier_region']}_{s['signal_type']}_{s['config_key']}"
+                s["fdr_significant"] = key in significant_names
+
+            n_surviving = sum(1 for s in suggestions if s["fdr_significant"])
+            logger.info(
+                "ThresholdAnalyzer: %d thresholds tested, %d survive BH correction at α=0.05",
+                n_tested,
+                n_surviving,
+            )
+        else:
+            logger.info("ThresholdAnalyzer: 0 thresholds tested, 0 survive BH correction at α=0.05")
+
         return suggestions
 
     @staticmethod
@@ -1165,6 +1193,10 @@ class ThresholdAnalyzer:
         """
         Find the threshold value that maximizes alpha hit rate (vs SPY).
 
+        Also computes a binomial p-value testing whether the suggested
+        hit-rate significantly exceeds 50% (chance level).  The p-value
+        is used downstream by ``suggest_thresholds`` for BH FDR correction.
+
         Args:
             data: DataFrame with metric and alpha columns
             metric_col: Name of metric column
@@ -1175,6 +1207,8 @@ class ThresholdAnalyzer:
         Returns:
             Suggestion dict or None if no meaningful improvement found
         """
+        from scipy.stats import binom
+
         required_cols = [metric_col, "alpha"]
         if not all(c in data.columns for c in required_cols):
             return None
@@ -1189,6 +1223,8 @@ class ThresholdAnalyzer:
         percentiles = np.percentile(metric_vals, [10, 20, 30, 40, 50, 60, 70, 80, 90])
         best_hr = -1.0
         best_val = current_val
+        best_n_hits = 0
+        best_n_obs = 0
 
         for test_val in percentiles:
             if direction == "min":
@@ -1201,13 +1237,17 @@ class ThresholdAnalyzer:
                 continue
 
             if signal == "B":
-                hr = float((group_alphas > 0).mean() * 100)
+                n_hits = int((group_alphas > 0).sum())
             else:
-                hr = float((group_alphas < 0).mean() * 100)
+                n_hits = int((group_alphas < 0).sum())
+            n_obs = len(group_alphas)
+            hr = n_hits / n_obs * 100
 
             if hr > best_hr:
                 best_hr = hr
                 best_val = round(float(test_val), 1)
+                best_n_hits = n_hits
+                best_n_obs = n_obs
 
         # Calculate current hit rate
         if direction == "min":
@@ -1229,6 +1269,13 @@ class ThresholdAnalyzer:
         if improvement <= 5.0 or best_val == current_val:
             return None
 
+        # Binomial p-value: is the suggested hit-rate significantly > 50%?
+        # P(X >= best_n_hits) under H0: p=0.5
+        if best_n_obs > 0:
+            p_value = float(1.0 - binom.cdf(best_n_hits - 1, best_n_obs, 0.5))
+        else:
+            p_value = 1.0
+
         return {
             "current_value": current_val,
             "suggested_value": best_val,
@@ -1236,6 +1283,9 @@ class ThresholdAnalyzer:
             "suggested_hit_rate": round(best_hr, 1),
             "improvement": round(improvement, 1),
             "sample_size": len(valid),
+            "p_value": p_value,
+            "n_hits": best_n_hits,
+            "n_obs": best_n_obs,
         }
 
     def analyze_by_regime(self, merged: pd.DataFrame) -> list[dict[str, Any]]:
@@ -1324,14 +1374,19 @@ class ThresholdAnalyzer:
 
         # Threshold suggestions
         if suggestions:
-            print("\nTHRESHOLD SUGGESTIONS (>5% hit rate improvement, n>=50):")
-            print("-" * 75)
+            fdr_count = sum(1 for s in suggestions if s.get("fdr_significant"))
+            print(
+                f"\nTHRESHOLD SUGGESTIONS ({len(suggestions)} tested, "
+                f"{fdr_count} survive BH FDR at α=0.05):"
+            )
+            print("-" * 85)
             for s in suggestions:
+                fdr_tag = "FDR-SIG" if s.get("fdr_significant") else "not-sig"
                 print(
-                    f"  {s['tier_region']} {s['signal_type']} {s['config_key']}: "
+                    f"  [{fdr_tag}] {s['tier_region']} {s['signal_type']} {s['config_key']}: "
                     f"current={s['current_value']}, suggested={s['suggested_value']}, "
                     f"hit rate +{s['improvement']:.1f}% "
-                    f"(n={s['sample_size']})"
+                    f"(n={s['sample_size']}, p={s.get('p_value', 'N/A'):.4f})"
                 )
         else:
             print(
@@ -1401,12 +1456,16 @@ class ThresholdAnalyzer:
 
         # Suggestions section
         for s in suggestions:
+            fdr_tag = "FDR-significant" if s.get("fdr_significant") else "not-significant"
             rows.append(
                 {
                     "section": "threshold_suggestion",
                     "item": f"{s['tier_region']}_{s['signal_type']}_{s['config_key']}",
                     "value": s["suggested_value"],
-                    "detail": (f"current={s['current_value']}, improvement=+{s['improvement']}%"),
+                    "detail": (
+                        f"current={s['current_value']}, improvement=+{s['improvement']}%, "
+                        f"p={s.get('p_value', 'N/A')}, {fdr_tag}"
+                    ),
                     "coverage": None,
                     "sample_size": s["sample_size"],
                 }
