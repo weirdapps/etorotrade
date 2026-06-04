@@ -596,6 +596,23 @@ def build_report(signal_summary, committee_result, scorecard, calibration):
         "signal_backtest_status": "no_data" if no_signal_data else "ok",
     }
 
+    # Standing methodological caveats (CIO v44)
+    start_date = (
+        signal_summary.get("date_range", {}).get("start", "unknown")
+        if signal_summary
+        else "unknown"
+    )
+    end_date = (
+        signal_summary.get("date_range", {}).get("end", "unknown") if signal_summary else "unknown"
+    )
+    report["caveats"] = {
+        "survivorship": "Universe excludes delisted/acquired tickers — BUY/HOLD biased up, SELL biased down",
+        "regime": f"Single-regime sample: {start_date} to {end_date}",
+        "costs": "net_alpha fields subtract eToro tier spreads; headline alpha fields are GROSS",
+        "overlap": "CIs use block bootstrap for horizons >= 30d; treat significance as indicative",
+        "multiple_testing": "Threshold suggestions are FDR-gated (Benjamini-Hochberg); per-cell proven flags are not",
+    }
+
     return report
 
 
