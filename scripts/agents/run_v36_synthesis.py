@@ -32,6 +32,10 @@ from trade_modules.committee_synthesis import (  # noqa: E402
     enrich_with_position_sizes,
     generate_synthesis_output,
 )
+from trade_modules.vol_targeting import (  # noqa: E402
+    compute_vol_scale,
+    estimate_portfolio_vol_from_history,
+)
 
 REPORTS_DIR = Path.home() / ".weirdapps-trading" / "committee" / "reports"
 PORTFOLIO_CSV = REPO / "yahoofinance" / "output" / "portfolio.csv"
@@ -300,8 +304,20 @@ def main():
         sentiment_report=sentiment,
     )
 
-    # Sizing with v36 fx-aware + dynamic base
-    print("Sizing positions (M3 dynamic base, M8 FX-aware, M10 cooldown)...", file=sys.stderr)
+    # Sizing with v36 fx-aware + dynamic base + M9 vol targeting
+    # Estimate portfolio vol from recent price history when data is available.
+    # daily_returns would come from price_cache.py — for now None falls back
+    # to vol_scale=1.0 (no adjustment). Live wiring is a follow-up task.
+    estimated_vol = estimate_portfolio_vol_from_history(
+        weights={},  # populated when price data pipeline is connected
+        daily_returns=None,
+    )
+    vol_scale = compute_vol_scale(estimated_vol)
+    print(
+        f"Sizing positions (M3 dynamic base, M8 FX-aware, M9 vol_scale={vol_scale:.2f}, "
+        f"M10 cooldown)...",
+        file=sys.stderr,
+    )
     enrich_with_position_sizes(
         concordance,
         regime=str(macro.get("executive_summary", {}).get("regime", "NEUTRAL")),
@@ -309,6 +325,7 @@ def main():
         base_position_pct=0.005,
         fx_aware=True,
         ref_currency="EUR",
+        vol_scale=vol_scale,
         correlation_clusters=risk.get("correlation_clusters", []),
     )
 
