@@ -596,7 +596,7 @@ class BacktestEngine:
     @staticmethod
     def _compute_group_stats(gdf: pd.DataFrame, signal_type: str) -> dict[str, Any]:
         """Compute hit rate, mean/median return, avg alpha, CIs for a group."""
-        from trade_modules.backtest_stats import bootstrap_ci, hit_rate_ci
+        from trade_modules.backtest_stats import block_bootstrap_ci, bootstrap_ci, hit_rate_ci
 
         n = len(gdf)
         returns = gdf["stock_return"].dropna()
@@ -617,7 +617,22 @@ class BacktestEngine:
         else:  # H
             hits_arr = (returns.abs() < 5).astype(int).values
 
-        hit_rate_val, ci_lo, ci_hi = hit_rate_ci(hits_arr)
+        # Determine horizon from group data (if available) for block bootstrap
+        _horizon = int(gdf["horizon"].iloc[0]) if "horizon" in gdf.columns else 0
+
+        if _horizon >= 30 and len(hits_arr) >= _horizon:
+            # Block bootstrap: use contiguous blocks to respect autocorrelation
+            # in overlapping forward windows.  block_size = min(horizon, n//3)
+            # so we always have at least 3 blocks.
+            _blk = min(_horizon, len(hits_arr) // 3)
+            ci_lo, ci_hi = block_bootstrap_ci(
+                hits_arr,
+                block_size=_blk,
+                stat_fn=lambda x: np.mean(x) * 100,
+            )
+            hit_rate_val = float(np.mean(hits_arr)) * 100
+        else:
+            hit_rate_val, ci_lo, ci_hi = hit_rate_ci(hits_arr)
 
         # Alpha-based hit rate
         n_alpha = len(alphas)
@@ -649,10 +664,16 @@ class BacktestEngine:
             net_alpha_ci_lo = None
             net_alpha_ci_hi = None
 
-        # Return CI
-        ret_ci_lo, ret_ci_hi = (
-            bootstrap_ci(returns.values, stat_fn=np.mean) if len(returns) > 0 else (np.nan, np.nan)
-        )
+        # Return CI (block bootstrap for overlapping horizons)
+        if len(returns) > 0 and _horizon >= 30 and len(returns) >= _horizon:
+            _ret_blk = min(_horizon, len(returns) // 3)
+            ret_ci_lo, ret_ci_hi = block_bootstrap_ci(
+                returns.values, block_size=_ret_blk, stat_fn=np.mean
+            )
+        elif len(returns) > 0:
+            ret_ci_lo, ret_ci_hi = bootstrap_ci(returns.values, stat_fn=np.mean)
+        else:
+            ret_ci_lo, ret_ci_hi = (np.nan, np.nan)
 
         # Proven signal: enough observations AND hit-rate CI doesn't span 50%.
         proven = n >= MIN_PROVEN_OBSERVATIONS
