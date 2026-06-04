@@ -81,7 +81,7 @@ class BacktestEngine:
         self.signal_log_path = signal_log_path or SIGNAL_LOG_PATH
         self.output_dir = output_dir or OUTPUT_DIR
         self.cache_path = cache_path or CACHE_PATH
-        self.horizons = horizons or [7, 30, 90]
+        self.horizons = horizons or [7, 30, 60, 90, 180, 250]
 
     def run(self) -> None:
         """Execute the full backtest pipeline."""
