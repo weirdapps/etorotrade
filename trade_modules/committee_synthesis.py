@@ -128,7 +128,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-__version__ = "v43.0"
+__version__ = "v44.0"
 
 # CIO v43 (2026-05-30): the adversarial Bull/Bear debate is SHADOWED.
 # debate_scorecard 2026-05-28 reported weighted excess alpha = -5.78pp
@@ -138,29 +138,39 @@ __version__ = "v43.0"
 # positive edge and this flag is flipped back on.
 DEBATE_AFFECTS_CONVICTION = False
 
-# CIO v42.0 — Empirical Consolidation (2026-05-28)
+# CIO v44.0 — Evidence-Based Consolidation (2026-06-04)
 #
-# Single modifier set based on T+30 Spearman rho calibration (n=5,801 obs).
-# Only modifiers with PREDICTIVE verdict (|rho|>0.1, p<0.05) or strong
-# SHADOW evidence (rho>0.1, approaching significance) are active.
+# Modifier governance policy: nothing enters ACTIVE_MODIFIERS without
+# (1) Benjamini-Hochberg significance at α=0.05 across all tested modifiers,
+# (2) out-of-sample evidence, (3) net-of-cost alpha at operating horizon,
+# (4) correct sign alignment (modifier direction matches calibrated rho sign).
+# Default state = SHADOW. Promotion = evidence. Demotion = automatic.
 #
-# Replaces the dual V35/V36 A/B system. The env var CIO_V36_NEW_MODIFIERS
-# is no longer checked.
+# V44 audit against modifier_t30_calibration_rigorous.json (Bonferroni):
+# - sector_concentration: SURVIVES (rho=-0.321, n=202, p<0.001)
+# - piotroski_quality: REMOVED — rho=-0.23 but code applied as +3 bonus
+#   (sign inversion); does not survive BH across 63 modifiers
+# - tech_disagree: REMOVED — rho=+0.259 n=66, does not survive rigorous BH
+# - consensus_crowded: REMOVED — rho=+0.180 n=226, does not survive rigorous BH
+# - revenue_growth: REMOVED — rho=+0.128 n=180, was already SHADOW, sub-threshold
 #
 # Calibration source: ~/.weirdapps-trading/committee/modifier_t30_calibration.json
+# Rigorous source: ~/.weirdapps-trading/committee/modifier_t30_calibration_rigorous.json
 # Re-run scripts/calibrate_modifiers_t30.py weekly to update verdicts.
 
 ACTIVE_MODIFIERS = {
-    "sector_concentration",  # PREDICTIVE  rho=-0.321  n=202  (restored from V37_DEPRECATED)
-    "piotroski_quality",  # PREDICTIVE  rho=-0.230  n=136
-    "tech_disagree",  # PREDICTIVE  rho=+0.259  n= 66
-    "consensus_crowded",  # PREDICTIVE  rho=+0.180  n=226
-    "revenue_growth",  # SHADOW      rho=+0.128  n=180  (near threshold, Novy-Marx 2013)
+    "sector_concentration",  # SURVIVES BH  rho=-0.321  n=202  p<0.001
 }
 
 # Historical record of deprecated modifiers.
 # V37: wrong-direction effect at T+30. V42: DROP/SHADOW verdicts at T+30.
+# V44: pruned to BH-surviving set only.
 V_DEPRECATED = {
+    # V44 deprecations (2026-06-04) — do not survive BH correction
+    "piotroski_quality",  # rho=-0.23 n=136, sign-inverted in code (was +3 bonus)
+    "tech_disagree",  # rho=+0.259 n=66, sub-BH (n too small)
+    "consensus_crowded",  # rho=+0.180 n=226, sub-BH
+    "revenue_growth",  # rho=+0.128 n=180, was SHADOW, sub-threshold
     # V37 deprecations (2026-05-16) — wrong-direction effect
     "currency_risk_USD",  # n=83  penalized winners
     "fcf_quality_strong",  # n=57  rewarded losers

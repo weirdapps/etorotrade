@@ -7458,15 +7458,12 @@ class TestV42EmpiricalModifiers:
     shows rho=-0.321, the strongest PREDICTIVE signal).
     """
 
-    def test_active_modifiers_is_empirical_set(self):
+    def test_active_modifiers_is_bh_surviving_set(self):
+        """CIO v44: only BH-surviving modifiers are active."""
         from trade_modules.committee_synthesis import ACTIVE_MODIFIERS
 
-        assert "piotroski_quality" in ACTIVE_MODIFIERS
-        assert "consensus_crowded" in ACTIVE_MODIFIERS
         assert "sector_concentration" in ACTIVE_MODIFIERS
-        assert "tech_disagree" in ACTIVE_MODIFIERS
-        assert "revenue_growth" in ACTIVE_MODIFIERS
-        assert len(ACTIVE_MODIFIERS) == 5
+        assert len(ACTIVE_MODIFIERS) == 1
 
     def test_deprecated_noise_modifiers_not_active(self):
         from trade_modules.committee_synthesis import ACTIVE_MODIFIERS
@@ -7481,6 +7478,10 @@ class TestV42EmpiricalModifiers:
             "news_catalyst_pos",
             "target_consensus",
             "volume_confirm",
+            "piotroski_quality",
+            "tech_disagree",
+            "consensus_crowded",
+            "revenue_growth",
         ]:
             assert noise not in ACTIVE_MODIFIERS, f"{noise} should be deprecated"
 
