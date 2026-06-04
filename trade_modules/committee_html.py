@@ -5520,8 +5520,8 @@ def generate_report_html_v2(
     _RD = "#c53030"  # bear
     _AM = "#b7791f"  # amber
     _HBG = "#f7fafc"  # header/alt bg
-    _SERIF = "Georgia,'Times New Roman',serif"
-    _SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif"
+    _SERIF = "Aptos,'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif"
+    _SANS = "Aptos,'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif"
 
     h = []
     h.append(
@@ -5914,40 +5914,65 @@ def generate_report_html_v2(
                     )
                 h.append("</tr></table>")
 
-            # Agent signals line
+            # Key analyst metrics bar — %BUY, AM, EXRET, PE
             _am = en.get("am", 0)
             try:
                 _am = float(_am) if _am is not None else 0
             except (ValueError, TypeError):
                 _am = 0
-            h.append(
-                f'<div style="font-size:11px;color:{_TXM};margin:4px 0;">'
-                f"{e(sec)} &middot; RSI {rsi:.0f} &middot; Tech {abbr(ts)} &middot; "
-                f"Macro {abbr(mf)} &middot; AM {_am:+.0f} &middot; "
-                f"Fund {abbr(fv)}({en.get('fund_score', 0):.0f}){sm} &middot; "
-                f"%BUY {bp:.0f}%</div>"
-            )
-
-            # PE / Revenue / EPS metrics line
             _pet = en.get("pet", 0) or 0
             _pef = en.get("pef", 0) or 0
             _rev = en.get("revenue_growth_class", "") or "--"
             _eps = en.get("eps_revisions") or "--"
             if isinstance(_eps, dict):
                 _eps = _eps.get("classification", "--")
-            pe_str = f"{_pet:.0f}x&#8594;{_pef:.0f}x" if _pet > 0 and _pef > 0 else "--"
-            pe_col = (
-                _GN
-                if _pet > 0 and _pef > 0 and _pef < _pet
-                else (_RD if _pet > 0 and _pef > _pet else _TX2)
-            )
+            pe_str = f"{_pet:.0f}x &rarr; {_pef:.0f}x" if _pet > 0 and _pef > 0 else "--"
+            pe_arrow = ""
+            pe_col = _TX2
+            if _pet > 0 and _pef > 0:
+                if _pef < _pet:
+                    pe_arrow = " &#9650;"
+                    pe_col = _GN
+                elif _pef > _pet:
+                    pe_arrow = " &#9660;"
+                    pe_col = _RD
+            am_col = _GN if _am > 3 else _RD if _am < -3 else _TX2
+            bp_col = _GN if bp >= 70 else _RD if bp < 45 else _TX2
+
+            _kc = f"padding:6px 10px;text-align:center;border-right:1px solid {_BD};font-size:11px;"
             h.append(
-                f'<div style="font-size:11px;color:{_TX2};margin:4px 0;'
-                f'padding:4px 10px;background:{_HBG};border:1px solid {_BD};">'
-                f'PE <span style="color:{pe_col};font-weight:600;">{pe_str}</span>'
-                f" &middot; Rev: {_rev} &middot; EPS: {_eps}"
-                f" &middot; EXRET: {ex:.0f}%"
-                f" &middot; Conv: {conv_label} ({conv})</div>"
+                f'<table style="width:100%;border-collapse:collapse;margin:6px 0;'
+                f'border:1px solid {_BD};">'
+                f'<tr style="background:{_HBG};">'
+                f'<td style="{_kc}">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">%BUY</div>'
+                f'<div style="font-weight:700;color:{bp_col};">{bp:.0f}%</div></td>'
+                f'<td style="{_kc}">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">AM (3M &Delta;)</div>'
+                f'<div style="font-weight:700;color:{am_col};">{_am:+.0f}pp</div></td>'
+                f'<td style="{_kc}">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">EXRET</div>'
+                f'<div style="font-weight:700;color:{_GN if ex > 10 else _RD if ex < 0 else _TX2};">'
+                f"{ex:.1f}%</div></td>"
+                f'<td style="{_kc}">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">PE (T&rarr;F)</div>'
+                f'<div style="font-weight:700;color:{pe_col};">{pe_str}{pe_arrow}</div></td>'
+                f'<td style="{_kc}">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">REV</div>'
+                f'<div style="font-weight:600;color:{_TX2};">{_rev}</div></td>'
+                f'<td style="{_kc}border-right:none;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">EPS REV</div>'
+                f'<div style="font-weight:600;color:{_TX2};">{_eps}</div></td>'
+                f"</tr></table>"
+            )
+
+            # Context line: sector, RSI, tech, macro, fund
+            h.append(
+                f'<div style="font-size:11px;color:{_TXM};margin:4px 0;">'
+                f"{e(sec)} &middot; RSI {rsi:.0f} &middot; Tech {abbr(ts)} &middot; "
+                f"Macro {abbr(mf)} &middot; "
+                f"Fund {abbr(fv)}({en.get('fund_score', 0):.0f}){sm} &middot; "
+                f"{conv_label} conviction</div>"
             )
 
             # 3-section thesis: THESIS | RISKS | WRONG IF
