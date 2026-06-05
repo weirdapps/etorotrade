@@ -480,6 +480,11 @@ def _normalize_census_divergences(census_report: dict) -> dict:
             new_items = []
             for item in items:
                 if isinstance(item, dict):
+                    if "ticker" not in item:
+                        for alias in ("portfolio_ticker", "symbol", "stock"):
+                            if alias in item:
+                                item["ticker"] = item[alias]
+                                break
                     new_items.append(item)
                 elif isinstance(item, str) and item.strip():
                     new_items.append({"ticker": item.strip(), "divergence_score": 0})
