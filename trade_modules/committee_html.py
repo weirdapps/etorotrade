@@ -842,7 +842,7 @@ def generate_report_html(
             sector_counts[sec] = sector_counts.get(sec, 0) + 1
 
     # Sort: SELL > TRIM > BUY > ADD > HOLD, then by conviction desc
-    action_order = {"SELL": 0, "TRIM": 1, "BUY": 2, "ADD": 3, "HOLD": 4}
+    action_order = {"BUY": 0, "ADD": 1, "TRIM": 2, "SELL": 3, "HOLD": 4}
     concordance.sort(
         key=lambda x: (action_order.get(x.get("action", "HOLD"), 4), -x.get("conviction", 0))
     )
@@ -5217,7 +5217,7 @@ def generate_report_html_v2(
     concordance = synth.get("concordance", [])
     for entry in concordance:
         entry["sector"] = gics_sector(entry.get("sector", ""))
-    action_order = {"SELL": 0, "TRIM": 1, "BUY": 2, "ADD": 3, "HOLD": 4}
+    action_order = {"BUY": 0, "ADD": 1, "TRIM": 2, "SELL": 3, "HOLD": 4}
     concordance.sort(
         key=lambda x: (action_order.get(x.get("action", "HOLD"), 4), -x.get("conviction", 0))
     )
@@ -5266,7 +5266,7 @@ def generate_report_html_v2(
         [en for en in concordance if en.get("action") == "HOLD"],
         key=lambda x: -x.get("conviction", 0),
     )
-    action_stocks = sell_list + trim_list + buy_list + add_list
+    action_stocks = buy_list + add_list + trim_list + sell_list
     sells = len(sell_list)
     buys = len(buy_list) + len(add_list)
     trims = len(trim_list)
@@ -5786,20 +5786,22 @@ def generate_report_html_v2(
             f'<tr><th style="{_th_i}text-align:left;">Stock</th>'
             f'<th style="{_th_i}text-align:center;">Action</th>'
             f'<th style="{_th_i}text-align:center;">Conv</th>'
-            f'<th style="{_th_i}text-align:center;">Signal</th>'
-            f'<th style="{_th_i}text-align:center;">%BUY</th>'
-            f'<th style="{_th_i}text-align:center;">AM</th>'
+            f'<th style="{_th_i}text-align:center;">Consensus</th>'
+            f'<th style="{_th_i}text-align:center;">3M Change</th>'
             f'<th style="{_th_i}text-align:center;">EXRET</th>'
+            f'<th style="{_th_i}text-align:center;">PE</th>'
             f'<th style="{_th_i}text-align:left;">Size</th></tr>'
         )
         for en in action_stocks:
             act = en.get("action", "HOLD")
             tkr = en.get("ticker", "")
             conv = en.get("conviction", 0)
-            sig = en.get("signal", "?")
             ex = en.get("exret", 0)
             _abp = en.get("buy_pct", 0)
             _aam = en.get("am", 0)
+            _ana = int(en.get("num_analysts", 0) or 0)
+            _tpet = en.get("pet", 0) or 0
+            _tpef = en.get("pef", 0) or 0
             try:
                 _aam = float(_aam) if _aam else 0
             except (ValueError, TypeError):
@@ -5807,18 +5809,35 @@ def generate_report_html_v2(
             delta = delta_map.get(tkr)
             exc = _GN if ex > 5 else _RD if ex < 0 else _TX2
             _bpc = _GN if _abp >= 70 else _RD if _abp < 45 else _TX2
-            _amc = _GN if _aam > 3 else _RD if _aam < -3 else _TX2
             ac = _RD if act in ("SELL", "TRIM") else _GN
+            # Raw consensus: X/Y BUY (Z%)
+            _buys = round(_abp * _ana / 100) if _ana > 0 else 0
+            _cons = f"{_buys}/{_ana} ({_abp:.0f}%)" if _ana > 0 else "--"
+            # 3M analyst delta
+            _past_bp = max(0, _abp - _aam)
+            _past_buys = round(_past_bp * _ana / 100) if _ana > 0 else 0
+            _dbuys = _buys - _past_buys
+            _dbc = _GN if _dbuys > 0 else _RD if _dbuys < 0 else _TX2
+            _dc_str = f"{_dbuys:+d}" if _ana > 0 else "--"
+            # PE string
+            _pe_str = ""
+            if _tpet > 0 and _tpef > 0:
+                _pec = _GN if _tpef < _tpet else _RD if _tpef > _tpet else _TX2
+                _pe_str = f'<span style="color:{_TX2};">{_tpet:.0f}x</span> &rarr; <span style="color:{_pec};font-weight:700;">{_tpef:.0f}x</span>'
+            elif _tpef > 0:
+                _pe_str = f"{_tpef:.0f}x"
+            else:
+                _pe_str = "--"
             h.append(
                 f'<tr><td style="{_td_i}text-align:left;">{_tn_cell(tkr, _names)}</td>'
                 f'<td style="{_td_i}text-align:center;">'
                 f'<span style="display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;'
                 f'color:#fff;background:{ac};">{act}</span></td>'
                 f'<td style="{_td_i}text-align:center;">{conv_display(conv, delta)}</td>'
-                f'<td style="{_td_i}text-align:center;">{signal_badge(sig)}</td>'
-                f'<td style="{_td_i}text-align:center;{_MONO}font-weight:600;color:{_bpc};">{_abp:.0f}%</td>'
-                f'<td style="{_td_i}text-align:center;{_MONO}font-weight:600;color:{_amc};">{_aam:+.0f}pp</td>'
+                f'<td style="{_td_i}text-align:center;font-size:11px;color:{_bpc};">{_cons}</td>'
+                f'<td style="{_td_i}text-align:center;font-size:11px;color:{_dbc};">{_dc_str}</td>'
                 f'<td style="{_td_i}text-align:center;{_MONO}font-weight:700;color:{exc};">{ex:.0f}%</td>'
+                f'<td style="{_td_i}text-align:center;font-size:11px;">{_pe_str}</td>'
                 f'<td style="{_td_i}text-align:left;font-size:11px;color:{_TX2};">{_size_text(en)}</td></tr>'
             )
         h.append("</table>")
