@@ -6010,60 +6010,85 @@ def generate_report_html_v2(
                     )
                 h.append("</tr></table>")
 
-            # Key analyst metrics bar — Analysts, %BUY, AM, EXRET, PE T, PE F, Rev
+            # Key analyst metrics bar — consensus + valuation + momentum
             _am = en.get("am", 0)
             try:
                 _am = float(_am) if _am is not None else 0
             except (ValueError, TypeError):
                 _am = 0
             _na = int(en.get("num_analysts", 0) or 0)
-            _nt = int(en.get("num_targets", 0) or 0)
             _pet = en.get("pet", 0) or 0
             _pef = en.get("pef", 0) or 0
             _rev = en.get("revenue_growth_class", "") or "--"
-            _eps = en.get("eps_revisions") or "--"
-            if isinstance(_eps, dict):
-                _eps = _eps.get("classification", "--")
-            pe_col_t = _TX2
+
+            # Compute raw BUY count and 3M-ago estimate
+            buys_now = round(bp * _na / 100) if _na > 0 and bp > 0 else 0
+            past_bp = max(0, bp - _am)
+            buys_past = round(past_bp * _na / 100) if _na > 0 else 0
+            delta_buys = buys_now - buys_past
+
             pe_col_f = _TX2
             if _pet > 0 and _pef > 0:
                 if _pef < _pet:
                     pe_col_f = _GN
                 elif _pef > _pet:
                     pe_col_f = _RD
-            am_col = _GN if _am > 3 else _RD if _am < -3 else _TX2
             bp_col = _GN if bp >= 70 else _RD if bp < 45 else _TX2
-            rev_col = _GN if _rev == "ACCELERATING" else _RD if _rev == "DECLINING" else _TX2
+            rev_col = (
+                _GN
+                if _rev == "ACCELERATING"
+                else _RD
+                if _rev in ("DECLINING", "DECELERATING")
+                else _TX2
+            )
+            delta_col = _GN if delta_buys > 0 else _RD if delta_buys < 0 else _TX2
 
-            _kc = f"padding:6px 8px;text-align:center;border-right:1px solid {_BD};font-size:11px;"
-            analysts_str = f"{_na}" if _na > 0 else "--"
+            _kc = f"padding:8px 10px;text-align:center;border-right:1px solid {_BD};font-size:11px;"
             h.append(
-                f'<table style="width:100%;border-collapse:collapse;margin:6px 0;'
+                f'<table style="width:100%;border-collapse:collapse;margin:8px 0;'
                 f'border:1px solid {_BD};">'
                 f'<tr style="background:{_HBG};">'
-                f'<td style="{_kc}">'
-                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">ANALYSTS</div>'
-                f'<div style="font-weight:700;color:{_TX2};">{analysts_str}</div></td>'
-                f'<td style="{_kc}">'
-                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">%BUY</div>'
-                f'<div style="font-weight:700;color:{bp_col};">{bp:.0f}%</div></td>'
-                f'<td style="{_kc}">'
-                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">AM (3M &Delta;)</div>'
-                f'<div style="font-weight:700;color:{am_col};">{_am:+.0f}pp</div></td>'
-                f'<td style="{_kc}">'
-                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">EXRET</div>'
+                # Consensus: X/Y BUY (Z%)
+                f'<td style="{_kc}width:22%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">CONSENSUS</div>'
+                f'<div style="font-weight:700;color:{bp_col};">'
+                f"{buys_now}/{_na} BUY ({bp:.0f}%)</div></td>"
+                if _na > 0
+                else f'<td style="{_kc}width:22%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">CONSENSUS</div>'
+                f'<div style="font-weight:700;color:{_TXM};">--</div></td>'
+            )
+            h.append(
+                # 3M Change: delta analysts
+                f'<td style="{_kc}width:18%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">3M CHANGE</div>'
+                f'<div style="font-weight:700;color:{delta_col};">'
+                f"{delta_buys:+d} analyst{'s' if abs(delta_buys) != 1 else ''}"
+                f" ({_am:+.0f}pp)</div></td>"
+                if _na > 0
+                else f'<td style="{_kc}width:18%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">3M CHANGE</div>'
+                f'<div style="font-weight:700;color:{_TXM};">--</div></td>'
+            )
+            h.append(
+                # EXRET
+                f'<td style="{_kc}width:14%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">EXRET</div>'
                 f'<div style="font-weight:700;color:{_GN if ex > 10 else _RD if ex < 0 else _TX2};">'
                 f"{ex:.1f}%</div></td>"
-                f'<td style="{_kc}">'
-                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">PE TRAIL</div>'
+                # PE Trailing
+                f'<td style="{_kc}width:14%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">PE TRAIL</div>'
                 f'<div style="font-weight:700;color:{_TX2};">'
                 f"{f'{_pet:.1f}x' if _pet > 0 else '--'}</div></td>"
-                f'<td style="{_kc}">'
-                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">PE FWD</div>'
+                # PE Forward
+                f'<td style="{_kc}width:14%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">PE FWD</div>'
                 f'<div style="font-weight:700;color:{pe_col_f};">'
                 f"{f'{_pef:.1f}x' if _pef > 0 else '--'}</div></td>"
-                f'<td style="{_kc}border-right:none;">'
-                f'<div style="font-size:9px;color:{_TXM};font-weight:600;">REVENUE</div>'
+                # Revenue
+                f'<td style="{_kc}width:18%;border-right:none;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">REVENUE</div>'
                 f'<div style="font-weight:600;color:{rev_col};">{_rev}</div></td>'
                 f"</tr></table>"
             )
