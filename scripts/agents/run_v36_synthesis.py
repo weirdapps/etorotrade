@@ -86,10 +86,14 @@ def build_portfolio_signals():
                 "upside": _f(row.get("UP%")),
                 "short_interest": _f(row.get("SI")),
                 "roe": _f(row.get("ROE")),
-                "pct_52w_high": _f(row.get("52W"), 80),  # alias for empirical_factor
+                "pct_52w_high": _f(row.get("52W"), 80),
                 "price": _f(row.get("PRC")),
                 "name": row.get("NAME", "").strip(),
                 "market_cap": row.get("CAP", "").strip(),
+                "am": _f(row.get("AM")),
+                "num_analysts": _f(row.get("#A")),
+                "num_targets": _f(row.get("#T")),
+                "analyst_type": row.get("A", "A").strip(),
                 "earnings_surprise_pct": 0,
                 "consecutive_earnings_beats": 0,
             }
@@ -252,11 +256,20 @@ def main():
                     census_ts_map[tkr] = info.get("classification", "stable")
 
     # Opportunity signals (BUY candidates not in portfolio)
+    # Load buy.csv for enrichment of opportunity fields (AM, #A, price)
+    buy_lookup = {}
+    buy_csv = PORTFOLIO_CSV.parent / "buy.csv"
+    if buy_csv.exists():
+        with open(buy_csv) as f:
+            for row in csv.DictReader(f):
+                buy_lookup[row.get("TKR", "")] = row
+
     opp_signals = {}
     opp_sectors = {}
     for o in opps.get("top_opportunities", [])[:10]:
         t = o.get("ticker", "")
         if t and t not in portfolio_signals:
+            brow = buy_lookup.get(t, {})
             opp_signals[t] = {
                 "signal": "B" if o.get("signal", "BUY") in ("BUY", "B") else "H",
                 "exret": _f(o.get("exret")),
@@ -264,12 +277,17 @@ def main():
                 "beta": _f(o.get("beta"), 1.0),
                 "pet": _f(o.get("pe_trailing")),
                 "pef": _f(o.get("pe_forward")),
-                "pp": 0,
-                "52w": 80,
+                "pp": _f(brow.get("PP")),
+                "52w": _f(brow.get("52W"), 80),
                 "upside": _f(o.get("upside")),
-                "short_interest": _f(o.get("short_interest")),
-                "roe": _f(o.get("roe")),
-                "pct_52w_high": 80,
+                "short_interest": _f(o.get("short_interest") or brow.get("SI")),
+                "roe": _f(o.get("roe") or brow.get("ROE")),
+                "pct_52w_high": _f(brow.get("52W"), 80),
+                "price": _f(o.get("price") or brow.get("PRC")),
+                "am": _f(brow.get("AM")),
+                "num_analysts": _f(brow.get("#A")),
+                "num_targets": _f(brow.get("#T")),
+                "analyst_type": brow.get("A", "A"),
                 "opportunity_score": _f(o.get("opportunity_score") or o.get("score")),
             }
             opp_sectors[t] = o.get("sector", "Other")
