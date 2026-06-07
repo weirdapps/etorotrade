@@ -2026,7 +2026,7 @@ IDXX,IDEXX Laboratories Inc,Nasdaq
 VEEV,Veeva Systems Inc A,NYSE
 AWK,American Water Works Co Inc,NYSE
 CDNS,Cadence Design Systems Inc,Nasdaq
-IAC,IAC Inc,Nasdaq
+PPLI,People Inc,Nasdaq
 CHD,Church & Dwight Co Inc,NYSE
 SNPS,Synopsys Inc,Nasdaq
 DXC,DXC Technology Co,NYSE
@@ -2514,7 +2514,7 @@ INGN,Inogen Inc,Nasdaq
 PLAY,Dave & Busters Entertainment Inc,Nasdaq
 LPSN,LivePerson Inc,Nasdaq
 SM,SM Energy Co,NYSE
-AZLUY,Azul SA-SPDN ADR,OTC Markets Stock Exchange
+AZUL,Azul SA-SPDN ADR,NYSE
 EGHT,8x8 Inc,NYSE
 AIN,Albany International Corp,NYSE
 1833.HK,Ping An Healthcare and Technology Co Ltd,Hong Kong Exchanges
@@ -3888,7 +3888,7 @@ GSHD,Goosehead Insurance Inc,Nasdaq
 SLG,SL Green Realty Corp.,NYSE
 MMS,Maximus Inc.,NYSE
 RHP,Ryman Hospitality Properties Inc.,NYSE
-VSCO,Victoria's Secret & Co.,NYSE
+VSXY,Victoria's Secret & Co.,NYSE
 DTM,DT Midstream Inc.,NYSE
 CIVI,Civitas Resources Inc.,NYSE
 EXLS,ExlService Holdings Inc.,Nasdaq
@@ -4604,7 +4604,7 @@ WEST,Westrock Coffee Company,Nasdaq
 PHVS,Pharvaris NV,Nasdaq
 SRRK,Scholar Rock Holding Corporation,Nasdaq
 OFLX,Omega Flex Inc,Nasdaq
-DCOM,Dime Community Bancshares Inc,NYSE
+DCOM,Dime Commercial Bancshares Inc,NYSE
 ASTS,AST SpaceMobile Inc,Nasdaq
 RMR,The RMR Group Inc,Nasdaq
 BIOX,Bioceres Crop Solutions Corp,Nasdaq
@@ -5126,7 +5126,7 @@ CDA.AX,Codan Ltd,Sydney
 MTRX,Matrix Service Co,Nasdaq
 QXO,QXO Inc,NYSE
 CDAQF,Compass Digital Acquisition,OTC Markets Stock Exchange
-KIDZ,Classover Hold-B Equity,Nasdaq
+KIDZ,KIDZ AI Inc,Nasdaq
 NCK.AX,Nick Scali Ltd,Sydney
 IVCBF,Investcorp Europe Acquisi-A,OTC Markets Stock Exchange
 DRCT,Direct Digital Holdings In-A,Nasdaq
@@ -8280,6 +8280,11 @@ IEAG,Infinite Eagle Acquisition Corp,Nasdaq
 LCLN,Lincoln International Inc,NYSE
 INR,Infinity Natural Resources Inc,NYSE
 BALY,Bally's Corp,NYSE
+FDXF,FEDEX FREIGHT HOLDING CO,NYSE
+SSMR,"Sunshine Silver Mining & Refining, Inc.",NYSE
+SFPT,"Safepoint Holdings, Inc.",NYSE
+WHK,WhiteHawk Minerals Corp.,NYSE
+AADX,"Applied Aerospace & Defense, Inc.",NYSE
 CVR.AVDL,Avadel Pharmaceuticals CVR,Nasdaq
 SGP,SpyGlass Pharma Inc,Nasdaq
 GENB,"Generate Biomedicines, Inc",Nasdaq
@@ -8317,6 +8322,9 @@ STRK,Strategy Prf (Strike 8%),Nasdaq
 STRD,Strategy Prf D (Stride 10%),Nasdaq
 SPCX,Space Exploration Technologies Corp,Nasdaq
 FISN,"Deep Fission, Inc",Nasdaq
+INIO,INNIO Group Holding GmbH,Nasdaq
+QNT,Quantinuum,Nasdaq
+SPCX.PERP,SpaceX perpetual,Nasdaq
 TRAX,First Tracks Biotherapeutics Inc,Nasdaq
 BVR.AX,Bellavista Resources Ltd,Sydney
 KMAR.OL,Kongsberg Maritime AS,Oslo Stock Exchange
@@ -8436,7 +8444,7 @@ CKA.AX,Cokal Ltd,Sydney
 AQD.AX,AusQuest Ltd,Sydney
 LIN.AX,Lindian Resources Ltd,Sydney
 SHM.AX,Shriro Holdings Ltd,Sydney
-ATH.AX,Alterity Therapeutics ltd,Sydney
+ATHDA.AX,Alterity Therapeutics ltd,Sydney
 HSN.AX,Hansen Technologies Ltd,Sydney
 BBL.AX,Brisbane Broncos Ltd,Sydney
 IVR.AX,Investigator Silver Ltd,Sydney
@@ -9614,7 +9622,7 @@ DLHC,DLH Holdings Corp,Nasdaq
 FGBI,First Guaranty Bancshares Inc,Nasdaq
 GALT,Galectin Therapeutics Inc,Nasdaq
 OBE,Obsidian Energy Ltd,NYSE
-EDAP,EDAP TMS SA,Nasdaq
+FOCL,EDAP TMS SA,Nasdaq
 KINS,Kingstone Cos Inc,Nasdaq
 ANSC,Agriculture & Natural Solutions Acquisition Corp,Nasdaq
 FTEK,Fuel Tech Inc,Nasdaq
@@ -10703,7 +10711,7 @@ TRSG,Tungray Technologies Inc,Nasdaq
 SRBK,SR Bancorp Inc,Nasdaq
 LOBO,Lobo Technologies Ltd,Nasdaq
 CLCO,Cool Co Ltd,NYSE
-SUUN,PowerBank Corp,Nasdaq
+PBK,PowerBank Corp,Nasdaq
 BCG,Binah Capital Group Inc,Nasdaq
 CCTG,CCSC Technology International Holdings Ltd,Nasdaq
 OAKU,Oak Woods Acquisition Corp,Nasdaq
@@ -10860,7 +10868,7 @@ TBH,Brag House Holdings Inc,Nasdaq
 YSXT,YSX Tech Co Ltd,Nasdaq
 PUSA,Aureus Greenway Holdings Inc,Nasdaq
 ZJK,ZJK Industrial Co Ltd,Nasdaq
-ABVE,Above Food Ingredients Inc,Nasdaq
+ABVEF,Above Food Ingredients Inc,OTC Markets Stock Exchange
 LHAI,Linkhome Holdings Inc,Nasdaq
 PSIG,PS International Group Ltd,Nasdaq
 TWFG,TWFG Inc,Nasdaq
@@ -12557,3 +12565,4 @@ WEBL.DE,Amundi Core MSCI USA UCITS ETF Acc,Xetra ETFs
 MEGU.DE,Amundi MSCI USA Mega Cap UCITS ETF Acc,Xetra ETFs
 WEBB.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
 FSFL.L,Foresight Solar Fund Ltd,LSE
+JPIE,JPMorgan Income ETF,NYSE
