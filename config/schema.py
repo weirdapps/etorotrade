@@ -550,6 +550,21 @@ class CacheConfig(BaseModel):
     )
 
 
+class TrendContinuationConfig(BaseModel):
+    """Override upside gate for strong-trend stocks whose price outran analyst targets."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=False, description="Enable trend-continuation override")
+    min_buy_pct: float = Field(default=80.0, ge=0, le=100, description="Min analyst buy% required")
+    min_pct_52w_high: float = Field(default=70.0, ge=0, le=100, description="Min % of 52w high (uptrend)")
+    require_above_200dma: bool = Field(default=True, description="Require above 200DMA")
+    min_analyst_momentum: float = Field(default=-2.0, description="Min analyst momentum (pp)")
+    max_upside_override: float = Field(default=0.0, description="Override only when upside below this")
+    min_upside_floor: float = Field(default=-20.0, description="Safety: never override deeply negative")
+    log_tag: str = Field(default="trend_continuation", description="Tag for signal log")
+
+
 class TradingConfig(BaseModel):
     """
     Complete trading system configuration with validation.
@@ -659,6 +674,11 @@ class TradingConfig(BaseModel):
     )
     ipo_grace_period: IPOGracePeriodConfig | None = Field(
         default_factory=IPOGracePeriodConfig, description="IPO grace period configuration"
+    )
+
+    # Trend continuation (A2 — stops winner-ejection)
+    trend_continuation: TrendContinuationConfig | None = Field(
+        default_factory=TrendContinuationConfig, description="Override upside gate for trending winners"
     )
 
     # CIO review finding configs
