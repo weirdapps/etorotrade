@@ -785,7 +785,7 @@ trend_continuation:
   require_above_200dma: true  # Must be above 200DMA
   min_analyst_momentum: -2  # Analyst sentiment not declining
   max_upside_override: 0    # Only override when upside < this (negative = price > target)
-  min_upside_floor: -20     # Safety: don't override if upside deeply negative (broken thesis)
+  min_upside_floor: -30     # Safety: don't override if upside deeply negative (broken thesis)
   log_tag: "trend_continuation"
 
 # === CIO REVIEW: NEW CONFIGURATION SECTIONS ===

@@ -145,10 +145,10 @@ class YamlConfigLoader:
                 "quality_override_buy_pct": 85,
                 "quality_override_upside": 20,
                 "weight_analyst": 0.20,
-                "weight_momentum": 0.25,
+                "weight_momentum": 0.10,
                 "weight_valuation": 0.20,
                 "weight_fundamental": 0.25,
-                "weight_analyst_momentum": 0.10,
+                "weight_analyst_momentum": 0.15,
             },
         )
 
@@ -178,11 +178,12 @@ class YamlConfigLoader:
             "default_buy_scoring",
             {
                 "enabled": True,
-                "weight_upside": 0.30,
-                "weight_consensus": 0.25,
+                "weight_upside": 0.15,
+                "weight_consensus": 0.05,
                 "weight_momentum": 0.20,
-                "weight_valuation": 0.15,
-                "weight_fundamental": 0.10,
+                "weight_valuation": 0.25,
+                "weight_fundamental": 0.20,
+                "weight_analyst_momentum": 0.15,
             },
         )
 

@@ -128,7 +128,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-__version__ = "v44.0"
+__version__ = "v45.0"
 
 # CIO v43 (2026-05-30): the adversarial Bull/Bear debate is SHADOWED.
 # debate_scorecard 2026-05-28 reported weighted excess alpha = -5.78pp
@@ -192,6 +192,9 @@ V_DEPRECATED = {
     "dividend_yield_trap",  # n= 20  DROP
     "iv_x_earnings",  # n= 15  DROP
     "volume_confirm",  # n=  4  DROP
+    # V45 deprecations (2026-06-12) — wrong-direction empirical effect
+    "regional_EU",  # signal alpha +1.57%, committee alpha -7.33% — penalty direction wrong
+    "regional_HK",  # committee alpha -19.87% — bonus is catastrophic
 }
 
 CIRCUIT_BREAKER_PATH = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
@@ -3206,20 +3209,15 @@ def synthesize_stock(
         signal_quality_penalty += abs(earnings_adj)
         _w["earnings_surprise"] = earnings_adj
 
-    # CIO v20.0 D5: Regional calibration
-    # European stocks have 38.6% hit rate, HK has 66.4%
+    # CIO v20.0 D5 → V45: Regional detection retained for downstream reporting.
+    # Conviction adjustments REMOVED: EU penalty direction was wrong (signal
+    # alpha +1.57%, committee alpha -7.33%); HK bonus catastrophic (-19.87%).
     ticker_str = str(ticker)
     is_european = any(
         ticker_str.endswith(s)
         for s in (".DE", ".L", ".PA", ".AS", ".MI", ".MC", ".BR", ".OL", ".ST", ".HE", ".CO")
     )
     is_hk = ticker_str.endswith(".HK")
-    if is_european and signal == "B":
-        penalties += 5  # European BUY discount
-        _w["regional_EU"] = -5
-    elif is_hk and signal == "B":
-        bonuses = min(bonuses + 3, 20)  # HK premium
-        _w["regional_HK"] = 3
 
     # CIO v20.0 D4: Stale analyst target detection
     # Type A = general analyst consensus (>6 months old), no momentum change

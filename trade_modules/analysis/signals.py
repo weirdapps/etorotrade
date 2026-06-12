@@ -239,19 +239,19 @@ def calculate_buy_score(
     - Momentum uses 12M-1M approximation (Jegadeesh-Titman 1993)
     - Analyst momentum captures PEAD drift (Bernard-Thomas 1989)
 
-    Components and weights:
+    Components and weights (from config.yaml default_buy_scoring):
     - Valuation (PET + PEF/PET + FCF yield) — 25%
-    - Quality (ROE + D/E) — 25%
-    - Upside (analyst targets) — 20%
+    - Momentum (12M-1M proxy via 52W sweet spot) — 20%
+    - Fundamental/Quality (ROE + D/E) — 20%
+    - Upside (analyst targets) — 15%
     - Analyst momentum (earnings revision drift) — 15%
-    - Momentum (12M-1M proxy via 52W sweet spot) — 10%
     - Consensus (flat — confirmed r=-0.007 at T+30) — 5%
     """
-    w_upside = buy_scoring_config.get("weight_upside", 0.20)
+    w_upside = buy_scoring_config.get("weight_upside", 0.15)
     w_consensus = buy_scoring_config.get("weight_consensus", 0.05)
-    w_momentum = buy_scoring_config.get("weight_momentum", 0.10)
+    w_momentum = buy_scoring_config.get("weight_momentum", 0.20)
     w_valuation = buy_scoring_config.get("weight_valuation", 0.25)
-    w_fundamental = buy_scoring_config.get("weight_fundamental", 0.25)
+    w_fundamental = buy_scoring_config.get("weight_fundamental", 0.20)
     w_analyst_momentum = buy_scoring_config.get("weight_analyst_momentum", 0.15)
 
     # === UPSIDE (0-100) — analyst 12M targets (r=+0.134 at T+30) ===
@@ -274,7 +274,7 @@ def calculate_buy_score(
             np.interp(
                 pct_52w,
                 [40, 55, 65, 70, 80, 90, 95, 100],
-                [0,  5, 20, 40, 50, 50, 45, 35],
+                [0, 5, 20, 40, 50, 50, 45, 35],
             )
         )
     else:
@@ -1521,20 +1521,16 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
         # fundamentals, override the gate. This stops the mechanical ejection of
         # winners whose price outran analyst targets.
         tc_config = yaml_config.load_config().get("trend_continuation", {})
-        if (
-            failed_upside_gate
-            and tc_config.get("enabled", False)
-            and row_upside >= 0  # negative upside is a safety hard-stop
-        ):
+        tc_min_floor = tc_config.get("min_upside_floor", -30)
+        if failed_upside_gate and tc_config.get("enabled", False) and row_upside >= tc_min_floor:
             tc_min_buy_pct = tc_config.get("min_buy_pct", 80)
             tc_min_52w = tc_config.get("min_pct_52w_high", 70)
             tc_require_200dma = tc_config.get("require_above_200dma", True)
             tc_min_am = tc_config.get("min_analyst_momentum", -2)
             tc_max_upside = tc_config.get("max_upside_override", 0)
-            tc_min_floor = tc_config.get("min_upside_floor", -20)
 
             momentum_ok = not pd.isna(row_pct_52w) and row_pct_52w >= tc_min_52w
-            dma_ok = (not tc_require_200dma) or (row_above_200dma is True)
+            dma_ok = (not tc_require_200dma) or (not pd.isna(row_above_200dma) and row_above_200dma)
             consensus_ok = row_buy_pct >= tc_min_buy_pct
             am_ok = pd.isna(row_amom) or row_amom >= tc_min_am
             upside_in_range = tc_min_floor <= row_upside <= tc_max_upside
@@ -1618,10 +1614,24 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             if not (pef_min < row_pef <= pef_max):
                 is_buy_candidate = False
 
+        # Stock-split PE awareness: PET/PEF > 10 indicates trailing EPS
+        # hasn't adjusted for a split (e.g. KLAC 10-for-1). Skip trailing PE
+        # gate and PEF/PET ratio check; forward PE gate still applies.
+        split_distorted_pet = (
+            not pd.isna(row_pet) and not pd.isna(row_pef) and row_pef > 0 and row_pet / row_pef > 10
+        )
+        if split_distorted_pet:
+            logger.warning(
+                f"Ticker {ticker}: PET/PEF={row_pet / row_pef:.1f}x — likely stock-split "
+                f"distortion (PET={row_pet:.1f}, PEF={row_pef:.1f}). "
+                f"Skipping trailing PE gate."
+            )
+
         if (
             "min_trailing_pe" in buy_criteria
             and "max_trailing_pe" in buy_criteria
             and not pd.isna(row_pet)
+            and not split_distorted_pet
         ):
             pet_min = buy_criteria.get("min_trailing_pe")
             pet_max = buy_criteria.get("max_trailing_pe")
@@ -1632,7 +1642,13 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
         # Only apply this check when both values are meaningful (> 10) and PEF is significantly higher
         # Academic research (Liu, Nissim & Thomas 2002) shows 10-15% differentials are estimate noise
         # Using 20% threshold (1.2x) better distinguishes genuine deterioration from analyst variance
-        if not pd.isna(row_pef) and not pd.isna(row_pet) and row_pet > 10 and row_pef > 10:
+        if (
+            not pd.isna(row_pef)
+            and not pd.isna(row_pet)
+            and row_pet > 10
+            and row_pef > 10
+            and not split_distorted_pet
+        ):
             # PEF should not be more than 25% higher than PET (configurable, default 1.25x)
             # Research (Liu, Nissim & Thomas 2002) shows 10-15% differentials are estimate noise
             pef_pet_threshold = buy_criteria.get("max_pef_pet_ratio", 1.25)

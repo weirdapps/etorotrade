@@ -167,22 +167,22 @@ class BuyScoringConfig(BaseModel):
 
     # Component weights (must sum to 1.0)
     weight_upside: float = Field(
-        default=0.22, ge=0, le=1, description="Weight for upside component"
+        default=0.15, ge=0, le=1, description="Weight for upside component"
     )
     weight_consensus: float = Field(
-        default=0.13, ge=0, le=1, description="Weight for analyst consensus component"
+        default=0.05, ge=0, le=1, description="Weight for analyst consensus component"
     )
     weight_momentum: float = Field(
         default=0.20, ge=0, le=1, description="Weight for momentum component"
     )
     weight_valuation: float = Field(
-        default=0.18, ge=0, le=1, description="Weight for valuation component"
+        default=0.25, ge=0, le=1, description="Weight for valuation component"
     )
     weight_fundamental: float = Field(
-        default=0.17, ge=0, le=1, description="Weight for fundamental component"
+        default=0.20, ge=0, le=1, description="Weight for fundamental component"
     )
     weight_analyst_momentum: float = Field(
-        default=0.10, ge=0, le=1, description="Weight for analyst momentum component"
+        default=0.15, ge=0, le=1, description="Weight for analyst momentum component"
     )
 
 
@@ -557,11 +557,17 @@ class TrendContinuationConfig(BaseModel):
 
     enabled: bool = Field(default=False, description="Enable trend-continuation override")
     min_buy_pct: float = Field(default=80.0, ge=0, le=100, description="Min analyst buy% required")
-    min_pct_52w_high: float = Field(default=70.0, ge=0, le=100, description="Min % of 52w high (uptrend)")
+    min_pct_52w_high: float = Field(
+        default=70.0, ge=0, le=100, description="Min % of 52w high (uptrend)"
+    )
     require_above_200dma: bool = Field(default=True, description="Require above 200DMA")
     min_analyst_momentum: float = Field(default=-2.0, description="Min analyst momentum (pp)")
-    max_upside_override: float = Field(default=0.0, description="Override only when upside below this")
-    min_upside_floor: float = Field(default=-20.0, description="Safety: never override deeply negative")
+    max_upside_override: float = Field(
+        default=0.0, description="Override only when upside below this"
+    )
+    min_upside_floor: float = Field(
+        default=-30.0, description="Safety: never override deeply negative"
+    )
     log_tag: str = Field(default="trend_continuation", description="Tag for signal log")
 
 
@@ -678,7 +684,8 @@ class TradingConfig(BaseModel):
 
     # Trend continuation (A2 — stops winner-ejection)
     trend_continuation: TrendContinuationConfig | None = Field(
-        default_factory=TrendContinuationConfig, description="Override upside gate for trending winners"
+        default_factory=TrendContinuationConfig,
+        description="Override upside gate for trending winners",
     )
 
     # CIO review finding configs
