@@ -671,7 +671,7 @@ class TestCustomKillTheses:
                 ],
             }
         ]
-        log_kill_theses("2026-03-17", theses, log_path=log_file)
+        log_kill_theses("2026-05-13", theses, log_path=log_file)
 
         data = json.loads(log_file.read_text())
         assert len(data) == 1
@@ -696,7 +696,7 @@ class TestCustomKillTheses:
                 ],
             }
         ]
-        log_kill_theses("2026-03-01", theses, log_path=log_file)
+        log_kill_theses("2026-05-13", theses, log_path=log_file)
 
         # Create mock portfolio CSV with EG=3 (below threshold)
         portfolio_csv = tmp_path / "portfolio.csv"
@@ -732,7 +732,7 @@ class TestCustomKillTheses:
                 ],
             }
         ]
-        log_kill_theses("2026-03-01", theses, log_path=log_file)
+        log_kill_theses("2026-05-13", theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
         portfolio_csv.write_text(
@@ -767,7 +767,7 @@ class TestCustomKillTheses:
                 ],
             }
         ]
-        log_kill_theses("2026-03-01", theses, log_path=log_file)
+        log_kill_theses("2026-05-13", theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
         portfolio_csv.write_text(
@@ -800,7 +800,7 @@ class TestCustomKillTheses:
                 # No conditions field
             }
         ]
-        log_kill_theses("2026-03-01", theses, log_path=log_file)
+        log_kill_theses("2026-05-13", theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
         portfolio_csv.write_text(
@@ -832,7 +832,7 @@ class TestCustomKillTheses:
                 "conditions": ["VIX > 30", "EG < 5", "macro regime degrades"],
             }
         ]
-        log_kill_theses("2026-03-01", theses, log_path=log_file)
+        log_kill_theses("2026-05-13", theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
         portfolio_csv.write_text(
