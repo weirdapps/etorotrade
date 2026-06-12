@@ -480,11 +480,11 @@ def calculate_actions(df: pd.DataFrame) -> pd.Series:
     which includes FCF yield and revenue growth checks.
     """
     try:
-        # Use the new vectorized signal calculation system
-        # Returns tuple (actions, buy_scores)
         from trade_modules.analysis.signals import calculate_action_vectorized
 
-        actions, *_ = calculate_action_vectorized(df, option="portfolio")
+        actions, _buy_scores, signal_tracks = calculate_action_vectorized(df, option="portfolio")
+        if signal_tracks is not None and signal_tracks.notna().any():
+            df["SIGNAL_TRACK"] = signal_tracks
         return actions
     except ImportError:
         # Fallback to old row-by-row system if new system not available

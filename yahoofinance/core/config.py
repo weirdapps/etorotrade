@@ -577,6 +577,7 @@ STANDARD_DISPLAY_COLUMNS = [
     "ERN",  # Earnings date
     "SZ",  # Position size
     "BS",  # Buy/Sell signal
+    "SIGNAL_TRACK",  # Dual-track: value, momentum, value+momentum
 ]
 
 
