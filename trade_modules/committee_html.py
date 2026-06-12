@@ -636,6 +636,17 @@ def _act_header(label, subtitle):
     )
 
 
+def _act_header_heavy(label, subtitle):
+    """Act separator with heavy 2px border for visual weight between major Acts."""
+    return (
+        f'<div style="padding:28px 0 12px 0;border-bottom:2px solid {_C["border_heavy"]};">'
+        f'<div style="color:{_C["text_dark"]};font-size:10px;font-weight:700;'
+        f'letter-spacing:3px;text-transform:uppercase;">{label}</div>'
+        f'<div style="color:{_C["text_light"]};font-size:11px;margin-top:2px;">{subtitle}</div>'
+        f"</div>"
+    )
+
+
 def _pill_list(items, bg, txt, border, mono=True):
     """Render a list of ticker pills."""
     if not items:
@@ -831,7 +842,7 @@ def generate_report_html(
             sector_counts[sec] = sector_counts.get(sec, 0) + 1
 
     # Sort: SELL > TRIM > BUY > ADD > HOLD, then by conviction desc
-    action_order = {"SELL": 0, "TRIM": 1, "BUY": 2, "ADD": 3, "HOLD": 4}
+    action_order = {"BUY": 0, "ADD": 1, "TRIM": 2, "SELL": 3, "HOLD": 4}
     concordance.sort(
         key=lambda x: (action_order.get(x.get("action", "HOLD"), 4), -x.get("conviction", 0))
     )
@@ -5112,6 +5123,1578 @@ def _detect_disagreements(concordance: list[dict]) -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# V2: DECISION-FIRST 5-ACT REPORT (CIO v44)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def generate_report_html_v2(
+    synth: dict[str, Any],
+    fund: dict[str, Any],
+    tech: dict[str, Any],
+    macro: dict[str, Any],
+    census: dict[str, Any],
+    news: dict[str, Any],
+    opps: dict[str, Any],
+    risk: dict[str, Any],
+    date_str: str | None = None,
+    name_map: dict[str, str] | None = None,
+    mode: str = "full",
+    sentiment: dict[str, Any] | None = None,
+) -> str:
+    """Decision-first 5-Act committee report (CIO v44).
+
+    Replaces the 18-section data-source layout with a decision-organized
+    structure: Act I (verdict + actions), Act II (per-stock spotlight + HOLD
+    table), Act III (market context), Act IV (radar), Act V (reference grid).
+
+    Full mode = all 5 Acts.  Daily mode = Acts I + III + condensed V only.
+    """
+    daily = mode == "daily"
+    _pv = synth.get("portfolio_value", 0) or 0
+    today = date_str or datetime.now().strftime("%Y-%m-%d")
+    try:
+        today_long = datetime.strptime(today, "%Y-%m-%d").strftime("%B %d, %Y")
+    except ValueError:
+        today_long = today
+
+    # ── Normalize agent report structures ──
+    if fund and isinstance(fund.get("stocks"), list):
+        fund["stocks"] = {
+            item.get("ticker", item.get("symbol", f"UNK_{i}")): item
+            for i, item in enumerate(fund["stocks"])
+            if isinstance(item, dict)
+        }
+    if news and isinstance(news.get("breaking_news"), dict):
+        _sev = {"CRITICAL": "HIGH_NEGATIVE", "HIGH": "LOW_NEGATIVE"}
+        _flat = []
+        for _items in news["breaking_news"].values():
+            if isinstance(_items, list):
+                for _it in _items:
+                    if isinstance(_it, dict):
+                        _it.setdefault("headline", _it.get("title", _it.get("event", "")))
+                        _it.setdefault(
+                            "impact", _sev.get(str(_it.get("severity", "")).upper(), "NEUTRAL")
+                        )
+                        _it.setdefault("affected_tickers", _it.get("tickers", []))
+                        _flat.append(_it)
+        news["breaking_news"] = _flat
+    sr = synth.get("sector_rankings", {})
+    if isinstance(sr, list):
+        synth["sector_rankings"] = {
+            item.get("etf", item.get("sector", "")): {
+                "return_1m": item.get("1m_return", item.get("return_1m", item.get("change_1m", 0))),
+                "return_3m": item.get("3m_return", item.get("return_3m", item.get("change_3m", 0))),
+                "rank": item.get("rank", 6),
+            }
+            for item in sr
+            if isinstance(item, dict)
+        }
+
+    # ── Build name map ──
+    _names: dict[str, str] = dict(name_map or {})
+    for opp in (opps or {}).get("top_opportunities", []):
+        t = opp.get("ticker", "")
+        if t and t not in _names and opp.get("name"):
+            _names[t] = opp["name"]
+    for t, fd in (fund or {}).get("stocks", (fund or {}).get("stock_analyses", {})).items():
+        if t and t not in _names:
+            n = fd.get("name") or fd.get("company_name") or fd.get("company") or ""
+            if n:
+                _names[t] = n
+    for t, td in (tech or {}).get("stocks", (tech or {}).get("stock_analyses", {})).items():
+        if t and t not in _names:
+            n = td.get("name") or td.get("company_name") or ""
+            if n:
+                _names[t] = n
+    for entry in (synth or {}).get("concordance", []):
+        t = entry.get("ticker", "")
+        if t and t not in _names:
+            n = entry.get("name") or entry.get("company_name") or ""
+            if n:
+                _names[t] = n
+
+    # ── Extract & sort concordance ──
+    concordance = synth.get("concordance", [])
+    for entry in concordance:
+        entry["sector"] = gics_sector(entry.get("sector", ""))
+    action_order = {"BUY": 0, "ADD": 1, "TRIM": 2, "SELL": 3, "HOLD": 4}
+    concordance.sort(
+        key=lambda x: (action_order.get(x.get("action", "HOLD"), 4), -x.get("conviction", 0))
+    )
+
+    regime = synth.get("regime", "CAUTIOUS")
+    macro_score = synth.get("macro_score", 0)
+    rotation = synth.get("rotation_phase") or synth.get("macro_label") or "Neutral"
+    risk_score = synth.get("risk_score", 50)
+    pr_synth = synth.get("portfolio_risk", {})
+    var_95 = synth.get("var_95") or pr_synth.get("var_95_annual") or pr_synth.get("var_95") or 0
+    var_multi = synth.get("var_95_multi", {})
+    _dda = pr_synth.get("drawdown_analysis", {}) or {}
+    max_dd_raw = (
+        _dda.get("max_drawdown_pct")
+        or synth.get("max_drawdown")
+        or pr_synth.get("max_drawdown")
+        or 0
+    )
+    max_dd = max_dd_raw * 100 if 0 < abs(max_dd_raw) < 1 else max_dd_raw
+    p_beta = (
+        synth.get("portfolio_beta")
+        or pr_synth.get("portfolio_beta_vs_spy")
+        or pr_synth.get("portfolio_beta")
+        or 1.0
+    )
+    changes = synth.get("changes", [])
+    indicators = synth.get("indicators", {})
+    sector_rankings = synth.get("sector_rankings", {})
+    signal_date = synth.get("signal_date", today)
+    census_date = synth.get("census_date", today)
+    pos_limits = synth.get("position_limits", risk.get("position_limits", {}))
+    delta_map = {c.get("ticker"): c.get("delta", 0) for c in changes}
+
+    # Classify stocks
+    sell_list = [en for en in concordance if en.get("action") == "SELL"]
+    trim_list = [en for en in concordance if en.get("action") == "TRIM"]
+    buy_list = sorted(
+        [en for en in concordance if en.get("action") == "BUY"],
+        key=lambda x: (-x.get("conviction", 0), -x.get("capital_efficiency", 0)),
+    )
+    add_list = sorted(
+        [en for en in concordance if en.get("action") == "ADD"],
+        key=lambda x: (-x.get("conviction", 0), -x.get("capital_efficiency", 0)),
+    )
+    hold_list = sorted(
+        [en for en in concordance if en.get("action") == "HOLD"],
+        key=lambda x: -x.get("conviction", 0),
+    )
+    action_stocks = buy_list + add_list + trim_list + sell_list
+    sells = len(sell_list)
+    buys = len(buy_list) + len(add_list)
+    trims = len(trim_list)
+    holds = len(hold_list)
+
+    # Verdict
+    if regime == "RISK_ON":
+        verdict, vval = "RISK-ON", _C["bull"]
+    elif regime == "RISK_OFF":
+        verdict, vval = "DEFENSIVE", _C["bear"]
+    else:
+        verdict, vval = "CAUTIOUS", _C["warn"]
+    risk_color = _C["bear"] if risk_score >= 70 else _C["warn"] if risk_score >= 40 else _C["bull"]
+
+    # Current position map for sizing
+    _cur_pos_map = (synth.get("portfolio_constraints", {}) or {}).get(
+        "current_stock_exposures", {}
+    ) or {}
+    if not _cur_pos_map:
+        _cur_pos_map = {
+            t: float(rec.get("current_pct", 0.0))
+            for t, rec in (pos_limits or {}).items()
+            if isinstance(rec, dict) and rec.get("current_pct")
+        }
+
+    # ── Nested helpers (closures over local data) ──
+
+    def _dollar(pct: float) -> str:
+        if _pv > 0 and pct > 0:
+            return f" (~${pct / 100 * _pv:,.0f})"
+        return ""
+
+    def _bull_case(en):
+        parts = []
+        fv = en.get("fund_view", "")
+        is_synth = en.get("fund_synthetic", False)
+        if fv == "BUY" and not is_synth:
+            parts.append(f"Fundamentals BUY (score {en.get('fund_score', 0)})")
+        pet, pef = en.get("pet", 0), en.get("pef", 0)
+        if pet and pef and pef < pet:
+            parts.append(f"PE compressing {pet:.0f}x &rarr; {pef:.0f}x forward")
+        ex = en.get("exret", 0)
+        ee = en.get("excess_exret", 0)
+        if ex >= 20:
+            parts.append(f"EXRET {ex:.1f}% (excess +{ee:.1f}pp)" if ee > 0 else f"EXRET {ex:.1f}%")
+        bp = en.get("buy_pct", 0)
+        if bp >= 80:
+            parts.append(f"{int(bp)}% analyst BUY consensus")
+        _am = en.get("am", 0)
+        try:
+            _am = float(_am) if _am else 0
+        except (ValueError, TypeError):
+            _am = 0
+        if _am >= 10:
+            parts.append(f"Analyst momentum AM {_am:+.0f}")
+        ts = en.get("tech_signal", "")
+        if ts == "ENTER_NOW":
+            parts.append(f"Technical entry (RSI {en.get('rsi', 0):.0f})")
+        elif ts == "WAIT_FOR_PULLBACK":
+            parts.append("Tech: wait for pullback")
+        if en.get("macd") == "BULLISH":
+            parts.append("MACD bullish")
+        mf = en.get("macro_fit", "")
+        if mf == "FAVORABLE":
+            parts.append(f"Macro favors {en.get('sector', '')}")
+        cts = en.get("census_ts", "")
+        if cts in ("accumulation", "strong_accumulation"):
+            parts.append(f"PIs {cts.replace('_', ' ')}")
+        ni = en.get("news_impact", "")
+        if ni in ("HIGH_POSITIVE", "POSITIVE"):
+            parts.append("Positive news catalyst")
+        vel = en.get("signal_velocity", "")
+        if vel in ("ACCELERATING", "IMPROVING"):
+            parts.append(f"Signal {vel.lower()}")
+        # Revenue growth class
+        rgc = en.get("revenue_growth_class", "")
+        if rgc in ("ACCELERATING", "STABLE"):
+            parts.append(f"Revenue {rgc.lower()}")
+        # EPS revisions
+        eps_r = en.get("eps_revisions")
+        if isinstance(eps_r, dict):
+            eps_r = eps_r.get("classification", "")
+        if eps_r and str(eps_r).upper() in ("REVISIONS_UP", "UP"):
+            parts.append("EPS revisions up")
+        # FCF quality
+        fcf = en.get("fcf_classification", "")
+        if fcf and str(fcf).upper() in ("STRONG", "EXCELLENT"):
+            parts.append(f"FCF {fcf.lower()}")
+        # Piotroski
+        pio = en.get("piotroski_score", 0)
+        if pio and pio >= 7:
+            parts.append(f"Piotroski {pio}/9")
+        # Additional data points for richer thesis
+        census_pop = en.get("census_pop_pct", 0)
+        if census_pop and census_pop >= 10:
+            parts.append(f"Census popular ({census_pop:.0f}% of PIs hold)")
+        ce = en.get("census", "")
+        if ce == "ALIGNED":
+            parts.append("Census aligned with committee view")
+        # Excess EXRET (relative to peers)
+        if ee and ee > 5:
+            parts.append(f"Excess return +{ee:.0f}pp above sector median")
+        # Beta-adjusted upside
+        _beta_v = en.get("beta", 1.0)
+        if _beta_v and ex > 0 and _beta_v < 1.0:
+            parts.append(f"Low-beta ({_beta_v:.1f}) with positive expected return")
+        if not parts:
+            # Generate stock-specific fallback instead of generic message
+            tkr = en.get("ticker", "")
+            sec = en.get("sector", "")
+            cur_pct = _cur_pos_map.get(tkr, 0)
+            if is_synth and cur_pct > 0:
+                return f"Position at {cur_pct:.2f}% with synthetic fundamentals — conviction based on non-fundamental signals."
+            if sec:
+                return f"Held in {sec} sector — no strong bullish catalysts currently active."
+            return "No strong bull factors identified."
+        return "; ".join(parts) + "."
+
+    def _bear_case(en):
+        parts = []
+        fv = en.get("fund_view", "")
+        is_synth = en.get("fund_synthetic", False)
+        fs = en.get("fund_score", 0)
+        if fv == "SELL" and not is_synth and fs > 0:
+            parts.append(f"Fundamentals SELL (score {fs})")
+        elif fv == "HOLD" and not is_synth and 0 < fs < 60:
+            parts.append(f"Weak fundamentals (score {fs})")
+        if en.get("quality_trap"):
+            parts.append("Flagged as quality trap")
+        ts = en.get("tech_signal", "")
+        if ts == "AVOID":
+            parts.append(f"Technical AVOID (RSI {en.get('rsi', 0):.0f})")
+        elif ts == "EXIT_SOON":
+            parts.append("Technical EXIT_SOON")
+        rsi = en.get("rsi", 0)
+        if rsi > 75:
+            parts.append(f"Overbought RSI {rsi:.0f}")
+        mf = en.get("macro_fit", "")
+        if mf == "UNFAVORABLE":
+            parts.append(f"Macro headwind for {en.get('sector', '')}")
+        cts = en.get("census_ts", "")
+        if cts in ("distribution", "strong_distribution"):
+            parts.append(f"PIs {cts.replace('_', ' ')} (smart money exiting)")
+        ni = en.get("news_impact", "")
+        if ni in ("HIGH_NEGATIVE", "NEGATIVE"):
+            parts.append("Negative news exposure")
+        beta = en.get("beta", 1.0)
+        if beta > 2.0:
+            parts.append(f"High beta {beta:.1f}")
+        bp = en.get("buy_pct", 0)
+        if bp >= 95:
+            parts.append(f"Crowded trade ({int(bp)}% BUY)")
+        rw = en.get("risk_warning", "")
+        if isinstance(rw, str) and rw and rw.upper() not in ("OK", "", "NONE", "TRUE", "FALSE"):
+            parts.append(f"Risk flag: {rw}")
+        if en.get("kill_thesis_triggered"):
+            parts.append("Kill thesis already triggered")
+        vel = en.get("signal_velocity", "")
+        if vel in ("DETERIORATING", "WEAKENING"):
+            parts.append(f"Signal {vel.lower()}")
+        fx = en.get("fx_impact", "")
+        if fx == "HEADWIND":
+            parts.append(f"FX headwind ({en.get('currency_zone', '')})")
+        # Revenue declining
+        rgc = en.get("revenue_growth_class", "")
+        if rgc == "DECLINING":
+            parts.append("Revenue declining")
+        # EPS revisions down
+        eps_r = en.get("eps_revisions")
+        if isinstance(eps_r, dict):
+            eps_r = eps_r.get("classification", "")
+        if eps_r and str(eps_r).upper() in ("REVISIONS_DOWN", "DOWN"):
+            parts.append("EPS revisions down")
+        # Analyst momentum negative
+        _am = en.get("am", 0)
+        try:
+            _am = float(_am) if _am else 0
+        except (ValueError, TypeError):
+            _am = 0
+        if _am <= -10:
+            parts.append(f"Negative analyst momentum AM {_am:+.0f}")
+        # Short interest elevated
+        si = en.get("short_interest_pct")
+        if si and isinstance(si, (int, float)) and si > 5:
+            parts.append(f"Elevated short interest {si:.1f}%")
+        # Target dispersion (analyst disagreement)
+        td = en.get("target_dispersion")
+        if td and isinstance(td, (int, float)) and td > 0.4:
+            parts.append(f"High target dispersion {td:.0%}")
+        # Debt risk
+        dr = en.get("debt_risk")
+        if dr and str(dr).upper() in ("HIGH", "CRITICAL"):
+            parts.append(f"Debt risk: {dr}")
+        # Additional context for richer risk narrative
+        # Technical detail for EXIT_SOON
+        if ts == "EXIT_SOON":
+            _adx = en.get("adx", 0)
+            if _adx and _adx < 20:
+                parts.append(f"ADX {_adx:.0f} (weak trend, no directional conviction)")
+        # PE expansion warning
+        _pet_b = en.get("pet", 0) or 0
+        _pef_b = en.get("pef", 0) or 0
+        if _pet_b > 0 and _pef_b > 0 and _pef_b > _pet_b * 1.15:
+            parts.append(
+                f"PE expanding {_pet_b:.0f}x to {_pef_b:.0f}x forward (earnings deceleration)"
+            )
+        # Concentration risk
+        tkr = en.get("ticker", "")
+        cur_pct = _cur_pos_map.get(tkr, 0)
+        if cur_pct > 5.0:
+            parts.append(f"Position concentration at {cur_pct:.1f}%")
+        # Census divergence
+        ce = en.get("census", "")
+        if ce in ("DIVERGENT", "MODERATE_DIVERGENT") and en.get("action") in ("BUY", "ADD"):
+            parts.append("Census divergent (PIs reducing exposure)")
+        if not parts:
+            # Generate stock-specific fallback
+            sec = en.get("sector", "")
+            if is_synth and bp < 50:
+                return "No analyst coverage — conviction based on technical/census signals only."
+            if cur_pct > 3.5:
+                return f"Overweight at {cur_pct:.2f}% — concentration risk if sector rotates."
+            if sec:
+                return f"No specific risks flagged in {sec} sector at current levels."
+            return "No specific bear factors identified."
+        return "; ".join(parts) + "."
+
+    def _size_text(en):
+        act = en.get("action", "HOLD")
+        tkr = en.get("ticker", "")
+        cur = _cur_pos_map.get(tkr, 0.0)
+        if act == "ADD":
+            target = en.get("constrained_pct") or en.get("max_pct", 0) or 0
+            try:
+                target = float(target)
+            except (TypeError, ValueError):
+                target = 0.0
+            if target <= 0:
+                return f"No room to add (current {cur:.2f}%{_dollar(cur)}, capped)"
+            return f"Add ~{target:.2f}%{_dollar(target)} (current {cur:.2f}% &rarr; {cur + target:.2f}%)"
+        if act == "BUY":
+            target = en.get("constrained_pct") or en.get("max_pct", 0) or 0
+            try:
+                target = float(target)
+            except Exception:
+                target = 0.0
+            return (
+                f"Open ~{target:.2f}%{_dollar(target)}"
+                if target > 0
+                else "Cannot enter (sector capped)"
+            )
+        if act == "TRIM":
+            conv = en.get("conviction", 50)
+            trim_pct = 0.25 if conv < 66 else (0.33 if conv < 76 else 0.50)
+            new_pos = cur * (1 - trim_pct)
+            return (
+                f"Trim {int(trim_pct * 100)}% ({cur:.2f}% &rarr; {new_pos:.2f}%{_dollar(new_pos)})"
+                if cur > 0
+                else f"Trim {int(trim_pct * 100)}%"
+            )
+        if act == "SELL":
+            return f"Exit fully ({cur:.2f}%{_dollar(cur)})" if cur > 0 else "Exit position"
+        return ""
+
+    # ── VIX extraction ──
+    _vix_raw = indicators.get("vix", 0)
+    vix_val = (
+        _vix_raw.get("current", 0)
+        if isinstance(_vix_raw, dict)
+        else (_vix_raw if isinstance(_vix_raw, (int, float)) else 0)
+    )
+
+    # ════════════════════════════════════════════════════════════════
+    # BUILD HTML — Light institutional theme
+    # ════════════════════════════════════════════════════════════════
+    # Local color overrides for institutional look
+    _BG = "#ffffff"
+    _TX = "#1a1a2e"  # near-black navy
+    _TX2 = "#4a5568"  # medium gray
+    _TXM = "#718096"  # muted (warm gray)
+    _BD = "#e2e8f0"  # light border
+    _BDA = "#2d3748"  # accent border
+    _AB = "#2b6cb0"  # accent blue
+    _GN = "#276749"  # bull
+    _RD = "#c53030"  # bear
+    _AM = "#b7791f"  # amber
+    _HBG = "#f7fafc"  # header/alt bg
+    _SERIF = "Aptos,'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif"
+    _SANS = "Aptos,'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif"
+
+    h = []
+    h.append(
+        '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        "</head>"
+    )
+    h.append(
+        f'<body style="margin:0;padding:0;background:{_BG};'
+        f"font-family:{_SANS};color:{_TX2};"
+        f'line-height:1.6;-webkit-font-smoothing:antialiased;">'
+    )
+    h.append('<div style="max-width:800px;margin:0 auto;padding:0 40px;">')
+
+    # ── HEADER (light, institutional) ──
+    mode_label = "Daily Digest" if daily else "Full Committee Report"
+    h.append(
+        f'<div style="padding:40px 0 24px 0;border-bottom:2px solid {_BDA};">'
+        f'<div style="font-size:11px;font-weight:600;letter-spacing:2px;'
+        f'text-transform:uppercase;color:{_AB};">Investment Committee Report</div>'
+        f'<h1 style="margin:8px 0 4px 0;font-size:28px;font-weight:400;'
+        f'color:{_TX};font-family:{_SERIF};">{e(verdict)} &mdash; {e(rotation.replace("_", " "))}</h1>'
+        f'<div style="font-size:12px;color:{_TXM};margin-top:4px;">'
+        f"{today_long} &middot; Signals: {e(signal_date)} &middot; "
+        f"Census: {e(census_date)} &middot; {mode_label} &middot; "
+        f"{len(concordance)} positions</div></div>"
+    )
+
+    # ══════════════════════════════════════════════════════════════════
+    # ACT I — EXECUTIVE SUMMARY
+    # ══════════════════════════════════════════════════════════════════
+    h.append(
+        f'<div style="padding:32px 0 0 0;">'
+        f'<div style="font-size:11px;font-weight:600;letter-spacing:2px;'
+        f'text-transform:uppercase;color:{_AB};margin-bottom:16px;">Executive Summary</div></div>'
+    )
+
+    # 3 KPI cards
+    _monthly_var = var_multi.get("monthly", {}).get("var", var_95) if var_multi else var_95
+    verdict_col = _GN if regime == "RISK_ON" else _RD if regime == "RISK_OFF" else _AM
+    risk_col_i = _RD if risk_score >= 70 else _AM if risk_score >= 40 else _GN
+    h.append(
+        '<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;'
+        'margin:0 0 20px 0;"><tr>'
+    )
+    for kpi_label, kpi_val, kpi_sub, kpi_col in [
+        ("Verdict", verdict, f"{sells}S {trims}T {buys}B/A {holds}H", verdict_col),
+        ("Macro Regime", f"{macro_score}", rotation.replace("_", " "), verdict_col),
+        (
+            "Risk Score",
+            f"{risk_score:.0f}/100",
+            f"Beta {p_beta:.2f} VaR {_monthly_var:.1f}%",
+            risk_col_i,
+        ),
+    ]:
+        h.append(
+            f'<td style="width:33%;padding:16px 20px;text-align:center;vertical-align:top;'
+            f'border:1px solid {_BD};background:{_BG};">'
+            f'<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;'
+            f'text-transform:uppercase;color:{_TXM};margin-bottom:4px;">{kpi_label}</div>'
+            f'<div style="font-size:24px;font-weight:600;color:{kpi_col};">{kpi_val}</div>'
+            f'<div style="font-size:11px;color:{_TXM};margin-top:2px;">{kpi_sub}</div></td>'
+        )
+    h.append("</tr></table>")
+
+    # Portfolio value row
+    acct = synth.get("account_summary", {})
+    pv = synth.get("portfolio_value", 0)
+    if pv > 0 or acct.get("available_usd"):
+        avail = acct.get("available_usd", 0)
+        invested = acct.get("invested_usd", 0)
+        pnl = acct.get("unrealized_pnl")
+        pnl_pct = acct.get("profit_pct")
+        pnl_str = ""
+        if pnl is not None:
+            pnl_col = _GN if pnl >= 0 else _RD
+            pnl_str = f' <span style="color:{pnl_col};font-weight:600;">${pnl:+,.0f}'
+            if pnl_pct is not None:
+                pnl_str += f" ({pnl_pct:+.1f}%)"
+            pnl_str += "</span>"
+        h.append(
+            f'<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;'
+            f'margin-bottom:20px;"><tr>'
+            f'<td style="padding:12px 20px;border:1px solid {_BD};background:{_BG};">'
+            f'<span style="font-size:10px;font-weight:600;letter-spacing:1.5px;'
+            f'text-transform:uppercase;color:{_TXM};">Portfolio</span>'
+            f'<span style="font-size:18px;font-weight:600;color:{_TX};margin-left:16px;">'
+            f"${pv:,.0f}</span>"
+            f'<span style="font-size:12px;color:{_TXM};margin-left:12px;">'
+            f"Invested ${invested:,.0f} &middot; Available ${avail:,.0f}{pnl_str}</span>"
+            f"</td></tr></table>"
+        )
+
+    # Portfolio performance KPI row
+    _perf_db = Path.home() / ".weirdapps-trading" / "portfolio" / "portfolio.db"
+    if _perf_db.exists():
+        try:
+            import sqlite3 as _sql3
+
+            _pconn = _sql3.connect(str(_perf_db))
+            _pconn.row_factory = _sql3.Row
+            _eq_count = (
+                _pconn.execute("SELECT COUNT(*) FROM equity_daily").fetchone()[0]
+                if _pconn.execute(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='equity_daily'"
+                ).fetchone()[0]
+                else 0
+            )
+            if _eq_count > 7:
+                _eq_latest = _pconn.execute(
+                    "SELECT equity_usd, cumulative_return_pct, date FROM equity_daily ORDER BY date DESC LIMIT 1"
+                ).fetchone()
+                _eq_30d = _pconn.execute(
+                    "SELECT cumulative_return_pct FROM equity_daily WHERE date >= date('now', '-30 days') ORDER BY date LIMIT 1"
+                ).fetchone()
+                _cb_path = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
+                _cb_level = "NORMAL"
+                _cb_dd = 0.0
+                if _cb_path.exists():
+                    with open(_cb_path) as _cbf:
+                        _cb_data = json.load(_cbf)
+                    _cb_level = _cb_data.get("level", "NORMAL")
+                    _cb_dd = _cb_data.get("drawdown_pct", 0)
+                if _eq_latest:
+                    _twr = _eq_latest["cumulative_return_pct"] or 0
+                    _ret30 = 0.0
+                    if _eq_30d:
+                        _ret30 = (_eq_latest["cumulative_return_pct"] or 0) - (
+                            _eq_30d["cumulative_return_pct"] or 0
+                        )
+                    _twr_col = _GN if _twr > 0 else _RD
+                    _ret30_col = _GN if _ret30 > 0 else _RD
+                    _cb_col = (
+                        _GN if _cb_level == "NORMAL" else _RD if _cb_level == "CRITICAL" else _AM
+                    )
+                    h.append(
+                        '<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;'
+                        'margin-bottom:20px;"><tr>'
+                    )
+                    for _pk, _pval, _psub, _pcol in [
+                        ("Equity", f"${_eq_latest['equity_usd']:,.0f}", _eq_latest["date"], _TX),
+                        ("TWR", f"{_twr:+.1f}%", "Time-Weighted", _twr_col),
+                        ("30-Day", f"{_ret30:+.1f}%", "Rolling", _ret30_col),
+                        (
+                            "Circuit",
+                            _cb_level,
+                            f"DD {_cb_dd:.1f}%" if _cb_dd else "Normal",
+                            _cb_col,
+                        ),
+                    ]:
+                        h.append(
+                            f'<td style="width:25%;padding:12px 16px;text-align:center;'
+                            f'border:1px solid {_BD};background:{_BG};">'
+                            f'<div style="font-size:9px;font-weight:600;letter-spacing:1px;'
+                            f'text-transform:uppercase;color:{_TXM};">{_pk}</div>'
+                            f'<div style="font-size:18px;font-weight:600;color:{_pcol};">{_pval}</div>'
+                            f'<div style="font-size:10px;color:{_TXM};">{_psub}</div></td>'
+                        )
+                    h.append("</tr></table>")
+            _pconn.close()
+        except Exception:
+            pass
+
+    # CIO narrative (left blue border quote)
+    sell_tickers = [c["ticker"] for c in concordance if c.get("action") == "SELL"]
+    leading = [
+        etf
+        for etf, d in sector_rankings.items()
+        if isinstance(d, dict) and d.get("return_1m", 0) > 2
+    ]
+    lagging = [
+        etf
+        for etf, d in sector_rankings.items()
+        if isinstance(d, dict) and d.get("return_1m", 0) < -2
+    ]
+    narrative_parts = []
+    if regime == "RISK_OFF":
+        rot_label = rotation.replace("_", " ").lower()
+        article = "an" if rot_label[0:1] in "aeiou" else "a"
+        narrative_parts.append(
+            f"We are in {article} {rot_label} environment with deteriorating breadth"
+        )
+        if lagging:
+            narrative_parts[-1] += f" -- {len(lagging)} of {len(sector_rankings)} sectors negative"
+        narrative_parts[-1] += ". Defensive positioning warranted."
+    elif regime == "RISK_ON":
+        narrative_parts.append(f"Constructive macro backdrop. {len(leading)} sectors leading.")
+    else:
+        narrative_parts.append(
+            f"{rotation.replace('_', ' ')} phase with mixed signals (macro {macro_score})."
+        )
+        if vix_val > 20:
+            narrative_parts[-1] = narrative_parts[-1][:-1] + f", VIX at {vix_val:.0f}."
+    if sells:
+        narrative_parts.append(f"Priority: exit {', '.join(sell_tickers)}.")
+    if trims:
+        narrative_parts.append(f"Trim {trims} positions where momentum has broken down.")
+    top_adds = [
+        c["ticker"]
+        for c in concordance
+        if c.get("action") in ("BUY", "ADD") and c.get("conviction", 0) >= 70
+    ][:3]
+    if top_adds:
+        narrative_parts.append(f"Highest-conviction additions: {', '.join(top_adds)}.")
+    narrative = " ".join(narrative_parts)
+    h.append(
+        f'<div style="margin:0 0 20px 0;padding:16px 20px;border-left:3px solid {_AB};'
+        f'background:{_BG};">'
+        f'<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;'
+        f'text-transform:uppercase;color:{_AB};margin-bottom:6px;">CIO View</div>'
+        f'<div style="font-size:13px;color:{_TX2};line-height:1.6;">{e(narrative)}</div></div>'
+    )
+
+    # Action summary table
+    if action_stocks:
+        h.append(
+            f'<div style="font-size:11px;font-weight:600;letter-spacing:2px;'
+            f'text-transform:uppercase;color:{_AB};margin-bottom:8px;">Action Items</div>'
+        )
+        _th_i = (
+            f"padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:1px;"
+            f"text-transform:uppercase;color:{_TXM};background:{_HBG};"
+            f"border-bottom:2px solid {_BDA};"
+        )
+        _td_i = f"padding:8px 10px;border-bottom:1px solid {_BD};"
+        h.append('<table style="width:100%;border-collapse:collapse;font-size:12px;">')
+        h.append(
+            f'<tr><th style="{_th_i}text-align:left;">Stock</th>'
+            f'<th style="{_th_i}text-align:center;">Action</th>'
+            f'<th style="{_th_i}text-align:center;">Conv</th>'
+            f'<th style="{_th_i}text-align:center;">Consensus</th>'
+            f'<th style="{_th_i}text-align:center;">3M Change</th>'
+            f'<th style="{_th_i}text-align:center;">EXRET</th>'
+            f'<th style="{_th_i}text-align:center;">PE</th>'
+            f'<th style="{_th_i}text-align:left;">Size</th></tr>'
+        )
+        for en in action_stocks:
+            act = en.get("action", "HOLD")
+            tkr = en.get("ticker", "")
+            conv = en.get("conviction", 0)
+            ex = en.get("exret", 0)
+            _abp = en.get("buy_pct", 0)
+            _aam = en.get("am", 0)
+            _ana = int(en.get("num_analysts", 0) or 0)
+            _tpet = en.get("pet", 0) or 0
+            _tpef = en.get("pef", 0) or 0
+            try:
+                _aam = float(_aam) if _aam else 0
+            except (ValueError, TypeError):
+                _aam = 0
+            delta = delta_map.get(tkr)
+            exc = _GN if ex > 5 else _RD if ex < 0 else _TX2
+            _bpc = _GN if _abp >= 70 else _RD if _abp < 45 else _TX2
+            ac = _RD if act in ("SELL", "TRIM") else _GN
+            # Raw consensus: X/Y BUY (Z%)
+            _buys = round(_abp * _ana / 100) if _ana > 0 else 0
+            _cons = f"{_buys}/{_ana} ({_abp:.0f}%)" if _ana > 0 else "--"
+            # 3M analyst delta
+            _past_bp = max(0, _abp - _aam)
+            _past_buys = round(_past_bp * _ana / 100) if _ana > 0 else 0
+            _dbuys = _buys - _past_buys
+            _dbc = _GN if _dbuys > 0 else _RD if _dbuys < 0 else _TX2
+            _dc_str = f"{_dbuys:+d}" if _ana > 0 else "--"
+            # PE string
+            _pe_str = ""
+            if _tpet > 0 and _tpef > 0:
+                _pec = _GN if _tpef < _tpet else _RD if _tpef > _tpet else _TX2
+                _pe_str = f'<span style="color:{_TX2};">{_tpet:.0f}x</span> &rarr; <span style="color:{_pec};font-weight:700;">{_tpef:.0f}x</span>'
+            elif _tpef > 0:
+                _pe_str = f"{_tpef:.0f}x"
+            else:
+                _pe_str = "--"
+            h.append(
+                f'<tr><td style="{_td_i}text-align:left;">{_tn_cell(tkr, _names)}</td>'
+                f'<td style="{_td_i}text-align:center;">'
+                f'<span style="display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;'
+                f'color:#fff;background:{ac};">{act}</span></td>'
+                f'<td style="{_td_i}text-align:center;">{conv_display(conv, delta)}</td>'
+                f'<td style="{_td_i}text-align:center;font-size:11px;color:{_bpc};">{_cons}</td>'
+                f'<td style="{_td_i}text-align:center;font-size:11px;color:{_dbc};">{_dc_str}</td>'
+                f'<td style="{_td_i}text-align:center;{_MONO}font-weight:700;color:{exc};">{ex:.0f}%</td>'
+                f'<td style="{_td_i}text-align:center;font-size:11px;">{_pe_str}</td>'
+                f'<td style="{_td_i}text-align:left;font-size:11px;color:{_TX2};">{_size_text(en)}</td></tr>'
+            )
+        h.append("</table>")
+
+        # "How to read" guide
+        h.append(
+            f'<div style="margin:16px 0 0 0;padding:12px 16px;background:{_HBG};'
+            f'border:1px solid {_BD};font-size:10px;color:{_TXM};line-height:1.6;">'
+            f'<span style="font-weight:700;color:{_TX};letter-spacing:0.5px;">How to read:</span> '
+            f"Conv = conviction (0&ndash;100, higher = stronger view). "
+            f"%BUY = analyst buy consensus. "
+            f"AM = analyst momentum (3-month change in buy%, in percentage points). "
+            f"EXRET = expected return (upside &times; %buy/100). "
+            f"Size = recommended position change as % of portfolio.</div>"
+        )
+
+    # Stress test row
+    _stress = synth.get("stress_scenarios", synth.get("stress_tests", {}))
+    if _stress and isinstance(_stress, dict):
+        _stress_items = list(_stress.items())[:3]
+        if _stress_items:
+            h.append(
+                '<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;'
+                'margin:20px 0 0 0;"><tr>'
+            )
+            _n_st = len(_stress_items) or 1
+            _w_st = f"{100 // _n_st}%"
+            for sk, sd in _stress_items:
+                if isinstance(sd, dict):
+                    _s_impact = sd.get("impact_pct", sd.get("impact", 0))
+                    _s_label = sk.replace("_", " ").title()
+                else:
+                    _s_impact = sd if isinstance(sd, (int, float)) else 0
+                    _s_label = sk.replace("_", " ").title()
+                _s_col = _RD if _s_impact < -3 else _AM if _s_impact < 0 else _GN
+                h.append(
+                    f'<td style="width:{_w_st};padding:12px 16px;text-align:center;'
+                    f'border:1px solid {_BD};background:{_BG};">'
+                    f'<div style="font-size:9px;font-weight:600;letter-spacing:1px;'
+                    f'text-transform:uppercase;color:{_TXM};">{e(_s_label)}</div>'
+                    f'<div style="font-size:18px;font-weight:600;color:{_s_col};">'
+                    f"{_s_impact:+.1f}%</div></td>"
+                )
+            h.append("</tr></table>")
+
+    # Section border
+    h.append(f'<div style="border-bottom:1px solid {_BD};margin:24px 0 0 0;"></div>')
+
+    # ══════════════════════════════════════════════════════════════════
+    # ACT II — STOCK ANALYSIS
+    # ══════════════════════════════════════════════════════════════════
+    if not daily:
+        h.append(
+            f'<div style="padding:32px 0 0 0;">'
+            f'<div style="font-size:11px;font-weight:600;letter-spacing:2px;'
+            f'text-transform:uppercase;color:{_AB};margin-bottom:4px;">Stock Analysis</div>'
+            f'<div style="font-size:12px;color:{_TXM};margin-bottom:20px;">'
+            f"Detailed thesis, entry/stop/target for each action stock</div></div>"
+        )
+
+        for en in action_stocks:
+            act = en.get("action", "HOLD")
+            tkr = en.get("ticker", "")
+            conv = en.get("conviction", 0)
+            sec = en.get("sector", "")
+            rsi = en.get("rsi", 0)
+            ex = en.get("exret", 0)
+            beta = en.get("beta", 1.0)
+            bp = en.get("buy_pct", 50)
+            ts = en.get("tech_signal", "?")
+            mf = en.get("macro_fit", "?")
+            fv = en.get("fund_view", "?")
+            sig = en.get("signal", "?")
+            sm = "*" if en.get("fund_synthetic") else ""
+            accent = _RD if act in ("SELL", "TRIM") else _GN
+            cc = (
+                _RD
+                if act in ("SELL", "TRIM") and conv >= 60
+                else (_GN if conv >= 70 else _AM if conv >= 50 else _TXM)
+            )
+            price = en.get("price", 0) or 0
+
+            # Compute targets
+            target_price = price * (1 + ex / 100) if price > 0 and ex > 0 else 0
+            sl = en.get("stop_losses", {}) or {}
+            stop_val = (
+                sl.get("tight_stop")
+                or sl.get("tight")
+                or sl.get("chandelier_stop")
+                or sl.get("chandelier")
+                or 0
+            )
+            entry_val = price  # current price as entry for ENTER_NOW
+            rr_ratio = 0.0
+            if stop_val > 0 and target_price > 0 and entry_val > stop_val:
+                rr_ratio = (target_price - entry_val) / (entry_val - stop_val)
+
+            # Conviction label
+            conv_label = "Strong" if conv >= 70 else "Moderate" if conv >= 50 else "Low"
+
+            # Holding period
+            primary_driver = (
+                "fundamental"
+                if fv in ("BUY", "SELL") and not en.get("fund_synthetic")
+                else "technical"
+            )
+            horizon = "6-12 months" if primary_driver == "fundamental" else "1-3 months"
+
+            # Kill thesis
+            kill = en.get("kill_thesis") or _stock_kill_thesis(
+                act, tkr, sec, rsi, ex, beta, bp, mf, ts, fv
+            )
+
+            # ── Card ──
+            _title_bg = (
+                "#fff5f5"
+                if act in ("SELL", "TRIM")
+                else "#f0fff4"
+                if act in ("BUY", "ADD")
+                else _BG
+            )
+            h.append(
+                f'<div style="background:{_BG};border:1px solid {_BD};border-left:3px solid {accent};'
+                f'padding:0;margin-bottom:20px;">'
+            )
+            # Title row with tinted background
+            h.append(
+                f'<table style="width:100%;"><tr style="background:{_title_bg};">'
+                f'<td style="vertical-align:middle;padding:16px 24px;">'
+                f'<span style="display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;'
+                f'color:#fff;background:{accent};margin-right:8px;">{act}</span>'
+                f'<span style="{_MONO}font-weight:700;font-size:14px;color:{_TX};">{e(tkr)}</span> '
+                f'<span style="color:{_TXM};font-size:12px;">{e(_clean_name(_names.get(tkr, "")))}</span></td>'
+                f'<td style="text-align:right;padding:16px 24px;">'
+                f'<span style="font-size:10px;color:{_TXM};margin-right:4px;">Conv</span>'
+                f'<span style="font-size:20px;font-weight:700;color:{cc};">{conv}</span>'
+            )
+            delta = delta_map.get(tkr)
+            if delta is not None and delta != 0:
+                ar = "&#9650;" if delta > 0 else "&#9660;"
+                dc = _GN if delta > 0 else _RD
+                h.append(f' <span style="color:{dc};font-size:11px;">{ar}{abs(delta)}</span>')
+            h.append("</td></tr></table>")
+            # Start padded content area
+            h.append('<div style="padding:4px 24px 20px 24px;">')
+
+            # Price/target/stop/R:R metrics bar
+            if price > 0:
+                h.append(
+                    f'<table style="width:100%;border-collapse:collapse;margin:12px 0 8px 0;">'
+                    f'<tr style="background:{_HBG};border:1px solid {_BD};">'
+                )
+                _mc = f"padding:8px 12px;text-align:center;border-right:1px solid {_BD};font-size:11px;"
+                h.append(
+                    f'<td style="{_mc}">'
+                    f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">CURRENT</div>'
+                    f'<div style="{_MONO}font-weight:700;color:{_TX};">${price:,.2f}</div></td>'
+                )
+                if target_price > 0 and act in ("BUY", "ADD"):
+                    h.append(
+                        f'<td style="{_mc}">'
+                        f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">TARGET</div>'
+                        f'<div style="{_MONO}font-weight:700;color:{_GN};">${target_price:,.2f} ({ex:+.0f}%)</div></td>'
+                    )
+                elif act in ("SELL", "TRIM"):
+                    h.append(
+                        f'<td style="{_mc}">'
+                        f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">EXRET</div>'
+                        f'<div style="{_MONO}font-weight:700;color:{_RD if ex < 5 else _TX2};">{ex:+.0f}%</div></td>'
+                    )
+                if stop_val > 0:
+                    stop_pct = (stop_val - price) / price * 100 if price > 0 else 0
+                    h.append(
+                        f'<td style="{_mc}">'
+                        f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">STOP-LOSS</div>'
+                        f'<div style="{_MONO}font-weight:700;color:{_RD};">${stop_val:,.2f} ({stop_pct:+.0f}%)</div></td>'
+                    )
+                if rr_ratio > 0 and act in ("BUY", "ADD"):
+                    h.append(
+                        f'<td style="{_mc}border-right:none;">'
+                        f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">RISK/REWARD</div>'
+                        f'<div style="{_MONO}font-weight:700;color:{_GN if rr_ratio >= 2 else _AM};">1:{rr_ratio:.1f}</div></td>'
+                    )
+                else:
+                    h.append(
+                        f'<td style="{_mc}border-right:none;">'
+                        f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">HORIZON</div>'
+                        f'<div style="font-size:11px;font-weight:600;color:{_TX2};">{horizon}</div></td>'
+                    )
+                h.append("</tr></table>")
+
+            # Key analyst metrics bar — consensus + valuation + momentum
+            _am = en.get("am", 0)
+            try:
+                _am = float(_am) if _am is not None else 0
+            except (ValueError, TypeError):
+                _am = 0
+            _na = int(en.get("num_analysts", 0) or 0)
+            _pet = en.get("pet", 0) or 0
+            _pef = en.get("pef", 0) or 0
+            _rev = en.get("revenue_growth_class", "") or "--"
+
+            # Compute raw BUY count and 3M-ago estimate
+            buys_now = round(bp * _na / 100) if _na > 0 and bp > 0 else 0
+            past_bp = max(0, bp - _am)
+            buys_past = round(past_bp * _na / 100) if _na > 0 else 0
+            delta_buys = buys_now - buys_past
+
+            pe_col_f = _TX2
+            if _pet > 0 and _pef > 0:
+                if _pef < _pet:
+                    pe_col_f = _GN
+                elif _pef > _pet:
+                    pe_col_f = _RD
+            bp_col = _GN if bp >= 70 else _RD if bp < 45 else _TX2
+            rev_col = (
+                _GN
+                if _rev == "ACCELERATING"
+                else _RD
+                if _rev in ("DECLINING", "DECELERATING")
+                else _TX2
+            )
+            delta_col = _GN if delta_buys > 0 else _RD if delta_buys < 0 else _TX2
+
+            _kc = f"padding:8px 10px;text-align:center;border-right:1px solid {_BD};font-size:11px;"
+            h.append(
+                f'<table style="width:100%;border-collapse:collapse;margin:8px 0;'
+                f'border:1px solid {_BD};">'
+                f'<tr style="background:{_HBG};">'
+                # Consensus: X/Y BUY (Z%)
+                f'<td style="{_kc}width:22%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">CONSENSUS</div>'
+                f'<div style="font-weight:700;color:{bp_col};">'
+                f"{buys_now}/{_na} BUY ({bp:.0f}%)</div></td>"
+                if _na > 0
+                else f'<td style="{_kc}width:22%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">CONSENSUS</div>'
+                f'<div style="font-weight:700;color:{_TXM};">--</div></td>'
+            )
+            h.append(
+                # 3M Change: delta analysts
+                f'<td style="{_kc}width:18%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">3M CHANGE</div>'
+                f'<div style="font-weight:700;color:{delta_col};">'
+                f"{delta_buys:+d} analyst{'s' if abs(delta_buys) != 1 else ''}"
+                f" ({_am:+.0f}pp)</div></td>"
+                if _na > 0
+                else f'<td style="{_kc}width:18%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">3M CHANGE</div>'
+                f'<div style="font-weight:700;color:{_TXM};">--</div></td>'
+            )
+            h.append(
+                # EXRET
+                f'<td style="{_kc}width:14%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">EXRET</div>'
+                f'<div style="font-weight:700;color:{_GN if ex > 10 else _RD if ex < 0 else _TX2};">'
+                f"{ex:.1f}%</div></td>"
+                # PE Trailing
+                f'<td style="{_kc}width:14%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">PE TRAIL</div>'
+                f'<div style="font-weight:700;color:{_TX2};">'
+                f"{f'{_pet:.1f}x' if _pet > 0 else '--'}</div></td>"
+                # PE Forward
+                f'<td style="{_kc}width:14%;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">PE FWD</div>'
+                f'<div style="font-weight:700;color:{pe_col_f};">'
+                f"{f'{_pef:.1f}x' if _pef > 0 else '--'}</div></td>"
+                # Revenue
+                f'<td style="{_kc}width:18%;border-right:none;">'
+                f'<div style="font-size:9px;color:{_TXM};font-weight:600;letter-spacing:0.5px;">REVENUE</div>'
+                f'<div style="font-weight:600;color:{rev_col};">{_rev}</div></td>'
+                f"</tr></table>"
+            )
+
+            # Context line: sector, RSI, tech, macro, fund
+            h.append(
+                f'<div style="font-size:11px;color:{_TXM};margin:4px 0;">'
+                f"{e(sec)} &middot; RSI {rsi:.0f} &middot; Tech {abbr(ts)} &middot; "
+                f"Macro {abbr(mf)} &middot; "
+                f"Fund {abbr(fv)}({en.get('fund_score', 0):.0f}){sm} &middot; "
+                f"{conv_label} conviction</div>"
+            )
+
+            # Conviction waterfall (top 3 factors)
+            _wf = en.get("conviction_waterfall", {})
+            if _wf and isinstance(_wf, dict):
+                _wf_items = sorted(
+                    [(k, v) for k, v in _wf.items() if isinstance(v, (int, float)) and v != 0],
+                    key=lambda x: abs(x[1]),
+                    reverse=True,
+                )[:3]
+                if _wf_items:
+                    _wf_parts = []
+                    for _wk, _wv in _wf_items:
+                        _wlbl = _wk.replace("_", " ").title()
+                        _wcol = _GN if _wv > 0 else _RD
+                        _wf_parts.append(
+                            f'<span style="display:inline-block;margin-right:12px;font-size:10px;">'
+                            f'<span style="color:{_TXM};">{_wlbl}</span> '
+                            f'<span style="font-weight:700;color:{_wcol};">{_wv:+.0f}</span></span>'
+                        )
+                    h.append(
+                        f'<div style="margin:6px 0;padding:6px 0;'
+                        f'border-top:1px solid {_BD};border-bottom:1px solid {_BD};">'
+                        f'<span style="font-size:9px;font-weight:600;letter-spacing:1px;'
+                        f'text-transform:uppercase;color:{_TXM};margin-right:8px;">Top Drivers</span>'
+                        f"{''.join(_wf_parts)}</div>"
+                    )
+
+            # 3-section thesis: THESIS | RISKS | WRONG IF
+            h.append('<table style="width:100%;margin:12px 0;border-collapse:collapse;"><tr>')
+            # THESIS
+            h.append(
+                f'<td style="width:40%;vertical-align:top;padding:10px 12px;'
+                f'border-left:3px solid #48bb78;background:#f0fff4;">'
+                f'<div style="font-size:10px;font-weight:700;color:{_AB};margin-bottom:4px;'
+                f'letter-spacing:1px;text-transform:uppercase;">Thesis</div>'
+                f'<div style="font-size:12px;color:{_TX2};line-height:1.6;">{e(_bull_case(en))}</div></td>'
+            )
+            # RISKS
+            h.append(
+                f'<td style="width:30%;vertical-align:top;padding:10px 12px;'
+                f'border-left:3px solid #fc8181;background:#fff5f5;">'
+                f'<div style="font-size:10px;font-weight:700;color:{_RD};margin-bottom:4px;'
+                f'letter-spacing:1px;text-transform:uppercase;">Risks</div>'
+                f'<div style="font-size:12px;color:{_TX2};line-height:1.6;">{e(_bear_case(en))}</div></td>'
+            )
+            # WRONG IF
+            h.append(
+                f'<td style="width:30%;vertical-align:top;padding:10px 12px;'
+                f'border-left:3px solid #ecc94b;background:#fffff0;">'
+                f'<div style="font-size:10px;font-weight:700;color:{_AM};margin-bottom:4px;'
+                f'letter-spacing:1px;text-transform:uppercase;">Wrong If</div>'
+                f'<div style="font-size:12px;color:{_TX2};line-height:1.6;font-style:italic;">{e(kill)}</div></td>'
+            )
+            h.append("</tr></table>")
+
+            # Size line
+            h.append(
+                f'<div style="font-size:12px;color:{_TX2};padding-top:4px;'
+                f'border-top:1px solid {_BD};">'
+                f'<span style="font-weight:600;color:{_TX};">Size:</span> {_size_text(en)}</div>'
+            )
+            h.append("</div>")  # close padded content area
+            h.append("</div>")  # close card
+
+        # ── HOLD TABLE ──
+        if hold_list:
+            h.append(
+                f'<div style="font-size:11px;font-weight:600;letter-spacing:2px;'
+                f'text-transform:uppercase;color:{_AB};margin:24px 0 12px 0;">'
+                f"Hold Positions ({holds})</div>"
+            )
+            _th_h = (
+                f"padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:1px;"
+                f"text-transform:uppercase;color:{_TXM};background:{_HBG};"
+                f"border-bottom:2px solid {_BDA};"
+            )
+            _td_h = f"padding:7px 10px;border-bottom:1px solid {_BD};"
+            h.append('<table style="width:100%;border-collapse:collapse;font-size:12px;">')
+            h.append(
+                f'<tr><th style="{_th_h}text-align:left;">Stock</th>'
+                f'<th style="{_th_h}text-align:center;">Sig</th>'
+                f'<th style="{_th_h}text-align:center;">Fund</th>'
+                f'<th style="{_th_h}text-align:center;">Tech</th>'
+                f'<th style="{_th_h}text-align:center;">Conv</th>'
+                f'<th style="{_th_h}text-align:center;">PE</th>'
+                f'<th style="{_th_h}text-align:center;">Tier</th>'
+                f'<th style="{_th_h}text-align:left;">Note</th></tr>'
+            )
+            tier_order = {"STRONG": 0, "STANDARD": 1, "WEAK": 2, "MONITORING": 3, "": 4}
+            tier_groups: dict[str, list] = {}
+            for en in hold_list:
+                tier = en.get("hold_tier", "") or ""
+                tier_groups.setdefault(tier, []).append(en)
+            _tier_bg = {
+                "STRONG": _BG,
+                "STANDARD": "#edf2f7",
+                "WEAK": "#fffff0",
+                "MONITORING": "#fffff0",
+            }
+            for tier_name in sorted(tier_groups.keys(), key=lambda t: tier_order.get(t, 5)):
+                label = f"{tier_name} HOLD" if tier_name else "HOLD"
+                h.append(
+                    f'<tr><td colspan="8" style="padding:4px 10px;background:{_HBG};'
+                    f"font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;"
+                    f'color:{_TXM};border-top:2px solid {_BD};">{label} ({len(tier_groups[tier_name])})</td></tr>'
+                )
+                _row_bg = _tier_bg.get(tier_name, _BG)
+                for en in tier_groups[tier_name]:
+                    tkr = en.get("ticker", "")
+                    sig = en.get("signal", "?")
+                    fv = en.get("fund_view", "?")
+                    fs = en.get("fund_score", 0)
+                    ts = en.get("tech_signal", "?")
+                    rsi = en.get("rsi", 0)
+                    conv = en.get("conviction", 0)
+                    tier = en.get("hold_tier", "")
+                    sm = "*" if en.get("fund_synthetic") else ""
+                    delta = delta_map.get(tkr)
+                    _h_pet = en.get("pet", 0) or 0
+                    _h_pef = en.get("pef", 0) or 0
+                    # PE cell with trajectory arrow
+                    if _h_pet > 0 and _h_pef > 0:
+                        _pe_arrow = (
+                            " &#9650;"
+                            if _h_pef < _h_pet
+                            else (" &#9660;" if _h_pef > _h_pet else "")
+                        )
+                        pe_cell = f"{_h_pet:.0f}&#8594;{_h_pef:.0f}{_pe_arrow}"
+                    else:
+                        pe_cell = "--"
+                    pe_col_h = (
+                        _GN
+                        if _h_pet > 0 and _h_pef > 0 and _h_pef < _h_pet
+                        else (_RD if _h_pet > 0 and _h_pef > 0 and _h_pef > _h_pet else _TX2)
+                    )
+                    note_parts = []
+                    mf = en.get("macro_fit", "")
+                    if mf == "UNFAVORABLE":
+                        note_parts.append("Macro headwind")
+                    elif mf == "FAVORABLE":
+                        note_parts.append("Macro tailwind")
+                    ex = en.get("exret", 0)
+                    if ex >= 20:
+                        note_parts.append(f"EXRET {ex:.0f}%")
+                    vel = en.get("signal_velocity", "")
+                    if vel in ("DETERIORATING", "WEAKENING"):
+                        note_parts.append(vel[:5])
+                    elif vel in ("ACCELERATING", "IMPROVING"):
+                        note_parts.append(vel[:5])
+                    rgc = en.get("revenue_growth_class", "")
+                    if rgc == "ACCELERATING":
+                        note_parts.append("Rev accel")
+                    elif rgc == "DECLINING":
+                        note_parts.append("Rev decline")
+                    cts = en.get("census_ts", "")
+                    if cts in ("distribution", "strong_distribution"):
+                        note_parts.append("PI distrib")
+                    elif cts in ("accumulation", "strong_accumulation"):
+                        note_parts.append("PI accum")
+                    note = "; ".join(note_parts[:2]) if note_parts else "--"
+                    h.append(
+                        f'<tr style="background:{_row_bg};"><td style="{_td_h}text-align:left;">{_tn_cell(tkr, _names)}</td>'
+                        f'<td style="{_td_h}text-align:center;">{signal_badge(sig)}</td>'
+                        f'<td style="{_td_h}text-align:center;color:{sentiment_color(fv)};font-size:10px;font-weight:600;">{abbr(fv)}({fs:.0f}){sm}</td>'
+                        f'<td style="{_td_h}text-align:center;color:{sentiment_color(ts)};font-size:10px;font-weight:600;">{abbr(ts)}({rsi:.0f})</td>'
+                        f'<td style="{_td_h}text-align:center;">{conv_display(conv, delta)}</td>'
+                        f'<td style="{_td_h}text-align:center;font-size:10px;{_MONO}color:{pe_col_h};">{pe_cell}</td>'
+                        f'<td style="{_td_h}text-align:center;font-size:10px;color:{_TXM};">{tier}</td>'
+                        f'<td style="{_td_h}text-align:left;font-size:10px;color:{_TXM};">{note}</td></tr>'
+                    )
+            h.append("</table>")
+
+        h.append(f'<div style="border-bottom:1px solid {_BD};margin:24px 0 0 0;"></div>')
+
+    # ══════════════════════════════════════════════════════════════════
+    # ACT III — MARKET CONTEXT
+    # ══════════════════════════════════════════════════════════════════
+    h.append(
+        f'<div style="padding:32px 0 0 0;">'
+        f'<div style="font-size:11px;font-weight:600;letter-spacing:2px;'
+        f'text-transform:uppercase;color:{_AB};margin-bottom:4px;">Market Context</div>'
+        f'<div style="font-size:12px;color:{_TXM};margin-bottom:16px;">'
+        f"Macro indicators, sector rotation, key risks and catalysts</div></div>"
+    )
+
+    # Macro indicators
+    _fg = indicators.get("fear_greed", indicators.get("fear_and_greed", 0))
+    if isinstance(_fg, dict):
+        _fg = _fg.get("current", _fg.get("value", 0))
+    _dxy_raw = indicators.get("dxy", 0)
+    _dxy = _dxy_raw.get("current", 0) if isinstance(_dxy_raw, dict) else _dxy_raw
+    _yield10 = indicators.get("us_10y_yield", 0)
+    if isinstance(_yield10, dict):
+        _yield10 = _yield10.get("current", 0)
+    fg_col = _GN if _fg > 60 else _RD if _fg < 40 else _AM
+    h.append(
+        '<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;'
+        'margin:0 0 20px 0;"><tr>'
+    )
+    for _mk, _mv, _ms, _mc_col in [
+        ("Fear &amp; Greed", f"{_fg:.0f}" if _fg else "--", "CNN Index", fg_col),
+        (
+            "VIX",
+            f"{vix_val:.1f}" if vix_val else "--",
+            "Elevated" if vix_val > 20 else "Normal",
+            _RD if vix_val > 25 else _TX,
+        ),
+        ("DXY", f"{_dxy:.1f}" if _dxy else "--", "US Dollar", _TX),
+        ("US 10Y", f"{_yield10:.2f}%" if _yield10 else "--", "Treasury Yield", _TX),
+    ]:
+        h.append(
+            f'<td style="width:25%;padding:12px 16px;text-align:center;'
+            f'border:1px solid {_BD};background:{_BG};">'
+            f'<div style="font-size:9px;font-weight:600;letter-spacing:1px;'
+            f'text-transform:uppercase;color:{_TXM};">{_mk}</div>'
+            f'<div style="font-size:20px;font-weight:600;color:{_mc_col};">{_mv}</div>'
+            f'<div style="font-size:10px;color:{_TXM};">{_ms}</div></td>'
+        )
+    h.append("</tr></table>")
+
+    # Sector heatmap
+    if sector_rankings:
+        h.append(
+            f'<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;'
+            f'text-transform:uppercase;color:{_TXM};margin:0 0 8px 0;">Sector Rotation</div>'
+        )
+        sorted_sectors = sorted(
+            sector_rankings.items(),
+            key=lambda x: x[1].get("return_1m", 0) if isinstance(x[1], dict) else 0,
+            reverse=True,
+        )
+        _th_s = (
+            f"padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:1px;"
+            f"text-transform:uppercase;color:{_TXM};background:{_HBG};"
+            f"border-bottom:2px solid {_BDA};"
+        )
+        h.append('<table style="width:100%;border-collapse:collapse;font-size:12px;">')
+        h.append(
+            f'<tr><th style="{_th_s}text-align:left;">Sector</th>'
+            f'<th style="{_th_s}text-align:center;">1M</th>'
+            f'<th style="{_th_s}text-align:center;">3M</th></tr>'
+        )
+        for etf, data in sorted_sectors:
+            if not isinstance(data, dict):
+                continue
+            r1m = data.get("return_1m", 0)
+            r3m = data.get("return_3m", 0)
+            c1 = _GN if r1m > 0 else _RD
+            c3 = _GN if r3m > 0 else _RD
+            h.append(
+                f'<tr><td style="padding:6px 10px;border-bottom:1px solid {_BD};'
+                f'font-weight:600;font-size:11px;color:{_TX};">{e(etf)}</td>'
+                f'<td style="padding:6px 10px;border-bottom:1px solid {_BD};'
+                f'text-align:center;{_MONO}font-weight:700;color:{c1};">{r1m:+.1f}%</td>'
+                f'<td style="padding:6px 10px;border-bottom:1px solid {_BD};'
+                f'text-align:center;{_MONO}font-weight:700;color:{c3};">{r3m:+.1f}%</td></tr>'
+            )
+        h.append("</table>")
+
+    # Risks & Catalysts (side by side)
+    _macro_risks = (macro or {}).get("key_risks", (macro or {}).get("risks", []))
+    _macro_cats = (macro or {}).get("catalysts", (macro or {}).get("key_catalysts", []))
+    if _macro_risks or _macro_cats:
+        h.append('<table style="width:100%;margin:20px 0;"><tr>')
+        if _macro_risks:
+            risks_html = "".join(
+                f'<div style="font-size:12px;color:{_TX2};margin-bottom:6px;line-height:1.5;">'
+                f'<span style="color:{_RD};font-weight:700;">&#8226;</span> {e(str(r)[:120])}</div>'
+                for r in (_macro_risks[:3] if isinstance(_macro_risks, list) else [])
+            )
+            h.append(
+                f'<td style="width:50%;vertical-align:top;padding-right:12px;">'
+                f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;'
+                f'text-transform:uppercase;color:{_RD};margin-bottom:8px;">Key Risks</div>'
+                f"{risks_html}</td>"
+            )
+        if _macro_cats:
+            cats_html = "".join(
+                f'<div style="font-size:12px;color:{_TX2};margin-bottom:6px;line-height:1.5;">'
+                f'<span style="color:{_GN};font-weight:700;">&#8226;</span> {e(str(c)[:120])}</div>'
+                for c in (_macro_cats[:3] if isinstance(_macro_cats, list) else [])
+            )
+            h.append(
+                f'<td style="width:50%;vertical-align:top;padding-left:12px;">'
+                f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;'
+                f'text-transform:uppercase;color:{_GN};margin-bottom:8px;">Catalysts</div>'
+                f"{cats_html}</td>"
+            )
+        h.append("</tr></table>")
+
+    h.append(f'<div style="border-bottom:1px solid {_BD};margin:8px 0 0 0;"></div>')
+
+    # ══════════════════════════════════════════════════════════════════
+    # ACT IV — WATCHLIST & OPPORTUNITIES (skip in daily)
+    # ══════════════════════════════════════════════════════════════════
+    if not daily:
+        h.append(
+            f'<div style="padding:32px 0 0 0;">'
+            f'<div style="font-size:11px;font-weight:600;letter-spacing:2px;'
+            f'text-transform:uppercase;color:{_AB};margin-bottom:4px;">Watchlist &amp; Opportunities</div>'
+            f'<div style="font-size:12px;color:{_TXM};margin-bottom:16px;">'
+            f"Near-action holds, new opportunities, and risk alerts</div></div>"
+        )
+
+        # Near-action HOLDs
+        near_action = [
+            en
+            for en in hold_list
+            if en.get("hold_tier") in ("WEAK", "MONITORING")
+            or en.get("conviction", 0) < 55
+            or en.get("signal_velocity", "") in ("DETERIORATING", "WEAKENING")
+        ]
+        if near_action:
+            h.append(
+                f'<div style="margin-bottom:16px;padding:16px 20px;border-left:3px solid {_AM};'
+                f'background:{_BG};">'
+                f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;'
+                f'text-transform:uppercase;color:{_AM};margin-bottom:8px;">'
+                f"Near-Action Holds ({len(near_action)})</div>"
+            )
+            for en in near_action[:5]:
+                tkr = en.get("ticker", "")
+                conv = en.get("conviction", 0)
+                tier = en.get("hold_tier", "")
+                vel = en.get("signal_velocity", "")
+                h.append(
+                    f'<div style="font-size:12px;color:{_TX2};margin-bottom:4px;">'
+                    f'<span style="{_MONO}font-weight:700;color:{_TX};">{e(tkr)}</span> '
+                    f"conv {conv} &middot; {tier} &middot; {vel}</div>"
+                )
+            h.append("</div>")
+
+        # Top opportunities
+        top_opps = (opps or {}).get("top_opportunities", [])[:3]
+        if top_opps:
+            h.append(
+                f'<div style="margin-bottom:16px;padding:16px 20px;border-left:3px solid {_GN};'
+                f'background:{_BG};">'
+                f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;'
+                f'text-transform:uppercase;color:{_GN};margin-bottom:8px;">Top Opportunities</div>'
+            )
+            for opp in top_opps:
+                tkr = opp.get("ticker", "")
+                rationale = opp.get("rationale", opp.get("thesis", ""))
+                score = opp.get("score", opp.get("opportunity_score", 0))
+                h.append(
+                    f'<div style="font-size:12px;color:{_TX2};margin-bottom:4px;">'
+                    f'<span style="{_MONO}font-weight:700;color:{_TX};">{e(tkr)}</span> '
+                    f"(score {score}) -- {e(str(rationale)[:140])}</div>"
+                )
+            h.append("</div>")
+
+        # Census divergences
+        census_diverg = [
+            en
+            for en in concordance
+            if en.get("census") in ("DIVERGENT", "MODERATE_DIVERGENT")
+            and en.get("action") in ("BUY", "ADD", "SELL", "TRIM")
+        ]
+        if census_diverg:
+            h.append(
+                f'<div style="margin-bottom:16px;padding:16px 20px;border-left:3px solid {_AB};'
+                f'background:{_BG};">'
+                f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;'
+                f'text-transform:uppercase;color:{_AB};margin-bottom:8px;">'
+                f"Census Divergences ({len(census_diverg)})</div>"
+            )
+            for en in census_diverg[:5]:
+                tkr = en.get("ticker", "")
+                act = en.get("action", "HOLD")
+                ce = en.get("census", "")
+                ac = _RD if act in ("SELL", "TRIM") else _GN
+                h.append(
+                    f'<div style="font-size:12px;color:{_TX2};margin-bottom:4px;">'
+                    f'<span style="display:inline-block;padding:1px 6px;font-size:9px;font-weight:700;'
+                    f'color:#fff;background:{ac};margin-right:4px;">{act}</span>'
+                    f'<span style="{_MONO}font-weight:700;color:{_TX};">{e(tkr)}</span> '
+                    f"-- Census: {abbr(ce)} (committee disagrees with crowd)</div>"
+                )
+            h.append("</div>")
+
+        h.append(f'<div style="border-bottom:1px solid {_BD};margin:8px 0 0 0;"></div>')
+
+    # ══════════════════════════════════════════════════════════════════
+    # ACT V — REFERENCE
+    # ══════════════════════════════════════════════════════════════════
+    h.append(
+        f'<div style="padding:32px 0 0 0;">'
+        f'<div style="font-size:11px;font-weight:600;letter-spacing:2px;'
+        f'text-transform:uppercase;color:{_AB};margin-bottom:4px;">Reference</div>'
+        f'<div style="font-size:12px;color:{_TXM};margin-bottom:16px;">'
+        f"Full concordance grid, changes since last committee, risk metrics</div></div>"
+    )
+
+    # Concordance grid
+    h.append(
+        f'<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;'
+        f'text-transform:uppercase;color:{_TXM};margin:0 0 8px 0;">'
+        f"Concordance Grid ({len(concordance)} stocks)</div>"
+    )
+    h.append('<div style="overflow-x:auto;">')
+    _th_g = (
+        f"padding:8px 6px;text-align:center;font-size:9px;font-weight:700;"
+        f"letter-spacing:0.3px;background:{_HBG};color:{_TX};border:1px solid {_BD};"
+    )
+    h.append(
+        f'<table style="width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;"><tr>'
+        f'<th style="{_th_g}text-align:left;">Stock</th>'
+        f'<th style="{_th_g}">Sig</th>'
+        f'<th style="{_th_g}">Fund</th>'
+        f'<th style="{_th_g}">Tech</th>'
+        f'<th style="{_th_g}">Macro</th>'
+        f'<th style="{_th_g}">Cens</th>'
+        f'<th style="{_th_g}">News</th>'
+        f'<th style="{_th_g}">Risk</th>'
+        f'<th style="{_th_g}">EXR</th>'
+        f'<th style="{_th_g}">Act</th>'
+        f'<th style="{_th_g}">Conv</th></tr>'
+    )
+
+    def _v2_grid_row(entry):
+        act = entry.get("action", "HOLD")
+        tkr = entry.get("ticker", "")
+        sig = entry.get("signal", "?")
+        fs = entry.get("fund_score", 0)
+        fv = entry.get("fund_view", "?")
+        ts = entry.get("tech_signal", "?")
+        rsi = entry.get("rsi", 0)
+        mf = entry.get("macro_fit", "?")
+        ce = entry.get("census", "?")
+        ni = entry.get("news_impact", "NEUTRAL")
+        rw = entry.get("risk_warning", False)
+        conv = entry.get("conviction", 0)
+        sm = "*" if entry.get("fund_synthetic") else ""
+        ex = entry.get("exret", 0)
+        delta = delta_map.get(tkr)
+        exc = _GN if ex > 5 else _RD if ex < 0 else _TX2
+        p = f'style="padding:6px 4px;text-align:center;border:1px solid {_BD};'
+        sv = "font-weight:600;font-size:10px;"
+        ni_abbr = {
+            "HIGH_POSITIVE": "H.POS",
+            "HIGH_NEGATIVE": "H.NEG",
+            "LOW_POSITIVE": "L.POS",
+            "LOW_NEGATIVE": "L.NEG",
+            "POSITIVE": "POS",
+            "NEGATIVE": "NEG",
+            "MIXED": "MIX",
+            "NEUTRAL": "NEUT",
+        }.get(ni, abbr(ni))
+        risk_label = "WARN" if rw else "OK"
+        risk_col = _RD if rw else _GN
+        ac = _RD if act in ("SELL", "TRIM") else _GN if act in ("BUY", "ADD") else _TX2
+        return (
+            f"<tr>"
+            f'<td {p}text-align:left;padding-left:8px;">{_tn_cell(tkr, _names)}</td>'
+            f'<td {p}">{signal_badge(sig)}</td>'
+            f'<td {p}color:{sentiment_color(fv)};{sv}">{abbr(fv)}({fs:.0f}){sm}</td>'
+            f'<td {p}color:{sentiment_color(ts)};{sv}">{abbr(ts)}({rsi:.0f})</td>'
+            f'<td {p}color:{sentiment_color(mf)};{sv}">{abbr(mf)}</td>'
+            f'<td {p}color:{sentiment_color(ce)};{sv}">{abbr(ce)}</td>'
+            f'<td {p}color:{sentiment_color(ni)};{sv}">{ni_abbr}</td>'
+            f'<td {p}color:{risk_col};{sv}">{risk_label}</td>'
+            f'<td {p}{_MONO}font-weight:700;color:{exc};">{ex:.0f}%</td>'
+            f'<td {p}"><span style="display:inline-block;padding:1px 6px;font-size:9px;'
+            f'font-weight:700;color:#fff;background:{ac};">{act}</span></td>'
+            f'<td {p}">{conv_display(conv, delta)}</td></tr>'
+        )
+
+    for act_label, act_items in [
+        ("SELL", sell_list),
+        ("TRIM", trim_list),
+        ("BUY", buy_list),
+        ("ADD", add_list),
+    ]:
+        if act_items:
+            ac = _RD if act_label in ("SELL", "TRIM") else _GN
+            h.append(
+                f'<tr><td colspan="11" style="padding:4px 10px;background:{_HBG};'
+                f"font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;"
+                f'color:{ac};border:1px solid {_BD};">{act_label} ({len(act_items)})</td></tr>'
+            )
+            for en in act_items:
+                h.append(_v2_grid_row(en))
+    if hold_list:
+        h.append(
+            f'<tr><td colspan="11" style="padding:4px 10px;background:{_HBG};'
+            f"font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;"
+            f'color:{_TX2};border:1px solid {_BD};">HOLD ({len(hold_list)})</td></tr>'
+        )
+        if not daily:
+            for en in hold_list:
+                h.append(_v2_grid_row(en))
+    h.append("</table></div>")
+
+    # Changes since last committee
+    if changes:
+        changed = [c for c in changes if c.get("delta", 0) != 0]
+        if changed:
+            h.append(
+                f'<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;'
+                f'text-transform:uppercase;color:{_TXM};margin:24px 0 8px 0;">'
+                f"Changes Since Last Committee ({len(changed)})</div>"
+            )
+            _th_c = (
+                f"padding:8px 10px;font-size:10px;font-weight:600;letter-spacing:1px;"
+                f"text-transform:uppercase;color:{_TXM};background:{_HBG};"
+                f"border-bottom:2px solid {_BDA};"
+            )
+            h.append('<table style="width:100%;border-collapse:collapse;font-size:12px;">')
+            h.append(
+                f'<tr><th style="{_th_c}text-align:left;">Stock</th>'
+                f'<th style="{_th_c}text-align:center;">Action</th>'
+                f'<th style="{_th_c}text-align:center;">Conv</th>'
+                f'<th style="{_th_c}text-align:center;">Delta</th>'
+                f'<th style="{_th_c}text-align:left;">Change</th></tr>'
+            )
+            for c in sorted(changed, key=lambda x: abs(x.get("delta", 0)), reverse=True)[:15]:
+                tkr = c.get("ticker", "")
+                act = c.get("action", "HOLD")
+                conv = c.get("conviction", 0)
+                d = c.get("delta", 0)
+                change_desc = c.get("change", c.get("description", ""))
+                dc = _GN if d > 0 else _RD
+                ar = "&#9650;" if d > 0 else "&#9660;"
+                ac = _RD if act in ("SELL", "TRIM") else _GN if act in ("BUY", "ADD") else _TX2
+                h.append(
+                    f'<tr><td style="padding:7px 10px;border-bottom:1px solid {_BD};text-align:left;">'
+                    f"{_tn_cell(tkr, _names)}</td>"
+                    f'<td style="padding:7px 10px;border-bottom:1px solid {_BD};text-align:center;">'
+                    f'<span style="display:inline-block;padding:1px 6px;font-size:9px;font-weight:700;'
+                    f'color:#fff;background:{ac};">{act}</span></td>'
+                    f'<td style="padding:7px 10px;border-bottom:1px solid {_BD};text-align:center;">'
+                    f"{conv_display(conv)}</td>"
+                    f'<td style="padding:7px 10px;border-bottom:1px solid {_BD};text-align:center;'
+                    f'color:{dc};font-weight:700;">{ar}{abs(d)}</td>'
+                    f'<td style="padding:7px 10px;border-bottom:1px solid {_BD};text-align:left;'
+                    f'font-size:10px;color:{_TXM};">{e(str(change_desc)[:80])}</td></tr>'
+                )
+            h.append("</table>")
+
+    # Risk metrics summary
+    pr = risk.get("portfolio_risk", {})
+    sharpe = synth.get("sharpe_ratio", pr.get("sharpe_ratio_1y", 0)) or 0
+    dd = pr.get("drawdown_analysis", {})
+    curr_dd = dd.get("current_drawdown_pct", 0) if dd else 0
+    h.append(
+        f'<div style="margin-top:20px;padding:14px 20px;border-left:3px solid {_BDA};'
+        f'background:{_BG};font-size:12px;color:{_TX2};line-height:1.8;">'
+        f'<span style="font-weight:700;color:{_TX};">Risk Summary</span> &mdash; '
+        f"Sharpe {sharpe:.2f} &middot; Beta {p_beta:.2f} &middot; "
+        f"VaR95 {var_95:.1f}% &middot; Max DD {max_dd:.1f}% &middot; "
+        f"Current DD {curr_dd:.1f}% &middot; "
+        f"Risk Score {risk_score:.0f}/100</div>"
+    )
+
+    # ── FOOTER ──
+    h.append(
+        f'<div style="padding:28px 0 48px 0;border-top:2px solid {_BDA};margin-top:28px;">'
+        f'<div style="font-size:10px;color:{_TXM};line-height:1.8;">'
+        f"Generated {today_long} &middot; CIO v44.0 &middot; "
+        f"7 Specialist AI Agents + CIO Synthesis &middot; "
+        f"Data: etorotrade signals ({e(signal_date)}), "
+        f"eToro census (1,500 PIs, {e(census_date)}), yfinance<br/>"
+        f'<span style="color:{_TX2};font-weight:600;">Disclaimer:</span> '
+        f"This report provides research and analysis only and does not constitute "
+        f"investment advice, a recommendation, or a solicitation to buy or sell any security. "
+        f"All investment decisions are your own responsibility. Past performance "
+        f"is not indicative of future results.</div></div>"
+    )
+
+    h.append("</div></body></html>")
+    return "\n".join(h)
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # FILE-BASED ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -5120,8 +6703,12 @@ def generate_report_from_files(
     reports_dir: Path | None = None,
     output_dir: Path | None = None,
     mode: str = "full",
+    report_version: str = "v1",
 ) -> str:
-    """Generate the HTML report from files on disk."""
+    """Generate the HTML report from files on disk.
+
+    report_version: "v1" (original 18-section) or "v2" (5-Act decision-first).
+    """
     rd = reports_dir or REPORTS_DIR
     od = output_dir or OUTPUT_DIR
 
@@ -5217,13 +6804,19 @@ def generate_report_from_files(
         except Exception:
             pass
 
-    html_str = generate_report_html(
-        synth, fund, tech, macro, census, news, opps, risk, name_map=name_map, mode=mode
-    )
+    if report_version == "v2":
+        html_str = generate_report_html_v2(
+            synth, fund, tech, macro, census, news, opps, risk, name_map=name_map, mode=mode
+        )
+    else:
+        html_str = generate_report_html(
+            synth, fund, tech, macro, census, news, opps, risk, name_map=name_map, mode=mode
+        )
 
     today = datetime.now().strftime("%Y-%m-%d")
     suffix = "-daily" if mode == "daily" else ""
-    output_path = od / f"{today}{suffix}.html"
+    v_suffix = "-v2" if report_version == "v2" else ""
+    output_path = od / f"{today}{suffix}{v_suffix}.html"
     od.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         f.write(html_str)

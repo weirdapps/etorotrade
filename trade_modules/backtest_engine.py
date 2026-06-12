@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from trade_modules.committee_backtester import _round_trip_cost_pct
 from trade_modules.fx_sizing import currency_for_ticker
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ class BacktestEngine:
         self.signal_log_path = signal_log_path or SIGNAL_LOG_PATH
         self.output_dir = output_dir or OUTPUT_DIR
         self.cache_path = cache_path or CACHE_PATH
-        self.horizons = horizons or [7, 30, 90]
+        self.horizons = horizons or [7, 30, 60, 90, 180, 250]
 
     def run(self) -> None:
         """Execute the full backtest pipeline."""
@@ -515,6 +516,16 @@ class BacktestEngine:
                     # measurement overlay, not a strict EUR-CAPM.
                     beta_adj_alpha_eur = stock_return_eur - beta * spy_return_eur
 
+            # Net-of-cost alpha: deduct eToro tier-based round-trip cost
+            tier = row.get("tier") or "MID"
+            is_crypto = ticker.endswith("-USD")
+            round_trip_cost = _round_trip_cost_pct(
+                tier=tier,
+                holding_days=horizon,
+                is_crypto=is_crypto,
+            )
+            net_alpha = alpha - round_trip_cost if not np.isnan(alpha) else np.nan
+
             results.append(
                 {
                     "ticker": ticker,
@@ -527,6 +538,8 @@ class BacktestEngine:
                     "stock_return": stock_return,
                     "spy_return": spy_return,
                     "alpha": alpha,
+                    "net_alpha": net_alpha,
+                    "round_trip_cost": round_trip_cost,
                     "beta": beta,
                     "stock_return_eur": stock_return_eur,
                     "spy_return_eur": spy_return_eur,
@@ -583,11 +596,12 @@ class BacktestEngine:
     @staticmethod
     def _compute_group_stats(gdf: pd.DataFrame, signal_type: str) -> dict[str, Any]:
         """Compute hit rate, mean/median return, avg alpha, CIs for a group."""
-        from trade_modules.backtest_stats import bootstrap_ci, hit_rate_ci
+        from trade_modules.backtest_stats import block_bootstrap_ci, bootstrap_ci, hit_rate_ci
 
         n = len(gdf)
         returns = gdf["stock_return"].dropna()
         alphas = gdf["alpha"].dropna()
+        net_alphas = gdf["net_alpha"].dropna() if "net_alpha" in gdf else pd.Series(dtype=float)
         betas = gdf["beta"].dropna() if "beta" in gdf else pd.Series(dtype=float)
         alphas_eur = gdf["alpha_eur"].dropna() if "alpha_eur" in gdf else pd.Series(dtype=float)
         baa_eur = (
@@ -603,7 +617,22 @@ class BacktestEngine:
         else:  # H
             hits_arr = (returns.abs() < 5).astype(int).values
 
-        hit_rate_val, ci_lo, ci_hi = hit_rate_ci(hits_arr)
+        # Determine horizon from group data (if available) for block bootstrap
+        _horizon = int(gdf["horizon"].iloc[0]) if "horizon" in gdf.columns else 0
+
+        if _horizon >= 30 and len(hits_arr) >= _horizon:
+            # Block bootstrap: use contiguous blocks to respect autocorrelation
+            # in overlapping forward windows.  block_size = min(horizon, n//3)
+            # so we always have at least 3 blocks.
+            _blk = min(_horizon, len(hits_arr) // 3)
+            ci_lo, ci_hi = block_bootstrap_ci(
+                hits_arr,
+                block_size=_blk,
+                stat_fn=lambda x: np.mean(x) * 100,
+            )
+            hit_rate_val = float(np.mean(hits_arr)) * 100
+        else:
+            hit_rate_val, ci_lo, ci_hi = hit_rate_ci(hits_arr)
 
         # Alpha-based hit rate
         n_alpha = len(alphas)
@@ -620,10 +649,31 @@ class BacktestEngine:
             alpha_ci_lo = None
             alpha_ci_hi = None
 
-        # Return CI
-        ret_ci_lo, ret_ci_hi = (
-            bootstrap_ci(returns.values, stat_fn=np.mean) if len(returns) > 0 else (np.nan, np.nan)
-        )
+        # Net-alpha (after eToro transaction costs) hit rate
+        n_net_alpha = len(net_alphas)
+        if n_net_alpha > 0:
+            if signal_type == "B":
+                net_alpha_hits_arr = (net_alphas > 0).astype(int).values
+            elif signal_type == "S":
+                net_alpha_hits_arr = (net_alphas < 0).astype(int).values
+            else:
+                net_alpha_hits_arr = (net_alphas.abs() < 2).astype(int).values
+            net_alpha_hr, net_alpha_ci_lo, net_alpha_ci_hi = hit_rate_ci(net_alpha_hits_arr)
+        else:
+            net_alpha_hr = None
+            net_alpha_ci_lo = None
+            net_alpha_ci_hi = None
+
+        # Return CI (block bootstrap for overlapping horizons)
+        if len(returns) > 0 and _horizon >= 30 and len(returns) >= _horizon:
+            _ret_blk = min(_horizon, len(returns) // 3)
+            ret_ci_lo, ret_ci_hi = block_bootstrap_ci(
+                returns.values, block_size=_ret_blk, stat_fn=np.mean
+            )
+        elif len(returns) > 0:
+            ret_ci_lo, ret_ci_hi = bootstrap_ci(returns.values, stat_fn=np.mean)
+        else:
+            ret_ci_lo, ret_ci_hi = (np.nan, np.nan)
 
         # Proven signal: enough observations AND hit-rate CI doesn't span 50%.
         proven = n >= MIN_PROVEN_OBSERVATIONS
@@ -651,6 +701,16 @@ class BacktestEngine:
             "mean_return_ci_hi": round(ret_ci_hi, 2) if not np.isnan(ret_ci_hi) else None,
             "median_return": round(returns.median(), 2) if len(returns) > 0 else None,
             "avg_alpha": round(alphas.mean(), 2) if len(alphas) > 0 else None,
+            "net_avg_alpha": round(net_alphas.mean(), 2) if len(net_alphas) > 0 else None,
+            "net_alpha_hit_rate": round(net_alpha_hr, 1)
+            if net_alpha_hr is not None and not np.isnan(net_alpha_hr)
+            else None,
+            "net_alpha_hit_rate_ci_lo": round(net_alpha_ci_lo, 1)
+            if net_alpha_ci_lo is not None and not np.isnan(net_alpha_ci_lo)
+            else None,
+            "net_alpha_hit_rate_ci_hi": round(net_alpha_ci_hi, 1)
+            if net_alpha_ci_hi is not None and not np.isnan(net_alpha_ci_hi)
+            else None,
             "avg_beta": round(betas.mean(), 2) if len(betas) > 0 else None,
             "avg_alpha_eur": round(alphas_eur.mean(), 2) if len(alphas_eur) > 0 else None,
             "avg_beta_adj_alpha_eur": round(baa_eur.mean(), 2) if len(baa_eur) > 0 else None,
@@ -1010,7 +1070,13 @@ class ThresholdAnalyzer:
         Compare current config thresholds against data-optimal values.
 
         Only suggests changes where improvement > 5% hit rate and n >= 50.
+        After collecting all candidate suggestions, applies Benjamini-Hochberg
+        FDR correction (via ``fdr_correction``) so that only statistically
+        significant threshold improvements are emitted.  Each suggestion is
+        tagged with ``fdr_significant: bool``.
         """
+        from trade_modules.backtest_stats import fdr_correction
+
         try:
             with open(self.config_path) as f:
                 config = yaml.safe_load(f)
@@ -1092,6 +1158,28 @@ class ThresholdAnalyzer:
                     suggestion["signal_type"] = "SELL"
                     suggestions.append(suggestion)
 
+        # --- BH FDR correction across all collected suggestions ---
+        n_tested = len(suggestions)
+        if n_tested > 0:
+            p_values = {
+                f"{s['tier_region']}_{s['signal_type']}_{s['config_key']}": s["p_value"]
+                for s in suggestions
+            }
+            significant_names = set(fdr_correction(p_values))
+
+            for s in suggestions:
+                key = f"{s['tier_region']}_{s['signal_type']}_{s['config_key']}"
+                s["fdr_significant"] = key in significant_names
+
+            n_surviving = sum(1 for s in suggestions if s["fdr_significant"])
+            logger.info(
+                "ThresholdAnalyzer: %d thresholds tested, %d survive BH correction at α=0.05",
+                n_tested,
+                n_surviving,
+            )
+        else:
+            logger.info("ThresholdAnalyzer: 0 thresholds tested, 0 survive BH correction at α=0.05")
+
         return suggestions
 
     @staticmethod
@@ -1105,6 +1193,10 @@ class ThresholdAnalyzer:
         """
         Find the threshold value that maximizes alpha hit rate (vs SPY).
 
+        Also computes a binomial p-value testing whether the suggested
+        hit-rate significantly exceeds 50% (chance level).  The p-value
+        is used downstream by ``suggest_thresholds`` for BH FDR correction.
+
         Args:
             data: DataFrame with metric and alpha columns
             metric_col: Name of metric column
@@ -1115,6 +1207,8 @@ class ThresholdAnalyzer:
         Returns:
             Suggestion dict or None if no meaningful improvement found
         """
+        from scipy.stats import binom
+
         required_cols = [metric_col, "alpha"]
         if not all(c in data.columns for c in required_cols):
             return None
@@ -1129,6 +1223,8 @@ class ThresholdAnalyzer:
         percentiles = np.percentile(metric_vals, [10, 20, 30, 40, 50, 60, 70, 80, 90])
         best_hr = -1.0
         best_val = current_val
+        best_n_hits = 0
+        best_n_obs = 0
 
         for test_val in percentiles:
             if direction == "min":
@@ -1141,13 +1237,17 @@ class ThresholdAnalyzer:
                 continue
 
             if signal == "B":
-                hr = float((group_alphas > 0).mean() * 100)
+                n_hits = int((group_alphas > 0).sum())
             else:
-                hr = float((group_alphas < 0).mean() * 100)
+                n_hits = int((group_alphas < 0).sum())
+            n_obs = len(group_alphas)
+            hr = n_hits / n_obs * 100
 
             if hr > best_hr:
                 best_hr = hr
                 best_val = round(float(test_val), 1)
+                best_n_hits = n_hits
+                best_n_obs = n_obs
 
         # Calculate current hit rate
         if direction == "min":
@@ -1169,6 +1269,13 @@ class ThresholdAnalyzer:
         if improvement <= 5.0 or best_val == current_val:
             return None
 
+        # Binomial p-value: is the suggested hit-rate significantly > 50%?
+        # P(X >= best_n_hits) under H0: p=0.5
+        if best_n_obs > 0:
+            p_value = float(1.0 - binom.cdf(best_n_hits - 1, best_n_obs, 0.5))
+        else:
+            p_value = 1.0
+
         return {
             "current_value": current_val,
             "suggested_value": best_val,
@@ -1176,6 +1283,9 @@ class ThresholdAnalyzer:
             "suggested_hit_rate": round(best_hr, 1),
             "improvement": round(improvement, 1),
             "sample_size": len(valid),
+            "p_value": p_value,
+            "n_hits": best_n_hits,
+            "n_obs": best_n_obs,
         }
 
     def analyze_by_regime(self, merged: pd.DataFrame) -> list[dict[str, Any]]:
@@ -1264,14 +1374,19 @@ class ThresholdAnalyzer:
 
         # Threshold suggestions
         if suggestions:
-            print("\nTHRESHOLD SUGGESTIONS (>5% hit rate improvement, n>=50):")
-            print("-" * 75)
+            fdr_count = sum(1 for s in suggestions if s.get("fdr_significant"))
+            print(
+                f"\nTHRESHOLD SUGGESTIONS ({len(suggestions)} tested, "
+                f"{fdr_count} survive BH FDR at α=0.05):"
+            )
+            print("-" * 85)
             for s in suggestions:
+                fdr_tag = "FDR-SIG" if s.get("fdr_significant") else "not-sig"
                 print(
-                    f"  {s['tier_region']} {s['signal_type']} {s['config_key']}: "
+                    f"  [{fdr_tag}] {s['tier_region']} {s['signal_type']} {s['config_key']}: "
                     f"current={s['current_value']}, suggested={s['suggested_value']}, "
                     f"hit rate +{s['improvement']:.1f}% "
-                    f"(n={s['sample_size']})"
+                    f"(n={s['sample_size']}, p={s.get('p_value', 'N/A'):.4f})"
                 )
         else:
             print(
@@ -1341,12 +1456,16 @@ class ThresholdAnalyzer:
 
         # Suggestions section
         for s in suggestions:
+            fdr_tag = "FDR-significant" if s.get("fdr_significant") else "not-significant"
             rows.append(
                 {
                     "section": "threshold_suggestion",
                     "item": f"{s['tier_region']}_{s['signal_type']}_{s['config_key']}",
                     "value": s["suggested_value"],
-                    "detail": (f"current={s['current_value']}, improvement=+{s['improvement']}%"),
+                    "detail": (
+                        f"current={s['current_value']}, improvement=+{s['improvement']}%, "
+                        f"p={s.get('p_value', 'N/A')}, {fdr_tag}"
+                    ),
                     "coverage": None,
                     "sample_size": s["sample_size"],
                 }

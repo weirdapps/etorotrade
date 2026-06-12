@@ -98,6 +98,8 @@ class SignalRecord:
         roe: float | None = None,
         debt_equity: float | None = None,
         pct_52w_high: float | None = None,
+        # Momentum factor (Jegadeesh-Titman 12-1m skip-month)
+        momentum_12_1m: float | None = None,
         # Benchmark tracking
         spy_price: float | None = None,
         # Sell trigger details
@@ -128,6 +130,8 @@ class SignalRecord:
         self.roe = roe
         self.debt_equity = debt_equity
         self.pct_52w_high = pct_52w_high
+        # Momentum factor
+        self.momentum_12_1m = momentum_12_1m
         # Benchmark
         self.spy_price = spy_price
         self.sell_triggers = sell_triggers or []
@@ -160,6 +164,8 @@ class SignalRecord:
             "roe": self.roe,
             "debt_equity": self.debt_equity,
             "pct_52w_high": self.pct_52w_high,
+            # Momentum factor
+            "momentum_12_1m": self.momentum_12_1m,
             # Benchmark
             "spy_price": self.spy_price,
             "sell_triggers": self.sell_triggers,
@@ -194,6 +200,8 @@ class SignalRecord:
             roe=data.get("roe"),
             debt_equity=data.get("debt_equity"),
             pct_52w_high=data.get("pct_52w_high"),
+            # Momentum factor
+            momentum_12_1m=data.get("momentum_12_1m"),
             # Benchmark
             spy_price=data.get("spy_price"),
             sell_triggers=data.get("sell_triggers", []),
@@ -503,6 +511,15 @@ def log_signal(
     except (ImportError, Exception):
         pass
 
+    # Compute 12-1m momentum factor (Jegadeesh-Titman skip-month)
+    momentum_12_1m = None
+    try:
+        from trade_modules.analysis.momentum import fetch_momentum_for_ticker
+
+        momentum_12_1m = fetch_momentum_for_ticker(ticker)
+    except (ImportError, Exception):
+        pass
+
     record = SignalRecord(
         ticker=ticker,
         signal=signal,
@@ -524,6 +541,8 @@ def log_signal(
         roe=roe,
         debt_equity=debt_equity,
         pct_52w_high=pct_52w_high,
+        # Momentum factor
+        momentum_12_1m=momentum_12_1m,
         # Benchmark
         spy_price=spy_price,
         sell_triggers=sell_triggers or [],

@@ -507,6 +507,130 @@ class TestRunBacktestWithService:
         assert result["status"] == "no_returns"
         assert result["history_entries"] == 2
 
+    def test_fallback_to_legacy_fetcher_on_service_failure(self, tmp_path):
+        """run_backtest falls back to yfinance_price_fetcher when PriceService fails."""
+        data1 = {
+            "date": "2026-01-02",
+            "concordance": [
+                {"ticker": "AAPL", "action": "BUY", "conviction": 70},
+            ],
+        }
+        data2 = {
+            "date": "2026-01-03",
+            "concordance": [
+                {"ticker": "AAPL", "action": "HOLD", "conviction": 55},
+            ],
+        }
+        (tmp_path / "concordance-2026-01-02.json").write_text(json.dumps(data1))
+        (tmp_path / "concordance-2026-01-03.json").write_text(json.dumps(data2))
+
+        from unittest.mock import patch
+
+        mock_fetcher_prices = {
+            "AAPL": {
+                "2026-01-02": 100.0,
+                "2026-01-09": 105.0,
+                "2026-01-03": 101.0,
+                "2026-01-10": 106.0,
+            },
+            "SPY": {
+                "2026-01-02": 500.0,
+                "2026-01-09": 502.0,
+                "2026-01-03": 500.5,
+                "2026-01-10": 503.0,
+            },
+        }
+
+        def mock_fetcher(ticker, date_str, _cache=None):
+            return mock_fetcher_prices.get(ticker, {}).get(date_str)
+
+        # Make PriceService constructor raise, forcing the fallback path.
+        # PriceService is imported locally inside run_backtest, so we
+        # patch the module it imports from.
+        with (
+            patch(
+                "trade_modules.price_service.PriceService",
+                side_effect=Exception("rate limited"),
+            ),
+            patch(
+                "trade_modules.committee_backtester.yfinance_price_fetcher",
+                side_effect=mock_fetcher,
+            ),
+        ):
+            result = run_backtest(log_dir=tmp_path, horizon="T+7")
+
+        # The fallback should have produced forward returns
+        assert result["status"] != "no_returns", (
+            f"Expected fallback to legacy fetcher to produce returns, got: {result.get('status')}"
+        )
+
+
+class TestForwardReturnJoin:
+    """Tests that forward-return join produces non-empty results."""
+
+    def test_compute_forward_returns_with_mock_fetcher(self):
+        """compute_forward_returns should return non-empty dict when history exists."""
+        bt = CommitteeBacktester()
+        bt.history = [
+            {
+                "date": "2026-03-01",
+                "concordance": [
+                    {"ticker": "AAPL", "action": "HOLD", "conviction": 65},
+                    {"ticker": "MSFT", "action": "ADD", "conviction": 72},
+                ],
+            }
+        ]
+
+        # Use a mock price_fetcher that returns known prices for base + horizon dates
+        def mock_fetcher(ticker, date_str, _cache=None):
+            prices = {
+                "AAPL": {
+                    "2026-03-01": 220.0,
+                    "2026-03-08": 225.0,
+                    "2026-03-31": 230.0,
+                    "2026-05-30": 240.0,
+                },
+                "MSFT": {
+                    "2026-03-01": 420.0,
+                    "2026-03-08": 430.0,
+                    "2026-03-31": 435.0,
+                    "2026-05-30": 450.0,
+                },
+                "SPY": {
+                    "2026-03-01": 580.0,
+                    "2026-03-08": 582.0,
+                    "2026-03-31": 585.0,
+                    "2026-05-30": 590.0,
+                },
+            }
+            return prices.get(ticker, {}).get(date_str)
+
+        returns = bt.compute_forward_returns(price_fetcher=mock_fetcher)
+        assert len(returns) > 0, "Forward returns should not be empty with valid history"
+        assert "AAPL:2026-03-01" in returns
+        assert "MSFT:2026-03-01" in returns
+        # Verify actual return values are computed
+        aapl_ret = returns["AAPL:2026-03-01"]
+        assert aapl_ret.get("T+7") is not None, "T+7 return should be computed"
+
+    def test_empty_prices_returns_empty_with_service(self):
+        """PriceService returning empty prices should yield empty results."""
+        bt = CommitteeBacktester()
+        bt.history = [
+            {
+                "date": "2026-03-01",
+                "concordance": [
+                    {"ticker": "AAPL", "action": "HOLD", "conviction": 65},
+                ],
+            }
+        ]
+
+        mock_svc = MagicMock()
+        mock_svc.get_prices.return_value = pd.DataFrame()  # empty prices
+
+        returns = bt.compute_forward_returns(price_service=mock_svc)
+        assert returns == {}, "Empty price data should yield empty forward returns"
+
 
 # ============================================================
 # Walk-Forward Calibration
