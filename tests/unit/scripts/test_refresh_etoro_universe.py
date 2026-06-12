@@ -1,6 +1,5 @@
 """Unit tests for scripts/refresh_etoro_universe.py."""
 
-import csv
 import importlib.util
 import json
 import os
@@ -11,9 +10,7 @@ import pytest
 
 # Load the script as a module via importlib (avoids reportMissingImports;
 # matches the pattern used by tests/unit/scripts/test_validate_brief.py).
-_SCRIPT_PATH = (
-    Path(__file__).parent.parent.parent.parent / "scripts" / "refresh_etoro_universe.py"
-)
+_SCRIPT_PATH = Path(__file__).parent.parent.parent.parent / "scripts" / "refresh_etoro_universe.py"
 _spec = importlib.util.spec_from_file_location("refresh_etoro_universe", _SCRIPT_PATH)
 assert _spec is not None and _spec.loader is not None
 refresh_etoro_universe = importlib.util.module_from_spec(_spec)
@@ -211,16 +208,20 @@ class TestGetCredentials:
         assert user == "env-user"
 
     def test_keychain_fallback(self):
-        with patch.dict(os.environ, {}, clear=True), \
-             patch.object(refresh_etoro_universe.subprocess, "run") as mock_run:
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(refresh_etoro_universe.subprocess, "run") as mock_run,
+        ):
             mock_run.return_value = MagicMock(returncode=0, stdout="kc-secret\n")
             api, user = get_credentials()
         assert api == "kc-secret"
         assert user == "kc-secret"
 
     def test_raises_when_both_missing(self):
-        with patch.dict(os.environ, {}, clear=True), \
-             patch.object(refresh_etoro_universe.subprocess, "run") as mock_run:
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(refresh_etoro_universe.subprocess, "run") as mock_run,
+        ):
             mock_run.return_value = MagicMock(returncode=1, stdout="")
             with pytest.raises(RuntimeError, match="Missing credentials"):
                 get_credentials()
@@ -258,16 +259,20 @@ class TestFetchPage:
             MagicMock(status_code=500, text="boom"),
             MagicMock(status_code=200, json=lambda: {"items": [{"symbol": "X"}]}),
         ]
-        with patch.object(refresh_etoro_universe.requests, "get") as mock_get, \
-             patch.object(refresh_etoro_universe.time, "sleep"):
+        with (
+            patch.object(refresh_etoro_universe.requests, "get") as mock_get,
+            patch.object(refresh_etoro_universe.time, "sleep"),
+        ):
             mock_get.side_effect = responses
             result = fetch_page("Stocks", 1, "k", "u")
             assert result["items"][0]["symbol"] == "X"
             assert mock_get.call_count == 2
 
     def test_raises_after_max_retries(self):
-        with patch.object(refresh_etoro_universe.requests, "get") as mock_get, \
-             patch.object(refresh_etoro_universe.time, "sleep"):
+        with (
+            patch.object(refresh_etoro_universe.requests, "get") as mock_get,
+            patch.object(refresh_etoro_universe.time, "sleep"),
+        ):
             mock_get.return_value = MagicMock(status_code=500, text="boom")
             with pytest.raises(RuntimeError, match="all 3 attempts failed"):
                 fetch_page("Stocks", 1, "k", "u", max_retries=3)
@@ -290,8 +295,10 @@ class TestFetchAllAssets:
         def fake_fetch_page(asset_class, page, api_key, user_key, page_size=2, **kw):
             return next(all_responses)
 
-        with patch.object(refresh_etoro_universe, "fetch_page", side_effect=fake_fetch_page), \
-             patch.object(refresh_etoro_universe.time, "sleep"):
+        with (
+            patch.object(refresh_etoro_universe, "fetch_page", side_effect=fake_fetch_page),
+            patch.object(refresh_etoro_universe.time, "sleep"),
+        ):
             result = fetch_all_assets("k", "u", page_size=2)
 
         assert [r["symbol"] for r in result] == ["A", "B", "C", "SPY"]
@@ -305,8 +312,10 @@ class TestFetchAllAssets:
             call_count[0] += 1
             return empty_resp
 
-        with patch.object(refresh_etoro_universe, "fetch_page", side_effect=fake_fetch_page), \
-             patch.object(refresh_etoro_universe.time, "sleep"):
+        with (
+            patch.object(refresh_etoro_universe, "fetch_page", side_effect=fake_fetch_page),
+            patch.object(refresh_etoro_universe.time, "sleep"),
+        ):
             result = fetch_all_assets("k", "u")
 
         assert result == []
@@ -381,10 +390,18 @@ class TestMain:
 
         # Pad to 1000+ items to clear the safety threshold (filler will be deduped or filtered)
         padded = {
-            "page": 1, "pageSize": 2000, "totalItems": 2000,
-            "items": sample_response["items"] + [
-                {"instrumentId": 100000 + i, "symbol": f"PAD{i}", "displayName": f"Padding {i}",
-                 "assetClass": "Stocks", "exchangeName": "Nasdaq"}
+            "page": 1,
+            "pageSize": 2000,
+            "totalItems": 2000,
+            "items": sample_response["items"]
+            + [
+                {
+                    "instrumentId": 100000 + i,
+                    "symbol": f"PAD{i}",
+                    "displayName": f"Padding {i}",
+                    "assetClass": "Stocks",
+                    "exchangeName": "Nasdaq",
+                }
                 for i in range(1000)
             ],
         }
@@ -392,7 +409,9 @@ class TestMain:
         def fake_fetch_all_assets(api_key, user_key, page_size=1000):
             return padded["items"]
 
-        with patch.object(refresh_etoro_universe, "fetch_all_assets", side_effect=fake_fetch_all_assets):
+        with patch.object(
+            refresh_etoro_universe, "fetch_all_assets", side_effect=fake_fetch_all_assets
+        ):
             exit_code = main(output_csv_path=str(output_csv), delta_log_path=str(log_path))
 
         assert exit_code == 0
@@ -420,7 +439,9 @@ class TestMain:
         monkeypatch.setenv("ETORO_USER_KEY", "test-user")
 
         def fake_fetch(*args, **kwargs):
-            return [{"symbol": "X", "displayName": "X", "assetClass": "Stocks", "exchangeName": "N"}] * 10
+            return [
+                {"symbol": "X", "displayName": "X", "assetClass": "Stocks", "exchangeName": "N"}
+            ] * 10
 
         with patch.object(refresh_etoro_universe, "fetch_all_assets", side_effect=fake_fetch):
             exit_code = main(
