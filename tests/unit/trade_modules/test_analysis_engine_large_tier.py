@@ -62,14 +62,13 @@ class TestLargeUSTierSignals:
         """BUY signal when ALL buy conditions met for LARGE-US.
 
         LARGE-US BUY criteria (from config.yaml):
-        - min_upside: 10
-        - min_buy_percentage: 75
-        - min_exret: 7.5
+        - min_upside: 20
+        - min_buy_percentage: 70
         """
         data = large_us_base_data.copy()
-        data["upside"] = 15.0  # ✓ ≥10%
-        data["buy_percentage"] = 80.0  # ✓ ≥75%
-        data["EXRET"] = 12.0  # ✓ ≥7.5
+        data["upside"] = 25.0  # ✓ ≥20%
+        data["buy_percentage"] = 80.0  # ✓ ≥70%
+        data["EXRET"] = 12.0
 
         df = pd.DataFrame([data]).set_index("ticker")
         result = calculate_action(df)
