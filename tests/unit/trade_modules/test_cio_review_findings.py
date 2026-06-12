@@ -864,7 +864,7 @@ class TestConfigYaml:
         assert config["data_freshness"]["stale_days"] == 90
 
     def test_scoring_weights_updated(self):
-        """Verify scoring weights reflect academic-aligned rebalancing."""
+        """Verify scoring weights reflect T+30 alpha backtest rebalancing."""
         import yaml
 
         with open("config.yaml") as f:
@@ -878,6 +878,6 @@ class TestConfigYaml:
         buy = config["default_buy_scoring"]
         assert buy["weight_consensus"] == pytest.approx(0.05)
         assert buy["weight_valuation"] == pytest.approx(0.25)
-        assert buy["weight_fundamental"] == pytest.approx(0.25)
-        assert buy["weight_upside"] == pytest.approx(0.20)
-        assert buy["weight_analyst_momentum"] == pytest.approx(0.15)
+        assert buy["weight_fundamental"] == pytest.approx(0.20)
+        assert buy["weight_upside"] == pytest.approx(0.15)
+        assert buy["weight_momentum"] == pytest.approx(0.20)

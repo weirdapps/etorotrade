@@ -47,6 +47,59 @@ def bootstrap_ci(
     return (lo, hi)
 
 
+def block_bootstrap_ci(
+    data: np.ndarray,
+    block_size: int = 30,
+    stat_fn: Callable = np.mean,
+    n_boot: int = 2000,
+    ci: float = 0.90,
+    seed: int | None = None,
+) -> tuple[float, float]:
+    """
+    Non-overlapping block bootstrap for autocorrelated data.
+
+    Resamples contiguous blocks of size `block_size` rather than
+    individual observations.  Produces wider (more honest) CIs when
+    observations are not independent (e.g. overlapping T+30 windows).
+
+    Falls back to i.i.d. bootstrap when data length < block_size.
+
+    Args:
+        data: 1D array of observations.
+        block_size: Length of each contiguous block.
+        stat_fn: Statistic function (e.g., np.mean).
+        n_boot: Number of bootstrap resamples.
+        ci: Confidence level (default 0.90 = 90% CI).
+        seed: Random seed for reproducibility.
+
+    Returns:
+        (lower_bound, upper_bound) of the CI.
+    """
+    arr = np.asarray(data, dtype=float)
+    n = len(arr)
+
+    if n == 0:
+        return (np.nan, np.nan)
+
+    if n < block_size:
+        return bootstrap_ci(arr, stat_fn=stat_fn, n_boot=n_boot, ci=ci, seed=seed)
+
+    rng = np.random.default_rng(seed)
+    n_blocks = max(1, n // block_size)
+    block_starts = np.arange(0, n - block_size + 1)
+
+    stats = np.empty(n_boot)
+    for i in range(n_boot):
+        chosen = rng.choice(block_starts, size=n_blocks, replace=True)
+        sample = np.concatenate([arr[s : s + block_size] for s in chosen])
+        stats[i] = stat_fn(sample)
+
+    alpha = (1 - ci) / 2
+    lo = float(np.percentile(stats, alpha * 100))
+    hi = float(np.percentile(stats, (1 - alpha) * 100))
+    return (lo, hi)
+
+
 def hit_rate_ci(
     hits: np.ndarray,
     n_boot: int = 2000,

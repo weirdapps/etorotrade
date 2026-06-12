@@ -265,15 +265,16 @@ def calculate_buy_score(
     consensus_score = 50.0
 
     # === MOMENTUM (0-100) — 12M-1M proxy (Jegadeesh-Titman 1993) ===
-    # Stocks at 75-90% of 52W high = strong intermediate trend with recent pullback
-    # (the "skip month" zone). Near-peak (95%+) penalized for short-term reversal.
-    # 200DMA used as risk filter: below = penalty, above = no bonus.
+    # Trend-continuation fix: near-peak stocks no longer penalized.
+    # Old curve peaked at 80-85% and dropped to 20 at 100% — this mechanically
+    # ejected every winner. New curve rewards the 70-95% zone uniformly (trend
+    # continuation) and only mildly discounts the very peak (100% = AT high).
     if not pd.isna(pct_52w):
         pct52w_score = float(
             np.interp(
                 pct_52w,
-                [40, 55, 65, 75, 80, 85, 90, 95, 100],
-                [0, 5, 20, 45, 50, 50, 45, 30, 20],
+                [40, 55, 65, 70, 80, 90, 95, 100],
+                [0,  5, 20, 40, 50, 50, 45, 35],
             )
         )
     else:
@@ -1506,11 +1507,46 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
 
         # Required criteria - only apply if explicitly defined in YAML
         # NO DEFAULTS - criteria must be explicitly configured
+        failed_upside_gate = False
         if "min_upside" in buy_criteria:
             if row_upside < buy_criteria["min_upside"]:
+                failed_upside_gate = True
                 is_buy_candidate = False
                 logger.debug(
                     f"Ticker {ticker}: No buy - upside {row_upside:.1f}% < {buy_criteria['min_upside']:.1f}%"
+                )
+
+        # TREND CONTINUATION OVERRIDE (A2)
+        # When a stock fails ONLY on the upside gate but has strong momentum +
+        # fundamentals, override the gate. This stops the mechanical ejection of
+        # winners whose price outran analyst targets.
+        tc_config = yaml_config.load_config().get("trend_continuation", {})
+        if (
+            failed_upside_gate
+            and tc_config.get("enabled", False)
+            and row_upside >= 0  # negative upside is a safety hard-stop
+        ):
+            tc_min_buy_pct = tc_config.get("min_buy_pct", 80)
+            tc_min_52w = tc_config.get("min_pct_52w_high", 70)
+            tc_require_200dma = tc_config.get("require_above_200dma", True)
+            tc_min_am = tc_config.get("min_analyst_momentum", -2)
+            tc_max_upside = tc_config.get("max_upside_override", 0)
+            tc_min_floor = tc_config.get("min_upside_floor", -20)
+
+            momentum_ok = not pd.isna(row_pct_52w) and row_pct_52w >= tc_min_52w
+            dma_ok = (not tc_require_200dma) or (row_above_200dma is True)
+            consensus_ok = row_buy_pct >= tc_min_buy_pct
+            am_ok = pd.isna(row_amom) or row_amom >= tc_min_am
+            upside_in_range = tc_min_floor <= row_upside <= tc_max_upside
+
+            if momentum_ok and dma_ok and consensus_ok and am_ok and upside_in_range:
+                is_buy_candidate = True
+                failed_upside_gate = False
+                logger.info(
+                    f"Ticker {ticker}: TREND CONTINUATION OVERRIDE - "
+                    f"upside={row_upside:.1f}% (below gate) but "
+                    f"buy%={row_buy_pct:.0f}%, 52w={row_pct_52w:.0f}%, "
+                    f"200DMA={'Y' if row_above_200dma else 'N'}, AM={row_amom}"
                 )
 
         # Filter unrealistically high upside targets (stale/outlier estimates)

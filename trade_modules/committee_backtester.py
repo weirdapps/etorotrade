@@ -350,6 +350,16 @@ class CommitteeBacktester:
             logger.error("PriceService.get_prices() failed: %s", exc)
             return {}
 
+        if prices.empty:
+            logger.warning(
+                "PriceService returned empty price data for %d tickers "
+                "(%s to %s). yfinance may be rate-limited or cache stale.",
+                len(all_tickers),
+                start_str,
+                end_str,
+            )
+            return {}
+
         # Compute returns for each (ticker, date) pair
         results: dict[str, dict[str, float | None]] = {}
 
@@ -1011,13 +1021,30 @@ def run_backtest(
         }
 
     # Step 3: Forward returns
+    #
+    # Strategy: try PriceService first (batch download, trading-day offsets,
+    # parquet cache).  If that yields zero returns — typically because
+    # yfinance is rate-limited and the cache is cold — fall back to the
+    # legacy per-ticker yfinance_price_fetcher (calendar-day offsets,
+    # its own in-memory cache).
     if fetch_prices:
         if use_price_service:
-            from trade_modules.price_service import PriceService
+            try:
+                from trade_modules.price_service import PriceService
 
-            svc = PriceService()
-            bt.compute_forward_returns(price_service=svc)
-        else:
+                svc = PriceService()
+                bt.compute_forward_returns(price_service=svc)
+            except Exception as exc:
+                logger.warning(
+                    "PriceService failed (%s), falling back to legacy fetcher",
+                    exc,
+                )
+
+        # Fallback: if PriceService produced nothing, try legacy fetcher
+        if not bt.forward_returns:
+            logger.info(
+                "PriceService returned 0 forward returns; falling back to yfinance_price_fetcher"
+            )
             bt.compute_forward_returns(price_fetcher=yfinance_price_fetcher)
 
     if not bt.forward_returns:
