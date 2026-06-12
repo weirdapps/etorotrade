@@ -25,9 +25,11 @@ universal_thresholds:
   min_price_targets: 4  # Standard price target requirement
 us_mega:
   buy:
-    # US MEGA: More lenient thresholds - large liquid names with strong coverage
+    # US MEGA: Tightened per backtest (2026-05-31) — current thresholds produce
+    # 50.6% alpha-hit (NOT proven). Backtest suggests buy%→97 (+24.5%), ROE→36 for improvement.
+    # Compromise: raise buy% significantly but not to 97 (would leave <5 candidates).
     min_upside: 10
-    min_buy_percentage: 60  # Quality floor (was 75) — buy% is contrarian indicator above floor
+    min_buy_percentage: 80  # Raised from 60 — backtest: us_mega buy% optimal at 97, compromise at 80
     min_beta: 0.2  # Data quality filter — beta≈0 means Yahoo couldn't calculate it
     max_beta: 3
     min_forward_pe: 0.5
@@ -68,9 +70,10 @@ us_mega:
     max_pe_vs_sector: 2.0
 us_large:
   buy:
-    # US LARGE: More lenient thresholds - good coverage, liquid names
-    min_upside: 12
-    min_buy_percentage: 63  # Quality floor (was 77) — buy% is contrarian indicator above floor
+    # US LARGE: Tightened per backtest (2026-05-31) — backtest suggests upside→42 (+36.6%),
+    # ROE→37 (+11.6%). Compromise: raise upside meaningfully, add ROE floor.
+    min_upside: 20  # Raised from 12 — backtest optimal 42, compromise at 20
+    min_buy_percentage: 70  # Raised from 63 — quality filter
     min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -110,9 +113,10 @@ us_large:
     max_pe_vs_sector: 2.0
 us_mid:
   buy:
-    # US MID: Moderate thresholds - need stronger conviction for smaller caps
-    min_upside: 15
-    min_buy_percentage: 65  # Quality floor (was 80) — buy% is contrarian indicator above floor
+    # US MID: Our only PROVEN buy edge (69% alpha-hit, +1.88 alpha at T+7).
+    # Backtest suggests buy%→93 (+14.5%). Modest tightening to preserve volume.
+    min_upside: 18  # Raised from 15
+    min_buy_percentage: 75  # Raised from 65 — backtest optimal 93, compromise at 75
     min_beta: 0.2  # Data quality filter
     max_beta: 2.5
     min_forward_pe: 0.5
@@ -763,12 +767,26 @@ default_buy_scoring:
   # Factor predictiveness at T+30 vs SPY:
   #   PEF r=-0.130, ROE r=+0.117, D/E r=-0.113, upside r=+0.134
   #   52W r=-0.020 (zero), buy% r=-0.007 (zero)
-  weight_upside: 0.20     # Analyst 12M targets (r=+0.134)
+  weight_upside: 0.15     # Reduced from 0.20 — analyst targets lag; freed 5pp to momentum
   weight_consensus: 0.05  # Confirmed zero predictive power (r=-0.007)
-  weight_momentum: 0.10   # 12M-1M proxy; pure momentum reverses at T+30
+  weight_momentum: 0.20   # Raised from 0.10 — trend-continuation fix (stops penalizing winners at highs)
   weight_valuation: 0.25  # PET+FCF yield — value premium (Fama-French 1992)
-  weight_fundamental: 0.25  # ROE+D/E — quality factor (Asness 2019)
+  weight_fundamental: 0.20  # Reduced from 0.25 — freed 5pp to momentum
   weight_analyst_momentum: 0.15  # PEAD drift 60-90 days (Bernard-Thomas 1989)
+
+# === TREND CONTINUATION (A2 — stops winner-ejection) ===
+# When a stock fails the upside gate but has strong momentum + fundamentals,
+# override the upside gate and mark BUY with trend_continuation tag.
+# This fixes the structural miss on AI/semi names whose price outran analyst targets.
+trend_continuation:
+  enabled: true
+  min_buy_pct: 80           # Strong analyst consensus required
+  min_pct_52w_high: 70      # Must be in a strong uptrend (within 30% of 52w high)
+  require_above_200dma: true  # Must be above 200DMA
+  min_analyst_momentum: -2  # Analyst sentiment not declining
+  max_upside_override: 0    # Only override when upside < this (negative = price > target)
+  min_upside_floor: -20     # Safety: don't override if upside deeply negative (broken thesis)
+  log_tag: "trend_continuation"
 
 # === CIO REVIEW: NEW CONFIGURATION SECTIONS ===
 
