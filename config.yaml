@@ -788,6 +788,31 @@ trend_continuation:
   min_upside_floor: -30     # Safety: don't override if upside deeply negative (broken thesis)
   log_tag: "trend_continuation"
 
+# === DUAL-TRACK SIGNAL SYSTEM (v45.0) ===
+# Stock qualifies for BUY via EITHER value track (existing composite) OR
+# momentum track (new, parallel). Academic basis: Ghayur et al. 2018 (FAJ)
+# showed portfolio blending IR 0.89 vs signal blending 0.59 (+51%).
+dual_track:
+  enabled: true
+  bear_market_dampener_enabled: true  # Suspend momentum when SPY 2yr < 0
+  momentum:
+    enabled: true
+    min_pct_52w_high: 80       # Strong uptrend (George & Hwang 2004)
+    require_above_200dma: true
+    min_buy_percentage: 75     # Safety gate — analysts not against it
+    min_analyst_momentum: 0    # Sentiment not declining
+    min_market_cap: 10000000000  # $10B — mid-cap minimum
+    max_forward_pe: 80         # Anti-bubble valve
+    log_tag: "momentum_track"
+  value:
+    enabled: true
+    weight_upside: 0.10        # Reduced: targets lag (Bradshaw 2013: 45% error)
+    weight_consensus: 0.0      # Zeroed: no independent alpha (Jegadeesh et al. 2004)
+    weight_momentum: 0.15      # Reduced: avoid double-counting with momentum track
+    weight_valuation: 0.30     # Elevated: FCF primary (Hafzalla et al. 2011)
+    weight_fundamental: 0.25   # Elevated: includes gross profitability (Novy-Marx 2013)
+    weight_analyst_momentum: 0.20  # Elevated: PEAD drift is the real signal
+
 # === CIO REVIEW: NEW CONFIGURATION SECTIONS ===
 
 # Liquidity Filter Configuration (CIO Review S5)

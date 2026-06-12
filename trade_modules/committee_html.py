@@ -2326,7 +2326,9 @@ def generate_report_html(
     h.append(grid_hdr("#1e293b", "#93c5fd", "EPS&#9654;"))
     h.append(grid_hdr(_C["text_dark"], "#fff", "ACT"))
     h.append(
-        grid_hdr(_C["text_dark"], "#fff", "CONV") + grid_hdr(_C["text_dark"], "#9ca3af", "TIMING")
+        grid_hdr(_C["text_dark"], "#fff", "CONV")
+        + grid_hdr(_C["text_dark"], "#9ca3af", "TIMING")
+        + grid_hdr(_C["text_dark"], "#a78bfa", "TRK")
     )
     h.append("</tr>")
 
@@ -2409,6 +2411,22 @@ def generate_report_html(
             if tkr.endswith(_sfx):
                 region_suffix = f'<span style="font-size:9px;color:{_C["text_light"]};margin-left:2px;">({_lbl})</span>'
                 break
+        # Signal track badge (dual-track system v45.0)
+        _sig_track = entry.get("signal_track")
+        if _sig_track:
+            _track_cfg = {
+                "value": ("#2563eb", "V"),
+                "momentum": ("#7c3aed", "M"),
+                "value+momentum": ("#059669", "V+M"),
+            }
+            _tc, _tl = _track_cfg.get(_sig_track, ("#6b7280", "?"))
+            track_cell = (
+                f'<span style="background:{_tc};color:white;padding:1px 5px;'
+                f'border-radius:8px;font-size:9px;font-weight:700;">{_tl}</span>'
+            )
+        else:
+            track_cell = ""
+
         # Conviction decay
         decay_days = entry.get("conviction_decay_days", 0)
         decay_factor = entry.get("conviction_decay_factor", 1.0)
@@ -2467,7 +2485,8 @@ def generate_report_html(
             f'<td {p}">{eps_cell}</td>'
             f'<td {p}">{badge(act, action_color(act), "#fff")}</td>'
             f'<td {p}">{conv_html}</td>'
-            f'<td {p}color:{timing_col};{sv}">{timing_abbr}</td></tr>'
+            f'<td {p}color:{timing_col};{sv}">{timing_abbr}</td>'
+            f'<td {p}">{track_cell}</td></tr>'
         )
 
     if sell_list:

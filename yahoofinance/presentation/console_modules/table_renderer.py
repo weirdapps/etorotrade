@@ -484,7 +484,7 @@ def calculate_actions(df: pd.DataFrame) -> pd.Series:
         # Returns tuple (actions, buy_scores)
         from trade_modules.analysis.signals import calculate_action_vectorized
 
-        actions, _ = calculate_action_vectorized(df, option="portfolio")
+        actions, *_ = calculate_action_vectorized(df, option="portfolio")
         return actions
     except ImportError:
         # Fallback to old row-by-row system if new system not available

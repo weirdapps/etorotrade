@@ -600,7 +600,7 @@ class TestQualityOverrideMomentumGate:
         from trade_modules.analysis.signals import calculate_action_vectorized
 
         df = self._make_test_df(buy_pct=90, upside=25, exret=22, amom=5)
-        actions, _ = calculate_action_vectorized(df)
+        actions, *_ = calculate_action_vectorized(df)
         # Should be B (BUY) or H (HOLD), NOT S (SELL)
         assert actions.iloc[0] != "S"
 
@@ -622,7 +622,7 @@ class TestQualityOverrideMomentumGate:
         # Stock with high buy% but declining analyst momentum
         # AND poor enough metrics to trigger SELL scoring
         df = self._make_test_df(buy_pct=86, upside=21, exret=18, amom=-8, roe=3, de=250)
-        actions, _ = calculate_action_vectorized(df)
+        actions, *_ = calculate_action_vectorized(df)
         # With AM <= -5, quality override is disabled, so SELL scoring applies
         # The stock may or may not be SELL depending on overall score
         # but the quality override should NOT protect it

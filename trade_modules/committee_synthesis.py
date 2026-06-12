@@ -3905,6 +3905,8 @@ def synthesize_stock(
         "debate_bear_strongest": (debate_data or {}).get("bear_strongest", ""),
         "debate_conceded": (debate_data or {}).get("all_conceded_points", []),
         "debate_kill_theses": (debate_data or {}).get("kill_theses_from_debate", []),
+        # Dual-track signal system (v45.0)
+        "signal_track": sig_data.get("SIGNAL_TRACK", sig_data.get("signal_track")),
     }
 
 
