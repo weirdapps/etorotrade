@@ -571,6 +571,60 @@ class TrendContinuationConfig(BaseModel):
     log_tag: str = Field(default="trend_continuation", description="Tag for signal log")
 
 
+class MomentumTrackConfig(BaseModel):
+    """Momentum track: identifies strong-trend stocks independent of fundamentals."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=False, description="Enable momentum track")
+    min_pct_52w_high: float = Field(default=80.0, ge=0, le=100, description="Min % of 52w high")
+    require_above_200dma: bool = Field(default=True, description="Require above 200DMA")
+    min_buy_percentage: float = Field(default=75.0, ge=0, le=100, description="Safety gate")
+    min_analyst_momentum: float = Field(default=0.0, description="Min AM (sentiment not declining)")
+    min_market_cap: float = Field(
+        default=10_000_000_000, ge=1_000_000_000, description="$10B floor"
+    )
+    max_forward_pe: float = Field(default=80.0, ge=0, description="Anti-bubble valve")
+    log_tag: str = Field(default="momentum_track", description="Tag for signal log")
+
+
+class ValueTrackConfig(BaseModel):
+    """Value track: rebalanced composite weights (Jegadeesh et al. 2004, Novy-Marx 2013)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=True, description="Enable value track")
+    weight_upside: float = Field(default=0.10, ge=0, le=1, description="Analyst targets (reduced)")
+    weight_consensus: float = Field(
+        default=0.0, ge=0, le=1, description="Zero (no independent alpha)"
+    )
+    weight_momentum: float = Field(
+        default=0.15, ge=0, le=1, description="PTH (reduced, avoid double-count)"
+    )
+    weight_valuation: float = Field(default=0.30, ge=0, le=1, description="FCF + PE (elevated)")
+    weight_fundamental: float = Field(
+        default=0.25, ge=0, le=1, description="ROE + DE + GP (elevated)"
+    )
+    weight_analyst_momentum: float = Field(
+        default=0.20, ge=0, le=1, description="PEAD drift (elevated)"
+    )
+
+
+class DualTrackConfig(BaseModel):
+    """Dual-track signal system: value + momentum evaluated independently."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(
+        default=False, description="Enable dual-track (stock passes EITHER track)"
+    )
+    momentum: MomentumTrackConfig = Field(default_factory=MomentumTrackConfig)
+    value: ValueTrackConfig = Field(default_factory=ValueTrackConfig)
+    bear_market_dampener_enabled: bool = Field(
+        default=True, description="Suspend momentum track when SPY 2yr return < 0"
+    )
+
+
 class TradingConfig(BaseModel):
     """
     Complete trading system configuration with validation.
@@ -686,6 +740,12 @@ class TradingConfig(BaseModel):
     trend_continuation: TrendContinuationConfig | None = Field(
         default_factory=TrendContinuationConfig,
         description="Override upside gate for trending winners",
+    )
+
+    # Dual-track signal system (value + momentum)
+    dual_track: DualTrackConfig | None = Field(
+        default_factory=DualTrackConfig,
+        description="Dual-track: stock passes EITHER value OR momentum track",
     )
 
     # CIO review finding configs

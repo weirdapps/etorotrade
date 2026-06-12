@@ -291,6 +291,13 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             else:
                 info["fcf_yield"] = None
 
+            # Gross Margins (Novy-Marx 2013 gross profitability signal)
+            gross_margins = ticker_info.get("grossMargins", None)
+            if gross_margins is not None:
+                info["gross_margins"] = gross_margins * 100
+            else:
+                info["gross_margins"] = None
+
             # Revenue Growth (yfinance provides revenueGrowth as decimal, e.g., 0.15 = 15%)
             revenue_growth = ticker_info.get("revenueGrowth", None)
             if revenue_growth is not None:

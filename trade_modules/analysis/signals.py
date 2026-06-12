@@ -230,6 +230,7 @@ def calculate_buy_score(
     fcf_yield: float,
     buy_scoring_config: dict[str, Any],
     analyst_momentum: float = np.nan,
+    gross_margins: float = np.nan,
 ) -> float:
     """
     Calculate BUY conviction score (0-100) for 30-day to 12-month holding periods.
@@ -336,7 +337,14 @@ def calculate_buy_score(
             np.interp(de, [0, 30, 50, 80, 100, 150, 200, 300], [25, 20, 12, 5, 0, -12, -25, -40])
         )
 
-    fundamental_score = float(np.clip(roe_score + de_adj, 0, 100))
+    # Gross profitability adjustment (Novy-Marx 2013: +0.52%/mo FF-alpha, -0.57 corr to value)
+    gp_adj = 0.0
+    if not pd.isna(gross_margins):
+        gp_adj = float(
+            np.interp(gross_margins, [20, 30, 40, 50, 60, 70, 80], [-10, 0, 5, 10, 15, 20, 25])
+        )
+
+    fundamental_score = float(np.clip(roe_score + de_adj + gp_adj, 0, 100))
 
     # === ANALYST MOMENTUM (0-100) — PEAD drift (Bernard-Thomas 1989) ===
     if not pd.isna(analyst_momentum):
@@ -357,6 +365,79 @@ def calculate_buy_score(
     )
 
     return total_score
+
+
+def evaluate_momentum_track(
+    ticker: str,
+    pct_52w: float,
+    above_200dma: bool | float,
+    buy_pct: float,
+    analyst_momentum: float,
+    market_cap: float,
+    pe_forward: float,
+    momentum_config: dict[str, Any],
+    bear_market_active: bool = False,
+) -> dict[str, Any]:
+    """Evaluate whether a stock qualifies for BUY via the momentum track.
+
+    The momentum track is deliberately separated from fundamental analysis.
+    It does NOT use: upside, trailing PE, ROE, D/E, FCF yield, PEG.
+
+    Academic basis: George & Hwang (2004) — PTH subsumes JT momentum.
+    Daniel & Moskowitz (2016) — bear market dampener for crash protection.
+    """
+    if bear_market_active:
+        return {"qualified": False, "reason": "bear_market_dampener", "dampened": True}
+
+    min_52w = momentum_config.get("min_pct_52w_high", 80)
+    if pd.isna(pct_52w) or pct_52w < min_52w:
+        return {
+            "qualified": False,
+            "reason": f"52w_{pct_52w:.0f}_below_{min_52w}",
+            "dampened": False,
+        }
+
+    if momentum_config.get("require_above_200dma", True):
+        if pd.isna(above_200dma) or not above_200dma:
+            return {"qualified": False, "reason": "below_200dma", "dampened": False}
+
+    min_bp = momentum_config.get("min_buy_percentage", 75)
+    if pd.isna(buy_pct) or buy_pct < min_bp:
+        return {
+            "qualified": False,
+            "reason": f"buy_pct_{buy_pct:.0f}_below_{min_bp}",
+            "dampened": False,
+        }
+
+    min_am = momentum_config.get("min_analyst_momentum", 0)
+    if not pd.isna(analyst_momentum) and analyst_momentum < min_am:
+        return {
+            "qualified": False,
+            "reason": f"am_{analyst_momentum:.0f}_below_{min_am}",
+            "dampened": False,
+        }
+
+    min_cap = momentum_config.get("min_market_cap", 10_000_000_000)
+    if pd.isna(market_cap) or market_cap < min_cap:
+        return {"qualified": False, "reason": f"cap_below_{min_cap / 1e9:.0f}B", "dampened": False}
+
+    max_pef = momentum_config.get("max_forward_pe", 80)
+    if not pd.isna(pe_forward) and pe_forward > max_pef:
+        return {
+            "qualified": False,
+            "reason": f"pef_{pe_forward:.0f}_above_{max_pef}",
+            "dampened": False,
+        }
+
+    logger.info(
+        "Ticker %s: MOMENTUM TRACK qualified — 52w=%.0f%%, buy%%=%.0f%%, AM=%.0f, cap=$%.0fB",
+        ticker,
+        pct_52w,
+        buy_pct,
+        analyst_momentum if not pd.isna(analyst_momentum) else 0,
+        market_cap / 1e9 if not pd.isna(market_cap) else 0,
+    )
+    return {"qualified": True, "reason": "momentum_track", "dampened": False}
 
 
 def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.Series:
@@ -548,6 +629,12 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
     )
     fcf_yield = pd.to_numeric(fcf_yield_raw, errors="coerce").fillna(np.nan)
 
+    # Gross Margins — Novy-Marx (2013) gross profitability signal
+    gross_margins_raw = df.get(
+        "gross_margins", df.get("GM", pd.Series([np.nan] * len(df), index=df.index))
+    )
+    gross_margins = pd.to_numeric(gross_margins_raw, errors="coerce").fillna(np.nan)
+
     # Revenue Growth - kept for display, no longer used as gate (R²=5%)
     rev_growth_raw = df.get(
         "revenue_growth", df.get("RG", pd.Series([np.nan] * len(df), index=df.index))
@@ -567,6 +654,24 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
 
     # Initialize BUY conviction scores (0-100, NaN for non-BUY)
     buy_scores = pd.Series(np.nan, index=df.index)
+
+    # Dual-track signal system (v45.0)
+    signal_tracks = pd.Series(pd.NA, index=df.index, dtype="object")
+    dt_config = yaml_config.load_config().get("dual_track", {})
+    dt_enabled = dt_config.get("enabled", False)
+    momentum_config = dt_config.get("momentum", {})
+    value_config = dt_config.get("value", {})
+
+    bear_market_active = False
+    if dt_enabled and dt_config.get("bear_market_dampener_enabled", True):
+        try:
+            from trade_modules.regime_detector import is_bear_market
+
+            bear_market_active = is_bear_market()
+            if bear_market_active:
+                logger.warning("BEAR MARKET DAMPENER ACTIVE — momentum track suspended")
+        except Exception:
+            bear_market_active = False
 
     # Log market cap and tiered analyst gate stats
     below_min_cap_count = (~above_min_cap).sum()
@@ -962,8 +1067,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
         row_above_200dma = above_200dma.loc[idx]
         row_amom = amom.loc[idx]
         row_pe_vs_sector = pe_vs_sector.loc[idx]
-        # NEW: FCF and Revenue Growth
         row_fcf_yield = fcf_yield.loc[idx]
+        row_gross_margins = gross_margins.loc[idx]
         rev_growth.loc[idx]
         row_target_disp = target_disp.loc[idx]
         row_price_200dma_pct = price_200dma_pct.loc[idx]
@@ -1744,12 +1849,56 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                     f"Ticker {ticker}: Failed target dispersion check - {row_target_disp:.1f}% > max:{buy_criteria['max_target_dispersion']}%"
                 )
 
-        if is_buy_candidate:
+        # Dual-track evaluation: momentum track runs independently of value track
+        value_qualified = is_buy_candidate
+        momentum_qualified = False
+
+        if dt_enabled and momentum_config.get("enabled", False):
+            mt_result = evaluate_momentum_track(
+                ticker=ticker,
+                pct_52w=row_pct_52w,
+                above_200dma=row_above_200dma,
+                buy_pct=row_buy_pct,
+                analyst_momentum=row_amom,
+                market_cap=cap_values.loc[idx],
+                pe_forward=row_pef,
+                momentum_config=momentum_config,
+                bear_market_active=bear_market_active,
+            )
+            momentum_qualified = mt_result["qualified"]
+
+        # Final BUY decision: either track qualifies
+        final_buy = (value_qualified or momentum_qualified) if dt_enabled else value_qualified
+
+        if dt_enabled and final_buy:
+            if value_qualified and momentum_qualified:
+                signal_tracks.loc[idx] = "value+momentum"
+            elif momentum_qualified:
+                signal_tracks.loc[idx] = "momentum"
+            else:
+                signal_tracks.loc[idx] = "value"
+
+        if final_buy:
             actions.loc[idx] = "B"
 
             # Calculate BUY conviction score for ranking candidates
             if yaml_config.is_signal_scoring_enabled():
                 buy_scoring_config = yaml_config.get_buy_scoring_config(region, tier)
+
+                # Value track weight rebalancing when dual-track enabled
+                if dt_enabled and value_config:
+                    buy_scoring_config = {**buy_scoring_config}
+                    for k in [
+                        "weight_upside",
+                        "weight_consensus",
+                        "weight_momentum",
+                        "weight_valuation",
+                        "weight_fundamental",
+                        "weight_analyst_momentum",
+                    ]:
+                        if k in value_config:
+                            buy_scoring_config[k] = value_config[k]
+
                 if buy_scoring_config.get("enabled", True):
                     buy_conviction_score = calculate_buy_score(
                         upside=row_upside,
@@ -1763,6 +1912,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                         fcf_yield=row_fcf_yield,
                         buy_scoring_config=buy_scoring_config,
                         analyst_momentum=row_amom,
+                        gross_margins=row_gross_margins,
                     )
                     # Dispersion discount: high analyst disagreement reduces conviction
                     if not pd.isna(row_target_disp) and row_target_disp > 80:
@@ -1841,7 +1991,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
         except Exception as e:
             logger.debug(f"Failed to log signal for {ticker}: {e}")
 
-    return actions, buy_scores
+    return actions, buy_scores, signal_tracks
 
 
 def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
@@ -1864,13 +2014,20 @@ def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
 
     try:
         # Use vectorized action calculation for better performance
-        actions, buy_scores = calculate_action_vectorized(working_df)
+        actions, buy_scores, signal_tracks = calculate_action_vectorized(working_df)
         working_df["BS"] = actions
 
-        # Add BUY_SCORE column if any BUY candidates have scores
         if buy_scores.notna().any():
             working_df["BUY_SCORE"] = buy_scores
             logger.debug(f"Added BUY_SCORE for {buy_scores.notna().sum()} BUY candidates")
+
+        if signal_tracks.notna().any():
+            working_df["SIGNAL_TRACK"] = signal_tracks
+            logger.debug(
+                f"Dual-track: {(signal_tracks == 'momentum').sum()} momentum-only, "
+                f"{(signal_tracks == 'value').sum()} value-only, "
+                f"{(signal_tracks == 'value+momentum').sum()} dual"
+            )
 
         logger.debug(f"Calculated actions for {len(working_df)} rows using vectorized operations")
         return working_df

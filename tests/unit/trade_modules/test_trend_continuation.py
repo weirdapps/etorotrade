@@ -94,8 +94,9 @@ class TestTrendContinuationOverride:
         )
 
     def test_override_blocked_below_floor(self):
-        """Stock with upside=-35% (below -30 floor) should NOT get BUY."""
-        df = _make_stock(upside=-35.0, buy_pct=90.0, pct_52w=80, above_200dma=True)
+        """Stock with upside=-35% (below -30 floor) should NOT get BUY via TC."""
+        # Also set pct_52w=60 to avoid momentum track catching this stock
+        df = _make_stock(upside=-35.0, buy_pct=90.0, pct_52w=60, above_200dma=True)
         result = calculate_action(df)
         assert result.loc["TEST", "BS"] != "B", (
             f"Expected non-BUY for upside=-35% (below floor), got {result.loc['TEST', 'BS']}"
@@ -152,12 +153,13 @@ class TestStockSplitPEAwareness:
 
     def test_normal_pet_still_gates(self):
         """Normal PET/PEF ratio should still apply trailing PE gate."""
+        # Set pct_52w=60 to avoid momentum track bypass
         df = _make_stock(
             upside=20.0,
             buy_pct=85.0,
             pe_trailing=120.0,
             pe_forward=25.0,
-            pct_52w=80,
+            pct_52w=60,
         )
         result = calculate_action(df)
         assert result.loc["TEST", "BS"] != "B", (

@@ -204,8 +204,8 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         )
         test_data.index = test_data["ticker"]
 
-        # Calculate actions - now returns tuple (actions, buy_scores)
-        actions, _ = calculate_action_vectorized(test_data, "market")
+        # Calculate actions - returns tuple (actions, buy_scores, signal_tracks)
+        actions, *_ = calculate_action_vectorized(test_data, "market")
 
         # CRITICAL ASSERTIONS: Negative upside MUST NOT be BUY
         self.assertNotEqual(

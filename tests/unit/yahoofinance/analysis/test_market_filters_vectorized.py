@@ -42,7 +42,10 @@ def sample_actions():
     """Mock actions for testing (returns tuple like calculate_action_vectorized)."""
     actions = pd.Series(["B", "H", "B", "S", "H"], index=[0, 1, 2, 3, 4])
     buy_scores = pd.Series([np.nan, np.nan, np.nan, np.nan, np.nan], index=[0, 1, 2, 3, 4])
-    return (actions, buy_scores)
+    signal_tracks = pd.Series(
+        [pd.NA, pd.NA, pd.NA, pd.NA, pd.NA], index=[0, 1, 2, 3, 4], dtype="object"
+    )
+    return (actions, buy_scores, signal_tracks)
 
 
 class TestFilterBuyOpportunities:
@@ -94,6 +97,7 @@ class TestFilterBuyOpportunities:
         mock_calculate.return_value = (
             pd.Series(["H", "S", "H", "S", "H"], index=[0, 1, 2, 3, 4]),
             pd.Series([np.nan] * 5, index=[0, 1, 2, 3, 4]),
+            pd.Series([pd.NA] * 5, index=[0, 1, 2, 3, 4], dtype="object"),
         )
 
         result = filter_buy_opportunities_v2(sample_market_data)
@@ -265,10 +269,11 @@ class TestVectorizationPerformance:
             np.random.choice(["B", "S", "H", "I"], n_rows), index=range(n_rows)
         )
         mock_buy_scores = pd.Series([np.nan] * n_rows, index=range(n_rows))
+        mock_tracks = pd.Series([pd.NA] * n_rows, index=range(n_rows), dtype="object")
 
         with patch(
             "yahoofinance.analysis.market_filters.calculate_action_vectorized",
-            return_value=(mock_actions, mock_buy_scores),
+            return_value=(mock_actions, mock_buy_scores, mock_tracks),
         ):
             # This should complete quickly (< 100ms for 1000 rows)
             import time

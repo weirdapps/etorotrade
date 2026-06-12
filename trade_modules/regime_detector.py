@@ -78,10 +78,10 @@ class RegimeDetector:
     and maps it to a regime label.
     """
 
-    def __init__(self, lookback_days: int = 252):
+    def __init__(self, lookback_days: int = 504):
         """
         Args:
-            lookback_days: Trading days for percentile calculations.
+            lookback_days: Trading days for percentile calculations (default 504 = ~2yr).
         """
         self.lookback_days = lookback_days
         self._market_data: dict[str, Any] | None = None
@@ -139,6 +139,19 @@ class RegimeDetector:
         except Exception as e:
             logger.warning("Failed to fetch SPY: %s", e)
             return {}
+
+        # SPY 2-year return for bear market dampener (Daniel & Moskowitz 2016)
+        spy_hist_vals = data.get("spy_history", np.array([]))
+        if len(spy_hist_vals) >= 504:
+            data["spy_2yr_return"] = float(
+                (spy_hist_vals[-1] - spy_hist_vals[-504]) / spy_hist_vals[-504] * 100
+            )
+        elif len(spy_hist_vals) >= 252:
+            data["spy_2yr_return"] = float(
+                (spy_hist_vals[-1] - spy_hist_vals[-252]) / spy_hist_vals[-252] * 100
+            )
+        else:
+            data["spy_2yr_return"] = None
 
         self._market_data = data
         return data
@@ -322,6 +335,10 @@ class RegimeDetector:
             MarketRegime.CRISIS: "Crisis mode — extreme volatility, defensive positioning",
         }
 
+        # Bear market dampener: SPY 2-year return < 0 (Daniel & Moskowitz 2016)
+        spy_2yr_return = (data or self._market_data or {}).get("spy_2yr_return")
+        bear_market_active = spy_2yr_return is not None and spy_2yr_return < 0
+
         return {
             "regime": regime.value,
             "score": composite,
@@ -330,6 +347,8 @@ class RegimeDetector:
             "position_multiplier": REGIME_POSITION_MULTIPLIERS[regime],
             "description": descriptions[regime],
             "timestamp": datetime.now().isoformat(),
+            "spy_2yr_return": spy_2yr_return,
+            "bear_market_active": bear_market_active,
         }
 
 
@@ -418,6 +437,15 @@ def get_regime_detail() -> dict[str, Any]:
     except Exception as e:
         logger.warning("Regime detail failed: %s", e)
         return {"regime": "neutral", "score": 50.0, "features": {}}
+
+
+def is_bear_market() -> bool:
+    """Check if SPY 2-year return is negative (bear market dampener trigger).
+
+    Uses cached regime data (30-min TTL). Returns False on error.
+    """
+    detail = get_regime_detail()
+    return detail.get("bear_market_active", False)
 
 
 def get_regime_position_multiplier() -> float:
