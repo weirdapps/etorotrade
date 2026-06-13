@@ -49,6 +49,9 @@ DUPLICATE_TICKERS = {
     "UL": "ULVR.L",  # Unilever ADR → London
     "RIO": "RIO.L",  # Rio Tinto ADR → London
     "BHP": "BHP.AX",  # BHP ADR → Australia
+    # Yahoo Finance .AS → eToro .NV (both Euronext Amsterdam, different suffix convention)
+    "HEIA.AS": "HEIA.NV",  # Heineken
+    "SBMO.AS": "SBMO.NV",  # SBM Offshore
 }
 
 
@@ -219,14 +222,21 @@ def _load_tickers_from_file(file_path: str, ticker_column: list[str]) -> list[st
                 if skip_path and os.path.exists(skip_path):
                     try:
                         skip_df = pd.read_csv(skip_path)
-                        skip_col = next((c for c in ["symbol", "Symbol", "SYMBOL"] if c in skip_df.columns), None)
+                        skip_col = next(
+                            (c for c in ["symbol", "Symbol", "SYMBOL"] if c in skip_df.columns),
+                            None,
+                        )
                         if skip_col:
-                            skip_set = set(skip_df[skip_col].dropna().astype(str).str.strip().str.upper())
+                            skip_set = set(
+                                skip_df[skip_col].dropna().astype(str).str.strip().str.upper()
+                            )
                             before = len(tickers)
                             tickers = [t for t in tickers if t.upper() not in skip_set]
                             skipped = before - len(tickers)
                             if skipped:
-                                logger.info(f"Skip list applied: {skipped} tickers skipped ({len(tickers)} remaining)")
+                                logger.info(
+                                    f"Skip list applied: {skipped} tickers skipped ({len(tickers)} remaining)"
+                                )
                     except Exception as e:
                         logger.debug(f"Skip list not applied: {e}")
 

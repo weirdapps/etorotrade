@@ -4623,6 +4623,17 @@ def build_concordance(
     if debate_results is None:
         debate_results = {}
 
+    # Euronext Amsterdam ticker normalization: Yahoo Finance uses .AS, eToro uses .NV
+    # Remove .AS opportunities that duplicate held .NV positions
+    _AS_TO_NV = {
+        k.replace(".AS", ""): k for k in list(opportunity_signals.keys()) if k.endswith(".AS")
+    }
+    _NV_HELD = {k.replace(".NV", ""): k for k in portfolio_signals if k.endswith(".NV")}
+    for stem, as_ticker in _AS_TO_NV.items():
+        if stem in _NV_HELD:
+            del opportunity_signals[as_ticker]
+            opportunity_sector_map.pop(as_ticker, None)
+
     # CIO v34.0: Load circuit breaker state from etoro-portfolio.
     # When WARNING/CRITICAL, restricts new positions and applies size multiplier.
     cb_state = load_circuit_breaker()
