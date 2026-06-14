@@ -50,11 +50,14 @@ def _write_portfolio_csv(path: Path, rows: list) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
+_RECENT_DATE = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+
 def _make_thesis(
     ticker: str,
     kill_thesis: str = "Test thesis",
     status: str = "active",
-    committee_date: str = "2026-03-16",
+    committee_date: str = _RECENT_DATE,
     expiry_date=None,
 ) -> dict:
     """Helper to build a thesis dict."""
@@ -143,13 +146,13 @@ class TestLogKillTheses:
             _make_thesis("AAPL", "Fails if iPhone sales decline >10%"),
         ]
 
-        log_kill_theses("2026-03-16", theses, log_path=kill_thesis_path)
+        log_kill_theses(_RECENT_DATE, theses, log_path=kill_thesis_path)
 
         loaded = _load_kill_theses(kill_thesis_path)
         assert len(loaded) == 2
         assert loaded[0]["ticker"] == "NVDA"
         assert loaded[0]["kill_thesis"] == "Fails if Q2 revenue growth <40%"
-        assert loaded[0]["committee_date"] == "2026-03-16"
+        assert loaded[0]["committee_date"] == _RECENT_DATE
         assert loaded[0]["status"] == "active"
         assert loaded[1]["ticker"] == "AAPL"
 
@@ -158,7 +161,7 @@ class TestLogKillTheses:
         deep_path = tmp_path / "a" / "b" / "c" / "thesis.json"
         theses = [_make_thesis("TSLA")]
 
-        log_kill_theses("2026-03-16", theses, log_path=deep_path)
+        log_kill_theses(_RECENT_DATE, theses, log_path=deep_path)
 
         assert deep_path.exists()
         loaded = _load_kill_theses(deep_path)
@@ -172,7 +175,7 @@ class TestLogKillTheses:
             log_path=kill_thesis_path,
         )
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("AAPL")],
             log_path=kill_thesis_path,
         )
@@ -187,8 +190,8 @@ class TestLogKillTheses:
         """Does not add duplicate for same ticker+date."""
         theses = [_make_thesis("NVDA")]
 
-        log_kill_theses("2026-03-16", theses, log_path=kill_thesis_path)
-        log_kill_theses("2026-03-16", theses, log_path=kill_thesis_path)
+        log_kill_theses(_RECENT_DATE, theses, log_path=kill_thesis_path)
+        log_kill_theses(_RECENT_DATE, theses, log_path=kill_thesis_path)
 
         loaded = _load_kill_theses(kill_thesis_path)
         assert len(loaded) == 1
@@ -201,7 +204,7 @@ class TestLogKillTheses:
             log_path=kill_thesis_path,
         )
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("NVDA")],
             log_path=kill_thesis_path,
         )
@@ -216,7 +219,7 @@ class TestLogKillTheses:
             _make_thesis("AAPL"),
         ]
 
-        log_kill_theses("2026-03-16", theses, log_path=kill_thesis_path)
+        log_kill_theses(_RECENT_DATE, theses, log_path=kill_thesis_path)
 
         loaded = _load_kill_theses(kill_thesis_path)
         assert len(loaded) == 1
@@ -224,7 +227,7 @@ class TestLogKillTheses:
 
     def test_empty_theses_list(self, kill_thesis_path):
         """Empty theses list creates an empty log."""
-        log_kill_theses("2026-03-16", [], log_path=kill_thesis_path)
+        log_kill_theses(_RECENT_DATE, [], log_path=kill_thesis_path)
 
         loaded = _load_kill_theses(kill_thesis_path)
         assert loaded == []
@@ -233,7 +236,7 @@ class TestLogKillTheses:
         """Thesis status defaults to 'active' when not specified."""
         theses = [{"ticker": "MSFT", "kill_thesis": "Test"}]
 
-        log_kill_theses("2026-03-16", theses, log_path=kill_thesis_path)
+        log_kill_theses(_RECENT_DATE, theses, log_path=kill_thesis_path)
 
         loaded = _load_kill_theses(kill_thesis_path)
         assert loaded[0]["status"] == "active"
@@ -244,7 +247,7 @@ class TestLogKillTheses:
             _make_thesis("NVDA", expiry_date="2026-06-16"),
         ]
 
-        log_kill_theses("2026-03-16", theses, log_path=kill_thesis_path)
+        log_kill_theses(_RECENT_DATE, theses, log_path=kill_thesis_path)
 
         loaded = _load_kill_theses(kill_thesis_path)
         assert loaded[0]["expiry_date"] == "2026-06-16"
@@ -342,6 +345,13 @@ class TestLoadPortfolioSignals:
 class TestCheckKillTheses:
     """Tests for F11 — Heuristic kill thesis checking."""
 
+    @pytest.fixture(autouse=True)
+    def _isolate_concordance(self, tmp_path, monkeypatch):
+        """Prevent real concordance.json from contaminating tests."""
+        monkeypatch.setattr(
+            "trade_modules.committee_scorecard._USER_COMMITTEE_DIR", tmp_path
+        )
+
     def test_no_theses_returns_empty(self, kill_thesis_path, portfolio_csv_path):
         """Returns empty lists when no theses exist."""
         result = check_kill_theses(
@@ -355,7 +365,7 @@ class TestCheckKillTheses:
     def test_signal_deterioration_trigger(self, kill_thesis_path, portfolio_csv_path):
         """Triggers when ticker signal is SELL."""
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("NVDA", "Fails if VIX >35")],
             log_path=kill_thesis_path,
         )
@@ -380,7 +390,7 @@ class TestCheckKillTheses:
     def test_price_collapsed_trigger(self, kill_thesis_path, portfolio_csv_path):
         """Triggers when 52W performance drops below 40."""
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("BADCO", "Fails if revenue declines")],
             log_path=kill_thesis_path,
         )
@@ -404,7 +414,7 @@ class TestCheckKillTheses:
     def test_analyst_downgrade_trigger(self, kill_thesis_path, portfolio_csv_path):
         """Triggers when AM (analyst momentum) is strongly negative (<-5)."""
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("WARN", "Fails if analyst consensus deteriorates")],
             log_path=kill_thesis_path,
         )
@@ -428,7 +438,7 @@ class TestCheckKillTheses:
     def test_multiple_triggers_on_same_thesis(self, kill_thesis_path, portfolio_csv_path):
         """Multiple triggers fire on the same thesis."""
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("DOOM", "Complete failure")],
             log_path=kill_thesis_path,
         )
@@ -455,7 +465,7 @@ class TestCheckKillTheses:
     def test_no_trigger_for_healthy_stock(self, kill_thesis_path, portfolio_csv_path):
         """No triggers fire for a healthy stock."""
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("AAPL", "Fails if iPhone sales collapse")],
             log_path=kill_thesis_path,
         )
@@ -479,7 +489,7 @@ class TestCheckKillTheses:
     def test_thesis_not_in_portfolio_stays_active(self, kill_thesis_path, portfolio_csv_path):
         """Thesis for ticker not in portfolio CSV stays active (no data)."""
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("ABSENT", "No data available")],
             log_path=kill_thesis_path,
         )
@@ -524,7 +534,7 @@ class TestCheckKillTheses:
         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("EXPR", expiry_date=yesterday)],
             log_path=kill_thesis_path,
         )
@@ -568,8 +578,8 @@ class TestCheckKillTheses:
         old_date = (datetime.now() - timedelta(days=100)).strftime("%Y-%m-%d")
 
         theses = [
-            _make_thesis("HEALTHY", committee_date="2026-03-16"),
-            _make_thesis("SELLING", committee_date="2026-03-16"),
+            _make_thesis("HEALTHY", committee_date=_RECENT_DATE),
+            _make_thesis("SELLING", committee_date=_RECENT_DATE),
             _make_thesis("ANCIENT", committee_date=old_date),
         ]
         _save_kill_theses(theses, kill_thesis_path)
@@ -599,7 +609,7 @@ class TestCheckKillTheses:
     def test_missing_portfolio_csv(self, kill_thesis_path, tmp_path):
         """Theses stay active when portfolio CSV does not exist."""
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("AAPL")],
             log_path=kill_thesis_path,
         )
@@ -615,7 +625,7 @@ class TestCheckKillTheses:
     def test_statuses_persisted_after_check(self, kill_thesis_path, portfolio_csv_path):
         """Status changes are saved to disk after checking."""
         log_kill_theses(
-            "2026-03-16",
+            _RECENT_DATE,
             [_make_thesis("NVDA", "Fails if VIX >35")],
             log_path=kill_thesis_path,
         )
