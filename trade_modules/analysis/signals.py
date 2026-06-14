@@ -1870,7 +1870,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
         # Final BUY decision: either track qualifies
         final_buy = (value_qualified or momentum_qualified) if dt_enabled else value_qualified
 
-        if dt_enabled and final_buy:
+        if dt_enabled:
             if value_qualified and momentum_qualified:
                 signal_tracks.loc[idx] = "value+momentum"
             elif momentum_qualified:
