@@ -231,6 +231,13 @@ class ConfigManager:
             "BHP": "BHP.AX",  # BHP ADR → Australia primary
         }
 
+        # Exchange suffix equivalences — same exchange, different vendor convention.
+        # Key: (suffix_a, suffix_b) means STEM.a and STEM.b are the same instrument.
+        # Used by are_equivalent_tickers() and get_portfolio_equivalents().
+        self.exchange_suffix_equivalences = [
+            (".AS", ".NV"),  # Euronext Amsterdam: Yahoo Finance uses .AS, eToro uses .NV
+        ]
+
         # Reverse mapping: Original Exchange Ticker -> US Ticker
         self.reverse_mappings = {v: k for k, v in self.dual_listed_mappings.items()}
 
@@ -367,12 +374,10 @@ class ConfigManager:
         if ticker_upper.endswith(".NV"):
             return ticker_upper
 
-        # Convert .AS back to .NV for display if it was originally a .NV ticker
+        # .AS and .NV are the same exchange (Euronext Amsterdam); prefer .NV for display
+        # because eToro uses .NV in portfolio data
         if ticker_upper.endswith(".AS"):
-            base_ticker = ticker_upper[:-3]  # Remove .AS
-            # Check if this was originally a .NV ticker (PRX, ASML are known .NV tickers)
-            if base_ticker in ["PRX", "ASML"]:
-                return base_ticker + ".NV"
+            return ticker_upper[:-3] + ".NV"
 
         return self.get_normalized_ticker(ticker)
 
@@ -464,13 +469,17 @@ class ConfigManager:
         if not ticker1 or not ticker2:
             return False
 
-        # Special case: PRX.NV and PRX.AS are the same asset
         ticker1_upper = ticker1.upper()
         ticker2_upper = ticker2.upper()
-        if (ticker1_upper == "PRX.NV" and ticker2_upper == "PRX.AS") or (
-            ticker1_upper == "PRX.AS" and ticker2_upper == "PRX.NV"
-        ):
-            return True
+
+        # Exchange suffix equivalences (e.g., .AS/.NV for Euronext Amsterdam)
+        for suffix_a, suffix_b in self.exchange_suffix_equivalences:
+            if ticker1_upper.endswith(suffix_a) and ticker2_upper.endswith(suffix_b):
+                if ticker1_upper[: -len(suffix_a)] == ticker2_upper[: -len(suffix_b)]:
+                    return True
+            if ticker1_upper.endswith(suffix_b) and ticker2_upper.endswith(suffix_a):
+                if ticker1_upper[: -len(suffix_b)] == ticker2_upper[: -len(suffix_a)]:
+                    return True
 
         # Normalize both tickers to their canonical forms
         normalized1 = self.get_normalized_ticker(ticker1_upper)
@@ -520,7 +529,27 @@ class ConfigManager:
         if ticker_upper != normalized:
             equivalents.add(ticker_upper)
 
+        # Exchange suffix equivalences (e.g., .AS/.NV for Euronext Amsterdam)
+        for eq in list(equivalents):
+            for suffix_a, suffix_b in self.exchange_suffix_equivalences:
+                if eq.endswith(suffix_a):
+                    equivalents.add(eq[: -len(suffix_a)] + suffix_b)
+                elif eq.endswith(suffix_b):
+                    equivalents.add(eq[: -len(suffix_b)] + suffix_a)
+
         return equivalents
+
+    def get_portfolio_equivalents(self, portfolio_tickers: set[str]) -> set[str]:
+        """Expand a portfolio ticker set with all known equivalents.
+
+        Returns the original set plus any ADR, dual-listed, or exchange-suffix
+        variants. Use this to build a "held" set that catches cross-exchange
+        duplicates in opportunity screening.
+        """
+        expanded = set(portfolio_tickers)
+        for tkr in portfolio_tickers:
+            expanded |= self.get_all_equivalent_tickers(tkr)
+        return expanded
 
     def reload(self):
         """Reload configuration from YAML file."""
