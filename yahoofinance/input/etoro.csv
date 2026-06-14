@@ -580,7 +580,7 @@ DAN,Dana Holding Corp,NYSE
 VYX,NCR Voyix Corp,NYSE
 EXPD,Expeditors International of Washington,NYSE
 CA155.L,CA155,LSE
-FITB,Fifth Third Bancorp,Nasdaq
+FITB,Fifth Third Bancorp,NYSE
 NI,Nisource Inc,NYSE
 EME,Emcor Group Inc,NYSE
 FIS,Fidelity National Information Services Inc,NYSE
@@ -1418,11 +1418,11 @@ CA251.ST,CA251,Stockholm  Stock Exchange
 CA252.ST,CA252,Stockholm  Stock Exchange
 DONE.ST,DONE.AI Group AB,Stockholm  Stock Exchange
 COFFEEB.ST,Coffee Stain Group AB,Stockholm  Stock Exchange
-CA255.ST,CA255,Stockholm  Stock Exchange
-CA256.ST,CA256,Stockholm  Stock Exchange
-CA257.ST,CA257,Stockholm  Stock Exchange
-CA258.ST,CA258,Stockholm  Stock Exchange
-CA259.ST,CA259,Stockholm  Stock Exchange
+LUMI.ST,Lundin Mining Corp,Stockholm  Stock Exchange
+LUG.ST,Lundin Gold Inc,Stockholm  Stock Exchange
+SHB-B.ST,Svenska Handelsbanken AB,Stockholm  Stock Exchange
+ENITY.ST,Enity Holding AB,Stockholm  Stock Exchange
+SSAB-B.ST,SSAB AB,Stockholm  Stock Exchange
 IMC.MC,Inmocemento,Bolsa De Madrid
 HAVAS.AS,Havas Bv,Euronext Amsterdam
 LTMC.MI,Lottomatica Group Spa,Borsa Italiana
@@ -1483,9 +1483,9 @@ CA349.HE,CA349,Helsinki Stock Exchange
 SYENS.BR,Syensqo SA,Euronext Brussels
 JDEP.AS,JDE Peet's NV,Euronext Amsterdam
 ANTIN.PA,Antin Infrastructure Partners SAS,Euronext Paris
-CA353.BR,CA353,Euronext Brussels
-CA354.BR,CA354,Euronext Brussels
-CA355.BR,CA355,Euronext Brussels
+AVIO.MI,Avio SpA,Borsa Italiana
+SHELL.AS,Shell PLC,Euronext Amsterdam
+KESKO-A.HE,Kesko Oyj,Helsinki Stock Exchange
 CA356.BR,CA356,Euronext Brussels
 CA357.BR,CA357,Euronext Brussels
 CA358.BR,CA358,Euronext Brussels
@@ -2684,7 +2684,7 @@ EH,EHang Holdings Ltd-ADR,Nasdaq
 EOLS,Evolus Inc,Nasdaq
 EQ,Equillium Inc,Nasdaq
 EVER,EverQuote Inc,Nasdaq
-AGNT,eXp World Holdings Inc,Nasdaq
+AGNT,AGNT Inc,Nasdaq
 FATE,Fate Therapeutics Inc,Nasdaq
 FCEL,FuelCell Energy Inc,Nasdaq
 FOLD,Amicus Therapeutics Inc,Nasdaq
@@ -3418,7 +3418,7 @@ LQDA,Liquidia Corporation,Nasdaq
 CFFN,Capitol Federal Financial Inc,Nasdaq
 PRA,ProAssurance Corporation,NYSE
 HLLY,Holley Inc,NYSE
-FDP,Fresh Del Monte Produce Inc,NYSE
+FDP,Del Monte Corp,NYSE
 AZZ,Azz Inc,NYSE
 NPWR,Net Power Inc,NYSE
 BRKL,Brookline Bancorp Inc,Nasdaq
@@ -4449,7 +4449,7 @@ BXC,BlueLinx Holdings Inc,NYSE
 BLBD,Blue Bird Corporation,Nasdaq
 PRAA,Pra Group Inc,Nasdaq
 CRMT,Americas Car-Mart Inc,Nasdaq
-SCVL,Shoe Carnival Inc,Nasdaq
+SHOE,Shoe Station Group Inc,Nasdaq
 AVNS,Avanos Medical Inc,NYSE
 APOG,Apogee Enterprises Inc,Nasdaq
 VRNA,Verona Pharma plc,Nasdaq
@@ -5230,7 +5230,7 @@ DFTX,Definium Therapeutics Inc,Nasdaq
 SRTA,Strata Critical Medical Inc,Nasdaq
 RMNI,Rimini Street Inc,Nasdaq
 BDTX,Black Diamond Therapeutics I,Nasdaq
-NOTV,Inotiv Inc,Nasdaq
+NOTVQ,Inotiv Inc,OTC Markets Stock Exchange
 ALUR,Allurion Technologies Inc,NYSE
 SLX.AX,Silex Systems Ltd,Sydney
 CDZI,Cadiz Inc,Nasdaq
@@ -6806,7 +6806,7 @@ TESB.BR,Tessenderlo Group NV,Euronext Brussels
 BREB.BR,Brederode SA,Euronext Brussels
 RECT.BR,Recticel NV,Euronext Brussels
 BPOST.BR,Bpost SA,Euronext Brussels
-EVS.BR,EVS Broadcast Equipment SA,Euronext Brussels
+EVS.BR,EVS,Euronext Brussels
 IBAB.BR,Ion Beam Applications SA,Euronext Brussels
 TITC.BR,Titan SA,Euronext Brussels
 HYL.BR,Hyloris Pharmaceuticals SA,Euronext Brussels
@@ -6982,7 +6982,7 @@ IOX.OL,Interoil Exploration and Production ASA,Oslo Stock Exchange
 ABG.OL,ABG Sundal Collier Holding ASA,Oslo Stock Exchange
 PNOR.OL,Petronor E&P ASA,Oslo Stock Exchange
 IDEX.OL,Idex Biometrics ASA,Oslo Stock Exchange
-ALNG.OL,Awilco LNG ASA,Oslo Stock Exchange
+ALNG.OL,ALNG ASA,Oslo Stock Exchange
 ZLNA.OL,Zelluna ASA,Oslo Stock Exchange
 NORAM.OL,Noram Drilling AS,Oslo Stock Exchange
 AMSC.OL,Amsc ASA,Oslo Stock Exchange
@@ -6995,7 +6995,7 @@ BEWI.OL,Bewi ASA,Oslo Stock Exchange
 ABL.OL,Abl Group ASA,Oslo Stock Exchange
 AZT.OL,Arcticzymes Technologies ASA,Oslo Stock Exchange
 NRC.OL,NRC Group ASA,Oslo Stock Exchange
-BINT.OL,Bewi Invest ASA,Oslo Stock Exchange
+BINT.OL,BEVEST ASA,Oslo Stock Exchange
 OSLO CVR1,LOCKED FOR OSLO CVR1,Oslo Stock Exchange
 PARB.OL,Pareto Bank ASA,Oslo Stock Exchange
 VOW.OL,Vow ASA,Oslo Stock Exchange
@@ -7272,7 +7272,7 @@ CNDF.PA,Caisse Reg Credit Agric Mut Nord France,Euronext Paris
 PERR.PA,Gerard Perrier Industrie SA,Euronext Paris
 ALNRG.PA,Energisme SA,Euronext Paris
 ALSGD.PA,Spineguard SA,Euronext Paris
-PVL.PA,Plastiques du Val de Loire SA,Euronext Paris
+ALPVL.PA,Plastiques du Val de Loire SA,Euronext Paris
 GUI.PA,Guillemot Corporation SA,Euronext Paris
 LHYFE.PA,Lhyfe SA,Euronext Paris
 ALMOU.PA,Moulinvest SA,Euronext Paris
@@ -7545,7 +7545,7 @@ RBNE,Robin Energy Ltd,Nasdaq
 6198.HK,Qingdao Port International H,Hong Kong Exchanges
 486.HK,United Co Rusal International,Hong Kong Exchanges
 9626.HK,Bilibili IncClass Z,Hong Kong Exchanges
-1347.HK,Hua Hong Semiconductor Ltd,Hong Kong Exchanges
+1347.HK,Hua Hong Grace Semiconductor Ltd,Hong Kong Exchanges
 9901.HK,New Oriental Education & Tec,Hong Kong Exchanges
 293.HK,Cathay Pacific Airways,Hong Kong Exchanges
 2799.HK,China CITIC Financial Asse H,Hong Kong Exchanges
@@ -8269,6 +8269,7 @@ BXDC,Blackstone Digital Infrastructure Trust Inc,NYSE
 EROK,"EagleRock Land, LLC",NYSE
 WLFC,Willis Lease Finance Corp,Nasdaq
 SHAZ,SharonAI Holdings Inc,Nasdaq
+AMRZ,Amrize Ltd,NYSE
 ALLT,Allot Ltd,Nasdaq
 TMCR,Metals Royalty Company Inc,Nasdaq
 HQ,Horizon Quantum Holdings Ltd,Nasdaq
@@ -8285,6 +8286,12 @@ SSMR,"Sunshine Silver Mining & Refining, Inc.",NYSE
 SFPT,"Safepoint Holdings, Inc.",NYSE
 WHK,WhiteHawk Minerals Corp.,NYSE
 AADX,"Applied Aerospace & Defense, Inc.",NYSE
+EROC,"ERock, Inc.",NYSE
+PBLS,Parabilis Medicines,Nasdaq
+FRBT,"Forbright, Inc.",Nasdaq
+VLGDF,Valor Gold Corp,NYSE
+EMA,Emera Inc,NYSE
+MKC/V,McCormick & Co Inc/MD,NYSE
 CVR.AVDL,Avadel Pharmaceuticals CVR,Nasdaq
 SGP,SpyGlass Pharma Inc,Nasdaq
 GENB,"Generate Biomedicines, Inc",Nasdaq
@@ -8324,13 +8331,28 @@ SPCX,Space Exploration Technologies Corp,Nasdaq
 FISN,"Deep Fission, Inc",Nasdaq
 INIO,INNIO Group Holding GmbH,Nasdaq
 QNT,Quantinuum,Nasdaq
-SPCX.PERP,SpaceX perpetual,Nasdaq
 TRAX,First Tracks Biotherapeutics Inc,Nasdaq
+EFXT,Enerflex Ltd,NYSE
+BKV,BKV Corp,NYSE
+ORKA,Oruka Therapeutics Inc,Nasdaq
+WS,Worthington Steel Inc,NYSE
 BVR.AX,Bellavista Resources Ltd,Sydney
+DRO.AX,DroneShield Ltd,Sydney
+VAU.AX,Vault Minerals Ltd,Sydney
+SIG.AX,Sigma Healthcare Ltd,Sydney
 KMAR.OL,Kongsberg Maritime AS,Oslo Stock Exchange
 OCTVSD-B.ST,Octave Intelligence Plc,Stockholm  Stock Exchange
 SIVE.ST,Sivers Semiconductors AB,Stockholm  Stock Exchange
 6656.HK,Sigenergy Technology,Hong Kong Exchanges
+ATS,ATS Corp,NYSE
+CDLR,Cadeler A/S,NYSE
+ALMS,Alumis Inc,Nasdaq
+GRDN,Guardian Pharmacy Services Inc,NYSE
+ARIS,Aris Mining Corp,NYSE
+BOT,Robostrategy Inc,Nasdaq
+BNT-US,Brookfield Wealth Solutions Ltd,NYSE
+BBDO,Banco Bradesco SA,NYSE
+HBM,Hudbay Minerals Inc,NYSE
 SIX.AX,Sprintex Ltd,Sydney
 BOT.AX,Botanix Pharmaceuticals Ltd,Sydney
 BOC.AX,Bougainville Copper Ltd,Sydney
@@ -8395,7 +8417,7 @@ OMH.AX,OM Holdings Ltd,Sydney
 CUE.AX,Cue Energy Resources Ltd,Sydney
 ABV.AX,Advanced Braking Technology Ltd,Sydney
 RNT.AX,Rent.com.au Ltd,Sydney
-VAU.AX,Vault Minerals Ltd,Sydney
+VAU,Vault Minerals Ltd,Sydney
 HIT.AX,HiTech Group Australia Ltd,Sydney
 SHV.AX,Select Harvests Ltd,Sydney
 CCV.AX,Cash Converters International Ltd,Sydney
@@ -8444,7 +8466,7 @@ CKA.AX,Cokal Ltd,Sydney
 AQD.AX,AusQuest Ltd,Sydney
 LIN.AX,Lindian Resources Ltd,Sydney
 SHM.AX,Shriro Holdings Ltd,Sydney
-ATHDA.AX,Alterity Therapeutics ltd,Sydney
+ATH.AX,Alterity Therapeutics ltd,Sydney
 HSN.AX,Hansen Technologies Ltd,Sydney
 BBL.AX,Brisbane Broncos Ltd,Sydney
 IVR.AX,Investigator Silver Ltd,Sydney
@@ -8517,7 +8539,7 @@ SPZ.AX,Smart Parking Ltd,Sydney
 STX.AX,Strike Energy Ltd,Sydney
 MTH.AX,Mithril Silver And Gold Ltd,Sydney
 CUF.AX,Cufe Ltd,Sydney
-SIG.AX,Sigma Healthcare Ltd,Sydney
+SIG.AS,Sigma Healthcare Ltd,Sydney
 CXU.AX,Cauldron Energy Ltd,Sydney
 BML.AX,Boab Metals Ltd,Sydney
 COG.AX,COG Financial Services Ltd,Sydney
@@ -8732,7 +8754,7 @@ ASM.AX,Australian Strategic Materials Ltd,Sydney
 IPX.AX,IperionX Ltd,Sydney
 USL.AX,Unico Silver Ltd,Sydney
 ATG.AX,Articore Group Ltd,Sydney
-DRO.AX,DroneShield Ltd,Sydney
+DRO,DroneShield Ltd,Sydney
 RAC.AX,Racura Oncology Ltd,Sydney
 CCA.AX,Change Financial Ltd,Sydney
 SSG.AX,Shaver Shop Group Ltd,Sydney
@@ -8794,7 +8816,7 @@ PBH.AX,PointsBet Holdings Ltd,Sydney
 LDX.AX,Lumos Diagnostics Holdings Ltd,Sydney
 MAD.AX,Mader Group Ltd,Sydney
 LFS.AX,Latitude Group Holdings Ltd,Sydney
-3DA.AX,Amaero Ltd,Sydney
+3DADA.AX,Amaero Inc,Sydney
 MME.AX,MoneyMe Ltd,Sydney
 COS.AX,COSOL Ltd,Sydney
 CBE.AX,Cobre Ltd,Sydney
@@ -8938,15 +8960,15 @@ STG.CO,Scandinavian Tobacco Group A/S,Copenhagen Stock Exchange
 SEBC.ST,Skandinaviska Enskilda Banken AB,Stockholm  Stock Exchange
 GABR.CO,Gabriel Holding A/S,Copenhagen Stock Exchange
 ELANB.ST,Elanders AB,Stockholm  Stock Exchange
-SHB-B.ST,Svenska Handelsbanken AB,Stockholm  Stock Exchange
+SHBB,Svenska Handelsbanken AB,Stockholm  Stock Exchange
 ORES.ST,Investment AB Oresund,Stockholm  Stock Exchange
 SSAB-A.ST,SSAB AB,Stockholm  Stock Exchange
 SCA-A.ST,Svenska Cellulosa AB SCA,Stockholm  Stock Exchange
 NOHO.HE,NoHo Partners Oyj,Helsinki Stock Exchange
 MSABB.ST,Micro Systemation AB,Stockholm  Stock Exchange
-KESKO-A.HE,Kesko Oyj,Helsinki Stock Exchange
+KESKOA,Kesko Oyj,Helsinki Stock Exchange
 GJAJ.PA,Groupe JAJ,Euronext Paris
-SSAB-B.ST,SSAB AB,Stockholm  Stock Exchange
+SSABB,SSAB AB,Stockholm  Stock Exchange
 XANOB.ST,XANO Industri AB,Stockholm  Stock Exchange
 KABEB.ST,Kabe Group AB,Stockholm  Stock Exchange
 VBGB.ST,VBG Group AB,Stockholm  Stock Exchange
@@ -9125,7 +9147,7 @@ HUSQ-A.ST,Husqvarna AB,Stockholm  Stock Exchange
 HNSA.ST,Hansa Biopharma AB,Stockholm  Stock Exchange
 BORG.ST,Bjorn Borg AB,Stockholm  Stock Exchange
 NAXS.ST,NAXS AB,Stockholm  Stock Exchange
-FPIP.ST,FormPipe Software AB,Stockholm  Stock Exchange
+LASER.ST,Lasernet Group AB,Stockholm  Stock Exchange
 MCAP.ST,Medcap AB,Stockholm  Stock Exchange
 SEAF.ST,Seafire AB,Stockholm  Stock Exchange
 VIVE.ST,Vivesto AB,Stockholm  Stock Exchange
@@ -9226,7 +9248,7 @@ HUM.ST,Humana AB,Stockholm  Stock Exchange
 ARTE.PA,Artea SARLU,Euronext Paris
 AJAB.ST,Byggmastare Anders J Ahlstrom Holding AB,Stockholm  Stock Exchange
 ACRI-A.ST,Acrinova AB,Stockholm  Stock Exchange
-LUG.ST,Lundin Gold Inc,Stockholm  Stock Exchange
+LUG,Lundin Gold Inc,Stockholm  Stock Exchange
 ELTEL.ST,Eltel AB,Stockholm  Stock Exchange
 TAMTRON.HE,Tamtron Group Oyj,Helsinki Stock Exchange
 LEADD.HE,LeadDesk Oyj,Helsinki Stock Exchange
@@ -9251,7 +9273,7 @@ KAMUX.HE,Kamux Corp,Helsinki Stock Exchange
 BONAV-B.ST,Bonava AB,Stockholm  Stock Exchange
 SYNACT.ST,SynAct Pharma AB,Stockholm  Stock Exchange
 ACAD.ST,AcadeMedia AB,Stockholm  Stock Exchange
-MAHAA.ST,Maha Capital AB,Stockholm  Stock Exchange
+KEOC.ST,Keo Capital AB,Stockholm  Stock Exchange
 ESSITY-A.ST,Essity AB,Stockholm  Stock Exchange
 SAGAD.ST,Sagax AB,Stockholm  Stock Exchange
 FLERIE.ST,Flerie AB,Stockholm  Stock Exchange
@@ -9267,9 +9289,9 @@ BOOZT.ST,Boozt AB,Stockholm  Stock Exchange
 BALYO.PA,Balyo SA,Euronext Paris
 ALLIGOB.ST,Alligo AB,Stockholm  Stock Exchange
 SEDANA.ST,Sedana Medical AB,Stockholm  Stock Exchange
-LUMI.ST,Lundin Mining Corp,Stockholm  Stock Exchange
+LUMI,Lundin Mining Corp,Stockholm  Stock Exchange
 QLIRO.ST,Qliro AB,Stockholm  Stock Exchange
-ENITY.ST,Enity Holding AB,Stockholm  Stock Exchange
+ENITY,Enity Holding AB,Stockholm  Stock Exchange
 MODU.HE,Modulight Oy,Helsinki Stock Exchange
 FNM.ST,Ferronordic AB,Stockholm  Stock Exchange
 TITAN.HE,Titanium Oyj,Helsinki Stock Exchange
@@ -9332,7 +9354,7 @@ NETEL.ST,Netel Holding AB,Stockholm  Stock Exchange
 EMILB.ST,Fastighetsbolaget Emilshus AB,Stockholm  Stock Exchange
 LOGI-B.ST,Logistea AB,Stockholm  Stock Exchange
 KARNELB.ST,Karnell Group AB,Stockholm  Stock Exchange
-SHELL.AS,Shell PLC,Euronext Amsterdam
+SHELL,Shell PLC,Euronext Amsterdam
 AELIS.PA,Aelis Farma SAS,Euronext Paris
 LAPWALL.HE,Lapwall Oyj,Helsinki Stock Exchange
 YOUNI.AS,Younited Financial SA,Euronext Amsterdam
@@ -9426,7 +9448,7 @@ ARMP,Armata Pharmaceuticals Inc,NYSE
 TISI,Team Inc,NYSE
 FUSB,First US Bancshares Inc,Nasdaq
 UUU,Universal Safety Products Inc,NYSE
-USEG,US Energy Corp,Nasdaq
+BSIN,Big Sky Industrial Inc,Nasdaq
 VALU,Value Line Inc,Nasdaq
 VHI,Valhi Inc,NYSE
 WSO-B,Watsco Inc,NYSE
@@ -9586,7 +9608,6 @@ ORRF,Orrstown Financial Services Inc,Nasdaq
 SGA,Saga Communications Inc,Nasdaq
 GLBZ,Glen Burnie Bancorp,Nasdaq
 AKO-A,Embotelladora Andina SA,NYSE
-ORKA,Oruka Therapeutics Inc,Nasdaq
 INLX,Intellinetics Inc,NYSE
 TRT,Trio-Tech International,NYSE
 SLNG,Stabilis Solutions Inc,Nasdaq
@@ -9594,7 +9615,6 @@ IH,iHuman Inc,NYSE
 LSAK,Lesaka Technologies Inc,Nasdaq
 MLSS,Milestone Scientific Inc,NYSE
 OMEX,Odyssey Marine Exploration Inc,Nasdaq
-MKC-V,McCormick & Co Inc/MD,NYSE
 HTOO,Fusion Fuel Green PLC,Nasdaq
 FORTY,Formula Systems 1985 Ltd,Nasdaq
 SNDA,Sonida Senior Living Inc,NYSE
@@ -9691,7 +9711,6 @@ LPTH,LightPath Technologies Inc,Nasdaq
 UNB,Union Bankshares Inc/Morrisville VT,Nasdaq
 CREG,Smart Powerr Corp,Nasdaq
 LGO,Largo Inc,Nasdaq
-EMA,Emera Inc,NYSE
 NCTY,The9 Ltd,Nasdaq
 ARL,American Realty Investors Inc,NYSE
 MNDO,Mind CTI Ltd,Nasdaq
@@ -9722,7 +9741,6 @@ HSCS,HeartSciences Inc,Nasdaq
 ARQ,Arq Inc,Nasdaq
 HYFT,MindWalk Holdings Corp,Nasdaq
 KFFB,Kentucky First Federal Bancorp,Nasdaq
-ARIS,Aris Mining Corp,NYSE
 ONCY,Oncolytics Biotech Inc,Nasdaq
 CREX,Creative Realities Inc,Nasdaq
 NCPL,Netcapital Inc,Nasdaq
@@ -9732,7 +9750,6 @@ DYAI,Dyadic International Inc,Nasdaq
 ELVA,Electrovaya Inc,Nasdaq
 JVA,Coffee Holding Co Inc,Nasdaq
 PLUR,Pluri Inc,Nasdaq
-ATS,ATS Corp,NYSE
 AGIG,Abundia Global Impact Group Inc,NYSE
 ORMP,Oramed Pharmaceuticals Inc,Nasdaq
 TAP-A,Molson Coors Beverage Co,NYSE
@@ -9762,7 +9779,6 @@ CXDO,Crexendo Inc,Nasdaq
 NEPH,Nephros Inc,Nasdaq
 OCC,Optical Cable Corp,Nasdaq
 TRAK,ReposiTrak Inc,NYSE
-HBM,Hudbay Minerals Inc,NYSE
 FLUT,Flutter Entertainment PLC,NYSE
 PED,PEDEVCO Corp,NYSE
 CTSO,CytoSorbents Corp,Nasdaq
@@ -9946,7 +9962,6 @@ STEC,Santech Holdings Ltd,Nasdaq
 TRUE,TrueCar Inc,Nasdaq
 AVTX,Avalo Therapeutics Inc,Nasdaq
 CTXR,Citius Pharmaceuticals Inc,Nasdaq
-EFXT,Enerflex Ltd,NYSE
 GLDG,GoldMining Inc,NYSE
 VERO,Venus Concept Inc,Nasdaq
 TARA,Protara Therapeutics Inc,Nasdaq
@@ -9974,7 +9989,6 @@ CSTE,Caesarstone Ltd,Nasdaq
 PHLT,Performant Healthcare Inc,Nasdaq
 PYPD,PolyPid Ltd,Nasdaq
 DVS,Dolly Varden Silver Corp,NYSE
-BBDO,Banco Bradesco SA,NYSE
 ZTEK,Zentek Ltd,Nasdaq
 EPOW,E-Power Inc,Nasdaq
 NIPG,NIP Group Inc,Nasdaq
@@ -9997,7 +10011,6 @@ BINI,Bollinger Innovations Inc,Nasdaq
 PCSA,Processa Pharmaceuticals Inc,Nasdaq
 CIIT,Tianci International Inc,Nasdaq
 SNYR,Synergy CHC Corp,Nasdaq
-CDLR,Cadeler A/S,NYSE
 AKTX,Akari Therapeutics PLC,Nasdaq
 GLSI,Greenwich Lifesciences Inc,Nasdaq
 RDHL,Redhill Biopharma Ltd,Nasdaq
@@ -10405,7 +10418,6 @@ AVX,Avax One Technology Ltd,Nasdaq
 MSGM,Motorsport Games Inc,Nasdaq
 PDYN,Palladyne AI Corp,Nasdaq
 PHAR,Pharming Group NV,Nasdaq
-BKV,BKV Corp,NYSE
 BZFD,BuzzFeed Inc,Nasdaq
 GEG,Great Elm Group Inc,Nasdaq
 GBFH,GBank Financial Holdings Inc,Nasdaq
@@ -10746,7 +10758,7 @@ SPKL,Spark I Acquisition Corp,Nasdaq
 TURB,Turbo Energy SA,Nasdaq
 NCL,Northann Corp,NYSE
 ATGL,Alpha Technology Group Ltd,Nasdaq
-SELX,Semilux International Ltd,Nasdaq
+SELXF,Semilux International Ltd,OTC Markets Stock Exchange
 DDC,DDC Enterprise Ltd,NYSE
 KVAC,Keen Vision Acquisition Corp,Nasdaq
 ANL,Adlai Nortye Ltd,Nasdaq
@@ -10760,7 +10772,6 @@ RYDE,Ryde Group Ltd,NYSE
 SHMD,SCHMID Group NV,Nasdaq
 YAAS,Youxin Technology Ltd,Nasdaq
 RMIX,Suncrete Inc,Nasdaq
-ALMS,Alumis Inc,Nasdaq
 HCWC,Healthy Choice Wellness Corp,NYSE
 FEBO,Fenbo Holdings Ltd,Nasdaq
 IBO,Impact BioMedical Inc,NYSE
@@ -10769,11 +10780,9 @@ KWM,K Wave Media Ltd,Nasdaq
 ELAB,PMGC Holdings Inc,Nasdaq
 NVNI,Nvni Group Ltd,Nasdaq
 KAPA,Kairos Pharma Ltd,NYSE
-GRDN,Guardian Pharmacy Services Inc,NYSE
 SHIM,Shimmick Corp,Nasdaq
 SCAG,Scage Future,Nasdaq
 PMNT,Perfect Moment Ltd,NYSE
-WS,Worthington Steel Inc,NYSE
 ZONE,Cleancore Solutions Inc,NYSE
 ITOC,iTonic Holdings Ltd,Nasdaq
 QETA,Quetta Acquisition Corp,Nasdaq
@@ -10820,7 +10829,7 @@ PLUT,Plutus Financial Group Ltd,Nasdaq
 XCH,XCHG Ltd,Nasdaq
 FLYE,FLY-E Group Inc,Nasdaq
 LZMH,LZ Technology Holdings Ltd,Nasdaq
-LEGT,Legato Merger Corp III,NYSE
+ENRD, Einride AB,NYSE
 JBDI,Jbdi Holdings Ltd,Nasdaq
 WCT,Wellchange Holdings Co Ltd,Nasdaq
 EXOZ,eXoZymes Inc,Nasdaq
@@ -10976,7 +10985,7 @@ LFS,Leifras Co Ltd,Nasdaq
 FGMC,FG Merger II Corp,Nasdaq
 ANNA,AleAnna Inc,Nasdaq
 RANG,Range Capital Acquisition Corp,Nasdaq
-MLAC,Mountain Lake Acquisition Corp,Nasdaq
+AVAT,Avalanche Treasury Corp,Nasdaq
 NEUP,Neuphoria Therapeutics Inc,Nasdaq
 COPL,Copley Acquisition Corp,NYSE
 SAGT,Sagtec Global Ltd,Nasdaq
@@ -11016,7 +11025,7 @@ PFAI,Pinnacle Food Group Ltd,Nasdaq
 CMDB,Costamare Bulkers Holdings Ltd,NYSE
 UYSC,UY Scuti Acquisition Corp,Nasdaq
 RDAG,Republic Digital Acquisition Co,Nasdaq
-CGCT,CARTESIAN GROWTH CORP III,Nasdaq
+FAC,Factorial Energy Inc,Nasdaq
 ANPA,Rich Sparkle Holdings Ltd,Nasdaq
 RIBB,Ribbon Acquisition Corp,Nasdaq
 LOKV,Live Oak Acquisition Corp V,Nasdaq
@@ -11032,7 +11041,6 @@ SZZL,Sizzle Acquisition Corp II,Nasdaq
 DAAQ,Digital Asset Acquisition Corp,Nasdaq
 HCHL,Happy City Holdings Ltd,Nasdaq
 ASIC,Ategrity Specialty Holdings LLC,NYSE
-AMRZ,Amrize Ltd,NYSE
 XRPN,Armada Acquisition Corp II,Nasdaq
 BUUU,BUUU Group Ltd,Nasdaq
 SOUL,Soulpower Acquisition Corp,NYSE
@@ -11317,7 +11325,7 @@ OVS.MI,OVS SpA,Borsa Italiana
 YACHT.MI,Ferretti SpA,Borsa Italiana
 DOV.MI,doValue SpA,Borsa Italiana
 DEX.MI,Dexelance SpA,Borsa Italiana
-AVIO.MI,Avio SpA,Borsa Italiana
+AVIO,Avio SpA,Borsa Italiana
 GF.MI,Generalfinance SpA,Borsa Italiana
 ORS.MI,Orsero SpA,Borsa Italiana
 ABT.MI,Abitare In SpA,Borsa Italiana
@@ -12491,6 +12499,7 @@ EMUEUA.DE,UBS Core MSCI EMU UCITS ETF EUR dis,Xetra ETFs
 XD5E.DE,Xtrackers MSCI EMU UCITS ETF 1D,Xetra ETFs
 SX7EEX.DE,iShares EURO STOXX Banks 30-15 UCITS ETF DE,Xetra ETFs
 SXXEEX.DE,iShares EURO STOXX UCITS ETF (DE),Xetra ETFs
+IWDA.AS,iShares Core MSCI World UCITS ETF (Acc),Euronext Amsterdam
 ZPR1.DE,SS SPDR Bloomberg 1-3 Month T-Bill UCITS ETF,Xetra ETFs
 FVSA.DE,Franklin Euro Short Maturity UCITS ETF,Xetra ETFs
 WEXU.DE,Amundi MSCI World Ex USA UCITS ETF Acc,Xetra ETFs
@@ -12536,6 +12545,7 @@ WMFS.DE,Amundi MSCI World Small Cap ESG Broad Transition UCITS ETF ACC,Xetra ETF
 WEBN.DE,Amundi Prime All Country World UCITS ETF Acc,Xetra ETFs
 EQSP.DE,Amundi S&P 500 Equal Weight UCITS ETF Acc,Xetra ETFs
 WEBA.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
+EXUS.DE,Xtrackers MSCI World ex USA UCITS ETF,Xetra ETFs
 2800.HK,Tracker Fund of Hong Kong Ltd,Hong Kong Exchanges
 2828.HK,Hang Seng China Enterprises Index ETF HKD,Hong Kong Exchanges
 3033.HK,CSOP Hang Seng Tech Index ETF,Hong Kong Exchanges
