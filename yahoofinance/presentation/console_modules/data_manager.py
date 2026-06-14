@@ -49,33 +49,27 @@ DUPLICATE_TICKERS = {
     "UL": "ULVR.L",  # Unilever ADR → London
     "RIO": "RIO.L",  # Rio Tinto ADR → London
     "BHP": "BHP.AX",  # BHP ADR → Australia
-    # Yahoo Finance .AS → eToro .NV (both Euronext Amsterdam, different suffix convention)
-    "HEIA.AS": "HEIA.NV",  # Heineken
-    "SBMO.AS": "SBMO.NV",  # SBM Offshore
 }
+
+# Exchange suffix equivalences — same exchange, different vendor convention.
+# Applied generically: any STEM.AS is equivalent to STEM.NV (Euronext Amsterdam).
+_EQUIVALENT_SUFFIXES = [(".AS", ".NV")]
 
 
 def deduplicate_securities(df: pd.DataFrame, ticker_col: str | None = None) -> pd.DataFrame:
-    """
-    Remove duplicate securities from DataFrame.
+    """Remove duplicate securities from DataFrame.
 
     Handles:
     - Dual share classes (GOOGL/GOOG)
     - Cross-listed ADRs (SAP/SAP.DE)
+    - Exchange suffix equivalences (.AS/.NV for Euronext Amsterdam)
 
-    Args:
-        df: DataFrame with security data
-        ticker_col: Name of the ticker column (auto-detected if None)
-
-    Returns:
-        DataFrame with duplicates removed
+    The secondary ticker is removed only when BOTH variants exist in the data.
     """
     if df.empty:
         return df
 
-    # Auto-detect ticker column if not specified
     if ticker_col is None:
-        # Check common column names in order of preference
         for col_name in ["ticker", "TICKER", "TKR", "Symbol", "symbol"]:
             if col_name in df.columns:
                 ticker_col = col_name
@@ -85,13 +79,24 @@ def deduplicate_securities(df: pd.DataFrame, ticker_col: str | None = None) -> p
         logger.debug("No ticker column found for deduplication")
         return df
 
-    # Get list of tickers to remove
+    tickers_in_data = set(df[ticker_col].values)
     tickers_to_remove = []
+
+    # Static DUPLICATE_TICKERS (ADRs, share classes)
     for dup_ticker, primary_ticker in DUPLICATE_TICKERS.items():
-        # Only remove if both tickers exist in the data
-        if dup_ticker in df[ticker_col].values and primary_ticker in df[ticker_col].values:
+        if dup_ticker in tickers_in_data and primary_ticker in tickers_in_data:
             tickers_to_remove.append(dup_ticker)
             logger.debug(f"Deduplicating: removing {dup_ticker} (keeping {primary_ticker})")
+
+    # Generic exchange suffix equivalences (e.g., .AS == .NV)
+    for suffix_a, suffix_b in _EQUIVALENT_SUFFIXES:
+        a_tickers = [t for t in tickers_in_data if t.endswith(suffix_a)]
+        for a_tkr in a_tickers:
+            stem = a_tkr[: -len(suffix_a)]
+            b_tkr = stem + suffix_b
+            if b_tkr in tickers_in_data and a_tkr not in tickers_to_remove:
+                tickers_to_remove.append(a_tkr)
+                logger.debug(f"Deduplicating: removing {a_tkr} (keeping {b_tkr}, same exchange)")
 
     if tickers_to_remove:
         original_count = len(df)
