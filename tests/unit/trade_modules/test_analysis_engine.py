@@ -155,7 +155,7 @@ class TestCalculateActionVectorized:
 
     def test_vectorized_action_buy_conditions(self, sample_dataframe):
         """Test vectorized BUY action detection."""
-        result, _ = calculate_action_vectorized(sample_dataframe)
+        result, *_ = calculate_action_vectorized(sample_dataframe)
 
         # AAPL should be BUY (upside 30%, buy% 85%, EXRET 25.5%, meets MEGA tier criteria)
         assert result.iloc[0] == "B"
@@ -173,7 +173,7 @@ class TestCalculateActionVectorized:
         # Must recalculate EXRET after modifying upside and buy_percentage
         df = calculate_exret(df)
 
-        result, _ = calculate_action_vectorized(df)
+        result, *_ = calculate_action_vectorized(df)
 
         # GOOGL with $2T market cap is LARGE tier
         # With negative upside and very low buy%, triggers hard SELL
@@ -181,7 +181,7 @@ class TestCalculateActionVectorized:
 
     def test_vectorized_action_inconclusive_conditions(self, edge_case_dataframe):
         """Test vectorized INCONCLUSIVE action detection."""
-        result, _ = calculate_action_vectorized(edge_case_dataframe)
+        result, *_ = calculate_action_vectorized(edge_case_dataframe)
 
         # First row should be INCONCLUSIVE due to low analyst coverage (0 analysts)
         assert result.iloc[0] == "I"
@@ -226,7 +226,7 @@ class TestCalculateActionVectorized:
         import time
 
         start_time = time.perf_counter()
-        result, _ = calculate_action_vectorized(large_df)
+        result, *_ = calculate_action_vectorized(large_df)
         end_time = time.perf_counter()
 
         # Should complete in reasonable time
@@ -360,7 +360,7 @@ class TestPerformanceComparison:
 
         # Test vectorized approach
         start_time = time.perf_counter()
-        vectorized_result, _ = calculate_action_vectorized(test_df)
+        vectorized_result, *_ = calculate_action_vectorized(test_df)
         vectorized_time = time.perf_counter() - start_time
 
         # Vectorized should be significantly faster
