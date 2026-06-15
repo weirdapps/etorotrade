@@ -1,7 +1,8 @@
 # Locked dependencies for weekly-universe-refresh workflow (Python 3.11, Linux x86_64)
 # Regenerate: pip download --only-binary :all: --no-deps --platform manylinux2014_x86_64 --python-version 311 <pkg> -d /tmp && pip hash /tmp/<file>.whl
-requests==2.32.3 \
-    --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
+requests==2.33.0 \
+    --hash=sha256:3324635456fa185245e24865e810cecec7b4caf933d7eb133dcde67d48cee69b \
+    --hash=sha256:c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652
 urllib3==2.7.0 \
     --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
 certifi==2026.5.20 \
