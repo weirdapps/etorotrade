@@ -1,11 +1,11 @@
 name: Weekly Universe Refresh
 
-on:
+"on":
   schedule:
     # Sunday 21:00 UTC — runs 1h before daily-signals.yml at 22:00 UTC
     # so Monday's first signal pass already sees the fresh universe.
     - cron: '0 21 * * 0'
-  workflow_dispatch: # manual trigger
+  workflow_dispatch:  # manual trigger
 
 concurrency:
   group: weekly-universe-refresh
@@ -19,21 +19,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write # required to commit the refreshed CSV
+      contents: write  # required to commit the refreshed CSV
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           token: ${{ secrets.PUSH_PAT }}
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: '3.11'
 
       - name: Install requests
-        run: pip install requests==2.32.3
+        run: |
+          pip install --only-binary :all: requests==2.32.3
 
       - name: Run refresh script
         env:
