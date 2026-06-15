@@ -34,7 +34,7 @@ jobs:
 
       - name: Install requests
         run: |
-          pip install --only-binary :all: requests==2.32.3
+          pip install --only-binary :all: --require-hashes -r requirements-universe-lock.txt
 
       - name: Run refresh script
         env:
