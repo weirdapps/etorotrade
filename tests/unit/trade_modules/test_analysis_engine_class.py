@@ -295,7 +295,7 @@ class TestCalculateActionVectorized:
             },
             index=["AAPL", "MSFT", "GOOGL"],
         )
-        result, buy_scores, *_ = calculate_action_vectorized(df)
+        result, buy_scores, _ = calculate_action_vectorized(df)
         # Returns a Series with action values
         assert isinstance(result, pd.Series)
         assert isinstance(buy_scores, pd.Series)
@@ -305,7 +305,7 @@ class TestCalculateActionVectorized:
     def test_calculate_action_empty(self):
         """Test action calculation with empty DataFrame."""
         df = pd.DataFrame()
-        result, *_ = calculate_action_vectorized(df)
+        result, _, _ = calculate_action_vectorized(df)
         # Should handle empty gracefully - returns empty Series
         assert isinstance(result, pd.Series)
         assert len(result) == 0

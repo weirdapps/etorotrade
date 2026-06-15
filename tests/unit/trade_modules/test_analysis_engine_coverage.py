@@ -31,22 +31,22 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
     def test_calculate_action_vectorized_all_scenarios(self):
         """Test action calculation with all possible scenarios."""
         # Test with valid data
-        # Note: calculate_action_vectorized now returns (actions, buy_scores) tuple
+        # Note: calculate_action_vectorized now returns (actions, buy_scores, signal_tracks) tuple
         result_tuple = calculate_action_vectorized(self.mock_df, "market")
         self.assertIsInstance(result_tuple, tuple)
-        result, buy_scores, *_ = result_tuple
+        result, buy_scores, _ = result_tuple
         self.assertIsInstance(result, pd.Series)
         self.assertIsInstance(buy_scores, pd.Series)
         self.assertTrue(all(action in ["B", "S", "H", "I"] for action in result))
 
         # Test with empty DataFrame
         empty_df = pd.DataFrame()
-        result_empty, *_ = calculate_action_vectorized(empty_df, "market")
+        result_empty, _, _ = calculate_action_vectorized(empty_df, "market")
         self.assertEqual(len(result_empty), 0)
 
         # Test with single row
         single_row = self.mock_df.iloc[:1].copy()
-        result_single, *_ = calculate_action_vectorized(single_row, "market")
+        result_single, _, _ = calculate_action_vectorized(single_row, "market")
         self.assertEqual(len(result_single), 1)
 
         # Test with all NaN values
@@ -54,7 +54,7 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         for col in ["pe_forward", "pe_trailing", "peg_ratio", "upside", "buy_percentage"]:
             if col in nan_df.columns:
                 nan_df[col] = np.nan
-        result_nan, *_ = calculate_action_vectorized(nan_df, "market")
+        result_nan, _, _ = calculate_action_vectorized(nan_df, "market")
         self.assertEqual(len(result_nan), len(nan_df))
 
     def test_filter_notrade_tickers(self):
@@ -126,14 +126,14 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         bad_df = pd.DataFrame({"ticker": ["TEST"], "invalid_column": ["invalid_data"]})
 
         # Should handle missing columns gracefully
-        result, *_ = calculate_action_vectorized(bad_df, "market")
+        result, _, _ = calculate_action_vectorized(bad_df, "market")
         self.assertEqual(len(result), len(bad_df))
 
         # Test with mixed data types
         mixed_df = self.mock_df.copy()
         mixed_df["pe_forward"] = mixed_df["pe_forward"].astype(str)
 
-        result_mixed, *_ = calculate_action_vectorized(mixed_df, "market")
+        result_mixed, _, _ = calculate_action_vectorized(mixed_df, "market")
         self.assertEqual(len(result_mixed), len(mixed_df))
 
     @unittest.skipIf(
@@ -147,7 +147,7 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         import time
 
         start_time = time.time()
-        result, *_ = calculate_action_vectorized(large_df, "market")
+        result, _, _ = calculate_action_vectorized(large_df, "market")
         end_time = time.time()
 
         # Should complete in reasonable time for 1000 rows.
@@ -166,7 +166,7 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
         string_df["upside"] = string_df["upside"].astype(str)
         string_df["buy_percentage"] = string_df["buy_percentage"].astype(str)
 
-        result, *_ = calculate_action_vectorized(string_df, "market")
+        result, _, _ = calculate_action_vectorized(string_df, "market")
         self.assertEqual(len(result), len(string_df))
 
         # Test with percentage strings
@@ -175,7 +175,7 @@ class TestAnalysisEngineComprehensive(unittest.TestCase):
             lambda x: f"{x}%" if pd.notna(x) else x
         )
 
-        result_perc, *_ = calculate_action_vectorized(perc_df, "market")
+        result_perc, _, _ = calculate_action_vectorized(perc_df, "market")
         self.assertEqual(len(result_perc), len(perc_df))
 
     def test_negative_upside_never_buy_safety_check(self):
