@@ -1,0 +1,62 @@
+name: Monthly Dependency Refresh
+
+"on":
+  schedule:
+    - cron: "17 4 4 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: deps-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263  # v1.4.2
+        with:
+          version: "2.4.0"
+          plugins: "poetry-plugin-export==1.10.0"
+
+      - name: Refresh lockfile
+        run: scripts/dev/relock.sh
+
+      - name: Validate (install + tests)
+        run: |
+          pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
+          pytest tests/ \
+            --cov=yahoofinance \
+            --cov=trade_modules \
+            --cov-report=term \
+            --cov-fail-under=58 \
+            --maxfail=10 \
+            -x \
+            --ignore=tests/integration/ \
+            --ignore=tests/e2e/ \
+            -v
+
+      - name: Open PR with refreshed lockfile
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ secrets.PUSH_PAT || github.token }}
+          branch: deps/monthly-refresh
+          delete-branch: true
+          commit-message: "deps: monthly lockfile refresh"
+          title: "deps: monthly dependency refresh"
+          body: |
+            Automated monthly refresh of the committed lockfile to the latest
+            resolver-compatible versions. CI (tests) passed on this branch.
+            Review and merge if green.
+          labels: dependencies

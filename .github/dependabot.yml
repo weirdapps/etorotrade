@@ -17,6 +17,11 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+    # Only propose direct dependency updates. Transitive bumps are doomed:
+    # the committed lockfile resolver reverts them, so those PRs never merge.
+    # The monthly deps-refresh.yml workflow keeps transitive deps fresh instead.
+    allow:
+      - dependency-type: "direct"
     # Group patch and minor updates together
     groups:
       development-dependencies:
