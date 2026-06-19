@@ -927,7 +927,7 @@ def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
         all_buy = all(p["position"].get("isBuy", True) for p in symbol_positions)
 
         # Get leverage (should be same for all positions of same symbol)
-        leverages = set(p["position"].get("leverage", 1) for p in symbol_positions)
+        leverages = {p["position"].get("leverage", 1) for p in symbol_positions}
         leverage = leverages.pop() if len(leverages) == 1 else max(leverages)
 
         # Fix the ticker format for Yahoo Finance compatibility using centralized system

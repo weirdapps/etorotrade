@@ -162,6 +162,21 @@ ACTIVE_MODIFIERS = {
     "sector_concentration",  # SURVIVES BH  rho=-0.321  n=202  p<0.001
 }
 
+# CIO audit: horizon-aware holding period by signal track
+_SIGNAL_TRACK_HORIZONS = {
+    "momentum": 30,
+    "value": 60,
+    "value+momentum": 45,
+}
+
+
+def _suggested_holding_horizon(signal_track: str | None) -> int:
+    """Map signal track to recommended holding period in trading days."""
+    if signal_track:
+        return _SIGNAL_TRACK_HORIZONS.get(signal_track, 30)
+    return 30
+
+
 # Historical record of deprecated modifiers.
 # V37: wrong-direction effect at T+30. V42: DROP/SHADOW verdicts at T+30.
 # V44: pruned to BH-surviving set only.
@@ -3907,6 +3922,10 @@ def synthesize_stock(
         "debate_kill_theses": (debate_data or {}).get("kill_theses_from_debate", []),
         # Dual-track signal system (v45.0)
         "signal_track": sig_data.get("SIGNAL_TRACK", sig_data.get("signal_track")),
+        # CIO audit: horizon-aware holding period recommendation
+        "suggested_horizon_days": _suggested_holding_horizon(
+            sig_data.get("SIGNAL_TRACK", sig_data.get("signal_track"))
+        ),
     }
 
 
@@ -4588,6 +4607,7 @@ def build_concordance(
     previous_concordance: list[dict[str, Any]] | None = None,
     debate_results: dict[str, dict[str, Any]] | None = None,
     sentiment_report: dict | None = None,
+    position_open_days: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Build the full concordance matrix from all 8 agent reports.
@@ -4840,9 +4860,20 @@ def build_concordance(
         entry["kill_thesis_triggered"] = triggered_kill_theses.get(ticker, False)
         entry["risk_diluted"] = risk_diluted
 
-        # CIO v20.0 D1: Track days_held for conviction decay
-        if _prev_sig == entry["signal"]:
+        # CIO audit: days_held for horizon tracking.
+        # When the signal changes (e.g., H→B or B→H), the horizon clock resets
+        # because a new signal means a new thesis — the old horizon is irrelevant.
+        _open_days = position_open_days or {}
+        _signal_changed = _prev_sig and _prev_sig != entry["signal"]
+        if _signal_changed:
+            entry["days_held"] = 0
+            entry["days_held_source"] = "signal_reset"
+        elif ticker in _open_days and _open_days[ticker] > 0:
+            entry["days_held"] = _open_days[ticker]
+            entry["days_held_source"] = "trade_date"
+        elif _prev_sig == entry["signal"]:
             entry["days_held"] = _prev_days if _prev_days else 0
+            entry["days_held_source"] = "signal_continuity"
 
         concordance.append(entry)
 
@@ -4921,29 +4952,89 @@ def build_concordance(
             base = entry.get("base", 50)
             entry["conviction"] = max(0, min(100, base + active_bonuses - active_penalties))
 
-    # CIO v20.0 D1: Conviction decay — signals lose conviction over time
-    # Apply time-weighted decay for stocks held in same signal state >14 days
+    # CIO audit: Horizon-aware conviction decay (replaces flat 0.98^weeks)
+    # Decay rate and start point adapt to the signal's recommended horizon.
+    # Momentum signals (30d) decay faster and sooner than value signals (60d).
+    # T+60 backtest showed -6.16% avg alpha — steeper decay prevents holding
+    # past the signal's useful life.
+    DECAY_BASE_RATE = 0.95  # was 0.98 — steeper per T+60 alpha analysis
+    DECAY_FLOOR = 0.70  # was 0.85 — allows more aggressive trimming
+    DECAY_START_FRAC = 0.50  # decay starts at 50% of suggested horizon
+    DECAY_MIN_START = 7  # never start decay before 7 days
+
     for entry in concordance:
         days_held = entry.get("days_held", 0)
         signal = entry.get("signal", "H")
-        if days_held > 14 and signal in ("B", "H"):
-            decay_factor = max(0.85, 0.98 ** (days_held / 7))
+        horizon = entry.get("suggested_horizon_days", 30)
+        decay_start = max(DECAY_MIN_START, int(horizon * DECAY_START_FRAC))
+
+        if days_held > decay_start and signal in ("B", "H"):
+            weeks_past_start = (days_held - decay_start) / 7
+            decay_factor = max(DECAY_FLOOR, DECAY_BASE_RATE**weeks_past_start)
             old_conviction = entry["conviction"]
             entry["conviction"] = int(entry["conviction"] * decay_factor)
             entry["conviction_decay_days"] = days_held
             entry["conviction_decay_factor"] = round(decay_factor, 3)
-            # CIO v25.0: Track decay in waterfall
+            entry["conviction_decay_start"] = decay_start
             wf = entry.get("conviction_waterfall", {})
             wf["conviction_decay"] = entry["conviction"] - old_conviction
             entry["conviction_waterfall"] = wf
             logger.debug(
-                "%s: conviction decay applied (days=%d, factor=%.3f, %d→%d)",
+                "%s: conviction decay (days=%d, start=%d, horizon=%d, factor=%.3f, %d→%d)",
                 entry["ticker"],
                 days_held,
+                decay_start,
+                horizon,
                 decay_factor,
                 old_conviction,
                 entry["conviction"],
             )
+
+    # CIO audit: Horizon-aware action adjustment
+    # Track where each position is relative to its suggested holding period.
+    # Positions past their horizon get escalated toward TRIM; positions within
+    # horizon are left alone. This prevents value destruction from overstaying.
+    for entry in concordance:
+        days_held = entry.get("days_held", 0)
+        horizon = entry.get("suggested_horizon_days", 30)
+        action = entry.get("action", "HOLD")
+        signal = entry.get("signal", "H")
+
+        if horizon > 0 and days_held > 0:
+            horizon_pct = round(days_held / horizon * 100)
+            entry["horizon_pct_elapsed"] = horizon_pct
+
+            if horizon_pct <= 50:
+                entry["horizon_status"] = "EARLY"
+            elif horizon_pct <= 100:
+                entry["horizon_status"] = "WITHIN"
+            elif horizon_pct <= 150:
+                entry["horizon_status"] = "EXTENDED"
+            else:
+                entry["horizon_status"] = "OVERSTAYED"
+
+            # Past 150% of horizon with weakening conviction → escalate to TRIM
+            if (
+                entry["horizon_status"] == "OVERSTAYED"
+                and action in ("HOLD", "ADD")
+                and signal in ("H", "B")
+                and entry.get("conviction", 50) < 65
+            ):
+                entry["action"] = "TRIM"
+                wf = entry.get("conviction_waterfall", {})
+                wf["horizon_escalation"] = 0
+                entry["conviction_waterfall"] = wf
+                logger.info(
+                    "%s: TRIM escalation — %d days held vs %dd horizon (%d%%), conviction %d",
+                    entry["ticker"],
+                    days_held,
+                    horizon,
+                    horizon_pct,
+                    entry.get("conviction", 0),
+                )
+        else:
+            entry["horizon_status"] = "NEW"
+            entry["horizon_pct_elapsed"] = 0
 
     # CIO v20.0 D6: Portfolio Sharpe impact — penalize redundant positions
     # Compute correlation penalties based on risk report clusters

@@ -78,24 +78,47 @@ class TestWalkForwardSplit:
     def test_simple_split_yields_n_folds(self):
         from scripts.calibrate_modifiers_t30 import walk_forward_splits
 
-        # 100 observations, 4 folds → train/test pairs
-        obs = [{"value": i, "alpha": i * 0.1} for i in range(100)]
+        obs = [
+            {"date": f"2026-{(i // 28) + 1:02d}-{(i % 28) + 1:02d}", "value": i, "alpha": i * 0.1}
+            for i in range(100)
+        ]
         splits = list(walk_forward_splits(obs, n_folds=4))
-        # Walk-forward yields (n_folds - 1) splits typically
         assert len(splits) == 3
         for train, test in splits:
             assert len(train) > 0
             assert len(test) > 0
-            # Test indices should be AFTER train indices (no leakage)
-            train_max_value = max(o["value"] for o in train)
-            test_min_value = min(o["value"] for o in test)
-            assert test_min_value >= train_max_value
+            train_max_date = max(o["date"] for o in train)
+            test_min_date = min(o["date"] for o in test)
+            assert test_min_date >= train_max_date
+
+    def test_temporal_ordering_prevents_leakage(self):
+        from scripts.calibrate_modifiers_t30 import walk_forward_splits
+
+        obs = [
+            {"date": f"2026-01-{i + 1:02d}", "value": 100 - i, "alpha": i * 0.1} for i in range(20)
+        ]
+        splits = list(walk_forward_splits(obs, n_folds=4))
+        for train, test in splits:
+            train_dates = {o["date"] for o in train}
+            test_dates = {o["date"] for o in test}
+            assert not train_dates & test_dates
+            assert max(train_dates) <= min(test_dates)
 
     def test_too_few_observations_yields_empty(self):
         from scripts.calibrate_modifiers_t30 import walk_forward_splits
 
-        # n_folds requires at least n_folds × 2 observations
-        assert list(walk_forward_splits([{"value": 1}], n_folds=4)) == []
+        assert list(walk_forward_splits([{"date": "2026-01-01"}], n_folds=4)) == []
+
+    def test_value_sort_still_works_when_explicit(self):
+        from scripts.calibrate_modifiers_t30 import walk_forward_splits
+
+        obs = [{"value": i, "alpha": i * 0.1} for i in range(100)]
+        splits = list(walk_forward_splits(obs, n_folds=4, sort_key="value"))
+        assert len(splits) == 3
+        for train, test in splits:
+            train_max_value = max(o["value"] for o in train)
+            test_min_value = min(o["value"] for o in test)
+            assert test_min_value >= train_max_value
 
 
 class TestVerdictWithRigor:

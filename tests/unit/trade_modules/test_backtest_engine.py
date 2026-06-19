@@ -884,3 +884,199 @@ def test_non_usd_ticker_uses_its_own_fx_pair():
     assert abs(jpy_row["stock_return_eur"] - 0.0) < 0.5
     # EUR ticker: factor 1.0 → EUR return equals the native return.
     assert abs(eur_row["stock_return_eur"] - eur_row["stock_return"]) < 1e-6
+
+
+# ============================================================
+# Regional Benchmarks
+# ============================================================
+
+from trade_modules.backtest_engine import _region_for_ticker, _suggested_holding_horizon
+
+
+class TestRegionForTicker:
+    @pytest.mark.parametrize(
+        "ticker,expected",
+        [
+            ("AAPL", "us"),
+            ("MSFT", "us"),
+            ("SPY", "us"),
+            ("TSLA", "us"),
+            ("VOD.L", "uk"),
+            ("HSBA.L", "uk"),
+            ("0700.HK", "hk"),
+            ("2800.HK", "hk"),
+            ("SAP.DE", "eu"),
+            ("TTE.PA", "eu"),
+            ("ASML.AS", "eu"),
+            ("ENI.MI", "eu"),
+            ("SAN.MC", "eu"),
+            ("NOVO-B.CO", "eu"),
+            ("VOLV-B.ST", "eu"),
+            ("DNB.OL", "eu"),
+            ("NOKIA.HE", "eu"),
+            ("ABI.BR", "eu"),
+            ("HEIA.NV", "eu"),
+        ],
+    )
+    def test_region_mapping(self, ticker, expected):
+        assert _region_for_ticker(ticker) == expected
+
+
+class TestSuggestedHoldingHorizon:
+    @pytest.mark.parametrize(
+        "track,expected",
+        [
+            ("momentum", 30),
+            ("value", 60),
+            ("value+momentum", 45),
+            (None, 30),
+            ("unknown_track", 30),
+        ],
+    )
+    def test_horizon_mapping(self, track, expected):
+        assert _suggested_holding_horizon(track) == expected
+
+
+class TestRegionalBenchmarksInPriceFetch:
+    def test_regional_benchmarks_added_to_tickers(self, engine):
+        """The run() method should include regional benchmark tickers in the fetch list."""
+        from trade_modules.price_service import REGION_BENCHMARKS
+
+        signals_df = engine.load_signals()
+        tickers = signals_df["ticker"].unique().tolist()
+        if "SPY" not in tickers:
+            tickers.append("SPY")
+        for bm_ticker in REGION_BENCHMARKS.values():
+            if bm_ticker not in tickers:
+                tickers.append(bm_ticker)
+
+        for bm in REGION_BENCHMARKS.values():
+            assert bm in tickers, f"Regional benchmark {bm} missing from fetch list"
+
+
+class TestRegionalAlpha:
+    def test_regional_alpha_columns_present(self, engine, price_data, spy_data):
+        """Results should include regional_benchmark, regional_benchmark_return, regional_alpha."""
+        signals_df = engine.load_signals()
+        signals_df = engine.backfill_signal_prices(signals_df, price_data)
+        results = engine.calculate_returns(signals_df, price_data, spy_data, 7)
+        assert "regional_benchmark" in results.columns
+        assert "regional_benchmark_return" in results.columns
+        assert "regional_alpha" in results.columns
+        assert "suggested_horizon_days" in results.columns
+
+    def test_us_ticker_regional_alpha_equals_spy_alpha(self):
+        """For US tickers, regional benchmark is SPY so regional_alpha == alpha."""
+        dates = pd.bdate_range("2025-01-01", periods=40)
+        stock = pd.Series(np.linspace(100, 110, 40), index=dates)
+        spy = pd.Series(np.linspace(100, 105, 40), index=dates)
+        price_data = pd.DataFrame({"AAA": stock, "SPY": spy})
+        signals = pd.DataFrame(
+            [
+                {
+                    "ticker": "AAA",
+                    "signal": "B",
+                    "date": dates[0],
+                    "price_at_signal": 100.0,
+                    "tier": "MID",
+                    "region": "US",
+                }
+            ]
+        )
+        eng = _bt()
+        out = eng.calculate_returns(signals, price_data, spy, horizon=39, fx_data=None)
+        row = out.iloc[0]
+        assert row["regional_benchmark"] == "SPY"
+        assert abs(row["regional_alpha"] - row["alpha"]) < 1e-6
+
+    def test_uk_ticker_uses_isf_benchmark(self):
+        """A .L ticker should use ISF.L as its regional benchmark."""
+        dates = pd.bdate_range("2025-01-01", periods=40)
+        stock = pd.Series(np.linspace(100, 115, 40), index=dates)  # +15%
+        spy = pd.Series(np.linspace(100, 105, 40), index=dates)  # +5%
+        isf = pd.Series(np.linspace(100, 110, 40), index=dates)  # +10%
+        price_data = pd.DataFrame({"VOD.L": stock, "SPY": spy, "ISF.L": isf})
+        signals = pd.DataFrame(
+            [
+                {
+                    "ticker": "VOD.L",
+                    "signal": "B",
+                    "date": dates[0],
+                    "price_at_signal": 100.0,
+                    "tier": "MID",
+                    "region": "UK",
+                }
+            ]
+        )
+        eng = _bt()
+        out = eng.calculate_returns(signals, price_data, spy, horizon=39, fx_data=None)
+        row = out.iloc[0]
+        assert row["regional_benchmark"] == "ISF.L"
+        # Stock +15%, ISF +10% -> regional alpha ~5%
+        assert abs(row["regional_alpha"] - 5.0) < 0.5
+        # SPY alpha is stock_return - spy_return = 15 - 5 = 10
+        assert abs(row["alpha"] - 10.0) < 0.5
+
+
+# ============================================================
+# Unresolvable Tickers (Survivorship Bias)
+# ============================================================
+
+
+class TestUnresolvableTickers:
+    def test_unresolvable_tracked_for_missing_price(self, engine, spy_data):
+        """Tickers with no price data should appear in unresolvable list."""
+        signals_df = engine.load_signals()
+        # Don't backfill; use empty price data to force all tickers unresolvable
+        results = engine.calculate_returns(signals_df, pd.DataFrame(), spy_data, 7)
+        unresolvable = results.attrs.get("unresolvable_tickers", [])
+        assert len(unresolvable) > 0
+        assert all(u["reason"] == "no_price_data" for u in unresolvable)
+        assert all("ticker" in u and "signal" in u and "date" in u for u in unresolvable)
+
+    def test_unresolvable_includes_ticker_not_in_price_data(self):
+        """A ticker present in signals but absent from price_data should be tracked."""
+        dates = pd.bdate_range("2025-01-01", periods=40)
+        spy = pd.Series(np.linspace(100, 105, 40), index=dates)
+        price_data = pd.DataFrame({"SPY": spy})  # No stock data
+        signals = pd.DataFrame(
+            [
+                {
+                    "ticker": "GHOST",
+                    "signal": "B",
+                    "date": dates[0],
+                    "price_at_signal": 100.0,
+                    "tier": "MID",
+                    "region": "US",
+                }
+            ]
+        )
+        eng = _bt()
+        results = eng.calculate_returns(signals, price_data, spy, horizon=7, fx_data=None)
+        unresolvable = results.attrs.get("unresolvable_tickers", [])
+        assert len(unresolvable) == 1
+        assert unresolvable[0]["ticker"] == "GHOST"
+        assert unresolvable[0]["reason"] == "no_price_data"
+
+    def test_resolved_tickers_not_in_unresolvable(self):
+        """Tickers that resolve properly should NOT appear in unresolvable."""
+        dates = pd.bdate_range("2025-01-01", periods=40)
+        stock = pd.Series(np.linspace(100, 110, 40), index=dates)
+        spy = pd.Series(np.linspace(100, 105, 40), index=dates)
+        price_data = pd.DataFrame({"AAA": stock, "SPY": spy})
+        signals = pd.DataFrame(
+            [
+                {
+                    "ticker": "AAA",
+                    "signal": "B",
+                    "date": dates[0],
+                    "price_at_signal": 100.0,
+                    "tier": "MID",
+                    "region": "US",
+                }
+            ]
+        )
+        eng = _bt()
+        results = eng.calculate_returns(signals, price_data, spy, horizon=7, fx_data=None)
+        unresolvable = results.attrs.get("unresolvable_tickers", [])
+        assert len(unresolvable) == 0

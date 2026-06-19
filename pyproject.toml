@@ -224,3 +224,7 @@ ignore = [
 "trade_modules/trade_engine.py" = ["E402"]
 "yahoofinance/analysis/analyzer_factory.py" = ["E402"]
 "yahoofinance/utils/async_utils/enhanced.py" = ["E402"]
+# trade.py imports after warnings.filterwarnings / suppress_yfinance_noise (load order intentional)
+"trade.py" = ["E402"]
+# di_container.py imports after logger setup (same deferred-import pattern)
+"yahoofinance/core/di_container.py" = ["E402"]

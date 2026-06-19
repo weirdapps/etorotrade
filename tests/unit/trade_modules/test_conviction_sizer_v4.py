@@ -700,3 +700,152 @@ class TestClusterPenaltyConvictionIndependent:
         base = 1.0 / math.sqrt(4)
         adj = cz.get_cluster_size_adjustment("A", clusters, conviction=80)
         assert adj > base  # legacy dampening path intact
+
+
+# ============================================================
+# CIO Audit M8: FX Volatility Haircut in Sizing Cascade
+# ============================================================
+
+
+class TestFxMultiplierInSizer:
+    """Test M8: fx_multiplier flows through calculate_conviction_size."""
+
+    def test_default_fx_multiplier_no_change(self):
+        """Default fx_multiplier=1.0 should not alter position size."""
+        result_default = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=80,
+        )
+        result_explicit = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=80,
+            fx_multiplier=1.0,
+        )
+        assert result_default["position_size"] == result_explicit["position_size"]
+        assert result_default["fx_multiplier"] == 1.0
+
+    def test_usd_fx_multiplier_reduces_size(self):
+        """fx_multiplier=0.928 (~USD haircut) should reduce position by ~7.2%."""
+        result_eur = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=80,
+            fx_multiplier=1.0,
+        )
+        result_usd = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=80,
+            fx_multiplier=0.928,
+        )
+        # USD position should be ~7.2% smaller
+        reduction_pct = 1 - (result_usd["position_size"] / result_eur["position_size"])
+        assert reduction_pct == pytest.approx(0.072, abs=0.005)
+        assert result_usd["fx_multiplier"] == 0.928
+
+    def test_fx_multiplier_cascades_correctly(self):
+        """FX haircut should multiply through with other adjustments."""
+        # With regime=elevated (0.75) and fx_multiplier=0.928:
+        # tier_size = 2500 * 5 = 12500
+        # after_conviction = 12500 * 1.0 = 12500 (clamped)
+        # after_regime = 12500 * 0.75 = 9375
+        # after_cluster = 9375 * 1.0 = 9375
+        # after_fx = 9375 * 0.928 = 8700
+        # after_freshness = 8700 * 1.0 = 8700
+        # after_var = 8700 * 1.0 = 8700
+        result = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=80,
+            regime="elevated",
+            fx_multiplier=0.928,
+        )
+        assert result["position_size"] == pytest.approx(8700.0, abs=1)
+
+    def test_fx_multiplier_in_return_dict(self):
+        """Return dict should include fx_multiplier."""
+        result = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=80,
+            fx_multiplier=0.95,
+        )
+        assert "fx_multiplier" in result
+        assert result["fx_multiplier"] == 0.95
+
+    def test_fx_multiplier_in_adjustments_description(self):
+        """Adjustments string should mention FX when multiplier < 1.0."""
+        result = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=80,
+            fx_multiplier=0.928,
+        )
+        assert "FX vol" in result["adjustments"]
+        assert "-7.2%" in result["adjustments"]
+
+    def test_fx_multiplier_absent_from_description_when_1(self):
+        """Adjustments string should NOT mention FX when multiplier is 1.0."""
+        result = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=80,
+            fx_multiplier=1.0,
+        )
+        assert "FX vol" not in result["adjustments"]
+
+    def test_backward_compatibility_no_fx_arg(self):
+        """Existing calls without fx_multiplier should still work."""
+        result = calculate_conviction_size(
+            base_position_size=2500,
+            tier_multiplier=5,
+            conviction_score=90,
+            regime="elevated",
+            cluster_adjustment=0.577,
+            sector_adjustment=10,
+            freshness_multiplier=0.75,
+        )
+        assert "fx_multiplier" in result
+        assert result["fx_multiplier"] == 1.0
+        assert "position_size" in result
+
+
+# ============================================================
+# Signal Horizon Tagging
+# ============================================================
+
+
+class TestSuggestedHoldingHorizon:
+    """Test signal_track → holding horizon mapping."""
+
+    def test_momentum_track(self):
+        from trade_modules.conviction_sizer import suggested_holding_horizon
+
+        assert suggested_holding_horizon("momentum") == 30
+
+    def test_value_track(self):
+        from trade_modules.conviction_sizer import suggested_holding_horizon
+
+        assert suggested_holding_horizon("value") == 60
+
+    def test_value_momentum_track(self):
+        from trade_modules.conviction_sizer import suggested_holding_horizon
+
+        assert suggested_holding_horizon("value+momentum") == 45
+
+    def test_unknown_track_defaults_to_30(self):
+        from trade_modules.conviction_sizer import suggested_holding_horizon
+
+        assert suggested_holding_horizon("unknown_track") == 30
+
+    def test_none_defaults_to_30(self):
+        from trade_modules.conviction_sizer import suggested_holding_horizon
+
+        assert suggested_holding_horizon(None) == 30
+
+    def test_empty_string_defaults_to_30(self):
+        from trade_modules.conviction_sizer import suggested_holding_horizon
+
+        assert suggested_holding_horizon("") == 30

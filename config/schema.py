@@ -625,6 +625,38 @@ class DualTrackConfig(BaseModel):
     )
 
 
+class ConvictionDecayHorizons(BaseModel):
+    """Signal track → suggested holding horizon (trading days)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    momentum: int = Field(default=30, ge=1, description="Momentum track horizon (days)")
+    value: int = Field(default=60, ge=1, description="Value track horizon (days)")
+    value_momentum: int = Field(
+        default=45, ge=1, description="Blended value+momentum horizon (days)"
+    )
+    default: int = Field(default=30, ge=1, description="Fallback horizon (days)")
+
+
+class ConvictionDecayConfig(BaseModel):
+    """Horizon-aware conviction decay: fade conviction past the signal's useful life."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=False, description="Enable conviction decay")
+    base_rate: float = Field(default=0.95, gt=0, le=1, description="Per-step decay multiplier")
+    floor: float = Field(
+        default=0.70, ge=0, le=1, description="Minimum conviction retained after decay"
+    )
+    start_fraction: float = Field(
+        default=0.50, ge=0, le=1, description="Decay starts at this fraction of horizon"
+    )
+    min_start_days: int = Field(
+        default=7, ge=0, description="Never start decay before this many days"
+    )
+    horizons: ConvictionDecayHorizons = Field(default_factory=ConvictionDecayHorizons)
+
+
 class TradingConfig(BaseModel):
     """
     Complete trading system configuration with validation.
@@ -746,6 +778,12 @@ class TradingConfig(BaseModel):
     dual_track: DualTrackConfig | None = Field(
         default_factory=DualTrackConfig,
         description="Dual-track: stock passes EITHER value OR momentum track",
+    )
+
+    # Horizon-aware conviction decay (CIO audit — T+60 alpha analysis)
+    conviction_decay: ConvictionDecayConfig | None = Field(
+        default_factory=ConvictionDecayConfig,
+        description="Fade conviction past the signal's useful holding life",
     )
 
     # CIO review finding configs
