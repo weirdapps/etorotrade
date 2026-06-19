@@ -1965,6 +1965,17 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             )
             row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
 
+            # Dual-track signal system: track + independent holding horizon.
+            from trade_modules.conviction_sizer import suggested_signal_horizon
+
+            row_track = signal_tracks.loc[idx] if idx in signal_tracks.index else None
+            if pd.isna(row_track):
+                row_track = None
+            row_horizon = suggested_signal_horizon(
+                row_track,
+                {"52W": None if pd.isna(row_pct_52w) else float(row_pct_52w)},
+            )
+
             log_signal(
                 ticker=ticker,
                 signal=actions.loc[idx],
@@ -1985,6 +1996,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                 roe=float(row_roe) if not pd.isna(row_roe) else None,
                 debt_equity=float(row_de) if not pd.isna(row_de) else None,
                 pct_52w_high=float(row_pct_52w) if not pd.isna(row_pct_52w) else None,
+                # Dual-track signal system
+                signal_track=str(row_track) if row_track else None,
+                suggested_horizon_days=row_horizon,
             )
         except ImportError:
             pass  # Signal tracker not available
@@ -1992,6 +2006,41 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             logger.debug(f"Failed to log signal for {ticker}: {e}")
 
     return actions, buy_scores, signal_tracks
+
+
+def compute_signal_horizons(df: pd.DataFrame, signal_tracks: pd.Series) -> pd.Series:
+    """Compute the per-signal SIGNAL_HORIZON (trading days) for each row.
+
+    Horizon is an INDEPENDENT per-signal dimension — see the single source of
+    truth ``trade_modules.conviction_sizer.suggested_signal_horizon``. The
+    momentum track splits into fast (7d) vs standard (30d) based on the
+    52-week position, so this reads the "52W" / "pct_from_52w_high" column.
+
+    Every row gets a populated integer horizon (never blank); rows without a
+    track fall back to the default bucket.
+    """
+    from trade_modules.conviction_sizer import suggested_signal_horizon
+
+    # Resolve the 52-week-position column (short name first, then long forms).
+    pct_52w_raw = df.get(
+        "52W",
+        df.get(
+            "pct_from_52w_high",
+            df.get("pct_52w_high", pd.Series([np.nan] * len(df), index=df.index)),
+        ),
+    )
+    pct_52w = pd.to_numeric(pct_52w_raw, errors="coerce")
+
+    horizons = []
+    for idx in df.index:
+        track = signal_tracks.loc[idx] if idx in signal_tracks.index else None
+        if pd.isna(track):
+            track = None
+        val = pct_52w.loc[idx] if idx in pct_52w.index else None
+        row = {"52W": None if val is None or pd.isna(val) else float(val)}
+        horizons.append(suggested_signal_horizon(track, row))
+
+    return pd.Series(horizons, index=df.index, dtype="int64")
 
 
 def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
@@ -2028,6 +2077,10 @@ def calculate_action(df: pd.DataFrame) -> pd.DataFrame:
                 f"{(signal_tracks == 'value').sum()} value-only, "
                 f"{(signal_tracks == 'value+momentum').sum()} dual"
             )
+            # SIGNAL_HORIZON: independent per-signal holding horizon (7/30/45/90).
+            # Emitted alongside SIGNAL_TRACK and populated for every row (blank
+            # tracks fall back to the default bucket — never left blank).
+            working_df["SIGNAL_HORIZON"] = compute_signal_horizons(working_df, signal_tracks)
 
         logger.debug(f"Calculated actions for {len(working_df)} rows using vectorized operations")
         return working_df

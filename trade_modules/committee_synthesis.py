@@ -123,6 +123,7 @@ import json
 import logging
 import math
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -162,19 +163,21 @@ ACTIVE_MODIFIERS = {
     "sector_concentration",  # SURVIVES BH  rho=-0.321  n=202  p<0.001
 }
 
-# CIO audit: horizon-aware holding period by signal track
-_SIGNAL_TRACK_HORIZONS = {
-    "momentum": 30,
-    "value": 60,
-    "value+momentum": 45,
-}
+# CIO audit: horizon-aware holding period.
+# Delegates to the single source of truth in conviction_sizer
+# (suggested_signal_horizon) — canonical buckets 7/30/45/90. Horizon is an
+# INDEPENDENT per-signal dimension; pass the signal row so the momentum
+# fast/standard split (52W >= 90 -> 7d) can be applied.
 
 
-def _suggested_holding_horizon(signal_track: str | None) -> int:
-    """Map signal track to recommended holding period in trading days."""
-    if signal_track:
-        return _SIGNAL_TRACK_HORIZONS.get(signal_track, 30)
-    return 30
+def _suggested_holding_horizon(
+    signal_track: str | None,
+    row: "Mapping[str, Any] | None" = None,
+) -> int:
+    """Suggested holding horizon (trading days) — see suggested_signal_horizon."""
+    from trade_modules.conviction_sizer import suggested_signal_horizon
+
+    return suggested_signal_horizon(signal_track, row)
 
 
 # Historical record of deprecated modifiers.
@@ -3922,11 +3925,30 @@ def synthesize_stock(
         "debate_kill_theses": (debate_data or {}).get("kill_theses_from_debate", []),
         # Dual-track signal system (v45.0)
         "signal_track": sig_data.get("SIGNAL_TRACK", sig_data.get("signal_track")),
-        # CIO audit: horizon-aware holding period recommendation
-        "suggested_horizon_days": _suggested_holding_horizon(
-            sig_data.get("SIGNAL_TRACK", sig_data.get("signal_track"))
-        ),
+        # CIO audit: horizon-aware holding period recommendation.
+        # Prefer the per-signal SIGNAL_HORIZON emitted by the signal engine;
+        # fall back to the track-based heuristic (passing the row for the
+        # momentum fast/standard split) only when the signal lacks it.
+        "suggested_horizon_days": _resolve_horizon_days(sig_data),
     }
+
+
+def _resolve_horizon_days(sig_data: "Mapping[str, Any]") -> int:
+    """Resolve suggested holding horizon for a signal row.
+
+    Uses the per-signal SIGNAL_HORIZON column when present (independent
+    horizon dimension), otherwise derives it from the track via the SSOT.
+    """
+    raw = sig_data.get("SIGNAL_HORIZON", sig_data.get("suggested_horizon_days"))
+    if raw is not None:
+        try:
+            horizon = int(raw)
+            if horizon > 0:
+                return horizon
+        except (TypeError, ValueError):
+            pass
+    track = sig_data.get("SIGNAL_TRACK", sig_data.get("signal_track"))
+    return _suggested_holding_horizon(track, sig_data)
 
 
 # Action priority for sorting (5 canonical actions only)

@@ -927,7 +927,7 @@ class TestSuggestedHoldingHorizon:
         "track,expected",
         [
             ("momentum", 30),
-            ("value", 60),
+            ("value", 90),
             ("value+momentum", 45),
             (None, 30),
             ("unknown_track", 30),

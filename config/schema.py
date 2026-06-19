@@ -626,15 +626,23 @@ class DualTrackConfig(BaseModel):
 
 
 class ConvictionDecayHorizons(BaseModel):
-    """Signal track → suggested holding horizon (trading days)."""
+    """Canonical suggested-holding-horizon buckets (trading days).
+
+    Horizon is an INDEPENDENT per-signal dimension (see
+    trade_modules.conviction_sizer.suggested_signal_horizon). Canonical
+    buckets are 7 / 30 / 45 / 90: momentum splits into fast (breakout
+    pressing the 52w high) and standard; value+momentum is blended; value
+    is the slow fundamental horizon.
+    """
 
     model_config = ConfigDict(frozen=True)
 
-    momentum: int = Field(default=30, ge=1, description="Momentum track horizon (days)")
-    value: int = Field(default=60, ge=1, description="Value track horizon (days)")
-    value_momentum: int = Field(
-        default=45, ge=1, description="Blended value+momentum horizon (days)"
+    fast_momentum: int = Field(
+        default=7, ge=1, description="Fast momentum (breakout) horizon (days)"
     )
+    standard: int = Field(default=30, ge=1, description="Standard momentum horizon (days)")
+    blended: int = Field(default=45, ge=1, description="Blended value+momentum horizon (days)")
+    value: int = Field(default=90, ge=1, description="Deep value horizon (days)")
     default: int = Field(default=30, ge=1, description="Fallback horizon (days)")
 
 

@@ -120,6 +120,9 @@ def log_committee_actions(
         "fcf_classification",
         "debt_risk",
         "debate_signal",
+        # Dual-track signal system: track + independent holding horizon.
+        "signal_track",
+        "suggested_horizon_days",
     )
 
     for action in actions:
@@ -190,6 +193,9 @@ def log_committee_actions(
             "debt_risk": action.get("debt_risk"),
             # CIO v25.0: Conviction waterfall for calibration
             "conviction_waterfall": action.get("conviction_waterfall"),
+            # Dual-track signal system: track + independent per-signal horizon.
+            "signal_track": action.get("signal_track"),
+            "suggested_horizon_days": action.get("suggested_horizon_days"),
         }
 
         with open(path, "a") as f:

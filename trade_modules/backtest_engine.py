@@ -73,10 +73,16 @@ def _region_for_ticker(ticker: str) -> str:
 
 
 def _suggested_holding_horizon(track: str | None) -> int:
-    """Map a signal track to a recommended holding period in days."""
+    """Track-based fallback holding period in days (7/30/45/90 system).
+
+    Used only when a backtested signal pre-dates per-signal SIGNAL_HORIZON
+    logging. Cannot do the fast-momentum (7d) split here — no 52W row context
+    — so momentum falls back to the standard 30d bucket. Prefer the logged
+    per-signal ``suggested_horizon_days`` over this (see call site).
+    """
     horizons = {
         "momentum": 30,
-        "value": 60,
+        "value": 90,
         "value+momentum": 45,
     }
     return horizons.get(track or "", 30)
@@ -619,7 +625,8 @@ class BacktestEngine:
                     "regional_benchmark": regional_benchmark,
                     "regional_benchmark_return": regional_benchmark_return,
                     "regional_alpha": regional_alpha,
-                    "suggested_horizon_days": _suggested_holding_horizon(row.get("track")),
+                    "suggested_horizon_days": row.get("suggested_horizon_days")
+                    or _suggested_holding_horizon(row.get("track")),
                 }
             )
 

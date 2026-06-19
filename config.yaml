@@ -801,11 +801,19 @@ conviction_decay:
   floor: 0.70             # was 0.85 — allows more aggressive conviction fade
   start_fraction: 0.50    # decay starts at 50% of suggested horizon
   min_start_days: 7       # never start decay before 7 days
-  # Signal track → suggested horizon (trading days)
+  # Canonical suggested-holding-horizon buckets (trading days).
+  # Horizon is an INDEPENDENT per-signal dimension — see
+  # trade_modules.conviction_sizer.suggested_signal_horizon (SSOT).
+  #   fast_momentum: momentum breakout pressing the 52w high (52W >= 90)
+  #   standard:      standard momentum
+  #   blended:       value+momentum
+  #   value:         deep value (slow fundamental thesis)
+  #   default:       unknown/blank track fallback
   horizons:
-    momentum: 30
-    value: 60
-    value_momentum: 45
+    fast_momentum: 7
+    standard: 30
+    blended: 45
+    value: 90
     default: 30
 
 dual_track:

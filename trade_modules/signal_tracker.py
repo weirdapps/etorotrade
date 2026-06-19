@@ -98,6 +98,9 @@ class SignalRecord:
         roe: float | None = None,
         debt_equity: float | None = None,
         pct_52w_high: float | None = None,
+        # Dual-track signal system: track + independent holding horizon (days)
+        signal_track: str | None = None,
+        suggested_horizon_days: int | None = None,
         # Momentum factor (Jegadeesh-Titman 12-1m skip-month)
         momentum_12_1m: float | None = None,
         # Benchmark tracking
@@ -130,6 +133,9 @@ class SignalRecord:
         self.roe = roe
         self.debt_equity = debt_equity
         self.pct_52w_high = pct_52w_high
+        # Dual-track signal system
+        self.signal_track = signal_track
+        self.suggested_horizon_days = suggested_horizon_days
         # Momentum factor
         self.momentum_12_1m = momentum_12_1m
         # Benchmark
@@ -164,6 +170,9 @@ class SignalRecord:
             "roe": self.roe,
             "debt_equity": self.debt_equity,
             "pct_52w_high": self.pct_52w_high,
+            # Dual-track signal system
+            "signal_track": self.signal_track,
+            "suggested_horizon_days": self.suggested_horizon_days,
             # Momentum factor
             "momentum_12_1m": self.momentum_12_1m,
             # Benchmark
@@ -200,6 +209,9 @@ class SignalRecord:
             roe=data.get("roe"),
             debt_equity=data.get("debt_equity"),
             pct_52w_high=data.get("pct_52w_high"),
+            # Dual-track signal system
+            signal_track=data.get("signal_track"),
+            suggested_horizon_days=data.get("suggested_horizon_days"),
             # Momentum factor
             momentum_12_1m=data.get("momentum_12_1m"),
             # Benchmark
@@ -445,6 +457,8 @@ def log_signal(
     roe: float | None = None,
     debt_equity: float | None = None,
     pct_52w_high: float | None = None,
+    signal_track: str | None = None,
+    suggested_horizon_days: int | None = None,
     sell_triggers: list[str] | None = None,
     **kwargs,
 ) -> bool:
@@ -470,6 +484,8 @@ def log_signal(
         roe: Return on Equity percentage
         debt_equity: Debt to Equity ratio percentage
         pct_52w_high: Percentage of 52-week high
+        signal_track: Dual-track label (value / momentum / value+momentum)
+        suggested_horizon_days: Independent per-signal holding horizon (7/30/45/90)
         sell_triggers: List of sell conditions triggered (for SELL signals)
         **kwargs: Additional metadata
 
@@ -541,6 +557,9 @@ def log_signal(
         roe=roe,
         debt_equity=debt_equity,
         pct_52w_high=pct_52w_high,
+        # Dual-track signal system
+        signal_track=signal_track,
+        suggested_horizon_days=suggested_horizon_days,
         # Momentum factor
         momentum_12_1m=momentum_12_1m,
         # Benchmark
