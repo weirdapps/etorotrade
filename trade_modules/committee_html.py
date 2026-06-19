@@ -1805,6 +1805,42 @@ def generate_report_html(
         bull_str = _bull_case(en)
         bear_str = _bear_case(en)
 
+        # Signal track + horizon badge
+        _st = en.get("signal_track") or ""
+        _hz = en.get("suggested_horizon_days") or 0
+        _hs = en.get("horizon_status") or ""
+        _track_cfg = {
+            "value": ("#2563eb", "Value"),
+            "momentum": ("#7c3aed", "Momentum"),
+            "value+momentum": ("#059669", "V+M"),
+        }
+        _horizon_line = ""
+        if _st not in ("", "--", None) or _hz > 0:
+            _parts = []
+            _tc, _tl = _track_cfg.get(_st, ("#94a3b8", ""))
+            if _tl:
+                _parts.append(
+                    f'<span style="background:{_tc};color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;">{_tl}</span>'
+                )
+            if _hz > 0:
+                _parts.append(
+                    f'<span style="font-size:11px;font-weight:600;color:{_C["text_mid"]};">Horizon: {_hz}d</span>'
+                )
+            if _hs and _hs not in ("NEW", ""):
+                _hsc = {
+                    "EARLY": _C["bull"],
+                    "WITHIN": _C["warn"],
+                    "EXTENDED": _C["warn"],
+                    "OVERSTAYED": _C["bear"],
+                }.get(_hs, _C["text_muted"])
+                _parts.append(
+                    f'<span style="font-size:10px;color:{_hsc};font-weight:600;">{_hs}</span>'
+                )
+            if _parts:
+                _horizon_line = (
+                    f'<div style="margin:6px 0 2px 0;">{" &middot; ".join(_parts)}</div>'
+                )
+
         inner = (
             f"{extra_tags_pre}"
             f'<table style="width:100%;"><tr><td>'
@@ -1816,6 +1852,7 @@ def generate_report_html(
             f"{' | CE ' + f'{ce:.1f}' if ce and act in ('BUY', 'ADD') else ''}"
             f"{extra_tags}</span></td>"
             f'<td style="text-align:right;">{conv_display(conv)}</td></tr></table>'
+            f"{_horizon_line}"
             # Suggested trade size (always shown)
             f'<div style="font-size:12px;color:{_C["text_dark"]};margin-top:8px;'
             f'padding:6px 10px;background:{_C["bg_alt"]};border-left:3px solid {action_color(act)};">'
@@ -5805,8 +5842,9 @@ def generate_report_html_v2(
             f'<tr><th style="{_th_i}text-align:left;">Stock</th>'
             f'<th style="{_th_i}text-align:center;">Action</th>'
             f'<th style="{_th_i}text-align:center;">Conv</th>'
+            f'<th style="{_th_i}text-align:center;">Track</th>'
+            f'<th style="{_th_i}text-align:center;">Horizon</th>'
             f'<th style="{_th_i}text-align:center;">Consensus</th>'
-            f'<th style="{_th_i}text-align:center;">3M Change</th>'
             f'<th style="{_th_i}text-align:center;">EXRET</th>'
             f'<th style="{_th_i}text-align:center;">PE</th>'
             f'<th style="{_th_i}text-align:left;">Size</th></tr>'
@@ -5847,14 +5885,31 @@ def generate_report_html_v2(
                 _pe_str = f"{_tpef:.0f}x"
             else:
                 _pe_str = "--"
+            # Track badge and horizon for action items table
+            _st = en.get("signal_track", "")
+            _track_cfg = {
+                "value": ("#2563eb", "V"),
+                "momentum": ("#7c3aed", "M"),
+                "value+momentum": ("#059669", "V+M"),
+            }
+            _tc, _tl = _track_cfg.get(_st, ("#94a3b8", "--"))
+            _track_html = (
+                f'<span style="background:{_tc};color:white;padding:1px 5px;border-radius:8px;font-size:9px;font-weight:700;">{_tl}</span>'
+                if _st
+                else "--"
+            )
+            _hz = en.get("suggested_horizon_days", 0)
+            _hz_html = f"{_hz}d" if _hz > 0 else "--"
+
             h.append(
                 f'<tr><td style="{_td_i}text-align:left;">{_tn_cell(tkr, _names)}</td>'
                 f'<td style="{_td_i}text-align:center;">'
                 f'<span style="display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;'
                 f'color:#fff;background:{ac};">{act}</span></td>'
                 f'<td style="{_td_i}text-align:center;">{conv_display(conv, delta)}</td>'
+                f'<td style="{_td_i}text-align:center;">{_track_html}</td>'
+                f'<td style="{_td_i}text-align:center;font-size:11px;font-weight:600;">{_hz_html}</td>'
                 f'<td style="{_td_i}text-align:center;font-size:11px;color:{_bpc};">{_cons}</td>'
-                f'<td style="{_td_i}text-align:center;font-size:11px;color:{_dbc};">{_dc_str}</td>'
                 f'<td style="{_td_i}text-align:center;{_MONO}font-weight:700;color:{exc};">{ex:.0f}%</td>'
                 f'<td style="{_td_i}text-align:center;font-size:11px;">{_pe_str}</td>'
                 f'<td style="{_td_i}text-align:left;font-size:11px;color:{_TX2};">{_size_text(en)}</td></tr>'
@@ -5957,13 +6012,25 @@ def generate_report_html_v2(
             # Conviction label
             conv_label = "Strong" if conv >= 70 else "Moderate" if conv >= 50 else "Low"
 
-            # Holding period
-            primary_driver = (
-                "fundamental"
-                if fv in ("BUY", "SELL") and not en.get("fund_synthetic")
-                else "technical"
-            )
-            horizon = "6-12 months" if primary_driver == "fundamental" else "1-3 months"
+            # Holding period — use audit horizon data when available
+            _horizon_days = en.get("suggested_horizon_days", 0)
+            _sig_track = en.get("signal_track", "")
+            if _horizon_days > 0:
+                horizon = f"{_horizon_days}d"
+                if _sig_track:
+                    _track_labels = {
+                        "value": "Value",
+                        "momentum": "Momentum",
+                        "value+momentum": "V+M",
+                    }
+                    horizon += f" ({_track_labels.get(_sig_track, _sig_track)})"
+            else:
+                primary_driver = (
+                    "fundamental"
+                    if fv in ("BUY", "SELL") and not en.get("fund_synthetic")
+                    else "technical"
+                )
+                horizon = "6-12 months" if primary_driver == "fundamental" else "1-3 months"
 
             # Kill thesis
             kill = en.get("kill_thesis") or _stock_kill_thesis(
@@ -6002,6 +6069,35 @@ def generate_report_html_v2(
             h.append("</td></tr></table>")
             # Start padded content area
             h.append('<div style="padding:4px 24px 20px 24px;">')
+
+            # Signal model + horizon badge (always visible)
+            _st = en.get("signal_track") or ""
+            _hz = en.get("suggested_horizon_days") or 0
+            _hs = en.get("horizon_status") or ""
+            if _st not in ("", "--", None) or _hz > 0:
+                _track_cfg = {
+                    "value": ("#2563eb", "Value"),
+                    "momentum": ("#7c3aed", "Momentum"),
+                    "value+momentum": ("#059669", "Value+Momentum"),
+                }
+                _tc, _tl = _track_cfg.get(_st, ("#94a3b8", ""))
+                _parts = []
+                if _tl:
+                    _parts.append(
+                        f'<span style="background:{_tc};color:white;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;">{_tl}</span>'
+                    )
+                if _hz > 0:
+                    _parts.append(
+                        f'<span style="font-size:11px;font-weight:600;color:{_TX2};">Horizon: {_hz}d</span>'
+                    )
+                if _hs and _hs != "NEW":
+                    _hsc = {"EARLY": _GN, "WITHIN": _AM, "EXTENDED": _AM, "OVERSTAYED": _RD}.get(
+                        _hs, _TX2
+                    )
+                    _parts.append(
+                        f'<span style="font-size:10px;color:{_hsc};font-weight:600;">{_hs}</span>'
+                    )
+                h.append(f'<div style="margin:8px 0 4px 0;">{" &middot; ".join(_parts)}</div>')
 
             # Price/target/stop/R:R metrics bar
             if price > 0:

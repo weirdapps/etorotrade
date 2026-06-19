@@ -408,12 +408,20 @@ class CommitteeBacktester:
         benchmark: str,
     ) -> dict[str, dict[str, float | None]]:
         """
-        Compute forward returns using legacy price_fetcher (calendar-day offsets).
+        Compute forward returns using legacy price_fetcher.
 
-        This is the original implementation kept for backward compatibility.
-        Note: uses timedelta(days=h) which counts calendar days, not trading days.
-        Prefer _compute_returns_with_service() for accurate results.
+        CIO audit fix: horizons are now converted from trading days to
+        approximate calendar days (h * 7/5) to account for weekends.
+        Previously used timedelta(days=h) which underestimated the actual
+        holding period (T+30 calendar ≈ T+21 trading days).
         """
+        import warnings
+
+        warnings.warn(
+            "Legacy price_fetcher path — prefer PriceService for trading-day-accurate returns",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         results: dict[str, dict[str, float | None]] = {}
 
         # Cache benchmark prices per (date, horizon) to avoid redundant fetches
@@ -446,7 +454,9 @@ class CommitteeBacktester:
 
                 returns = {}
                 for h in horizons:
-                    target_date = (base_date + timedelta(days=h)).strftime("%Y-%m-%d")
+                    # Convert trading days to calendar days (5 trading ≈ 7 calendar)
+                    calendar_days = int(h * 7 / 5) + 1
+                    target_date = (base_date + timedelta(days=calendar_days)).strftime("%Y-%m-%d")
                     target_price = price_fetcher(ticker, target_date)
                     if target_price is not None and target_price > 0:
                         ret = (target_price - base_price) / base_price * 100

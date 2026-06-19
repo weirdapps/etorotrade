@@ -375,7 +375,7 @@ def bootstrap_spearman_ci(
 def walk_forward_splits(
     observations: list[dict[str, Any]],
     n_folds: int = 4,
-    sort_key: str = "value",
+    sort_key: str = "date",
 ):
     """Yield (train, test) tuples for walk-forward validation.
 
@@ -384,13 +384,17 @@ def walk_forward_splits(
     chunk 0 as train so it's skipped — yields n_folds - 1 splits.
 
     No leakage: test samples come strictly AFTER train samples by sort_key.
+
+    CIO audit fix: default sort_key changed from "value" to "date" to ensure
+    temporal out-of-sample protection. Sorting by value magnitude does not
+    prevent future data from leaking into training folds.
     """
     n = len(observations)
     if n < n_folds * 2:
         return
     sorted_obs = sorted(
         observations,
-        key=lambda o: o.get(sort_key) if o.get(sort_key) is not None else 0,
+        key=lambda o: o.get(sort_key) if o.get(sort_key) is not None else "",
     )
     fold_size = n // n_folds
     for k in range(n_folds - 1):

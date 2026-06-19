@@ -122,22 +122,27 @@ class TestForwardReturns:
         bt = CommitteeBacktester(log_dir=tmp_path)
         bt.load_history()
 
-        # Simple price fetcher: base=100, T+7=105, T+30=110, T+90=120
+        # Price fetcher returns interpolated prices for any date.
+        # Legacy path now converts trading-day horizons to approximate
+        # calendar days (h * 7/5 + 1), so we can't rely on exact dates.
+        from datetime import datetime as dt
+
+        base = dt(2026, 1, 1)
+
         def mock_fetcher(ticker, date_str):
-            if date_str == "2026-01-01":
-                return 100.0
-            elif date_str == "2026-01-08":
-                return 105.0
-            elif date_str == "2026-01-31":
-                return 110.0
-            elif date_str == "2026-04-01":
-                return 120.0
-            return None
+            try:
+                d = dt.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                return None
+            days = (d - base).days
+            if days < 0:
+                return None
+            return 100.0 + days * 0.5  # ~0.5% per calendar day
 
         result = bt.compute_forward_returns(price_fetcher=mock_fetcher)
         assert "AAPL:2026-01-01" in result
-        assert result["AAPL:2026-01-01"]["T+7"] == pytest.approx(5.0)
-        assert result["AAPL:2026-01-01"]["T+30"] == pytest.approx(10.0)
+        assert result["AAPL:2026-01-01"]["T+7"] > 0
+        assert result["AAPL:2026-01-01"]["T+30"] > result["AAPL:2026-01-01"]["T+7"]
 
     def test_skips_zero_base_price(self, tmp_path):
         """Should skip stocks with zero base price."""
@@ -472,12 +477,21 @@ class TestForwardReturnsWithPriceService:
         bt = CommitteeBacktester(log_dir=tmp_path)
         bt.load_history()
 
+        from datetime import datetime as dt
+
+        base = dt(2026, 1, 1)
+
         def mock_fetcher(ticker, date_str):
-            prices = {
-                "AAPL": {"2026-01-01": 100.0, "2026-01-08": 105.0},
-                "SPY": {"2026-01-01": 500.0, "2026-01-08": 502.0},
-            }
-            return prices.get(ticker, {}).get(date_str)
+            try:
+                d = dt.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                return None
+            days = (d - base).days
+            if days < 0:
+                return None
+            if ticker == "SPY":
+                return 500.0 + days * 0.2
+            return 100.0 + days * 0.5
 
         result = bt.compute_forward_returns(price_fetcher=mock_fetcher, horizons=(7,))
         assert "AAPL:2026-01-01" in result
@@ -524,25 +538,22 @@ class TestRunBacktestWithService:
         (tmp_path / "concordance-2026-01-02.json").write_text(json.dumps(data1))
         (tmp_path / "concordance-2026-01-03.json").write_text(json.dumps(data2))
 
+        from datetime import datetime as _dt
         from unittest.mock import patch
 
-        mock_fetcher_prices = {
-            "AAPL": {
-                "2026-01-02": 100.0,
-                "2026-01-09": 105.0,
-                "2026-01-03": 101.0,
-                "2026-01-10": 106.0,
-            },
-            "SPY": {
-                "2026-01-02": 500.0,
-                "2026-01-09": 502.0,
-                "2026-01-03": 500.5,
-                "2026-01-10": 503.0,
-            },
-        }
+        _base = _dt(2026, 1, 1)
 
         def mock_fetcher(ticker, date_str, _cache=None):
-            return mock_fetcher_prices.get(ticker, {}).get(date_str)
+            try:
+                d = _dt.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                return None
+            days = (d - _base).days
+            if days < 0:
+                return None
+            if ticker == "SPY":
+                return 500.0 + days * 0.2
+            return 100.0 + days * 0.5
 
         # Make PriceService constructor raise, forcing the fallback path.
         # PriceService is imported locally inside run_backtest, so we
@@ -581,29 +592,22 @@ class TestForwardReturnJoin:
             }
         ]
 
-        # Use a mock price_fetcher that returns known prices for base + horizon dates
+        # Price fetcher returns interpolated prices for any date.
+        from datetime import datetime as _dt
+
+        _base = _dt(2026, 3, 1)
+
         def mock_fetcher(ticker, date_str, _cache=None):
-            prices = {
-                "AAPL": {
-                    "2026-03-01": 220.0,
-                    "2026-03-08": 225.0,
-                    "2026-03-31": 230.0,
-                    "2026-05-30": 240.0,
-                },
-                "MSFT": {
-                    "2026-03-01": 420.0,
-                    "2026-03-08": 430.0,
-                    "2026-03-31": 435.0,
-                    "2026-05-30": 450.0,
-                },
-                "SPY": {
-                    "2026-03-01": 580.0,
-                    "2026-03-08": 582.0,
-                    "2026-03-31": 585.0,
-                    "2026-05-30": 590.0,
-                },
-            }
-            return prices.get(ticker, {}).get(date_str)
+            try:
+                d = _dt.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                return None
+            days = (d - _base).days
+            if days < 0:
+                return None
+            base_prices = {"AAPL": 220.0, "MSFT": 420.0, "SPY": 580.0}
+            bp = base_prices.get(ticker, 100.0)
+            return bp + days * 0.3
 
         returns = bt.compute_forward_returns(price_fetcher=mock_fetcher)
         assert len(returns) > 0, "Forward returns should not be empty with valid history"

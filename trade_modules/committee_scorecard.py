@@ -1530,12 +1530,14 @@ def calibrate_modifiers(
     if not tickers:
         return {"sufficient_data": False, "total_actions": 0}
 
-    # Ensure SPY is fetched alongside stock prices
-    held_tickers = list(set(tickers + ["SPY"]))
+    # Fetch prices for all tickers + benchmarks (SPY + regional)
+    from trade_modules.backtest_engine import _region_for_ticker
+    from trade_modules.price_service import REGION_BENCHMARKS, _apply_data_fetch_substitutions
+
+    all_benchmarks = list(set(REGION_BENCHMARKS.values()))
+    held_tickers = list(set(tickers + ["SPY"] + all_benchmarks))
     # Translate held-side tickers (e.g. LYXGRE.DE → GRE.PA) before download,
     # then key the prices dict by the held-side symbol so action lookups match.
-    from trade_modules.price_service import _apply_data_fetch_substitutions
-
     fetch_tickers, reverse_map = _apply_data_fetch_substitutions(held_tickers)
 
     scored = []
@@ -1560,6 +1562,11 @@ def calibrate_modifiers(
 
     spy_series = prices.get("SPY")
 
+    # Fixed T+30 evaluation horizon (21 trading days) — CIO audit fix.
+    # Previous code used .iloc[-1] (variable window: older signals got longer
+    # evaluation periods, systematically biasing modifier attribution).
+    t30_trading_days = 21
+
     for a in actions:
         t = a.get("ticker")
         rec_price = a.get("price_at_recommendation")
@@ -1569,21 +1576,52 @@ def calibrate_modifiers(
             continue
 
         rec_price = float(rec_price)
-        curr = float(t_series.iloc[-1])
+
+        # Use fixed T+30 (21 trading days) from committee_date, not .iloc[-1]
+        if committee_date:
+            forward_dates = t_series.index[t_series.index >= committee_date]
+            if len(forward_dates) <= t30_trading_days:
+                continue  # Not enough forward data for T+30 evaluation
+            curr = float(t_series.loc[forward_dates[t30_trading_days]])
+        else:
+            curr = float(t_series.iloc[-1])  # Legacy fallback only
         ret = (curr - rec_price) / rec_price * 100
 
-        # Compute alpha: stock return minus SPY return over same period
-        alpha = ret  # Fallback to absolute return if SPY unavailable
+        # SPY alpha (for reporting)
+        spy_alpha = ret
         if spy_series is not None and committee_date:
             spy_from_date = spy_series[spy_series.index >= committee_date]
-            if len(spy_from_date) >= 2:
+            if len(spy_from_date) > t30_trading_days:
                 spy_base = float(spy_from_date.iloc[0])
-                spy_curr = float(spy_series.iloc[-1])
+                spy_at_t30 = float(spy_from_date.iloc[t30_trading_days])
                 if spy_base > 0:
-                    spy_ret = (spy_curr - spy_base) / spy_base * 100
-                    alpha = ret - spy_ret
+                    spy_ret = (spy_at_t30 - spy_base) / spy_base * 100
+                    spy_alpha = ret - spy_ret
 
-        scored.append({**a, "return_pct": round(ret, 2), "alpha_pct": round(alpha, 2)})
+        # Local alpha (for scoring) — uses regional benchmark
+        local_alpha = spy_alpha  # Fallback to SPY alpha
+        region = _region_for_ticker(t)
+        regional_bm = REGION_BENCHMARKS.get(region, "SPY")
+        if regional_bm != "SPY":
+            bm_series = prices.get(regional_bm)
+            if bm_series is not None and committee_date:
+                bm_from_date = bm_series[bm_series.index >= committee_date]
+                if len(bm_from_date) > t30_trading_days:
+                    bm_base = float(bm_from_date.iloc[0])
+                    bm_at_t30 = float(bm_from_date.iloc[t30_trading_days])
+                    if bm_base > 0:
+                        bm_ret = (bm_at_t30 - bm_base) / bm_base * 100
+                        local_alpha = ret - bm_ret
+
+        scored.append(
+            {
+                **a,
+                "return_pct": round(ret, 2),
+                "alpha_pct": round(local_alpha, 2),  # Local alpha for scoring
+                "spy_alpha_pct": round(spy_alpha, 2),  # SPY alpha for reporting
+                "regional_benchmark": regional_bm,
+            }
+        )
 
     if len(scored) < min_observations:
         return {

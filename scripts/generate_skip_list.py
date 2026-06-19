@@ -29,7 +29,9 @@ _DEFAULT_SKIP_FILE = str(_ROOT / "yahoofinance" / "input" / "yfinance_skip.csv")
 _DEFAULT_MIN_ANALYSTS = 3
 
 
-def _read_symbols(path: str, columns: tuple[str, ...] = ("symbol", "Symbol", "SYMBOL", "TKR", "ticker", "Ticker")) -> set[str]:
+def _read_symbols(
+    path: str, columns: tuple[str, ...] = ("symbol", "Symbol", "SYMBOL", "TKR", "ticker", "Ticker")
+) -> set[str]:
     """Read ticker symbols from a CSV, trying multiple column names."""
     if not os.path.exists(path):
         return set()
@@ -99,7 +101,12 @@ def generate_skip_list(
     portfolio_symbols = _read_symbols(portfolio_csv)
     analyst_counts = _read_output_analyst_counts(output_csv)
 
-    logger.info("Input: %d, Output: %d, Portfolio: %d", len(input_symbols), len(output_symbols), len(portfolio_symbols))
+    logger.info(
+        "Input: %d, Output: %d, Portfolio: %d",
+        len(input_symbols),
+        len(output_symbols),
+        len(portfolio_symbols),
+    )
 
     # Criterion 1: yfinance failures (in input but not in output)
     yfinance_failures = input_symbols - output_symbols
@@ -115,7 +122,11 @@ def generate_skip_list(
 
     # Combine and exclude portfolio
     skip_set = (yfinance_failures | low_analyst) - portfolio_symbols
-    logger.info("Combined skip list: %d (after excluding %d portfolio tickers)", len(skip_set), len(portfolio_symbols))
+    logger.info(
+        "Combined skip list: %d (after excluding %d portfolio tickers)",
+        len(skip_set),
+        len(portfolio_symbols),
+    )
 
     # Write
     with open(skip_file, "w", newline="") as f:
@@ -139,8 +150,12 @@ def generate_skip_list(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate yfinance skip list")
-    parser.add_argument("--min-analysts", type=int, default=_DEFAULT_MIN_ANALYSTS,
-                        help=f"Min analyst count threshold (default: {_DEFAULT_MIN_ANALYSTS})")
+    parser.add_argument(
+        "--min-analysts",
+        type=int,
+        default=_DEFAULT_MIN_ANALYSTS,
+        help=f"Min analyst count threshold (default: {_DEFAULT_MIN_ANALYSTS})",
+    )
     parser.add_argument("--input", default=_DEFAULT_INPUT)
     parser.add_argument("--output", default=_DEFAULT_OUTPUT)
     parser.add_argument("--portfolio", default=_DEFAULT_PORTFOLIO)
@@ -155,13 +170,15 @@ if __name__ == "__main__":
         min_analysts=args.min_analysts,
     )
 
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Input universe:      {result['input_count']:,}")
     print(f"  Output (had data):   {result['output_count']:,}")
     print(f"  yfinance failures:   {result['yfinance_failures']:,}")
     print(f"  Low analyst (<{args.min_analysts}):    {result['low_analyst']:,}")
     print(f"  Portfolio excluded:  {result['portfolio_excluded']:,}")
     print(f"  Skip list total:     {result['skip_total']:,}")
-    print(f"  Daily scan estimate: {result['daily_scan_estimate']:,} tickers (~{result['daily_scan_estimate'] * 2.4 / 3600:.1f}h)")
+    print(
+        f"  Daily scan estimate: {result['daily_scan_estimate']:,} tickers (~{result['daily_scan_estimate'] * 2.4 / 3600:.1f}h)"
+    )
 
     sys.exit(0)

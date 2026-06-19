@@ -605,6 +605,7 @@ def calculate_conviction_size(
     max_position_pct: float = 5.0,
     portfolio_value: float | None = None,
     cluster_adjustment: float = 1.0,
+    fx_multiplier: float = 1.0,
     sector_adjustment: int = 0,
     sector_rotation_blocked: bool = False,
     freshness_multiplier: float = 1.0,
@@ -638,6 +639,8 @@ def calculate_conviction_size(
         max_position_pct: Maximum position as % of portfolio
         portfolio_value: Total portfolio value (for % constraint)
         cluster_adjustment: Multiplier from get_cluster_size_adjustment() (Task #6)
+        fx_multiplier: FX volatility haircut from fx_vol_multiplier() (CIO audit M8).
+            1.0 = EUR-denominated (no haircut), ~0.928 for USD stocks.
         sector_adjustment: Conviction points from get_sector_rotation_adjustment() (Task #1)
         sector_rotation_blocked: Block flag from sector rotation (Task #1)
         freshness_multiplier: Multiplier from get_freshness_multiplier() (Task #13)
@@ -673,8 +676,11 @@ def calculate_conviction_size(
     # Step 5: Correlation cluster adjustment (Task #6)
     after_cluster = after_regime * cluster_adjustment
 
+    # Step 5.5: FX volatility haircut (CIO audit M8)
+    after_fx = after_cluster * fx_multiplier
+
     # Step 6: Data freshness multiplier (Task #13)
-    after_freshness = after_cluster * freshness_multiplier
+    after_freshness = after_fx * freshness_multiplier
 
     # Step 7: Portfolio VaR scaling (CIO v3 F10)
     after_var = after_freshness * portfolio_var_scaling
@@ -713,6 +719,7 @@ def calculate_conviction_size(
         "conviction_multiplier": conviction_mult,
         "regime_multiplier": regime_mult,
         "cluster_adjustment": cluster_adjustment,
+        "fx_multiplier": fx_multiplier,
         "freshness_multiplier": freshness_multiplier,
         "portfolio_var_scaling": portfolio_var_scaling,
         "original_conviction": conviction_score,
@@ -729,6 +736,7 @@ def calculate_conviction_size(
             conviction_mult,
             regime_mult,
             cluster_adjustment,
+            fx_multiplier,
             freshness_multiplier,
             sector_adjustment,
             skip_due_to_cost,
@@ -742,6 +750,7 @@ def _describe_adjustments(
     conviction_mult: float,
     regime_mult: float,
     cluster_adjustment: float,
+    fx_multiplier: float,
     freshness_multiplier: float,
     sector_adjustment: int,
     skip_due_to_cost: bool,
@@ -772,6 +781,11 @@ def _describe_adjustments(
     if cluster_adjustment < 1.0:
         pct = (1 - cluster_adjustment) * 100
         parts.append(f"cluster -{pct:.0f}%")
+
+    # FX volatility haircut
+    if fx_multiplier < 1.0:
+        pct = (1 - fx_multiplier) * 100
+        parts.append(f"FX vol -{pct:.1f}%")
 
     # Data freshness
     if freshness_multiplier < 1.0:
@@ -998,3 +1012,22 @@ def adjust_sizes_for_opportunity_cost(
             p["opp_cost_adj"] = 0.0
 
     return positions
+
+
+# Signal track → recommended holding horizon (trading days).
+# Used by downstream risk/review tooling; not wired into the sizer cascade.
+SIGNAL_TRACK_HORIZONS = {
+    "momentum": 30,
+    "value": 60,
+    "value+momentum": 45,
+}
+
+
+def suggested_holding_horizon(signal_track: str | None) -> int:
+    """Map signal track to recommended holding period in trading days.
+
+    Returns a default of 30 when the signal track is unknown or absent.
+    """
+    if signal_track:
+        return SIGNAL_TRACK_HORIZONS.get(signal_track, 30)
+    return 30

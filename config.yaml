@@ -792,6 +792,22 @@ trend_continuation:
 # Stock qualifies for BUY via EITHER value track (existing composite) OR
 # momentum track (new, parallel). Academic basis: Ghayur et al. 2018 (FAJ)
 # showed portfolio blending IR 0.89 vs signal blending 0.59 (+51%).
+# CIO audit: horizon-aware conviction decay parameters
+# T+60 backtest showed -6.16% avg alpha — steeper decay prevents holding
+# past the signal's useful life. Decay starts at 50% of suggested horizon.
+conviction_decay:
+  enabled: true
+  base_rate: 0.95         # was 0.98 — steeper per T+60 alpha analysis
+  floor: 0.70             # was 0.85 — allows more aggressive conviction fade
+  start_fraction: 0.50    # decay starts at 50% of suggested horizon
+  min_start_days: 7       # never start decay before 7 days
+  # Signal track → suggested horizon (trading days)
+  horizons:
+    momentum: 30
+    value: 60
+    value_momentum: 45
+    default: 30
+
 dual_track:
   enabled: true
   bear_market_dampener_enabled: true  # Suspend momentum when SPY 2yr < 0

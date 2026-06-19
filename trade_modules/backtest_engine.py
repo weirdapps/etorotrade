@@ -23,6 +23,7 @@ import yaml
 
 from trade_modules.committee_backtester import _round_trip_cost_pct
 from trade_modules.fx_sizing import currency_for_ticker
+from trade_modules.price_service import REGION_BENCHMARKS
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,28 @@ _CCY_TO_EUR_PAIR = {
     "KRW": "EURKRW=X",
     "CNY": "EURCNY=X",
 }
+
+
+def _region_for_ticker(ticker: str) -> str:
+    """Map a ticker suffix to a region key for benchmark selection."""
+    if ticker.endswith(".L"):
+        return "uk"
+    if ticker.endswith(".HK"):
+        return "hk"
+    eu_suffixes = (".DE", ".PA", ".AS", ".MI", ".MC", ".CO", ".ST", ".OL", ".HE", ".BR", ".NV")
+    if any(ticker.endswith(s) for s in eu_suffixes):
+        return "eu"
+    return "us"
+
+
+def _suggested_holding_horizon(track: str | None) -> int:
+    """Map a signal track to a recommended holding period in days."""
+    horizons = {
+        "momentum": 30,
+        "value": 60,
+        "value+momentum": 45,
+    }
+    return horizons.get(track or "", 30)
 
 
 class BacktestEngine:
@@ -95,10 +118,13 @@ class BacktestEngine:
             return
         print(f"Loaded {len(signals_df)} unique signal-date pairs")
 
-        # Step 2: Fetch price data (always include SPY for alpha calculation)
+        # Step 2: Fetch price data (always include SPY + regional benchmarks)
         tickers = signals_df["ticker"].unique().tolist()
         if "SPY" not in tickers:
             tickers.append("SPY")
+        for bm_ticker in REGION_BENCHMARKS.values():
+            if bm_ticker not in tickers:
+                tickers.append(bm_ticker)
         min_date = signals_df["date"].min() - timedelta(days=5)
         max_date = datetime.now().date()
         print(f"Fetching price history for {len(tickers)} tickers...")
@@ -440,6 +466,7 @@ class BacktestEngine:
         Uses index-based offset (trading days) not calendar days.
         """
         results = []
+        unresolvable: list[dict[str, Any]] = []
 
         for _, row in signals_df.iterrows():
             ticker = row["ticker"]
@@ -447,11 +474,35 @@ class BacktestEngine:
 
             # Guard against non-scalar values (e.g. dict from malformed log entries)
             if not isinstance(signal_price, (int, float)):
+                unresolvable.append(
+                    {
+                        "ticker": ticker,
+                        "signal": row.get("signal"),
+                        "date": row.get("date"),
+                        "reason": "no_price_data",
+                    }
+                )
                 continue
             if pd.isna(signal_price) or signal_price <= 0:
+                unresolvable.append(
+                    {
+                        "ticker": ticker,
+                        "signal": row.get("signal"),
+                        "date": row.get("date"),
+                        "reason": "no_price_data",
+                    }
+                )
                 continue
 
             if ticker not in price_data.columns:
+                unresolvable.append(
+                    {
+                        "ticker": ticker,
+                        "signal": row.get("signal"),
+                        "date": row.get("date"),
+                        "reason": "no_price_data",
+                    }
+                )
                 continue
 
             signal_date = pd.Timestamp(row["date"])
@@ -479,6 +530,26 @@ class BacktestEngine:
                     if spy_at_signal > 0:
                         spy_return = (spy_future - spy_at_signal) / spy_at_signal * 100
                         alpha = stock_return - spy_return
+
+            # Regional benchmark alpha
+            region_key = _region_for_ticker(ticker)
+            regional_benchmark = REGION_BENCHMARKS.get(region_key, "SPY")
+            regional_benchmark_return = np.nan
+            regional_alpha = np.nan
+            if regional_benchmark in price_data.columns:
+                rb_prices = price_data[regional_benchmark].dropna()
+                if not rb_prices.empty:
+                    rb_valid = rb_prices.index[rb_prices.index >= signal_date]
+                    if len(rb_valid) > horizon:
+                        rb_at_signal_date = rb_valid[0]
+                        rb_future_date = rb_valid[horizon]
+                        rb_at_signal = float(rb_prices.loc[rb_at_signal_date])
+                        rb_future = float(rb_prices.loc[rb_future_date])
+                        if rb_at_signal > 0:
+                            regional_benchmark_return = (
+                                (rb_future - rb_at_signal) / rb_at_signal * 100
+                            )
+                            regional_alpha = stock_return - regional_benchmark_return
 
             beta = self._trailing_beta(ticker_prices, spy_data, signal_date)
 
@@ -545,10 +616,16 @@ class BacktestEngine:
                     "spy_return_eur": spy_return_eur,
                     "alpha_eur": alpha_eur,
                     "beta_adj_alpha_eur": beta_adj_alpha_eur,
+                    "regional_benchmark": regional_benchmark,
+                    "regional_benchmark_return": regional_benchmark_return,
+                    "regional_alpha": regional_alpha,
+                    "suggested_horizon_days": _suggested_holding_horizon(row.get("track")),
                 }
             )
 
-        return pd.DataFrame(results)
+        result_df = pd.DataFrame(results)
+        result_df.attrs["unresolvable_tickers"] = unresolvable
+        return result_df
 
     def calculate_statistics(self, results_df: pd.DataFrame) -> dict[str, Any]:
         """
