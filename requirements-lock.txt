@@ -2222,6 +2222,6 @@ yarl==1.24.2 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:f9312b3c02d9b3d23840f67952913c9c8721d7f1b7db305289faefa878f364c2 \
     --hash=sha256:f9a1e9b622ca284143aab5d885848686dcd85453bb1ca9abcdb7503e64dc0056 \
     --hash=sha256:fecd17873a096036c1c87ab3486f1aef7f269ada7f23f7f856f93b1cc7744f14
-yfinance==1.4.0 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:6513654be21bd80a4e9e4e24193255fb4b1921618443113826494bf6efcedcb0 \
-    --hash=sha256:6b049c3f28b0d66be54c32d84838ffd60c429277ba378afb0202c4792013c911
+yfinance==1.4.1 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:1e1c506ca81dc15635380e7129813a5b32da80201af9bb404cac5d528ecfddc3 \
+    --hash=sha256:9acecec3036b4aa96d1e3120ff85ca4f6f81d239d968f56b6eb7877f89fea7a3
