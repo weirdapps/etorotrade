@@ -38,7 +38,7 @@ dependencies = [
     "colorama>=0.4.4",
     "python-dateutil>=2.8.0",
     "pytz>=2021.1",
-    "aiohttp>=3.8.0",
+    "aiohttp>=3.14.1",  # GHSA: multiple advisories (req smuggling, parser, etc.) fixed in 3.14.1
     "aiofiles>=25.1.0",
     "selenium>=4.1.0",
     "python-dotenv>=1.2.2",
@@ -79,6 +79,9 @@ dev = [
     "flake8>=3.9.0",
     # Security + quality scanners (in lockfile so CI install gets pinned hashes)
     "safety>=3.7.0",
+    # GHSA: cryptography <48.0.1 vuln, pulled transitively via safety->authlib/joserfc.
+    # Pin the security floor here (dev-only, not in the runtime path) to force the patched build.
+    "cryptography>=48.0.1",
     "bandit>=1.9.4",
     "radon>=6.0.1",
     "autoflake>=2.3.3",
