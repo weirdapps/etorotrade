@@ -96,6 +96,12 @@ def build_portfolio_signals():
                 "analyst_type": row.get("A", "A").strip(),
                 "earnings_surprise_pct": 0,
                 "consecutive_earnings_beats": 0,
+                # Dual-track signal system: track + independent holding horizon.
+                # SIGNAL_HORIZON (7/30/45/90) is the per-signal horizon emitted
+                # by the signal engine; synthesis prefers it over the track-based
+                # heuristic. Keys kept uppercase to match the synthesis reader.
+                "SIGNAL_TRACK": (row.get("SIGNAL_TRACK") or "").strip() or None,
+                "SIGNAL_HORIZON": (row.get("SIGNAL_HORIZON") or "").strip() or None,
             }
             # sector inferred elsewhere — pulled from fundamentals stocks if
             # available; otherwise default

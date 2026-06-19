@@ -26,6 +26,7 @@ CIO Review Findings:
 
 import logging
 import math
+from collections.abc import Mapping
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -1014,20 +1015,102 @@ def adjust_sizes_for_opportunity_cost(
     return positions
 
 
-# Signal track → recommended holding horizon (trading days).
-# Used by downstream risk/review tooling; not wired into the sizer cascade.
-SIGNAL_TRACK_HORIZONS = {
-    "momentum": 30,
-    "value": 60,
-    "value+momentum": 45,
-}
+# =====================================================================
+# SIGNAL HORIZON — single source of truth (independent of SIGNAL_TRACK)
+# =====================================================================
+# Horizon is an INDEPENDENT per-signal dimension, NOT a pure function of the
+# track label. Canonical buckets are 7 / 30 / 45 / 90 trading days.
+#
+# Assignment heuristic (see suggested_signal_horizon):
+#   value          -> 90d  (deep value; fundamental theses are slow to play out)
+#   value+momentum -> 45d  (blended)
+#   momentum       ->  7d if FAST (breakout pressing the 52w high), else 30d
+#   unknown/blank  -> 30d  (default)
+#
+# This is consumed by conviction decay, committee synthesis, the signal log,
+# and the HTML report. config.yaml `conviction_decay.horizons` and
+# config/schema.py `ConvictionDecayHorizons` mirror these same buckets so
+# config and code agree.
+
+# Canonical horizon buckets (trading days).
+HORIZON_FAST_MOMENTUM = 7
+HORIZON_STANDARD = 30
+HORIZON_BLENDED = 45
+HORIZON_VALUE = 90
+HORIZON_DEFAULT = 30
+
+# "Fast momentum" discriminator: a momentum signal is FAST (7d) when the stock
+# is pressing its 52-week high. The momentum track itself only qualifies a name
+# at 52W >= 80, so this >= 90 threshold isolates the strongest breakouts.
+# Tune-able via FAST_MOMENTUM_52W_THRESHOLD.
+FAST_MOMENTUM_52W_THRESHOLD = 90.0
+
+# Row keys that may carry the 52-week-position value (% of 52w high; higher =
+# closer to the high). Output CSVs use the short "52W" name; upstream frames
+# may carry the long form.
+_PCT_52W_KEYS = ("52W", "pct_from_52w_high", "pct_52w_high")
+
+
+def _row_pct_52w(row: "Mapping[str, Any] | None") -> float | None:
+    """Extract the 52-week-position value from a signal row, if present.
+
+    Accepts a dict or a pandas Series. Uses explicit ``is None`` / key-presence
+    checks (never truthiness) so a pandas Series does not raise on ``if row``.
+    """
+    if row is None:
+        return None
+    for key in _PCT_52W_KEYS:
+        if key in row:
+            val = row[key]
+            if val is None:
+                continue
+            try:
+                fval = float(val)
+            except (TypeError, ValueError):
+                continue
+            # NaN guard without importing pandas/numpy here.
+            if fval != fval:
+                continue
+            return fval
+    return None
+
+
+def suggested_signal_horizon(
+    track: str | None,
+    row: "Mapping[str, Any] | None" = None,
+) -> int:
+    """Suggest a holding horizon (trading days) for a signal.
+
+    Horizon is INDEPENDENT of the track label — momentum signals split into a
+    fast (7d) and standard (30d) bucket based on the 52-week position.
+
+    Args:
+        track: Signal track ("value", "momentum", "value+momentum", or blank).
+        row: Optional signal row (Mapping) used to read the 52-week position
+             for the fast-vs-standard momentum split. Accepts a dict or a
+             pandas Series.
+
+    Returns:
+        One of 7 / 30 / 45 / 90 trading days.
+    """
+    if track == "value":
+        return HORIZON_VALUE
+    if track == "value+momentum":
+        return HORIZON_BLENDED
+    if track == "momentum":
+        pct_52w = _row_pct_52w(row)
+        if pct_52w is not None and pct_52w >= FAST_MOMENTUM_52W_THRESHOLD:
+            return HORIZON_FAST_MOMENTUM
+        return HORIZON_STANDARD
+    # Unknown / blank track.
+    return HORIZON_DEFAULT
 
 
 def suggested_holding_horizon(signal_track: str | None) -> int:
-    """Map signal track to recommended holding period in trading days.
+    """Track-only horizon (no per-row data) — delegates to the SSOT.
 
-    Returns a default of 30 when the signal track is unknown or absent.
+    Kept for backward compatibility with callers that only have the track
+    label. Momentum resolves to the STANDARD bucket here because the
+    52-week position is unavailable without a row.
     """
-    if signal_track:
-        return SIGNAL_TRACK_HORIZONS.get(signal_track, 30)
-    return 30
+    return suggested_signal_horizon(signal_track, None)

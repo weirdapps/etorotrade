@@ -480,11 +480,17 @@ def calculate_actions(df: pd.DataFrame) -> pd.Series:
     which includes FCF yield and revenue growth checks.
     """
     try:
-        from trade_modules.analysis.signals import calculate_action_vectorized
+        from trade_modules.analysis.signals import (
+            calculate_action_vectorized,
+            compute_signal_horizons,
+        )
 
         actions, _buy_scores, signal_tracks = calculate_action_vectorized(df, option="portfolio")
         if signal_tracks is not None and signal_tracks.notna().any():
             df["SIGNAL_TRACK"] = signal_tracks
+            # SIGNAL_HORIZON: independent per-signal holding horizon (7/30/45/90),
+            # populated for every row alongside SIGNAL_TRACK.
+            df["SIGNAL_HORIZON"] = compute_signal_horizons(df, signal_tracks)
         return actions
     except ImportError:
         # Fallback to old row-by-row system if new system not available

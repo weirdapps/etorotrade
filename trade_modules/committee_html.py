@@ -2366,6 +2366,7 @@ def generate_report_html(
         grid_hdr(_C["text_dark"], "#fff", "CONV")
         + grid_hdr(_C["text_dark"], "#9ca3af", "TIMING")
         + grid_hdr(_C["text_dark"], "#a78bfa", "TRK")
+        + grid_hdr(_C["text_dark"], "#7dd3fc", "HRZ")
     )
     h.append("</tr>")
 
@@ -2464,6 +2465,16 @@ def generate_report_html(
         else:
             track_cell = ""
 
+        # Independent per-signal holding horizon (7/30/45/90 days).
+        _horizon_days = entry.get("suggested_horizon_days") or 0
+        if _horizon_days:
+            horizon_cell = (
+                f'<span style="color:#7dd3fc;font-weight:600;font-size:10px;">'
+                f"{int(_horizon_days)}d</span>"
+            )
+        else:
+            horizon_cell = '<span style="color:#94a3b8;">—</span>'
+
         # Conviction decay
         decay_days = entry.get("conviction_decay_days", 0)
         decay_factor = entry.get("conviction_decay_factor", 1.0)
@@ -2523,7 +2534,8 @@ def generate_report_html(
             f'<td {p}">{badge(act, action_color(act), "#fff")}</td>'
             f'<td {p}">{conv_html}</td>'
             f'<td {p}color:{timing_col};{sv}">{timing_abbr}</td>'
-            f'<td {p}">{track_cell}</td></tr>'
+            f'<td {p}">{track_cell}</td>'
+            f'<td {p}">{horizon_cell}</td></tr>'
         )
 
     if sell_list:

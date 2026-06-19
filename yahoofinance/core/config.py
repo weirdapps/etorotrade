@@ -578,6 +578,7 @@ STANDARD_DISPLAY_COLUMNS = [
     "SZ",  # Position size
     "BS",  # Buy/Sell signal
     "SIGNAL_TRACK",  # Dual-track: value, momentum, value+momentum
+    "SIGNAL_HORIZON",  # Independent per-signal holding horizon (days): 7/30/45/90
 ]
 
 

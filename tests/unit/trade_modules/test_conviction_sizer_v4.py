@@ -818,17 +818,19 @@ class TestFxMultiplierInSizer:
 
 
 class TestSuggestedHoldingHorizon:
-    """Test signal_track → holding horizon mapping."""
+    """Test track-only horizon wrapper (canonical buckets 7/30/45/90)."""
 
     def test_momentum_track(self):
         from trade_modules.conviction_sizer import suggested_holding_horizon
 
+        # Track-only (no row) resolves momentum to the STANDARD bucket.
         assert suggested_holding_horizon("momentum") == 30
 
     def test_value_track(self):
         from trade_modules.conviction_sizer import suggested_holding_horizon
 
-        assert suggested_holding_horizon("value") == 60
+        # Deep value horizon is 90d (was 60d before the independent-horizon work).
+        assert suggested_holding_horizon("value") == 90
 
     def test_value_momentum_track(self):
         from trade_modules.conviction_sizer import suggested_holding_horizon
@@ -849,3 +851,48 @@ class TestSuggestedHoldingHorizon:
         from trade_modules.conviction_sizer import suggested_holding_horizon
 
         assert suggested_holding_horizon("") == 30
+
+
+class TestSuggestedSignalHorizon:
+    """Test the independent per-signal horizon SSOT (7/30/45/90)."""
+
+    def test_value_is_90(self):
+        from trade_modules.conviction_sizer import suggested_signal_horizon
+
+        assert suggested_signal_horizon("value", {"52W": 50}) == 90
+
+    def test_value_momentum_is_45(self):
+        from trade_modules.conviction_sizer import suggested_signal_horizon
+
+        assert suggested_signal_horizon("value+momentum", {"52W": 95}) == 45
+
+    def test_fast_momentum_is_7(self):
+        from trade_modules.conviction_sizer import suggested_signal_horizon
+
+        # Pressing the 52-week high (>= 90) → fast bucket.
+        assert suggested_signal_horizon("momentum", {"52W": 90}) == 7
+        assert suggested_signal_horizon("momentum", {"52W": 99}) == 7
+
+    def test_standard_momentum_is_30(self):
+        from trade_modules.conviction_sizer import suggested_signal_horizon
+
+        assert suggested_signal_horizon("momentum", {"52W": 85}) == 30
+        assert suggested_signal_horizon("momentum", {"52W": 80}) == 30
+
+    def test_momentum_without_row_is_standard(self):
+        from trade_modules.conviction_sizer import suggested_signal_horizon
+
+        assert suggested_signal_horizon("momentum", None) == 30
+        assert suggested_signal_horizon("momentum", {}) == 30
+
+    def test_momentum_long_form_52w_key(self):
+        from trade_modules.conviction_sizer import suggested_signal_horizon
+
+        assert suggested_signal_horizon("momentum", {"pct_from_52w_high": 95}) == 7
+
+    def test_unknown_and_blank_track_default_30(self):
+        from trade_modules.conviction_sizer import suggested_signal_horizon
+
+        assert suggested_signal_horizon(None, {"52W": 99}) == 30
+        assert suggested_signal_horizon("", {"52W": 99}) == 30
+        assert suggested_signal_horizon("garbage", {"52W": 99}) == 30
