@@ -170,7 +170,16 @@ class TestFreshnessStatus:
 
     def test_boundary_very_stale_days(self, tmp_path):
         """Exactly at VERY_STALE_DAYS boundary should be stale, not very_stale."""
-        df = _make_ohlcv(days_ago=VERY_STALE_DAYS)
+        # Calendar-day index so the last bar lands exactly N days ago. freshness
+        # uses calendar-day age ((now - last).days), so a business-day freq would
+        # drift across weekends (e.g. on a Saturday, now-7 is a weekend and the
+        # last "B" bar falls on Friday -> age 8 -> very_stale, flaking the test).
+        end = datetime.now() - timedelta(days=VERY_STALE_DAYS)
+        dates = pd.date_range(end=end, periods=10, freq="D")
+        df = pd.DataFrame(
+            {"Open": 100, "High": 105, "Low": 95, "Close": 102, "Volume": 1_000_000},
+            index=dates,
+        )
         _write_parquet(df, "VSTBOUNDARY", tmp_path)
         assert freshness_status("VSTBOUNDARY", tmp_path) == "stale"
 
