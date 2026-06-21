@@ -1068,8 +1068,7 @@ def _row_pct_52w(row: "Mapping[str, Any] | None") -> float | None:
                 fval = float(val)
             except (TypeError, ValueError):
                 continue
-            # NaN guard without importing pandas/numpy here.
-            if fval != fval:
+            if math.isnan(fval):
                 continue
             return fval
     return None
