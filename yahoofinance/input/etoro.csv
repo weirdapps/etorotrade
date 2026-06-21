@@ -2130,7 +2130,7 @@ WHA.AS,Wereldhave NV,Euronext Amsterdam
 WKL.AS,Wolters Kluwer NV,Euronext Amsterdam
 AD.AS,Koninklijke Ahold NV,Euronext Amsterdam
 URW.PA,Unibail-Rodamco-Westfield,Euronext Paris
-ATO.PA,Atos SE,Euronext Paris
+ATO.PA,Atos Group,Euronext Paris
 DSY.PA,Dassault Systemes,Euronext Paris
 SW.PA,Sodexo SA,Euronext Paris
 STMPA.PA,STMicroelectronics NV,Euronext Paris
@@ -4763,7 +4763,7 @@ AURA,Aura Biosciences Inc,Nasdaq
 CGNT,Cognyte Software Ltd,Nasdaq
 JANX,Janux Therapeutics Inc,Nasdaq
 UTMD,Utah Medical Products Inc,Nasdaq
-GOCO,GoHealth Inc,Nasdaq
+GOCOQ,GoHealth Inc,OTC Markets Stock Exchange
 NWPX,Northwest Pipe Company,Nasdaq
 TRHC,Tabula Rasa HealthCare Inc,Nasdaq
 JBIO,Jade Biosciences Inc,Nasdaq
@@ -5231,7 +5231,7 @@ SRTA,Strata Critical Medical Inc,Nasdaq
 RMNI,Rimini Street Inc,Nasdaq
 BDTX,Black Diamond Therapeutics I,Nasdaq
 NOTVQ,Inotiv Inc,OTC Markets Stock Exchange
-ALUR,Allurion Technologies Inc,NYSE
+ALURD,Allurion Technologies Inc,NYSE
 SLX.AX,Silex Systems Ltd,Sydney
 CDZI,Cadiz Inc,Nasdaq
 ADV,Advantage Solutions Inc,Nasdaq
@@ -6472,7 +6472,7 @@ BKHT.DE,Brockhaus Technologies AG,FRA
 LEI.DE,Leifheit AG,FRA
 M5Z.DE,Manz AG,FRA
 EXL.DE,Exasol AG,FRA
-VRV.DE,Verve Group SE,FRA
+VRV.DE,Verve Group Media SE,FRA
 MDG1.DE,Medigene AG,FRA
 E4I.DE,Multitude SE,FRA
 CSH.DE,CENIT AG,FRA
@@ -6992,7 +6992,7 @@ HELG.OL,Sparebank 1 Helgeland,Oslo Stock Exchange
 DDRIL.OL,Dolphin Drilling AS,Oslo Stock Exchange
 MEDI.OL,Medistim ASA,Oslo Stock Exchange
 BEWI.OL,Bewi ASA,Oslo Stock Exchange
-ABL.OL,Abl Group ASA,Oslo Stock Exchange
+AQUA.OL,Aqualis ASA,Oslo Stock Exchange
 AZT.OL,Arcticzymes Technologies ASA,Oslo Stock Exchange
 NRC.OL,NRC Group ASA,Oslo Stock Exchange
 BINT.OL,BEVEST ASA,Oslo Stock Exchange
@@ -8353,6 +8353,9 @@ BOT,Robostrategy Inc,Nasdaq
 BNT-US,Brookfield Wealth Solutions Ltd,NYSE
 BBDO,Banco Bradesco SA,NYSE
 HBM,Hudbay Minerals Inc,NYSE
+ATROB,Astronics Corp,OTC Markets Stock Exchange
+LILAP,"Liberty Latin American ""preferred stock""",Nasdaq
+KARD,"Kardigan, Inc",Nasdaq
 SIX.AX,Sprintex Ltd,Sydney
 BOT.AX,Botanix Pharmaceuticals Ltd,Sydney
 BOC.AX,Bougainville Copper Ltd,Sydney
@@ -9085,7 +9088,7 @@ G5EN.ST,G5 Entertainment AB,Stockholm  Stock Exchange
 FORE.PA,La Forestiere Equatoriale,Euronext Paris
 NEOBO.ST,Neobo Fastigheter AB,Stockholm  Stock Exchange
 HOLM-A.ST,Holmen AB,Stockholm  Stock Exchange
-TRAD.ST,TradeDoubler AB,Stockholm  Stock Exchange
+NYOR.ST,Nyorda AB,Stockholm  Stock Exchange
 MEKO.ST,MEKO AB,Stockholm  Stock Exchange
 BOREO.HE,Boreo Oyj,Helsinki Stock Exchange
 SAGCV.HE,Saga Furs Oyj,Helsinki Stock Exchange
@@ -10216,7 +10219,7 @@ XRTX,XORTX Therapeutics Inc,Nasdaq
 EDRY,EuroDry Ltd,Nasdaq
 WKEY,WISeKey International Holding Ltd,Nasdaq
 CYCN,Cyclerion Therapeutics Inc,Nasdaq
-UGRO,Urban-Gro Inc,Nasdaq
+FLZH,Flash Sports & Media Holdings Inc,Nasdaq
 AMST,Amesite Inc,Nasdaq
 LVTX,LAVA Therapeutics NV,Nasdaq
 UXIN,Uxin Ltd,Nasdaq
@@ -10343,7 +10346,7 @@ PODC,PodcastOne Inc,Nasdaq
 PLBY,Playboy Inc,Nasdaq
 IMCC,IM Cannabis Corp,Nasdaq
 BNR,Burning Rock Biotech Ltd,Nasdaq
-SNSE,Sensei Biotherapeutics Inc,Nasdaq
+FTH,Faeth Therapeutics Inc,Nasdaq
 NYC,American Strategic Investment Co,NYSE
 SST,System1 Inc,NYSE
 DDI,DoubleDown Interactive Co Ltd,Nasdaq
@@ -10782,7 +10785,7 @@ NVNI,Nvni Group Ltd,Nasdaq
 KAPA,Kairos Pharma Ltd,NYSE
 SHIM,Shimmick Corp,Nasdaq
 SCAG,Scage Future,Nasdaq
-PMNT,Perfect Moment Ltd,NYSE
+PMNT,Perfect Moment Ltd,OTC Markets Stock Exchange
 ZONE,Cleancore Solutions Inc,NYSE
 ITOC,iTonic Holdings Ltd,Nasdaq
 QETA,Quetta Acquisition Corp,Nasdaq
@@ -10829,7 +10832,7 @@ PLUT,Plutus Financial Group Ltd,Nasdaq
 XCH,XCHG Ltd,Nasdaq
 FLYE,FLY-E Group Inc,Nasdaq
 LZMH,LZ Technology Holdings Ltd,Nasdaq
-ENRD, Einride AB,NYSE
+ENRD, Einride AB,Nasdaq
 JBDI,Jbdi Holdings Ltd,Nasdaq
 WCT,Wellchange Holdings Co Ltd,Nasdaq
 EXOZ,eXoZymes Inc,Nasdaq
@@ -10854,7 +10857,7 @@ BKHA,Black Hawk Acquisition Corp,Nasdaq
 SPHL,Springview Holdings Ltd,Nasdaq
 BOW,Bowhead Specialty Holdings Inc,NYSE
 SVCO,Silvaco Group Inc,Nasdaq
-NVA,Nova Minerals Ltd,Nasdaq
+NVA,Nova Minerals CORP,NYSE
 FBLA,FB Bancorp Inc,Nasdaq
 IBAC,IB Acquisition Corp,Nasdaq
 DSY,Big Tree Cloud Holdings Ltd,Nasdaq
@@ -10939,7 +10942,7 @@ DXST,Decent Holding Inc,Nasdaq
 VNTG,Vantage Corp,NYSE
 XHLD,TEN Holdings Inc,Nasdaq
 CURX,Curanex Pharmaceuticals Inc,Nasdaq
-SKBL,Skyline Builders Group Holding Ltd,Nasdaq
+KAZR,Skyline Builders Group Holding Ltd,Nasdaq
 FACT,Fact II Acquisition Corp,Nasdaq
 ALDF,Aldel Financial II Inc,Nasdaq
 CAPN,Cayson Acquisition Corp,Nasdaq
@@ -10956,7 +10959,7 @@ SAFX,XCF Global Inc,Nasdaq
 CEPO,Cantor Equity Partners I Inc,Nasdaq
 NTWO,Newbury Street II Acquisition Corp,Nasdaq
 OMSE,OMS Energy Technologies Inc,Nasdaq
-PN,Skycorp Solar Group Ltd,Nasdaq
+PN,PN Smart Energy Ltd,Nasdaq
 RCT,Redcloud Holdings PLC,Nasdaq
 YHNA,YHN Acquisition I Ltd,Nasdaq
 MSGY,Masonglory Ltd,Nasdaq
@@ -10996,7 +10999,7 @@ GCL,GCL Global Holdings Ltd,Nasdaq
 DMAA,Drugs Made In America Acquisition Corp,Nasdaq
 MWYN,Marwynn Holdings Inc,Nasdaq
 PHOE,Phoenix Asia Holdings Ltd,Nasdaq
-HSPT,HORIZON SPACE ACQUISITION II Corp,Nasdaq
+SLBT,SL SCIENCE HOLDING LTD,Nasdaq
 AGRZ,Agroz Inc,Nasdaq
 YDDL,One and one Green Technologies Inc,Nasdaq
 SPEG,Silver Pegasus Acquisition Corp,Nasdaq
@@ -11226,7 +11229,7 @@ ALPS,Alps Group Inc,Nasdaq
 OTGA,OTG Acquisition Corp I,Nasdaq
 BGSI,BOYD GROUP INC,NYSE
 CEPV,Cantor Equity Partners V Inc,Nasdaq
-MEHA,Functional Brands Inc,Nasdaq
+MEHA,Functional Brands Inc,OTC Markets Stock Exchange
 LKSP,Lake Superior Acquisition Corp,Nasdaq
 BCSS,Bain Capital GSS Investment Corp,NYSE
 EPI.AX,Epiminder Ltd,Sydney
@@ -12575,4 +12578,54 @@ WEBL.DE,Amundi Core MSCI USA UCITS ETF Acc,Xetra ETFs
 MEGU.DE,Amundi MSCI USA Mega Cap UCITS ETF Acc,Xetra ETFs
 WEBB.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
 FSFL.L,Foresight Solar Fund Ltd,LSE
+BX4.PA,Amundi CAC 40 Daily -2X Inverse UCITS ETF,Euronext Paris
+LVC.PA,Amundi CAC 40 Daily 2X Leveraged UCITS ETF,Euronext Paris
+SHC.PA,Amundi CAC 40 Daily -1X Inverse UCITS ETF,Euronext Paris
+PSP5.PA,Amundi PEA S&P 500 UCITS ETF,Euronext Paris
+FGBL.PA,First Trust Global Equity Income UCITS ETF,Euronext Paris
+EMEH.PA,BNP Paribas Easy Energy & Metals Enhanced Roll UCITS ETF,Euronext Paris
+CSW.PA,Amundi Msci Switzerland UCITS ETF,Euronext Paris
+X1GD.PA,Amundi Euro Lowest Rated IG Government Bond UCITS ETF,Euronext Paris
+TPXE.PA,Amundi Japan Topix UCITS ETF,Euronext Paris
+CD9.PA,Amundi MSCI Europe High Dividend Factor UCITS ETF,Euronext Paris
+C4D.PA,Amundi CAC 40 ESG UCITS ETF,Euronext Paris
+MTH.PA,Amundi Euro Government Bond 25+Y UCITS ETF,Euronext Paris
+CACC.PA,Amundi CAC 40 UCITS ETF,Euronext Paris
+CMUD.PA,Amundi MSCI EMU ESG Selection - UCITS ETF DR,Euronext Paris
+PABZ.PA,Amundi MSCI EMU Climate Paris Aligned UCITS ETF,Euronext Paris
+WVAL.AS,SS SPDR MSCI World Value UCITS ETF,Euronext Amsterdam
+NDIA.AS,iShares MSCI India UCITS ETF,Euronext Amsterdam
+EMQQ.PA,EMQQ Emerging Markets Internet UCITS ETF,Euronext Paris
+ESGO.PA,Gold Miners Screened UCITS ETF ACC,Euronext Paris
+FLPE.AS,Northern Trust Listed Private Equity UCITS ETF,Euronext Amsterdam
+HODLV.PA,21Shares Crypto Basket Equal Weight ETP,Euronext Paris
+HODL.PA,21Shares Crypto Basket Index ETP,Euronext Paris
+AADA.PA,21Shares Cardano ETP,Euronext Paris
+HODLX.PA,21Shares Crypto Basket 10 Core ETP,Euronext Paris
+ALINK.PA,21Shares Chainlink ETP,Euronext Paris
+AAVE.PA,21Shares Aave ETP,Euronext Paris
+SRIC6.PA,BNP Paribas Easy EUR Corp Bond SRI PAB 3-5Y UCITS ETF,Euronext Paris
+BSRIC.PA,BNP Paribas Easy EUR Aggregate Bond SRI Fossil Free UCITS ETF,Euronext Paris
+GEU3C.PA,BNP Paribas Easy JPM ESG EMU Government Bond IG 1-3Y UCITS ETF,Euronext Paris
+GEU3D.PA,BNP Paribas Easy JPM ESG EMU Government Bond IG 1-3Y UCITS ETF,Euronext Paris
+LIDO.PA,21Shares Lido DAO ETP,Euronext Paris
+CLEM.PA,Amundi MSCI Emerging Markets ESG Broad Transition,Euronext Paris
+CBEU.AS,First Trust Nasdaq Cybersecurity UCITS ETF,Euronext Amsterdam
+SRIUC.PA,BNP Paribas Easy EUR Corp Bond SRI Fossil Free Ultrashort Duration UCITS ETF,Euronext Paris
+3EUL.PA,WisdomTree EURO STOXX 50 3x Daily Leveraged,Euronext Paris
+WEMT2.PA,BNP Paribas Easy MSCI World Min TE UCITS ETF,Euronext Paris
+S500.PA,Amundi S&P 500 Screened UCITS ETF,Euronext Paris
+S500H.PA,Amundi S&P 500 Screened UCITS ETF,Euronext Paris
+ENG.PA,BNP Paribas Easy ECPI Global ESG Infrastructure UCITS ETF/Ireland,Euronext Paris
+USA.PA,Amundi MSCI USA ESG Broad Transition UCITS ETF,Euronext Paris
+SPEUH.PA,BNP Paribas Easy S&P 500 Scored And Screened UCITS ETF,Euronext Paris
+EWLD.PA,Amundi MSCI World Swap UCITS ETF,Euronext Paris
+WLDC.PA,Amundi MSCI World Swap II UCITS ETF,Euronext Paris
+ASUI.PA,21Shares Sui Staking ETP,Euronext Paris
+VSUI.AS,VanEck Sui ETN,Euronext Amsterdam
+GREAD.PA,BNP Paribas Easy FTSE EPRA Nareit Developed Europe Green CTB UCITS ETF,Euronext Paris
+REMX.PA,VanEck Rare Earth and Strategic Metals UCITS ETF,Euronext Paris
+DCAM.PA,Amundi PEA Monde MSCI World UCITS ETF,Euronext Paris
+DEFS.PA,Amundi Stoxx Europe Defense UCITS ETF,Euronext Paris
+SPHC.PA,Amundi Core S&P 500 Swap UCITS ETF,Euronext Paris
 JPIE,JPMorgan Income ETF,NYSE
