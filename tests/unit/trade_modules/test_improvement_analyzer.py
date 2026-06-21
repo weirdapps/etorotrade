@@ -123,8 +123,8 @@ class TestImprovementAnalyzer:
         analyzer = ImprovementAnalyzer(market_csv_path=temp_market_csv)
         doc = analyzer.generate_suggestions_document()
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
-            output_path = Path(f.name)
+        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        output_path = project_root / "docs" / "_test_suggestions.md"
 
         try:
             saved_path = analyzer.save_document(doc, output_path)
@@ -133,7 +133,7 @@ class TestImprovementAnalyzer:
             assert "# Automated Improvement Suggestions" in content
             assert "Executive Summary" in content
         finally:
-            output_path.unlink()
+            output_path.unlink(missing_ok=True)
 
 
 class TestMetricEffectiveness:

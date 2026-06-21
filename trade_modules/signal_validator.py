@@ -538,8 +538,14 @@ class SignalValidator:
         report_text = "\n".join(report)
 
         if output_path:
-            output_path.write_text(report_text)
-            logger.info(f"Report saved to {output_path}")
+            project_root = Path(__file__).resolve().parent.parent
+            resolved = output_path.resolve()
+            if not resolved.is_relative_to(project_root):
+                raise ValueError(
+                    f"Output path must be within the project directory: {project_root}"
+                )
+            resolved.write_text(report_text)
+            logger.info(f"Report saved to {resolved}")
 
         return report_text
 
