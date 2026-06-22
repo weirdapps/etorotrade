@@ -335,11 +335,10 @@ def main():
     print("=" * 80)
 
     # Paths
-    signals_path = Path("/Users/plessas/SourceCode/etorotrade/yahoofinance/output/etoro.csv")
-    census_path = Path(
-        "/Users/plessas/SourceCode/etoro_census/archive/data/etoro-data-2026-04-08-03-00.json"
-    )
-    output_path = Path("/Users/plessas/.weirdapps-trading/committee/reports/opportunities.json")
+    home = Path.home()
+    signals_path = home / "SourceCode/etorotrade/yahoofinance/output/etoro.csv"
+    census_path = home / "SourceCode/etoro_census/archive/data/etoro-data-2026-04-08-03-00.json"
+    output_path = home / ".weirdapps-trading/committee/reports/opportunities.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Load data
