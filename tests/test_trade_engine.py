@@ -1,8 +1,9 @@
 """Test trade engine functionality"""
 
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/Users/plessas/SourceCode/etorotrade")
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 def test_trade_engine_import():
