@@ -22,7 +22,7 @@ from pathlib import Path
 
 import yfinance as yf
 
-OUTPUT_PATH = Path("/Users/plessas/.weirdapps-trading/committee/reports/macro.json")
+OUTPUT_PATH = Path.home() / ".weirdapps-trading/committee/reports/macro.json"
 
 # Sector ETF → GICS sector name
 SECTOR_ETFS = {

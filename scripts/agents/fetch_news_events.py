@@ -4,6 +4,7 @@
 import json
 import sys
 from datetime import datetime
+from pathlib import Path
 
 import yfinance as yf
 
@@ -246,7 +247,7 @@ if __name__ == "__main__":
     report = generate_report()
 
     # Write to file
-    output_path = "/Users/plessas/.weirdapps-trading/committee/reports/news.json"
+    output_path = str(Path.home() / ".weirdapps-trading/committee/reports/news.json")
     with open(output_path, "w") as f:
         json.dump(report, f, indent=2)
 

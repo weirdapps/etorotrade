@@ -178,14 +178,15 @@ def main():
     # hardcoding a date — was stuck on 2026-04-21 (3 weeks stale).
     import glob
 
-    archive = "/Users/plessas/SourceCode/etoro_census/archive/data"
+    home = Path.home()
+    archive = str(home / "SourceCode/etoro_census/archive/data")
     candidates = sorted(glob.glob(f"{archive}/etoro-data-2026-*.json"))
     if not candidates:
         raise SystemExit(f"No census archive files found in {archive}")
     census_file = candidates[-1]
-    ts_file = "/Users/plessas/.weirdapps-trading/committee/_prep/census_ts.json"
-    signals_file = "/Users/plessas/.weirdapps-trading/committee/_prep/portfolio_signals.json"
-    output_file = "/Users/plessas/.weirdapps-trading/committee/reports/census.json"
+    ts_file = str(home / ".weirdapps-trading/committee/_prep/census_ts.json")
+    signals_file = str(home / ".weirdapps-trading/committee/_prep/portfolio_signals.json")
+    output_file = str(home / ".weirdapps-trading/committee/reports/census.json")
 
     # Load data
     census = load_census(census_file)
