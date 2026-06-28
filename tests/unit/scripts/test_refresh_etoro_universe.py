@@ -21,14 +21,13 @@ is_etorian_alias = refresh_etoro_universe.is_etorian_alias
 normalize_symbol = refresh_etoro_universe.normalize_symbol
 fix_share_classes = refresh_etoro_universe.fix_share_classes
 dedupe_by_symbol = refresh_etoro_universe.dedupe_by_symbol
-fetch_page = refresh_etoro_universe.fetch_page
-fetch_all_assets = refresh_etoro_universe.fetch_all_assets
+fetch_all_instruments = refresh_etoro_universe.fetch_all_instruments
 write_universe_csv = refresh_etoro_universe.write_universe_csv
 write_delta_log = refresh_etoro_universe.write_delta_log
 get_credentials = refresh_etoro_universe.get_credentials
 main = refresh_etoro_universe.main
 MIN_INSTRUMENTS_THRESHOLD = refresh_etoro_universe.MIN_INSTRUMENTS_THRESHOLD
-DISCOVER_URL = refresh_etoro_universe.DISCOVER_URL
+INSTRUMENTS_URL = refresh_etoro_universe.INSTRUMENTS_URL
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -227,28 +226,32 @@ class TestGetCredentials:
                 get_credentials()
 
 
-class TestFetchPage:
-    def test_success_first_try(self):
+class TestFetchAllInstruments:
+    def test_success_filters_stocks_and_etfs(self):
+        api_response = {
+            "instrumentDisplayDatas": [
+                {"instrumentID": 1, "symbolFull": "EURUSD", "instrumentDisplayName": "EUR/USD", "instrumentTypeID": 1, "exchangeID": 1},
+                {"instrumentID": 1001, "symbolFull": "AAPL", "instrumentDisplayName": "Apple", "instrumentTypeID": 5, "exchangeID": 4},
+                {"instrumentID": 2001, "symbolFull": "SPY", "instrumentDisplayName": "SPDR S&P 500", "instrumentTypeID": 6, "exchangeID": 4},
+            ]
+        }
         with patch.object(refresh_etoro_universe.requests, "get") as mock_get:
-            mock_get.return_value = MagicMock(
-                status_code=200,
-                json=lambda: {"page": 1, "totalItems": 100, "items": [{"symbol": "AAPL"}]},
-            )
-            result = fetch_page("Stocks", 1, "api", "user")
-            assert result["items"] == [{"symbol": "AAPL"}]
+            mock_get.return_value = MagicMock(status_code=200, json=lambda: api_response)
+            result = fetch_all_instruments("api", "user")
+        assert len(result) == 2
+        assert result[0]["symbol"] == "AAPL"
+        assert result[0]["displayName"] == "Apple"
+        assert result[0]["exchangeName"] == "Nasdaq"
+        assert result[1]["symbol"] == "SPY"
 
-    def test_uses_correct_params(self):
+    def test_uses_correct_headers(self):
         with patch.object(refresh_etoro_universe.requests, "get") as mock_get:
             mock_get.return_value = MagicMock(
-                status_code=200,
-                json=lambda: {"items": []},
+                status_code=200, json=lambda: {"instrumentDisplayDatas": []}
             )
-            fetch_page("ETF", 3, "api-k", "user-k", page_size=500)
+            fetch_all_instruments("api-k", "user-k")
             call = mock_get.call_args
-            assert call.args[0] == DISCOVER_URL
-            assert call.kwargs["params"]["assetClass"] == "ETF"
-            assert call.kwargs["params"]["page"] == 3
-            assert call.kwargs["params"]["pageSize"] == 500
+            assert call.args[0] == INSTRUMENTS_URL
             assert call.kwargs["headers"]["x-api-key"] == "api-k"
             assert call.kwargs["headers"]["x-user-key"] == "user-k"
             assert "User-Agent" in call.kwargs["headers"]
@@ -257,15 +260,17 @@ class TestFetchPage:
     def test_retries_on_500(self):
         responses = [
             MagicMock(status_code=500, text="boom"),
-            MagicMock(status_code=200, json=lambda: {"items": [{"symbol": "X"}]}),
+            MagicMock(status_code=200, json=lambda: {"instrumentDisplayDatas": [
+                {"instrumentID": 1, "symbolFull": "X", "instrumentDisplayName": "X", "instrumentTypeID": 5, "exchangeID": 4},
+            ]}),
         ]
         with (
             patch.object(refresh_etoro_universe.requests, "get") as mock_get,
             patch.object(refresh_etoro_universe.time, "sleep"),
         ):
             mock_get.side_effect = responses
-            result = fetch_page("Stocks", 1, "k", "u")
-            assert result["items"][0]["symbol"] == "X"
+            result = fetch_all_instruments("k", "u")
+            assert result[0]["symbol"] == "X"
             assert mock_get.call_count == 2
 
     def test_raises_after_max_retries(self):
@@ -275,51 +280,8 @@ class TestFetchPage:
         ):
             mock_get.return_value = MagicMock(status_code=500, text="boom")
             with pytest.raises(RuntimeError, match="all 3 attempts failed"):
-                fetch_page("Stocks", 1, "k", "u", max_retries=3)
+                fetch_all_instruments("k", "u", max_retries=3)
             assert mock_get.call_count == 3
-
-
-class TestFetchAllAssets:
-    def test_paginates_through_stocks_and_etfs(self):
-        # Simulate: Stocks has 3 items total, page_size=2 → 2 pages
-        # ETF has 1 item total, page_size=2 → 1 page
-        stock_responses = [
-            {"page": 1, "totalItems": 3, "items": [{"symbol": "A"}, {"symbol": "B"}]},
-            {"page": 2, "totalItems": 3, "items": [{"symbol": "C"}]},
-        ]
-        etf_responses = [
-            {"page": 1, "totalItems": 1, "items": [{"symbol": "SPY"}]},
-        ]
-        all_responses = iter(stock_responses + etf_responses)
-
-        def fake_fetch_page(asset_class, page, api_key, user_key, page_size=2, **kw):
-            return next(all_responses)
-
-        with (
-            patch.object(refresh_etoro_universe, "fetch_page", side_effect=fake_fetch_page),
-            patch.object(refresh_etoro_universe.time, "sleep"),
-        ):
-            result = fetch_all_assets("k", "u", page_size=2)
-
-        assert [r["symbol"] for r in result] == ["A", "B", "C", "SPY"]
-
-    def test_empty_page_stops_pagination(self):
-        # First page empty — should stop after 1 call per asset class (2 total)
-        empty_resp = {"page": 1, "totalItems": 0, "items": []}
-        call_count = [0]
-
-        def fake_fetch_page(*args, **kwargs):
-            call_count[0] += 1
-            return empty_resp
-
-        with (
-            patch.object(refresh_etoro_universe, "fetch_page", side_effect=fake_fetch_page),
-            patch.object(refresh_etoro_universe.time, "sleep"),
-        ):
-            result = fetch_all_assets("k", "u")
-
-        assert result == []
-        assert call_count[0] == 2  # 1 call per asset class (Stocks + ETF)
 
 
 class TestWriteUniverseCsv:
@@ -388,29 +350,23 @@ class TestMain:
         output_csv = tmp_path / "etoro.csv"
         log_path = tmp_path / "log.json"
 
-        # Pad to 1000+ items to clear the safety threshold (filler will be deduped or filtered)
-        padded = {
-            "page": 1,
-            "pageSize": 2000,
-            "totalItems": 2000,
-            "items": sample_response["items"]
-            + [
-                {
-                    "instrumentId": 100000 + i,
-                    "symbol": f"PAD{i}",
-                    "displayName": f"Padding {i}",
-                    "assetClass": "Stocks",
-                    "exchangeName": "Nasdaq",
-                }
-                for i in range(1000)
-            ],
-        }
+        # Pad to 1000+ items to clear the safety threshold
+        padded_items = sample_response["items"] + [
+            {
+                "instrumentId": 100000 + i,
+                "symbol": f"PAD{i}",
+                "displayName": f"Padding {i}",
+                "assetClass": "Stocks",
+                "exchangeName": "Nasdaq",
+            }
+            for i in range(1000)
+        ]
 
-        def fake_fetch_all_assets(api_key, user_key, page_size=1000):
-            return padded["items"]
+        def fake_fetch(api_key, user_key, **kw):
+            return padded_items
 
         with patch.object(
-            refresh_etoro_universe, "fetch_all_assets", side_effect=fake_fetch_all_assets
+            refresh_etoro_universe, "fetch_all_instruments", side_effect=fake_fetch
         ):
             exit_code = main(output_csv_path=str(output_csv), delta_log_path=str(log_path))
 
@@ -440,10 +396,10 @@ class TestMain:
 
         def fake_fetch(*args, **kwargs):
             return [
-                {"symbol": "X", "displayName": "X", "assetClass": "Stocks", "exchangeName": "N"}
+                {"symbol": "X", "displayName": "X", "exchangeName": "N"}
             ] * 10
 
-        with patch.object(refresh_etoro_universe, "fetch_all_assets", side_effect=fake_fetch):
+        with patch.object(refresh_etoro_universe, "fetch_all_instruments", side_effect=fake_fetch):
             exit_code = main(
                 output_csv_path=str(tmp_path / "etoro.csv"),
                 delta_log_path=str(tmp_path / "log.json"),
