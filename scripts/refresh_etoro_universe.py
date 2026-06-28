@@ -1,6 +1,6 @@
-"""Refresh yahoofinance/input/etoro.csv from the eToro Asset Explorer API.
+"""Refresh yahoofinance/input/etoro.csv from the eToro market-data API.
 
-Fetches stocks + ETFs from https://www.etoro.com/api/public/v1/instruments/discover
+Fetches stocks + ETFs from https://public-api.etoro.com/api/v1/market-data/instruments
 and atomically overwrites the input file with one row per (symbol, company, exchange).
 Symbols come back from the API mostly in Yahoo-Finance format but need
 light normalization: strip .US suffix, drop .RTH duplicates, trim HK
@@ -22,11 +22,23 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-DISCOVER_URL = "https://www.etoro.com/api/public/v1/instruments/discover"
-ASSET_CLASSES = ("Stocks", "ETF")
-DEFAULT_PAGE_SIZE = 1000
-DEFAULT_FIELDS = "instrumentId,symbol,displayName,assetClass,exchangeName"
+INSTRUMENTS_URL = "https://public-api.etoro.com/api/v1/market-data/instruments"
+STOCK_TYPE_ID = 5
+ETF_TYPE_ID = 6
 MIN_INSTRUMENTS_THRESHOLD = 1000
+
+EXCHANGE_NAMES: dict[int, str] = {
+    2: "NYSE", 4: "Nasdaq", 5: "NYSE", 6: "FRA", 7: "LSE", 8: "NYSE",
+    9: "Euronext Paris", 10: "Bolsa De Madrid", 11: "Borsa Italiana",
+    12: "SIX", 14: "Oslo Stock Exchange", 15: "Stockholm Stock Exchange",
+    16: "Copenhagen Stock Exchange", 17: "Helsinki Stock Exchange",
+    19: "OTC Markets", 20: "CBOE", 21: "HKEX", 22: "Euronext Lisbon",
+    23: "Euronext Brussels", 24: "Tadawul", 30: "Euronext Amsterdam",
+    31: "ASX", 32: "Vienna", 33: "Xetra", 34: "Dublin", 35: "Prague SE",
+    36: "Warsaw", 37: "Budapest", 38: "Xetra ETFs", 39: "DFM",
+    41: "Abu Dhabi", 42: "LSE AIM", 43: "LSE AIM", 44: "LSE",
+    56: "Tokyo Stock Exchange",
+}
 
 _HTTP_TIMEOUT_SEC = 30
 _USER_AGENT = (
@@ -217,21 +229,16 @@ def get_credentials() -> tuple[str, str]:
     return api_key, user_key
 
 
-def fetch_page(
-    asset_class: str,
-    page: int,
+def fetch_all_instruments(
     api_key: str,
     user_key: str,
-    page_size: int = DEFAULT_PAGE_SIZE,
-    fields: str = DEFAULT_FIELDS,
     max_retries: int = 3,
-) -> dict:
-    """GET one page of /instruments/discover with exponential-backoff retry.
+) -> list[dict]:
+    """Fetch all instruments from the market-data API (single call, no pagination).
 
-    Backoff: 2^attempt seconds between tries (2s, 4s, 8s for 3 attempts).
-    Raises RuntimeError if all attempts fail.
+    Filters to Stocks (type 5) and ETFs (type 6), then maps fields to the
+    format expected by the rest of the pipeline.
     """
-    params = {"page": page, "pageSize": page_size, "assetClass": asset_class, "fields": fields}
     last_error: str | None = None
     for attempt in range(1, max_retries + 1):
         headers = {
@@ -242,11 +249,26 @@ def fetch_page(
             "x-request-id": str(uuid.uuid4()),
         }
         try:
-            response = requests.get(
-                DISCOVER_URL, headers=headers, params=params, timeout=_HTTP_TIMEOUT_SEC
-            )
+            response = requests.get(INSTRUMENTS_URL, headers=headers, timeout=_HTTP_TIMEOUT_SEC)
             if response.status_code == 200:
-                return response.json()
+                raw = response.json().get("instrumentDisplayDatas", [])
+                filtered = [
+                    i for i in raw if i.get("instrumentTypeID") in (STOCK_TYPE_ID, ETF_TYPE_ID)
+                ]
+                items = []
+                for i in filtered:
+                    items.append({
+                        "instrumentId": i.get("instrumentID"),
+                        "symbol": i.get("symbolFull", ""),
+                        "displayName": i.get("instrumentDisplayName", ""),
+                        "exchangeName": EXCHANGE_NAMES.get(i.get("exchangeID", 0), ""),
+                    })
+                logger.info(
+                    "  Fetched %d total, %d Stocks+ETFs after type filter",
+                    len(raw),
+                    len(items),
+                )
+                return items
             last_error = f"HTTP {response.status_code}: {response.text[:200]}"
         except requests.RequestException as e:
             last_error = f"{type(e).__name__}: {e}"
@@ -255,40 +277,8 @@ def fetch_page(
             time.sleep(2**attempt)
 
     raise RuntimeError(
-        f"fetch_page({asset_class}, page={page}): all {max_retries} attempts failed. Last error: {last_error}"
+        f"fetch_all_instruments: all {max_retries} attempts failed. Last error: {last_error}"
     )
-
-
-def fetch_all_assets(
-    api_key: str,
-    user_key: str,
-    page_size: int = DEFAULT_PAGE_SIZE,
-) -> list[dict]:
-    """Paginate through all Stocks + ETFs from the Asset Explorer.
-
-    Returns a list of raw API items (with instrumentId, symbol, displayName, assetClass, exchangeName).
-    """
-    all_items: list[dict] = []
-    for asset_class in ASSET_CLASSES:
-        page = 1
-        while True:
-            response = fetch_page(asset_class, page, api_key, user_key, page_size)
-            items = response.get("items", [])
-            total = response.get("totalItems", 0)
-            all_items.extend(items)
-            logger.info(
-                "  %s page %d: +%d items (running total this class: %d / %d)",
-                asset_class,
-                page,
-                len(items),
-                min(page * page_size, total),
-                total,
-            )
-            if not items or page * page_size >= total:
-                break
-            page += 1
-            time.sleep(_INTER_PAGE_DELAY_SEC)
-    return all_items
 
 
 _CSV_COLUMNS = ["symbol", "company", "exchange"]
@@ -355,14 +345,14 @@ def main(
         logger.error(str(e))
         return 1
 
-    logger.info("Fetching eToro Asset Explorer (Stocks + ETFs)...")
+    logger.info("Fetching eToro market-data instruments (Stocks + ETFs)...")
     try:
-        items = fetch_all_assets(api_key, user_key)
+        items = fetch_all_instruments(api_key, user_key)
     except RuntimeError as e:
         logger.error(str(e))
         return 1
 
-    logger.info("Fetched %d total items across all asset classes", len(items))
+    logger.info("Fetched %d Stocks+ETFs from market-data API", len(items))
 
     if len(items) < MIN_INSTRUMENTS_THRESHOLD:
         logger.error(
