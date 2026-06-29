@@ -264,8 +264,21 @@ def abbr(text):
         "hold_oversold": "H.OS",
         "strong_buy": "STR.BY",
         "avoid": "AVOID",
+        "BIG_MISS": "B.MISS",
+        "BIG_BEAT": "B.BEAT",
+        "SERIAL_BEATER": "S.BEAT",
+        "REVISIONS_UP": "REV.UP",
+        "REVISIONS_DOWN": "REV.DN",
+        "LOW_POSITIVE": "L.POS",
+        "LOW_NEGATIVE": "L.NEG",
+        "MIXED": "MIX",
+        "STRONG_UPTREND": "STR.UP",
+        "STRONG_DOWNTREND": "STR.DN",
+        "WEAK_UPTREND": "WK.UP",
+        "WEAK_DOWNTREND": "WK.DN",
+        "CONSOLIDATION": "CONSOL",
     }
-    return MAP.get(str(text), str(text).upper()[:6])
+    return MAP.get(str(text), str(text).upper()[:7])
 
 
 def _clean_name(raw):
@@ -1703,10 +1716,10 @@ def generate_report_html(
         extra_tags = ""
         if vel not in ("NO_HISTORY", "STABLE", ""):
             vc = _C["bull"] if vel in ("ACCELERATING", "IMPROVING") else _C["bear"]
-            extra_tags += f' | <span style="color:{vc};">{vel[:5]}</span>'
+            extra_tags += f' | <span style="color:{vc};">{abbr(vel)}</span>'
         if earn not in ("NO_DATA", "IN_LINE", ""):
             ec = _C["bull"] if earn in ("SERIAL_BEATER", "BEAT") else _C["bear"]
-            extra_tags += f' | <span style="color:{ec};">{earn[:6]}</span>'
+            extra_tags += f' | <span style="color:{ec};">{abbr(earn)}</span>'
         # Position size already shown in the dedicated "Trade:" line below — skip duplication
         # Stop-loss levels (CIO v22.0)
         sl = en.get("stop_losses", {})
@@ -2384,6 +2397,9 @@ def generate_report_html(
         rw = entry.get("risk_warning", False)
         conv = entry.get("conviction", 0)
         sm = "*" if entry.get("fund_synthetic") else ""
+        _is_short = entry.get("is_short", False)
+        if _is_short:
+            sm += "S"
         ex = entry.get("exret", 0)
         delta = delta_map.get(tkr)
         exc = _C["bull"] if ex > 5 else _C["bear"] if ex < 0 else _C["text_body"]
@@ -2517,9 +2533,17 @@ def generate_report_html(
         else:
             eps_cell = '<span style="color:#94a3b8;">—</span>'
 
+        # CIO v46.0: SHORT badge for short positions
+        short_badge = ""
+        if _is_short:
+            short_badge = (
+                '<span style="display:inline-block;padding:1px 4px;margin-left:3px;'
+                "font-size:8px;font-weight:700;background:#fef2f2;color:#dc2626;"
+                'border:1px solid #fecaca;border-radius:3px;letter-spacing:0.3px;">SHORT</span>'
+            )
         return (
             f'<tr style="background:{rb};">'
-            f'<td {p}text-align:left;padding-left:8px;">{_tn_cell(tkr, _names)}{region_suffix}</td>'
+            f'<td {p}text-align:left;padding-left:8px;">{_tn_cell(tkr, _names)}{short_badge}{region_suffix}</td>'
             f'<td {p}">{signal_badge(sig)}</td>'
             f'<td {p}color:{sentiment_color(fv)};{sv}">{abbr(fv)}({fs:.0f}){sm}</td>'
             f'<td {p}color:{sentiment_color(ts)};{sv}">{abbr(ts)}({rsi:.0f})</td>'
@@ -3588,11 +3612,14 @@ def generate_report_html(
                 f"{_pill_list(debt_tickers, _C['bear_bg'], _C['bear_text'], _C['bear_border'])}</div>"
             )
         # CIO v23.3: EPS revision highlights
+        # CIO v46.0: Exclude short positions from EPS Up (it's BAD for shorts)
+        _short_tickers = {en.get("ticker") for en in concordance if en.get("is_short")}
         eps_up = [
             (t, d.get("eps_revisions", {}))
             for t, d in fund_stocks.items()
             if isinstance(d.get("eps_revisions"), dict)
             and d["eps_revisions"].get("classification") == "REVISIONS_UP"
+            and t not in _short_tickers
         ]
         eps_down = [
             (t, d.get("eps_revisions", {}))
