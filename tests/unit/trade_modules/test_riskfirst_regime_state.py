@@ -2,6 +2,7 @@ import json
 
 from trade_modules.riskfirst.regime_state import (
     DEFAULT_STATE_PATH,
+    load_config,
     resolve_regime_multiplier,
     update_history,
 )
@@ -74,9 +75,6 @@ def test_resolve_creates_nested_state_dir(tmp_path):
     import os as _os
 
     assert _os.path.exists(sp)
-
-
-from trade_modules.riskfirst.regime_state import load_config
 
 
 def test_load_config_defaults_when_missing(tmp_path):

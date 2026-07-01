@@ -10,6 +10,8 @@ import json
 import os
 from datetime import date
 
+import yaml
+
 from .regime_overlay import (
     DEFAULT_PERSISTENCE_DAYS,
     FALLBACK_REGIME,
@@ -85,8 +87,6 @@ def resolve_regime_multiplier(
 
 def load_config(path=None):
     """Load the regime_overlay section from config.yaml; fall back to defaults."""
-    import yaml
-
     path = path or os.path.expanduser("~/SourceCode/etorotrade/config.yaml")
     try:
         with open(path) as f:
