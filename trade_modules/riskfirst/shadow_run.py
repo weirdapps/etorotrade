@@ -97,10 +97,20 @@ def run(
     regime_fn=None,
     regime_state_path=None,
     persistence_days: int = 2,
+    event_gate_enabled: bool = True,
+    event_risk_path=None,
 ) -> dict:
     """Run the shadow engine. Returns target weights, recommendations, edge verdict."""
     df = load_universe(universe_path)
     df = eligible_universe(df, min_cap=2e9, min_factors=3)  # investability gate
+    n_excluded = 0
+    if event_gate_enabled:
+        from .news_gate import DEFAULT_EVENT_RISK_PATH, apply_exclusions, load_event_risk
+
+        excl = load_event_risk(event_risk_path or DEFAULT_EVENT_RISK_PATH)
+        before = len(df)
+        df = apply_exclusions(df, excl)
+        n_excluded = before - len(df)
     regime = {"raw_regime": None, "confirmed_regime": None, "applied_multiplier": 1.0}
     if regime_overlay_enabled:
         from .regime_state import DEFAULT_STATE_PATH, resolve_regime_multiplier
@@ -146,6 +156,7 @@ def run(
         "edge_gate": verdict,
         "promotable": verdict["passed"],
         "regime": regime,
+        "event_excluded": n_excluded,
     }
 
 
