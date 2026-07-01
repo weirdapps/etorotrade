@@ -13,6 +13,7 @@ from datetime import date
 from .regime_overlay import (
     DEFAULT_PERSISTENCE_DAYS,
     FALLBACK_REGIME,
+    REGIME_EXPOSURE,
     confirm_regime,
     exposure_for_regime,
 )
@@ -80,3 +81,21 @@ def resolve_regime_multiplier(
     except Exception:
         pass  # state is a best-effort cache; never block a run on it
     return mult, {"raw_regime": raw, "confirmed_regime": confirmed, "applied_multiplier": mult}
+
+
+def load_config(path=None):
+    """Load the regime_overlay section from config.yaml; fall back to defaults."""
+    import yaml
+
+    path = path or os.path.expanduser("~/SourceCode/etorotrade/config.yaml")
+    try:
+        with open(path) as f:
+            sec = (yaml.safe_load(f) or {}).get("regime_overlay") or {}
+    except Exception:
+        sec = {}
+    return {
+        "enabled": bool(sec.get("enabled", True)),
+        "persistence_days": int(sec.get("persistence_days", DEFAULT_PERSISTENCE_DAYS)),
+        "fallback": sec.get("fallback", FALLBACK_REGIME),
+        "exposure": {**REGIME_EXPOSURE, **(sec.get("exposure") or {})},
+    }
