@@ -80,7 +80,10 @@ def run_data(
         excl = set(load_event_risk(event_risk_path or DEFAULT_EVENT_RISK_PATH))
         if earnings_blackout_days and earnings_blackout_days > 0:
             _efn = earnings_fn or fetch_earnings_dates
-            emap = _efn(list(cand_df.index))
+            try:
+                emap = _efn(list(cand_df.index))
+            except Exception:
+                emap = {}
             excl |= earnings_blackout(emap, date.today().isoformat(), earnings_blackout_days)
         before = len(cand_df)
         cand_df = apply_exclusions(cand_df, excl)

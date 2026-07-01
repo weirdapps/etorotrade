@@ -67,12 +67,13 @@ def earnings_blackout(earnings_map, as_of, blackout_days: int = 7) -> set:
 
 def apply_exclusions(df, exclude):
     """Return df without rows whose index (ticker) is in `exclude` (a set/iterable).
-    Empty/None exclude -> df unchanged. Does not mutate the input."""
-    if not exclude:
+    Matching is case-insensitive; the original index casing is preserved in the
+    returned frame. Empty/None exclude -> df unchanged. Does not mutate the input."""
+    ex = {str(t).upper() for t in exclude} if exclude else set()
+    if not ex:
         return df
-    exclude_set = set(exclude)
-    mask = ~df.index.isin(exclude_set)
-    return df.loc[mask]
+    keep = ~df.index.astype(str).str.upper().isin(ex)
+    return df.loc[keep]
 
 
 def load_event_risk(path) -> set:
