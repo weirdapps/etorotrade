@@ -41,3 +41,23 @@ def test_build_report_md_has_key_sections(tmp_path):
     assert "Promotable" in md
     for tkr in res["selected"]:
         assert tkr in md
+
+
+def test_shadow_run_overlay_disabled_has_neutral_stub(tmp_path):
+    res = run(regime_overlay_enabled=False)
+    assert res["regime"]["applied_multiplier"] == 1.0
+
+
+def test_shadow_run_overlay_scales_gross(tmp_path):
+    sp = str(tmp_path / "state.json")
+    base = run(regime_overlay_enabled=False)
+    # crisis confirmed by seeding two days via persistence_days=1
+    scaled = run(
+        regime_overlay_enabled=True,
+        regime_fn=lambda: "crisis",
+        regime_state_path=sp,
+        persistence_days=1,
+    )
+    assert scaled["regime"]["confirmed_regime"] == "crisis"
+    assert scaled["regime"]["applied_multiplier"] == 0.40
+    assert scaled["gross"] <= base["gross"] + 1e-9
