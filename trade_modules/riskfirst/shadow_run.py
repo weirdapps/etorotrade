@@ -93,10 +93,23 @@ def run(
     idio_vol: float = 0.30,
     forward_obs: int = 0,
     n_regimes: int = 1,
+    regime_overlay_enabled: bool = True,
+    regime_fn=None,
+    regime_state_path=None,
+    persistence_days: int = 2,
 ) -> dict:
     """Run the shadow engine. Returns target weights, recommendations, edge verdict."""
     df = load_universe(universe_path)
     df = eligible_universe(df, min_cap=2e9, min_factors=3)  # investability gate
+    regime = {"raw_regime": None, "confirmed_regime": None, "applied_multiplier": 1.0}
+    if regime_overlay_enabled:
+        from .regime_state import DEFAULT_STATE_PATH, resolve_regime_multiplier
+
+        _mult, regime = resolve_regime_multiplier(
+            state_path=regime_state_path or DEFAULT_STATE_PATH,
+            persistence_days=persistence_days,
+            regime_fn=regime_fn,
+        )
     built = select_and_construct(
         df,
         FACTORS,
@@ -106,6 +119,7 @@ def run(
         target_vol=target_vol,
         market_vol=market_vol,
         idio_vol=idio_vol,
+        regime_multiplier=regime["applied_multiplier"],
     )
     target = built["weights"][built["weights"] > 1e-9]
     current = load_current_weights(portfolio_path)
@@ -131,6 +145,7 @@ def run(
         "recommendations": recs,
         "edge_gate": verdict,
         "promotable": verdict["passed"],
+        "regime": regime,
     }
 
 
@@ -141,7 +156,8 @@ def build_report_md(res: dict) -> str:
         "# riskfirst SHADOW recommendations",
         "",
         f"**Mode:** {res['mode']} · gross {res['gross']:.1%} · cash {res['cash']:.1%} "
-        f"· USD-bloc {res['usd_bloc']:.1%}",
+        f"· USD-bloc {res['usd_bloc']:.1%}"
+        f" · regime {res['regime']['confirmed_regime']} (×{res['regime']['applied_multiplier']:.2f})",
         "",
         "## Target book",
         "",
@@ -198,6 +214,7 @@ def main(argv=None) -> int:  # pragma: no cover - integration entry point
                 "usd_bloc": res["usd_bloc"],
                 "edge_gate": res["edge_gate"],
                 "promotable": res["promotable"],
+                "regime": res["regime"],
                 "target_weights": res["target_weights"].round(4).to_dict(),
                 "recommendations": res["recommendations"].to_dict(orient="records"),
             },

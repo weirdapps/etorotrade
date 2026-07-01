@@ -54,6 +54,10 @@ def run_data(
     usd_bloc_cap: float = 0.60,
     sector_cap: float = 0.25,
     target_vol: float = 0.12,
+    regime_overlay_enabled: bool = True,
+    regime_fn=None,
+    regime_state_path=None,
+    persistence_days: int = 2,
 ) -> dict:
     cand_df, current = build_candidates(universe_path, portfolio_path, prescreen_n)
     print(f"candidates: {len(cand_df)} (pre-screen {prescreen_n} + current book)")
@@ -82,6 +86,16 @@ def run_data(
     def cov_fn(selected):
         return shrunk_cov(daily_returns(prices[list(selected)]))
 
+    regime = {"raw_regime": None, "confirmed_regime": None, "applied_multiplier": 1.0}
+    if regime_overlay_enabled:
+        from .regime_state import DEFAULT_STATE_PATH, resolve_regime_multiplier
+
+        _mult, regime = resolve_regime_multiplier(
+            state_path=regime_state_path or DEFAULT_STATE_PATH,
+            persistence_days=persistence_days,
+            regime_fn=regime_fn,
+        )
+
     built = select_and_construct(
         cand_df,
         factors,
@@ -91,6 +105,7 @@ def run_data(
         usd_bloc_cap=usd_bloc_cap,
         sector_cap=sector_cap,
         target_vol=target_vol,
+        regime_multiplier=regime["applied_multiplier"],
     )
     target = built["weights"][built["weights"] > 1e-9]
     recs = recommend(target, current)
@@ -107,6 +122,7 @@ def run_data(
         "recommendations": recs,
         "edge_gate": verdict,
         "promotable": verdict["passed"],
+        "regime": regime,
     }
 
 
@@ -136,6 +152,7 @@ def main(argv=None) -> int:  # pragma: no cover - network integration entry poin
                 "recommendations": res["recommendations"].to_dict(orient="records"),
                 "edge_gate": res["edge_gate"],
                 "promotable": res["promotable"],
+                "regime": res["regime"],
             },
             f,
             indent=2,
