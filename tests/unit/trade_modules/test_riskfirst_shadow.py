@@ -48,6 +48,27 @@ def test_shadow_run_overlay_disabled_has_neutral_stub(tmp_path):
     assert res["regime"]["applied_multiplier"] == 1.0
 
 
+def test_build_report_md_stub_regime_not_none_literal():
+    import pandas as pd
+
+    from trade_modules.riskfirst.shadow_run import build_report_md
+
+    res = {
+        "mode": "SHADOW",
+        "gross": 0.0,
+        "cash": 1.0,
+        "usd_bloc": 0.0,
+        "target_weights": pd.Series(dtype=float),
+        "recommendations": pd.DataFrame(columns=["ticker", "action", "current", "target", "delta"]),
+        "edge_gate": {"passed": False, "dsr": 0.5, "reasons": []},
+        "promotable": False,
+        "regime": {"raw_regime": None, "confirmed_regime": None, "applied_multiplier": 1.0},
+    }
+    md = build_report_md(res)
+    assert "regime None" not in md
+    assert "regime neutral" in md
+
+
 def test_shadow_run_overlay_scales_gross(tmp_path):
     sp = str(tmp_path / "state.json")
     base = run(regime_overlay_enabled=False)

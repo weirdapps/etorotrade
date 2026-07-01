@@ -157,7 +157,7 @@ def build_report_md(res: dict) -> str:
         "",
         f"**Mode:** {res['mode']} · gross {res['gross']:.1%} · cash {res['cash']:.1%} "
         f"· USD-bloc {res['usd_bloc']:.1%}"
-        f" · regime {res['regime']['confirmed_regime']} (×{res['regime']['applied_multiplier']:.2f})",
+        f" · regime {(res['regime']['confirmed_regime'] or 'neutral')} (×{res['regime']['applied_multiplier']:.2f})",
         "",
         "## Target book",
         "",
