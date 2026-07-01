@@ -32,7 +32,7 @@ def build_daily_data(vix, vix3m, spy, i, lookback=504):
         "vix_current": float(vix[i]),
         "vix_history": vh,
         "vix_5d_ago": float(vix[i - 5]) if i >= 5 else float(vix[i]),
-        "vix3m_current": float(vix3m[i]) if vix3m is not None else None,
+        "vix3m_current": (None if (vix3m is None or np.isnan(vix3m[i])) else float(vix3m[i])),
         "spy_current": float(spy[i]),
         "spy_history": sh,
         "spy_52w_high": float(np.max(spy[max(0, i - 252) : i + 1])),
@@ -94,7 +94,11 @@ def _fetch(symbol, start):  # pragma: no cover - network
 
 
 def main(argv=None):  # pragma: no cover - network integration entry point
-    start = "2020-01-01"
+    import sys
+
+    args = argv if argv is not None else sys.argv[1:]
+    start = args[0] if args else "2020-01-01"
+
     vix = _fetch("^VIX", start)
     vix3m = _fetch("^VIX3M", start)
     spy = _fetch("SPY", start)
@@ -102,12 +106,16 @@ def main(argv=None):  # pragma: no cover - network integration entry point
     vix.index = vix.index.normalize().tz_localize(None)
     vix3m.index = vix3m.index.normalize().tz_localize(None)
     spy.index = spy.index.normalize().tz_localize(None)
-    idx = spy.index.intersection(vix.index).intersection(vix3m.index)
-    spy, vix, vix3m = spy.reindex(idx), vix.reindex(idx), vix3m.reindex(idx)
+    # Build working index from SPY ∩ VIX only (both go back to the 1990s).
+    # VIX3M only starts ~2011; reindex it onto the wider index so pre-2011
+    # dates get NaN rather than silently dropping all pre-2011 rows.
+    idx = spy.index.intersection(vix.index)
+    spy, vix = spy.reindex(idx), vix.reindex(idx)
+    vix3m = vix3m.reindex(idx)  # NaN where VIX3M has no history
     spy_ret = spy.pct_change().fillna(0).to_numpy()
 
     lines = [
-        "# Regime overlay replay (SPY proxy, 2020-present)",
+        f"# Regime overlay replay (SPY proxy, {start} to present)",
         "",
         "| Profile | Total | CAGR | Vol | Sharpe | MaxDD | %derisked | switches |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
