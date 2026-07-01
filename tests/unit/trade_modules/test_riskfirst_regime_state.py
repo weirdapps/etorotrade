@@ -74,3 +74,22 @@ def test_resolve_creates_nested_state_dir(tmp_path):
     import os as _os
 
     assert _os.path.exists(sp)
+
+
+from trade_modules.riskfirst.regime_state import load_config
+
+
+def test_load_config_defaults_when_missing(tmp_path):
+    cfg = load_config(str(tmp_path / "nope.yaml"))
+    assert cfg["enabled"] is True
+    assert cfg["persistence_days"] == 2
+    assert cfg["exposure"]["crisis"] == 0.40
+
+
+def test_load_config_overrides(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("regime_overlay:\n  persistence_days: 3\n  exposure:\n    crisis: 0.25\n")
+    cfg = load_config(str(p))
+    assert cfg["persistence_days"] == 3
+    assert cfg["exposure"]["crisis"] == 0.25
+    assert cfg["exposure"]["risk_on"] == 1.00  # unspecified keys keep defaults
