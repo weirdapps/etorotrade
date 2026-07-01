@@ -1008,3 +1008,8 @@ regime_overlay:
     neutral: 0.90
     risk_off: 0.65
     crisis: 0.40
+
+event_gate:
+  enabled: true
+  earnings_blackout_days: 7
+  event_risk_path: ~/.weirdapps-trading/news/event_risk.json

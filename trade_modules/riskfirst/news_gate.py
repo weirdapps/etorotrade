@@ -3,12 +3,25 @@
 Pure decisions + a small JSON reader. The engine cannot call MCP/news APIs
 (agent-side), so scandal/litigation risk arrives via an externally-produced
 exclusion file, and earnings dates are fetched by the runner and passed in.
+
+## Event-risk file (producer)
+
+``event_risk.json`` is produced OUTSIDE the engine (agent-side).
+An agent queries TipRanks ``get_assets_warnings`` / ``get_assets_news`` for
+the portfolio + candidates, flags tickers with active scandal/litigation risk,
+and writes the array to ``DEFAULT_EVENT_RISK_PATH``.
+The engine only consumes it — it never calls news APIs directly.
+Format: JSON array of ticker strings, e.g. ``["AAPL", "TSLA"]``.
+Alternatively an object whose keys are ticker strings.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from datetime import date, datetime, timedelta
+
+DEFAULT_EVENT_RISK_PATH = os.path.expanduser("~/.weirdapps-trading/news/event_risk.json")
 
 
 def _to_date(x):

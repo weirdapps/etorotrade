@@ -22,6 +22,7 @@ from .engine import composite_score, eligible_universe, recommend, select_and_co
 from .factors import quality, size, value
 from .prices import (
     daily_returns,
+    fetch_earnings_dates,
     fetch_prices,
     fetch_sectors,
     price_lowvol_factor,
@@ -58,9 +59,32 @@ def run_data(
     regime_fn=None,
     regime_state_path=None,
     persistence_days: int = 2,
+    event_gate_enabled: bool = True,
+    event_risk_path=None,
+    earnings_blackout_days: int = 7,
+    earnings_fn=None,
 ) -> dict:
     cand_df, current = build_candidates(universe_path, portfolio_path, prescreen_n)
     print(f"candidates: {len(cand_df)} (pre-screen {prescreen_n} + current book)")
+    n_excluded = 0
+    if event_gate_enabled:
+        from datetime import date
+
+        from .news_gate import (
+            DEFAULT_EVENT_RISK_PATH,
+            apply_exclusions,
+            earnings_blackout,
+            load_event_risk,
+        )
+
+        excl = set(load_event_risk(event_risk_path or DEFAULT_EVENT_RISK_PATH))
+        if earnings_blackout_days and earnings_blackout_days > 0:
+            _efn = earnings_fn or fetch_earnings_dates
+            emap = _efn(list(cand_df.index))
+            excl |= earnings_blackout(emap, date.today().isoformat(), earnings_blackout_days)
+        before = len(cand_df)
+        cand_df = apply_exclusions(cand_df, excl)
+        n_excluded = before - len(cand_df)
 
     prices = fetch_prices(cand_df.index.tolist(), period=period)
     priced = [t for t in cand_df.index if t in prices.columns and prices[t].notna().sum() > 260]
@@ -123,6 +147,7 @@ def run_data(
         "edge_gate": verdict,
         "promotable": verdict["passed"],
         "regime": regime,
+        "event_excluded": n_excluded,
     }
 
 

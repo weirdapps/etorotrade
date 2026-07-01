@@ -111,3 +111,32 @@ def fetch_sectors(tickers) -> dict:  # pragma: no cover
         except Exception:
             out[t] = None
     return out
+
+
+def fetch_earnings_dates(tickers):  # pragma: no cover
+    """Best-effort {ticker: 'YYYY-MM-DD'} next-earnings map via yfinance.
+    Failures per ticker are swallowed (ticker omitted) — FAIL-OPEN: a transient
+    fetch miss must NOT exclude a good name (earnings blackout is entry-timing,
+    not a survival rail)."""
+    import yfinance as yf
+
+    out = {}
+    for t in tickers:
+        try:
+            cal = yf.Ticker(t).calendar
+            ed = None
+            if isinstance(cal, dict):
+                v = cal.get("Earnings Date")
+                if isinstance(v, (list, tuple)) and v:
+                    ed = v[0]
+                elif v is not None:
+                    ed = v
+            if ed is not None:
+                out[t] = (
+                    str(getattr(ed, "date", lambda: ed)())[:10]
+                    if hasattr(ed, "date")
+                    else str(ed)[:10]
+                )
+        except Exception:
+            pass
+    return out
