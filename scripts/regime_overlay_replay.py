@@ -51,7 +51,7 @@ def regime_series(vix, vix3m, spy, persistence_days, table=None, warmup=252):
     raw = []
     for i in range(len(spy)):
         if i < warmup:
-            raw.append("neutral")
+            raw.append("risk_on")
             continue
         data = build_daily_data(vix, vix3m, spy, i)
         feats = det.compute_features(data)
@@ -70,15 +70,17 @@ def simulate(returns, multipliers):
     n = len(returns)
     ann = 252.0 / n if n else 0.0
     total = float(equity[-1] - 1) if n else 0.0
-    vol = float(np.std(strat) * np.sqrt(252)) if n else 0.0
+    vol = float(np.std(strat, ddof=1) * np.sqrt(252)) if n > 1 else 0.0
     return {
         "total_return": total,
         "cagr": float((equity[-1]) ** ann - 1) if n else 0.0,
         "vol": vol,
-        "sharpe": float(np.mean(strat) / np.std(strat) * np.sqrt(252))
-        if n and np.std(strat) > 0
+        "sharpe": float(np.mean(strat) / np.std(strat, ddof=1) * np.sqrt(252))
+        if n > 1 and np.std(strat, ddof=1) > 0
         else 0.0,
         "max_drawdown": float(dd.min()) if n else 0.0,
+        # NOTE: day 0's multiplier is forced to 1.0 by the caller's lag, so
+        # pct_derisked is understated by at most 1/N (immaterial).
         "pct_derisked": float(np.mean(mult < 1.0)) if n else 0.0,
         "switches": int(np.sum(mult[1:] != mult[:-1])) if n > 1 else 0,
     }
