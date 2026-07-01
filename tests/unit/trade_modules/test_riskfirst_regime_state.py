@@ -1,6 +1,7 @@
 import json
 
 from trade_modules.riskfirst.regime_state import (
+    DEFAULT_STATE_PATH,
     resolve_regime_multiplier,
     update_history,
 )
@@ -59,3 +60,17 @@ def test_resolve_corrupt_state_recovers(tmp_path):
         today="2026-07-01",
     )
     assert mult == 0.90  # cold start after recovery
+
+
+def test_default_state_path_is_str():
+    assert isinstance(DEFAULT_STATE_PATH, str) and DEFAULT_STATE_PATH
+
+
+def test_resolve_creates_nested_state_dir(tmp_path):
+    sp = str(tmp_path / "sub" / "dir" / "state.json")
+    mult, _ = resolve_regime_multiplier(
+        state_path=sp, persistence_days=2, regime_fn=lambda: "neutral", today="2026-07-01"
+    )
+    import os as _os
+
+    assert _os.path.exists(sp)
