@@ -77,7 +77,9 @@ def select_and_construct(
 
     ``cov_fn(selected_tickers) -> cov matrix`` supplies an empirical covariance
     (aligned to the selected order); when None, a single-factor beta covariance is
-    used as the fallback."""
+    used as the fallback.
+
+    ``regime_multiplier`` scales gross after all caps; default 1.0 is a no-op."""
     comp = composite_score(df, factor_fns, weights)
     ranked = comp.dropna().sort_values(ascending=False)
     selected = list(ranked.index[:top_n])
