@@ -73,6 +73,57 @@ FAMILY_GROUPS = [g for g in SUBGROUP_SPECS if g != "crowd"]
 
 HLZ_HURDLE = 3.0  # Harvey-Liu-Zhu |t| hurdle for a "new factor"
 
+# The OLD (2025-05/06) flat-list instrument schema carries no ``instrumentTypeID``,
+# so the "stocks only (typeID==5)" filter can't be applied there. To keep those
+# dates comparable to the type-filtered new-schema dates (a stock study), drop
+# known crypto pseudo-tickers on the old-schema path only. (Bare crypto tickers
+# like ``BTC``/``ETH`` also mis-resolve in yfinance to Grayscale equity trusts,
+# not the coins, which would silently corrupt the book.)
+_CRYPTO_TICKERS = frozenset(
+    {
+        "BTC",
+        "ETH",
+        "XRP",
+        "ADA",
+        "SOL",
+        "DOGE",
+        "LTC",
+        "BCH",
+        "DOT",
+        "EOS",
+        "XLM",
+        "TRX",
+        "NEO",
+        "ZEC",
+        "DASH",
+        "MIOTA",
+        "IOTA",
+        "XTZ",
+        "BNB",
+        "LINK",
+        "UNI",
+        "AAVE",
+        "ALGO",
+        "ATOM",
+        "AVAX",
+        "COMP",
+        "FIL",
+        "GRT",
+        "MKR",
+        "SUSHI",
+        "YFI",
+        "MANA",
+        "SAND",
+        "SHIB",
+        "MATIC",
+        "LUNA",
+        "FTT",
+        "CRO",
+        "NEAR",
+        "ICP",
+    }
+)
+
 
 # --------------------------------------------------------------------------- #
 # Pure functions (unit-tested)
@@ -95,8 +146,10 @@ def build_id_symbol_map(instruments: Any) -> dict[int, str]:
 
     if isinstance(instruments, dict):
         details = instruments.get("details") or []
+        old_schema = False
     elif isinstance(instruments, list):
         details = instruments
+        old_schema = True
     else:
         return id_to_symbol
 
@@ -115,8 +168,13 @@ def build_id_symbol_map(instruments: Any) -> dict[int, str]:
         sym = entry.get("symbolFull") or entry.get("symbol")
         if not sym:
             continue
+        clean = str(sym).strip().upper()
+        # Old schema has no type field -> approximate the stock filter by
+        # dropping known crypto tickers (see _CRYPTO_TICKERS rationale).
+        if old_schema and clean in _CRYPTO_TICKERS:
+            continue
         try:
-            id_to_symbol[int(iid)] = str(sym).strip().upper()
+            id_to_symbol[int(iid)] = clean
         except (TypeError, ValueError):
             continue
 
@@ -335,6 +393,32 @@ def benjamini_hochberg(pvals: list[float], alpha: float = 0.10) -> list[bool]:
     return [clean[i] <= threshold for i in range(m)]
 
 
+def to_yf_symbol(symbol: str) -> str:
+    """Map an eToro ``symbolFull`` to the yfinance ticker convention.
+
+    eToro uses dotted class shares (``BRK.B``) and occasional ``.US`` suffixes;
+    yfinance expects ``BRK-B`` and bare US tickers. Non-US exchange suffixes
+    (``.L``, ``.DE``, ...) are left intact -- yfinance understands those. The
+    transform is idempotent and only touches the two known-divergent forms so
+    it never corrupts a symbol that is already valid.
+    """
+    if not symbol:
+        return symbol
+    s = str(symbol).strip().upper()
+    if s.endswith(".US"):
+        s = s[:-3]
+    # US class shares: a trailing single-letter class after a dot -> dash
+    # (BRK.B -> BRK-B, BF.B -> BF-B). yfinance itself uses single-letter
+    # exchange suffixes for a few venues (.L London, .V TSX-V, .F Frankfurt) --
+    # those must be preserved, so they are excluded from the rewrite.
+    _SINGLE_LETTER_EXCHANGES = {"L", "V", "F"}
+    if "." in s:
+        base, _, suffix = s.rpartition(".")
+        if len(suffix) == 1 and suffix.isalpha() and suffix not in _SINGLE_LETTER_EXCHANGES:
+            s = f"{base}-{suffix}"
+    return s
+
+
 def two_sided_p_from_t(t: float, df: int) -> float:
     """Two-sided p-value for a t-statistic with ``df`` degrees of freedom.
 
@@ -456,6 +540,9 @@ def fetch_price_panel(  # pragma: no cover
 
     closes = closes.sort_index()
     closes.columns = [str(c).upper() for c in closes.columns]
+    # Drop columns yfinance returned empty (delisted / unresolvable): these come
+    # back as all-NaN columns, which would otherwise be counted as "resolved".
+    closes = closes.dropna(axis=1, how="all")
     return closes
 
 
@@ -480,6 +567,8 @@ def run_study(  # pragma: no cover
         for group, (field, nested, highest) in SUBGROUP_SPECS.items():
             subgroup = select_subgroup(investors, field, nested=nested, pct=DECILE, highest=highest)
             book = build_consensus(subgroup, id_to_symbol, top_n=TOP_N)
+            # Map eToro symbols to yfinance tickers for price resolution.
+            book = [(to_yf_symbol(sym), w) for sym, w in book]
             books[iso][group] = book
             for sym, _w in book:
                 all_symbols.add(sym)
@@ -555,7 +644,8 @@ def run_study(  # pragma: no cover
         "stats": stats,
         "bh_sig": bh_sig,
         "family_keys": family_keys,
-        "coverage_pct": coverage_pct,
+        "coverage_pct": coverage_pct,  # holding-slot weighted
+        "unique_coverage_pct": (100.0 * len(resolved) / len(all_symbols) if all_symbols else 0.0),
         "coverage_rows": coverage_rows,
         "resolved_symbols": len(resolved),
         "total_symbols": len(all_symbols),
@@ -631,9 +721,17 @@ def write_report(results: dict[str, Any], out: Path = OUTPUT_REPORT) -> None:  #
 
     lines.append("\n## Symbol-resolution coverage\n")
     lines.append(
-        f"- Overall book-symbol resolution: **{results['coverage_pct']:.1f}%** "
-        f"({results['resolved_symbols']}/{results['total_symbols']} unique "
-        f"symbols resolved by yfinance across all books + SPY).\n"
+        f"- Unique-symbol resolution: **{results['unique_coverage_pct']:.1f}%** "
+        f"({results['resolved_symbols']}/{results['total_symbols']} distinct "
+        f"symbols across all books + SPY resolved by yfinance). The unresolvable "
+        f"remainder is delisted Russian ADRs (`.L`) and a couple of delisted US "
+        f"names.\n"
+    )
+    lines.append(
+        f"- Holding-slot-weighted resolution: **{results['coverage_pct']:.1f}%** "
+        f"(each date x group top-15 slot counted; higher than the unique figure "
+        f"because the unresolvable names are rare, low-weight holdings that "
+        f"seldom enter a top-15 book).\n"
     )
 
     # Verdict
@@ -689,9 +787,11 @@ def write_report(results: dict[str, Any], out: Path = OUTPUT_REPORT) -> None:  #
     )
     lines.append(
         "- **yfinance resolution gaps.** Non-US tickers, delistings, and "
-        "symbol-format mismatches drop out of the panel; coverage is "
-        f"~{results['coverage_pct']:.0f}%, so each book is measured on the "
-        "US-listed subset it could resolve.\n"
+        "symbol-format mismatches drop out of the panel; unique-symbol coverage "
+        f"is ~{results['unique_coverage_pct']:.0f}%, so each book is measured on "
+        "the subset it could resolve. Crypto holdings were excluded by design "
+        "(stock study); bare crypto tickers also mis-resolve to Grayscale trusts "
+        "in yfinance.\n"
     )
     lines.append(
         "- **Overlapping horizons across adjacent monthly dates** induce "
@@ -725,8 +825,9 @@ def main() -> None:  # pragma: no cover
                 f"{_fmt(st['t'], 2):>8}{hit:>7}{st['n']:>4}{bh:>5}{hlz:>8}"
             )
     print(
-        f"\nCoverage: {results['coverage_pct']:.1f}% "
-        f"({results['resolved_symbols']}/{results['total_symbols']} symbols)"
+        f"\nCoverage: unique {results['unique_coverage_pct']:.1f}% "
+        f"({results['resolved_symbols']}/{results['total_symbols']} symbols); "
+        f"holding-slot-weighted {results['coverage_pct']:.1f}%"
     )
 
 

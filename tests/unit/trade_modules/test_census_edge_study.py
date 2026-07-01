@@ -19,6 +19,7 @@ from scripts.census_edge_study import (
     excess_stats,
     forward_return,
     select_subgroup,
+    to_yf_symbol,
     two_sided_p_from_t,
 )
 
@@ -56,6 +57,28 @@ class TestBuildIdSymbolMap:
             ]
         }
         assert build_id_symbol_map(instruments) == {8: "OK"}
+
+    def test_old_schema_drops_crypto_tickers(self):
+        # Old flat-list schema has no instrumentTypeID; crypto pseudo-tickers
+        # must be dropped to approximate the stocks-only filter.
+        instruments = [
+            {"instrumentId": 1, "symbol": "AAPL"},
+            {"instrumentId": 100, "symbol": "BTC"},
+            {"instrumentId": 101, "symbol": "eth"},
+        ]
+        assert build_id_symbol_map(instruments) == {1: "AAPL"}
+
+    def test_new_schema_does_not_apply_crypto_drop(self):
+        # New schema relies on instrumentTypeID==5; a stock literally named like
+        # a crypto ticker (contrived) is still kept because type says stock.
+        instruments = {
+            "details": [
+                {"instrumentId": 1, "symbolFull": "AAPL", "instrumentTypeID": 5},
+                {"instrumentId": 2, "symbolFull": "BTC", "instrumentTypeID": 5},
+            ]
+        }
+        # Both kept: the crypto-name drop is old-schema-only.
+        assert build_id_symbol_map(instruments) == {1: "AAPL", 2: "BTC"}
 
     def test_garbage_returns_empty(self):
         assert build_id_symbol_map(None) == {}
@@ -364,6 +387,29 @@ class TestBenjaminiHochberg:
 # --------------------------------------------------------------------------- #
 # two_sided_p_from_t  (sanity check on the scipy-free p-value)
 # --------------------------------------------------------------------------- #
+
+
+class TestToYfSymbol:
+    def test_class_share_dot_to_dash(self):
+        assert to_yf_symbol("BRK.B") == "BRK-B"
+        assert to_yf_symbol("BF.B") == "BF-B"
+
+    def test_strips_us_suffix(self):
+        assert to_yf_symbol("T.US") == "T"
+
+    def test_preserves_foreign_exchange_suffix(self):
+        # Multi-char exchange suffixes must be left alone for yfinance.
+        assert to_yf_symbol("OGZDL.L") == "OGZDL.L"
+        assert to_yf_symbol("SAP.DE") == "SAP.DE"
+
+    def test_plain_symbol_unchanged(self):
+        assert to_yf_symbol("AAPL") == "AAPL"
+
+    def test_idempotent(self):
+        assert to_yf_symbol(to_yf_symbol("BRK.B")) == "BRK-B"
+
+    def test_uppercases_and_strips(self):
+        assert to_yf_symbol("  aapl ") == "AAPL"
 
 
 class TestTwoSidedP:
