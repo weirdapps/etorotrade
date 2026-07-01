@@ -15,6 +15,7 @@ from trade_modules.analysis.tiers import _parse_market_cap
 from .construct import apply_name_cap, cap_groups, erc_weights, vol_target_scale
 from .covariance import single_factor_cov
 from .fx import USD_BLOC, cap_bloc, currency_of
+from .regime_overlay import scale_for_regime
 
 _ELIGIBILITY_FACTOR_COLS = ("ROE", "PET", "PEF", "FCF", "EG", "%B")
 
@@ -69,6 +70,7 @@ def select_and_construct(
     sector_cap: float = 0.25,
     weights=None,
     cov_fn=None,
+    regime_multiplier: float = 1.0,
 ) -> dict:
     """Score -> select top_n -> ERC -> vol-target -> name cap -> USD-bloc cap
     -> sector cap (if a SECTOR column is present).
@@ -98,6 +100,9 @@ def select_and_construct(
     if "SECTOR" in sub.columns:  # sector cap is dormant until sector labels exist
         w = cap_groups(w, sub["SECTOR"].astype(str).to_numpy(), sector_cap)
         w = apply_name_cap(w, name_cap)
+
+    if regime_multiplier != 1.0:
+        w = scale_for_regime(w, regime_multiplier)
 
     full = pd.Series(0.0, index=df.index)
     full.loc[selected] = w
