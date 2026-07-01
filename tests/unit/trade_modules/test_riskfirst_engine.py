@@ -136,3 +136,31 @@ def test_recommend_classifies_deltas():
     assert actions["AAPL"] == "ADD"  # 0.10 -> 0.30
     assert actions["MSFT"] == "HOLD"  # unchanged
     assert actions["NVDA"] == "SELL"  # 0.15 -> 0.0
+
+
+def _toy_df():
+    # 4 eligible-looking names with betas for the fallback covariance
+    return pd.DataFrame(
+        {"B": [1.0, 1.0, 1.0, 1.0], "CAP": ["100B", "100B", "100B", "100B"]},
+        index=["AAA", "BBB", "CCC", "DDD"],
+    )
+
+
+def _one_factor():
+    return [lambda df: pd.Series([1.0, 0.5, 0.0, -0.5], index=df.index)]
+
+
+def test_regime_multiplier_scales_gross():
+    df, fns = _toy_df(), _one_factor()
+    base = select_and_construct(df, fns, top_n=4, target_vol=0.50)
+    scaled = select_and_construct(df, fns, top_n=4, target_vol=0.50, regime_multiplier=0.5)
+    assert scaled["gross"] == pytest.approx(base["gross"] * 0.5, rel=1e-9)
+    assert scaled["cash"] == pytest.approx(1.0 - base["gross"] * 0.5, rel=1e-9)
+    np.testing.assert_allclose(scaled["weights"].values, base["weights"].values * 0.5)
+
+
+def test_regime_multiplier_default_is_noop():
+    df, fns = _toy_df(), _one_factor()
+    a = select_and_construct(df, fns, top_n=4, target_vol=0.50)
+    b = select_and_construct(df, fns, top_n=4, target_vol=0.50, regime_multiplier=1.0)
+    np.testing.assert_allclose(a["weights"].values, b["weights"].values)
