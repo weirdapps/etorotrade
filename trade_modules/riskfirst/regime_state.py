@@ -31,7 +31,9 @@ def _read_state(path):
 
 
 def _write_state(path, state):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dir_ = os.path.dirname(path)
+    if dir_:
+        os.makedirs(dir_, exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(state, f, indent=2)
