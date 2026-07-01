@@ -156,7 +156,7 @@ def test_regime_multiplier_scales_gross():
     scaled = select_and_construct(df, fns, top_n=4, target_vol=0.50, regime_multiplier=0.5)
     assert scaled["gross"] == pytest.approx(base["gross"] * 0.5, rel=1e-9)
     assert scaled["cash"] == pytest.approx(1.0 - base["gross"] * 0.5, rel=1e-9)
-    np.testing.assert_allclose(scaled["weights"].values, base["weights"].values * 0.5)
+    np.testing.assert_allclose(scaled["weights"].values, base["weights"].values * 0.5, rtol=1e-9)
 
 
 def test_regime_multiplier_default_is_noop():
@@ -164,3 +164,5 @@ def test_regime_multiplier_default_is_noop():
     a = select_and_construct(df, fns, top_n=4, target_vol=0.50)
     b = select_and_construct(df, fns, top_n=4, target_vol=0.50, regime_multiplier=1.0)
     np.testing.assert_allclose(a["weights"].values, b["weights"].values)
+    assert a["gross"] == pytest.approx(b["gross"])
+    assert a["cash"] == pytest.approx(b["cash"])
