@@ -35,12 +35,14 @@ def compute_turnover(
           - annualized_drag_bps: float — annualised cost drag in basis points.
           - n_trades:            int   — total number of actions.
     """
-    if not actions or window_days <= 0:
+    if not actions:
         return {
             "turnover_annual_pct": 0.0,
             "annualized_drag_bps": 0.0,
             "n_trades": 0,
         }
+    if window_days <= 0:
+        raise ValueError(f"window_days must be positive; got {window_days}")
 
     sum_abs_weight_change = sum(abs(a["weight_change"]) for a in actions)
     turnover_annual_pct = (sum_abs_weight_change / window_days) * 365 * 100

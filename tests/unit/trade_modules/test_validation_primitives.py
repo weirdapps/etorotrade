@@ -56,8 +56,8 @@ class TestRollingWalkForward:
     def test_embargo_respected(self):
         """No test item should be within embargo_days of the last train date."""
         items = self._make_items([f"2026-01-{d:02d}" for d in range(1, 31)])
-        embargo = 5
-        folds = rolling_walk_forward(items, n_folds=3, embargo_days=embargo)
+        embargo_days = 5
+        folds = rolling_walk_forward(items, n_folds=3, embargo_days=embargo_days)
         for train, test in folds:
             if not train or not test:
                 continue
@@ -65,7 +65,9 @@ class TestRollingWalkForward:
             for item in test:
                 test_date = datetime.date.fromisoformat(item["signal_date"])
                 gap = (test_date - max_train).days
-                assert gap >= embargo, f"Embargo violated: gap={gap} < embargo={embargo}"
+                assert gap > embargo_days, (
+                    f"Embargo violated: gap={gap} not > embargo={embargo_days}"
+                )
 
     def test_train_test_disjoint(self):
         items = self._make_items([f"2026-01-{d:02d}" for d in range(1, 31)])
