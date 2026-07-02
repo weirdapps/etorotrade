@@ -53,6 +53,7 @@ def size_book(
     current_weights: dict[str, float],
     budget_frac: float,
     cfg: dict | None = None,
+    nav: float | None = None,
 ) -> list[dict]:
     """Size the S3 final universe into a concrete action plan.
 
@@ -62,12 +63,20 @@ def size_book(
         current_weights: {ticker: weight_frac} real book (fractions, long-only).
         budget_frac: Deployable fraction of NAV from deployable_budget().
         cfg: Optional overrides — name_cap, sector_cap, trim_to, min_position.
+        nav: Portfolio NAV in USD. When provided, delta_usd is computed as
+            delta_pct * nav. When None, delta_usd is None.
 
     Returns:
-        List of {ticker, action, current_pct, target_pct, delta_pct, delta,
+        List of {ticker, action, current_pct, target_pct, delta_pct, delta_usd,
         conviction} sorted BUY/ADD by target descending, then TRIM/SELL, HOLD.
         Long-only: target_pct >= 0 always.
+
+    Note:
+        Budget may be partially undeployed when name or sector caps bind.
+        Freed budget is not redistributed — this is intentional behaviour to
+        keep the sizer simple and single-pass.
     """
+    # Sizing is risk-parity (ERC); conviction is passed through for reference, not used for weighting.
     # Pure: never mutate inputs
     universe = [dict(r) for r in final_universe]
     weights = dict(current_weights)
@@ -181,7 +190,7 @@ def size_book(
             "current_pct": current,
             "target_pct": target,
             "delta_pct": delta,
-            "delta": delta,  # same value, per spec
+            "delta_usd": delta * nav if nav is not None else None,
             "conviction": row.get("conviction"),
         }
         # Propagate optional fields that may be useful to callers

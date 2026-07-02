@@ -97,7 +97,7 @@ def main() -> None:  # pragma: no cover
     budget_frac = deployable_budget(args.cash_pct, target_cash_pct=0.07, regime_mult=mult)
 
     # --- Size the book ---
-    action_plan = size_book(final_universe, current_weights, budget_frac=budget_frac)
+    action_plan = size_book(final_universe, current_weights, budget_frac=budget_frac, nav=args.nav)
 
     # --- Write output files ---
     ts = _athens_now()  # pragma: no cover

@@ -203,7 +203,7 @@ class TestSizeBookImmutability:
 
 class TestSizeBookOutputStructure:
     def test_all_output_dicts_have_required_keys(self):
-        """All output dicts have the required keys."""
+        """All output dicts have the required keys. delta_usd is None when nav not provided."""
         result = size_book(
             [{"ticker": "AAPL", "action": "BUY", "conviction": 7}],
             {},
@@ -216,8 +216,44 @@ class TestSizeBookOutputStructure:
             "current_pct",
             "target_pct",
             "delta_pct",
-            "delta",
+            "delta_usd",
             "conviction",
         }
         for row in result:
             assert set(row.keys()) >= required
+            # delta_usd is None when nav is not provided
+            assert row["delta_usd"] is None
+
+    def test_delta_usd_computed_when_nav_provided(self):
+        """delta_usd = delta_pct * nav when nav is given."""
+        result = size_book(
+            [{"ticker": "AAPL", "action": "BUY", "conviction": 7}],
+            {},
+            budget_frac=0.10,
+            nav=10_000.0,
+        )
+        assert result
+        for row in result:
+            assert row["delta_usd"] is not None
+            assert abs(row["delta_usd"] - row["delta_pct"] * 10_000.0) < 1e-6
+
+
+class TestSizeBookBudgetLeak:
+    def test_budget_leak_when_name_capped(self):
+        """Budget is partially undeployed when a single BUY hits name_cap.
+
+        This is intentional design: freed budget is not redistributed.
+        The sum of BUY/ADD delta_pct will be < budget_frac in this scenario.
+        """
+        # Single BUY with budget_frac=0.20 and name_cap=0.12 → only 0.12 deployed
+        result = size_book(
+            [{"ticker": "AAPL", "action": "BUY", "conviction": 8}],
+            {},
+            budget_frac=0.20,
+            cfg={"name_cap": 0.12},
+        )
+        buy_rows = [r for r in result if r["action"] == "BUY"]
+        total_deployed = sum(r["delta_pct"] for r in buy_rows)
+        # Deployed should be capped at name_cap (0.12), not full budget (0.20)
+        assert total_deployed < 0.20
+        assert abs(total_deployed - 0.12) < 1e-9
