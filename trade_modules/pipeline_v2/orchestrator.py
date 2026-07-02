@@ -119,6 +119,7 @@ def run_pipeline(
     s1_result = filter_universe(adapted_df, config=cfg.get("filter"))
     eligible_df: pd.DataFrame = s1_result["eligible"]
     excluded: dict = s1_result.get("excluded", {})
+    price_only_tickers: set[str] = {str(t).strip() for t in s1_result.get("price_only", [])}
 
     # ------------------------------------------------------------------
     # S2: Factor composite + long_only_signal on fundamental sleeve
@@ -159,20 +160,27 @@ def run_pipeline(
     current_weights, held_tickers = portfolio_to_weights(portfolio_df)
 
     # ------------------------------------------------------------------
-    # S3 Candidate assembly
+    # S3 Candidate assembly  (asymmetric held vs non-held — see F1/F2)
     #
-    # Candidates = eligible rows with BUY or HOLD signal.
-    # EXIT-signal names are excluded from candidates; if held, they become
-    # SELL via cio.synthesize's "dropped from universe" path.
+    # ALL S1-eligible fundamental names become candidates (including EXIT-signal
+    # names), each carrying composite_pct for conviction scoring and in_universe
+    # implicitly True.  cio.synthesize then GRADES them by conviction:
+    #   - non-held → BUY only if conviction clears the BUY threshold, else NONE
+    #   - held     → ADD / HOLD / TRIM / SELL-at-floor  (NEVER force-SELL'd for
+    #                merely landing in the bottom relative-signal quantile)
+    #
+    # A held name is force-SELL'd ONLY if it truly dropped from the investable
+    # universe (failed S1 or excluded) — passed to synthesize as
+    # held_failed_eligibility.
+    #
+    # Held PRICE-ONLY names (ETFs / crypto) are unscoreable because the price
+    # sleeve is skipped; they are emitted as HOLD directly (untouched), never a
+    # fabricated SELL.
     # ------------------------------------------------------------------
     candidates: list[dict] = []
 
+    eligible_tickers: set[str] = set()
     for ticker in signals.index:
-        signal = signals.get(ticker, "HOLD")
-        if signal == "EXIT":
-            # Not a candidate — held names with EXIT will be SELLed by S3
-            continue
-
         # Build candidate dict from the eligible row
         # Recover the original row from eligible_df (pre-index-set)
         if "TKR" in eligible_df.columns:
@@ -189,22 +197,50 @@ def run_pipeline(
         candidate = etoro_row_to_candidate(raw_row)
 
         # Attach composite_pct [0, 1] for conviction scoring
-        comp_val = composite_scores.get(ticker)
         pct_rank = composite_pct_series.get(ticker) if not composite_pct_series.empty else None
         candidate["composite_pct"] = _to_float(pct_rank)
 
-        # Also pass through raw numeric fields conviction/personas need (in case
-        # the etoro.csv columns were stored as strings — adapters already parse them)
         candidates.append(candidate)
+        eligible_tickers.add(str(candidate.get("ticker")).strip())
+
+    # Held names that TRULY dropped from the investable universe: held, and
+    # neither S1-eligible nor price-only (i.e. failed a quality gate or were
+    # excluded for no usable price).  These — and only these — become SELL.
+    held_failed_eligibility: set[str] = {
+        t for t in held_tickers if t not in eligible_tickers and t not in price_only_tickers
+    }
 
     # ------------------------------------------------------------------
-    # S3: CIO synthesize
+    # S3: CIO synthesize (grades candidates; SELLs only failed-eligibility held)
     # ------------------------------------------------------------------
     s3_result: list[dict] = synthesize(
         candidates=candidates,
         held_tickers=held_tickers,
+        held_failed_eligibility=held_failed_eligibility,
         cfg=cfg.get("cio"),
     )
+
+    # ------------------------------------------------------------------
+    # Held PRICE-ONLY names → HOLD (untouched; price sleeve unavailable)
+    # ------------------------------------------------------------------
+    held_price_only: set[str] = {t for t in held_tickers if t in price_only_tickers}
+    s3_tickers = {r.get("ticker") for r in s3_result}
+    for ticker in sorted(held_price_only):
+        if ticker in s3_tickers:
+            continue  # already represented (shouldn't happen — price-only ≠ candidate)
+        s3_result.append(
+            {
+                "ticker": ticker,
+                "action": "HOLD",
+                "conviction": None,
+                "persona_consensus": "neutral",
+                "persona_dissent": [],
+                "rationale": (
+                    f"{ticker}: HOLD | price-only (ETF/crypto) held position — "
+                    f"unscored (price sleeve skipped); left untouched"
+                ),
+            }
+        )
 
     # ------------------------------------------------------------------
     # S4: Budget + size_book

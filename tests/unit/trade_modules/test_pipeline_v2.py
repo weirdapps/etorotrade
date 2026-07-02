@@ -388,9 +388,13 @@ class TestRunPipelineEndToEnd:
             generated_at="2026-07-02T09:00:00",
         )
         all_actions = result["actions"] + result.get("holds", [])
-        tickers = [r["ticker"] for r in all_actions]
-        # HIGHQ should appear somewhere (BUY, ADD, or HOLD)
-        assert "HIGHQ" in tickers or len(result["actions"]) > 0 or len(result.get("holds", [])) > 0
+        action_by_ticker = {r["ticker"]: r.get("action") for r in all_actions}
+        # HIGHQ is a strong new name → it must be selected as a BUY (not merely
+        # "some output exists"). This is a real invariant, not a tautology.
+        assert "HIGHQ" in action_by_ticker, "HIGHQ (strong new name) must be selected"
+        assert action_by_ticker["HIGHQ"] == "BUY", (
+            f"HIGHQ should be BUY, got {action_by_ticker['HIGHQ']}"
+        )
 
     def test_held_name_dropped_from_eligibility_gets_sell(self):
         """WEAKCO fails S1 gates; if held, should appear as SELL in actions."""
@@ -561,14 +565,15 @@ class TestRunPipelineEndToEnd:
             cash_pct=0.20,
             generated_at="2026-07-02T09:00:00",
         )
-        all_tickers = {r["ticker"] for r in result["actions"]} | {
-            r["ticker"] for r in result.get("holds", [])
-        }
-        # MIDD is held; if it passes S1 it must show up somewhere
-        # (it may be HOLD if mid-conviction). If it fails S1, it's SELL.
-        # Either way, it should not silently disappear.
-        assert "MIDD" in all_tickers or any(
-            r.get("action") == "SELL" and r.get("ticker") == "MIDD" for r in result["actions"]
+        all_rows = result["actions"] + result.get("holds", [])
+        action_by_ticker = {r["ticker"]: r.get("action") for r in all_rows}
+        # MIDD is held and passes S1 (4T cap, 15 analysts, positive earnings).
+        # It must appear AND — as a held, still-eligible mid-conviction name —
+        # it must be graded HOLD/ADD/TRIM, NEVER force-SELL'd merely for a low
+        # relative signal. SELL is reserved for names that FAIL S1 eligibility.
+        assert "MIDD" in action_by_ticker, "held eligible MIDD must not vanish"
+        assert action_by_ticker["MIDD"] in {"ADD", "HOLD", "TRIM"}, (
+            f"held eligible MIDD must be graded, not force-SELL'd; got {action_by_ticker['MIDD']}"
         )
 
     def test_size_book_integration_target_pct_within_name_cap(self):
@@ -587,3 +592,216 @@ class TestRunPipelineEndToEnd:
                 assert row.get("target_pct", 0.0) <= 0.15, (
                     f"target_pct {row['target_pct']} > 15% cap for {row['ticker']}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# F1/F2 REGRESSION — the "wrongful liquidation" bug
+#
+# Root cause (final-review F1+F2): the orchestrator dropped every EXIT-signal
+# name and every price-only (ETF/crypto) name from the candidate set, so
+# cio.synthesize's "held − candidates → SELL" path force-SELL'd:
+#   (a) held blue-chips that merely landed in the bottom composite quintile
+#       (EXIT is RELATIVE — always ~20% of names), and
+#   (b) held ETFs/crypto whose price sleeve is skipped (no signal at all).
+# On the real book this liquidated ~80% of holdings in one pass.
+#
+# Correct asymmetric semantics:
+#   - held + passed S1  → graded by conviction (ADD/HOLD/TRIM/SELL-at-floor);
+#     NEVER force-SELL merely for a low relative signal.
+#   - held + FAILED S1  → SELL (the ONLY "dropped → SELL" case).
+#   - held + price-only (unscoreable) → HOLD (never a fabricated SELL).
+# ---------------------------------------------------------------------------
+
+
+class TestWrongfulLiquidationRegression:
+    """Guards against the F1/F2 wholesale-liquidation regression."""
+
+    def _blue_chip_low_composite(self, ticker):
+        """A held mega-cap that passes S1 but lands in the bottom composite
+        quintile by construction: rich valuation (high PE), high beta, modest
+        upside — i.e. an EXIT-signal name that must NOT be force-SELL'd."""
+        return _make_etoro_row(
+            ticker,
+            cap="3T",
+            prc="200.0",
+            up_pct="8%",
+            buy_pct="55%",
+            n_analysts="30",
+            beta="1.4",
+            w52="72",  # passes trend gate (>=30)
+            pet="45",
+            pef="38",
+            peg="3.2",
+            roe="20",
+            de="120",
+            fcf="1.0%",  # positive → passes earnings gate
+            eg="8",
+        )
+
+    def _strong_fresh_name(self, ticker):
+        """A high-composite name (cheap, low-vol, high quality) to populate the
+        TOP quintile so the blue-chips are pushed into the EXIT band."""
+        return _make_etoro_row(
+            ticker,
+            cap="8T",
+            prc="150.0",
+            up_pct="55%",
+            buy_pct="90%",
+            n_analysts="30",
+            beta="0.7",
+            w52="88",
+            pet="12",
+            pef="10",
+            peg="0.7",
+            roe="35",
+            de="30",
+            fcf="6.0%",
+            eg="30",
+        )
+
+    def _s1_failing_name(self, ticker):
+        """Truly drops from the investable universe: sub-threshold cap AND too
+        few analysts AND melting trend. This is the ONLY name that should SELL."""
+        return _make_etoro_row(
+            ticker,
+            cap="300M",  # < 2B min_cap
+            up_pct="2%",
+            buy_pct="20%",
+            n_analysts="2",  # < 5 min_analysts
+            w52="15",  # < 30 melting
+            roe="-8",
+            fcf="-3.0%",
+            pet="-5",
+        )
+
+    def _etf_row(self, ticker):
+        """A price-only ETF: routed to price_only by KNOWN_PRICE_ONLY, so it is
+        never a fundamental candidate (price sleeve skipped)."""
+        return _make_etoro_row(
+            ticker,
+            cap="50B",
+            prc="180.0",
+            up_pct="--",
+            buy_pct="--",
+            n_analysts="--",
+            beta="--",
+            w52="60",
+            pet="--",
+            pef="--",
+            peg="--",
+            roe="--",
+            de="--",
+            fcf="--",
+            eg="--",
+        )
+
+    def _build_universe(self):
+        # 6 fresh strong names (top quintile) + 4 held blue-chips (bottom
+        # quintile / EXIT) + 1 held S1-failing + 2 held price-only ETFs.
+        fresh = [self._strong_fresh_name(f"FRESH{i}") for i in range(6)]
+        blue = [self._blue_chip_low_composite(t) for t in ("MEGA1", "MEGA2", "MEGA3", "MEGA4")]
+        failing = [self._s1_failing_name("JUNKCO")]
+        gld = self._etf_row("GLD")
+        btc = _make_etoro_row(
+            "BTC-USD",
+            cap="1T",
+            prc="65000",
+            up_pct="--",
+            buy_pct="--",
+            n_analysts="--",
+            beta="--",
+            w52="70",
+            pet="--",
+            pef="--",
+            peg="--",
+            roe="--",
+            de="--",
+            fcf="--",
+            eg="--",
+        )
+        return _make_universe(fresh + blue + failing + [gld, btc])
+
+    def _build_portfolio(self):
+        # Held: 4 blue-chips (eligible, EXIT-signal), 1 S1-failing, 2 price-only.
+        return _make_portfolio(
+            [
+                ("MEGA1", 10.0, True),
+                ("MEGA2", 10.0, True),
+                ("MEGA3", 10.0, True),
+                ("MEGA4", 10.0, True),
+                ("JUNKCO", 3.0, True),
+                ("GLD", 7.0, True),
+                ("BTC-USD", 5.0, True),
+            ]
+        )
+
+    def _run(self):
+        return run_pipeline(
+            universe_df=self._build_universe(),
+            portfolio_df=self._build_portfolio(),
+            regime_mult=1.0,
+            cash_pct=0.20,
+            generated_at="2026-07-02T09:00:00",
+        )
+
+    def test_held_eligible_bluechips_not_force_sold(self):
+        """The 4 held eligible blue-chips (EXIT signal) must NOT be SELL — they
+        are graded HOLD/ADD/TRIM, never liquidated for a low relative signal."""
+        result = self._run()
+        all_rows = result["actions"] + result["holds"]
+        action_by_ticker = {r["ticker"]: r.get("action") for r in all_rows}
+        for t in ("MEGA1", "MEGA2", "MEGA3", "MEGA4"):
+            assert t in action_by_ticker, f"held blue-chip {t} vanished"
+            assert action_by_ticker[t] != "SELL", (
+                f"held eligible blue-chip {t} was force-SELL'd (F1 regression); "
+                f"action={action_by_ticker[t]}"
+            )
+            assert action_by_ticker[t] in {"ADD", "HOLD", "TRIM"}
+
+    def test_held_price_only_becomes_hold(self):
+        """Held ETF/crypto (price sleeve skipped) must degrade to HOLD, never a
+        fabricated SELL (F2 regression)."""
+        result = self._run()
+        all_rows = result["actions"] + result["holds"]
+        action_by_ticker = {r["ticker"]: r.get("action") for r in all_rows}
+        for t in ("GLD", "BTC-USD"):
+            assert t in action_by_ticker, f"held price-only {t} vanished"
+            assert action_by_ticker[t] == "HOLD", (
+                f"held price-only {t} must be HOLD (unscored/held), got {action_by_ticker[t]}"
+            )
+
+    def test_only_s1_failing_name_is_sold(self):
+        """The single held name that FAILS S1 eligibility (JUNKCO) is the ONLY
+        SELL — SELL is reserved for names dropped from the investable universe."""
+        result = self._run()
+        sell_tickers = {r["ticker"] for r in result["actions"] if r.get("action") == "SELL"}
+        assert "JUNKCO" in sell_tickers, "S1-failing held name must SELL"
+        assert sell_tickers == {"JUNKCO"}, (
+            f"only the S1-failing name should SELL; got {sell_tickers}"
+        )
+
+    def test_sells_are_small_minority_not_wholesale(self):
+        """The plan must NOT liquidate the core: SELLs are a small minority of
+        the 7 holdings (exactly 1 here — only the S1-failing name)."""
+        result = self._run()
+        all_rows = result["actions"] + result["holds"]
+        held_universe = {"MEGA1", "MEGA2", "MEGA3", "MEGA4", "JUNKCO", "GLD", "BTC-USD"}
+        held_rows = [r for r in all_rows if r["ticker"] in held_universe]
+        sells = [r for r in held_rows if r.get("action") == "SELL"]
+        retained = [r for r in held_rows if r.get("action") in {"ADD", "HOLD", "TRIM"}]
+        # At most 1 of 7 holdings sold — a small minority, not wholesale churn.
+        assert len(sells) <= 2, f"wholesale liquidation regression: {len(sells)} SELLs"
+        # The core is retained (graded ADD/HOLD/TRIM, not zeroed): blue-chips
+        # TRIM (low relative signal) and ETFs HOLD → at least 6 of 7 retained.
+        assert len(retained) >= 6, f"core not retained: only {len(retained)} kept"
+
+    def test_resulting_gross_not_collapsed(self):
+        """A ~95%-invested book must not collapse to near-cash after one pass."""
+        result = self._run()
+        # The book was ~55% held (7 names summing to 55%); after grading, gross
+        # must stay well above the F1 collapse (~17%). Require it to retain the
+        # bulk of the held book (blue-chips + ETFs kept, only JUNKCO removed).
+        assert result["resulting_gross"] > 0.40, (
+            f"resulting_gross collapsed to {result['resulting_gross']:.2%} "
+            f"(F1/F2 wholesale-liquidation regression)"
+        )

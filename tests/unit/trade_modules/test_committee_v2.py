@@ -491,13 +491,31 @@ class TestCioSynthesize:
         assert entry is not None
         assert entry["action"] == "BUY"
 
-    def test_held_not_in_candidates_gets_sell(self):
-        """A held ticker that drops from the candidate list → SELL."""
+    def test_held_failed_eligibility_gets_sell(self):
+        """A held ticker that FAILED S1 eligibility → SELL (explicit contract)."""
         candidates = [self._make_candidate("AAPL")]
-        result = synthesize(candidates, held_tickers={"MSFT", "AAPL"})
+        result = synthesize(
+            candidates,
+            held_tickers={"MSFT", "AAPL"},
+            held_failed_eligibility={"MSFT"},
+        )
         msft = next((r for r in result if r["ticker"] == "MSFT"), None)
-        assert msft is not None, "MSFT (held but not in candidates) must appear"
+        assert msft is not None, "MSFT (held, failed S1) must appear"
         assert msft["action"] == "SELL"
+
+    def test_held_absent_but_not_failed_is_not_force_sold(self):
+        """A held ticker absent from candidates but NOT in held_failed_eligibility
+        must NOT be force-SELL'd (F1/F2 asymmetric semantics)."""
+        candidates = [self._make_candidate("AAPL")]
+        # MSFT is held and absent from candidates, but did NOT fail S1 (e.g. it
+        # is a price-only hold or a low-relative-signal name handled elsewhere).
+        result = synthesize(
+            candidates,
+            held_tickers={"MSFT", "AAPL"},
+            held_failed_eligibility=set(),
+        )
+        msft = next((r for r in result if r["ticker"] == "MSFT"), None)
+        assert msft is None, "MSFT must NOT be force-SELL'd when it did not fail S1"
 
     def test_sorted_by_conviction_descending(self):
         high = self._make_candidate("HIGH", composite_pct=1.0, upside="80%", buy_pct="100%")
@@ -525,9 +543,13 @@ class TestCioSynthesize:
         assert tsla is not None
         assert tsla["action"] in {"ADD", "HOLD"}, f"Expected ADD or HOLD, got {tsla['action']}"
 
-    def test_multiple_held_not_in_candidates_all_sell(self):
+    def test_multiple_held_failed_eligibility_all_sell(self):
         candidates = [self._make_candidate("AAPL")]
-        result = synthesize(candidates, held_tickers={"MSFT", "GOOG"})
+        result = synthesize(
+            candidates,
+            held_tickers={"MSFT", "GOOG"},
+            held_failed_eligibility={"MSFT", "GOOG"},
+        )
         sell_tickers = {r["ticker"] for r in result if r["action"] == "SELL"}
         assert {"MSFT", "GOOG"}.issubset(sell_tickers)
 
