@@ -1,6 +1,20 @@
 """Pure signal-composite module for the S2 signal rebuild.
 
-All three functions are PURE — no I/O, no network, no mutation.
+All functions are PURE — no I/O, no network, no mutation.
+
+V2 STRATEGY IS LONG-ONLY
+-------------------------
+``long_only_signal`` is the **canonical mapper** for the v2 production strategy.
+Labels: 'BUY' (top quantile — attractive long), 'EXIT' (bottom quantile — close
+or avoid a long; NOT a short position), 'HOLD' (middle). 'EXIT' means the factor
+composite ranks this name in the bottom bucket; the correct action is to sell *if
+currently held* or skip *if not held*. There is NO short sleeve: the backtest
+showed the factor composite's bottom quantile had POSITIVE forward returns, so no
+short edge exists.
+
+``map_to_signal`` is kept for back-compat (returns 'B'/'H'/'S'). Under the v2
+strategy its 'S' label must be interpreted as "exit long" NOT "enter short". For
+new code, prefer ``long_only_signal`` whose labels make the intent unambiguous.
 """
 
 from __future__ import annotations
@@ -110,6 +124,64 @@ def map_to_signal(
     # NaN inputs always 'H' (override any boundary assignment)
     nan_mask = composite.isna()
     labels[nan_mask] = "H"
+
+    return labels
+
+
+def long_only_signal(
+    composite: pd.Series,
+    buy_pct: float = 0.20,
+    exit_pct: float = 0.20,
+) -> pd.Series:
+    """Long-only signal. Top ``buy_pct`` (highest composite) → 'BUY' (attractive long);
+    bottom ``exit_pct`` → 'EXIT' (do NOT hold — sell if currently held, never short);
+    middle → 'HOLD'. NaN → 'HOLD'. This replaces the symmetric B/S/H short interpretation:
+    'EXIT' means close/avoid a long, NOT a short position. Reuse the same percentile logic
+    as map_to_signal. PURE.
+
+    Guards:
+        - empty → empty
+        - buy_pct + exit_pct > 1 → raise ValueError
+        - exit_pct = 0 → no EXIT labels
+        - buy_pct = 0 → no BUY labels
+        - does not mutate the input
+
+    Args:
+        composite: pd.Series of floats, index = ticker names.
+        buy_pct: fraction of universe to label 'BUY' (top quantile).
+        exit_pct: fraction of universe to label 'EXIT' (bottom quantile).
+
+    Returns:
+        pd.Series of str ('BUY'/'HOLD'/'EXIT'), same index as composite.
+        'S' / short labels are NEVER emitted.
+    """
+    if buy_pct + exit_pct > 1.0 + 1e-9:
+        raise ValueError(
+            f"buy_pct ({buy_pct}) + exit_pct ({exit_pct}) > 1.0 — BUY and EXIT zones would overlap"
+        )
+
+    if len(composite) == 0:
+        return pd.Series(dtype=str)
+
+    comp = composite.copy()
+    valid = comp.dropna()
+
+    if len(valid) == 0 or (buy_pct == 0.0 and exit_pct == 0.0):
+        return pd.Series("HOLD", index=composite.index)
+
+    buy_cut: float = float(valid.quantile(1.0 - buy_pct)) if buy_pct > 0.0 else float("inf")
+    exit_cut: float = float(valid.quantile(exit_pct)) if exit_pct > 0.0 else float("-inf")
+
+    labels = pd.Series("HOLD", index=composite.index)
+    if buy_pct > 0.0:
+        labels = labels.where(~(comp >= buy_cut), other="BUY")
+    if exit_pct > 0.0:
+        labels = labels.where(~(comp <= exit_cut), other="EXIT")
+
+    # Ties at the boundary: BUY wins over EXIT (mirrors map_to_signal tie rule).
+    # NaN always → 'HOLD'.
+    nan_mask = composite.isna()
+    labels[nan_mask] = "HOLD"
 
     return labels
 
