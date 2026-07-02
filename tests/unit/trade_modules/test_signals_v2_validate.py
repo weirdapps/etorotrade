@@ -20,6 +20,7 @@ import pytest
 
 from scripts.signals_v2_validate import (
     build_signal_rows,
+    exit_bucket_alpha,
     price_factor_score,
     rebalance_dates,
 )
@@ -271,3 +272,116 @@ def test_integration_harness_ranks_buy_above_sell_on_momentum_panel():
     s_alpha = fams["S"].get("mu_alpha")
     assert b_alpha is not None and s_alpha is not None
     assert b_alpha > s_alpha, f"B alpha {b_alpha} should exceed S alpha {s_alpha}"
+
+
+# ---------------------------------------------------------------------------
+# exit_bucket_alpha — long-only exit-rule validation helper (PURE)
+# ---------------------------------------------------------------------------
+
+
+def _make_rows_with_known_exit_alpha(exit_alpha: float, universe_alpha: float) -> list[dict]:
+    """Synthetic harness rows where EXIT bucket and universe have known mean alphas.
+
+    EXIT rows (signal='EXIT') carry exit_alpha; HOLD rows carry universe_alpha.
+    This lets us test exit_bucket_alpha's arithmetic in isolation.
+    """
+    rows = []
+    # 20 EXIT rows
+    for i in range(20):
+        rows.append(
+            {
+                "ticker": f"EXIT_{i}",
+                "signal": "EXIT",
+                "alpha": exit_alpha,
+                "net_alpha": exit_alpha - 0.002,
+                "horizon": 30,
+                "tier": "NA",
+                "signal_date": "2022-01-01",
+            }
+        )
+    # 40 HOLD rows (stand-in for universe)
+    for i in range(40):
+        rows.append(
+            {
+                "ticker": f"HOLD_{i}",
+                "signal": "HOLD",
+                "alpha": universe_alpha,
+                "net_alpha": universe_alpha - 0.002,
+                "horizon": 30,
+                "tier": "NA",
+                "signal_date": "2022-01-01",
+            }
+        )
+    return rows
+
+
+class TestExitBucketAlpha:
+    """Tests for exit_bucket_alpha(rows) — pure helper for the long-only exit rule.
+
+    exit_bucket_alpha(rows) -> dict with keys:
+      exit_mean_alpha (float), universe_mean_alpha (float),
+      exit_justified (bool),  # exit_mean_alpha < universe_mean_alpha
+      exit_n (int), universe_n (int)
+    """
+
+    def test_exit_lags_universe_justified_true(self):
+        """When EXIT bucket underperforms universe, exit_justified=True."""
+        rows = _make_rows_with_known_exit_alpha(exit_alpha=-0.01, universe_alpha=0.02)
+        result = exit_bucket_alpha(rows)
+        assert result["exit_justified"] is True
+
+    def test_exit_outperforms_universe_justified_false(self):
+        """When EXIT bucket outperforms universe, exit_justified=False (honest: no exit edge)."""
+        rows = _make_rows_with_known_exit_alpha(exit_alpha=0.05, universe_alpha=0.01)
+        result = exit_bucket_alpha(rows)
+        assert result["exit_justified"] is False
+
+    def test_exit_equal_to_universe_justified_false(self):
+        """When EXIT == universe mean alpha exactly, exit_justified=False (no edge)."""
+        rows = _make_rows_with_known_exit_alpha(exit_alpha=0.02, universe_alpha=0.02)
+        result = exit_bucket_alpha(rows)
+        assert result["exit_justified"] is False
+
+    def test_correct_mean_alphas(self):
+        """exit_mean_alpha and universe_mean_alpha match the known synthetic values.
+
+        universe_mean_alpha is the mean over ALL rows (EXIT + HOLD combined).
+        With 20 EXIT at -0.03 and 40 HOLD at 0.01:
+          universe_mean = (20*-0.03 + 40*0.01) / 60 = (-0.6 + 0.4) / 60 ≈ -0.00333
+        """
+        rows = _make_rows_with_known_exit_alpha(exit_alpha=-0.03, universe_alpha=0.01)
+        result = exit_bucket_alpha(rows)
+        assert result["exit_mean_alpha"] == pytest.approx(-0.03, abs=1e-10)
+        expected_universe = (20 * -0.03 + 40 * 0.01) / 60
+        assert result["universe_mean_alpha"] == pytest.approx(expected_universe, abs=1e-10)
+
+    def test_correct_counts(self):
+        """exit_n and universe_n match the synthetic row counts."""
+        rows = _make_rows_with_known_exit_alpha(exit_alpha=0.0, universe_alpha=0.0)
+        result = exit_bucket_alpha(rows)
+        assert result["exit_n"] == 20
+        assert result["universe_n"] == 60  # all rows
+
+    def test_no_exit_rows_returns_none_justified(self):
+        """When there are no EXIT rows, exit_justified is None (cannot determine)."""
+        rows = [
+            {
+                "ticker": "A",
+                "signal": "HOLD",
+                "alpha": 0.01,
+                "net_alpha": 0.008,
+                "horizon": 30,
+                "tier": "NA",
+                "signal_date": "2022-01-01",
+            }
+        ]
+        result = exit_bucket_alpha(rows)
+        assert result["exit_justified"] is None
+        assert result["exit_n"] == 0
+
+    def test_empty_rows_returns_none_justified(self):
+        """Empty row list → exit_justified=None, counts=0."""
+        result = exit_bucket_alpha([])
+        assert result["exit_justified"] is None
+        assert result["exit_n"] == 0
+        assert result["universe_n"] == 0

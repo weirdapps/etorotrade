@@ -164,6 +164,60 @@ def build_signal_rows(
     return rows
 
 
+def exit_bucket_alpha(rows: list[dict]) -> dict:
+    """Exit-rule validation helper: does the EXIT bucket underperform the universe?
+
+    Given harness rows (each with 'signal' and 'alpha'), compute:
+      * exit_mean_alpha  — mean alpha for rows where signal == 'EXIT'
+      * universe_mean_alpha — mean alpha across ALL rows (BUY + HOLD + EXIT)
+      * exit_justified   — True if exit_mean_alpha < universe_mean_alpha (exiting
+                           bottom-bucket names is justified by underperformance);
+                           False if EXIT bucket matches or beats the universe mean
+                           (no exit edge — reported honestly);
+                           None if there are no EXIT rows (cannot determine).
+      * exit_n           — number of EXIT rows
+      * universe_n       — total rows
+
+    This is the long-only honest answer to "should we avoid/exit bottom-bucket names?"
+    It reports the truth even when the answer is "no material exit edge."
+
+    PURE — does not mutate inputs.
+    """
+    if not rows:
+        return {
+            "exit_mean_alpha": None,
+            "universe_mean_alpha": None,
+            "exit_justified": None,
+            "exit_n": 0,
+            "universe_n": 0,
+        }
+
+    all_alphas = [r["alpha"] for r in rows]
+    exit_alphas = [r["alpha"] for r in rows if r.get("signal") == "EXIT"]
+
+    universe_mean = float(sum(all_alphas) / len(all_alphas))
+
+    if not exit_alphas:
+        return {
+            "exit_mean_alpha": None,
+            "universe_mean_alpha": universe_mean,
+            "exit_justified": None,
+            "exit_n": 0,
+            "universe_n": len(rows),
+        }
+
+    exit_mean = float(sum(exit_alphas) / len(exit_alphas))
+    exit_justified = exit_mean < universe_mean
+
+    return {
+        "exit_mean_alpha": exit_mean,
+        "universe_mean_alpha": universe_mean,
+        "exit_justified": exit_justified,
+        "exit_n": len(exit_alphas),
+        "universe_n": len(rows),
+    }
+
+
 # --------------------------------------------------------------------------- #
 # main() — network glue (yfinance). Excluded from coverage.
 # --------------------------------------------------------------------------- #
@@ -250,7 +304,12 @@ def main() -> int:  # pragma: no cover - network
     print(f"[s2] built {len(base_rows)} signal rows @ 20/20 split", file=sys.stderr)
     base_report = evaluate(base_rows, family_key="signal", n_trials=5, min_obs=10)
 
-    # Sweep buy/sell splits; rank by OOS net alpha of the B family.
+    # Long-only exit-rule validation: does the bottom bucket underperform the universe?
+    exit_verdict = exit_bucket_alpha(base_rows)
+
+    # Sweep buy_pct splits; rank by OOS net alpha of the B family.
+    # NOTE: v2 is LONG-ONLY — there is no short sleeve. 'sell_pct' in map_to_signal
+    # maps to the EXIT bucket; we sweep it symmetrically for signal calibration only.
     sweep: list[tuple[float, float, float | None, dict]] = []
     for pct in (0.1, 0.2, 0.3):
         rows = build_signal_rows(
@@ -271,16 +330,26 @@ def main() -> int:  # pragma: no cover - network
 
     ts = _dt.datetime.now().strftime("%Y%m%d%H%M")
     out_path = f"{_home()}/Downloads/{ts}_signals_v2_validation.md"
-    _write_report(out_path, tickers, n_have, len(spy), period, base_report, sweep, best)
+    _write_report(
+        out_path, tickers, n_have, len(spy), period, base_report, exit_verdict, sweep, best
+    )
     print(f"[s2] report written: {out_path}", file=sys.stderr)
 
-    # Console verdict summary.
+    # Console verdict summary — LONG-ONLY framing.
     b = base_report["families"].get("B", {})
-    print("\n===== S2 VERDICT (20/20 split) =====")
-    print(_family_line("B (buy)", b))
-    print(_family_line("S (sell)", base_report["families"].get("S", {})))
+    print("\n===== S2 VERDICT — LONG-ONLY (20/20 split) =====")
+    print("Strategy: LONG-ONLY. BUY = enter/hold long; EXIT = close/avoid long. NO short sleeve.")
+    print(_family_line("BUY side (B)", b))
+    # Exit-rule finding (honest, even if no edge).
+    ej = exit_verdict.get("exit_justified")
+    exit_str = (
+        f"EXIT bucket mean alpha={_fmt_pct(exit_verdict.get('exit_mean_alpha'))}, "
+        f"universe mean alpha={_fmt_pct(exit_verdict.get('universe_mean_alpha'))}, "
+        f"exit_justified={ej} (n={exit_verdict.get('exit_n')} EXIT rows)"
+    )
+    print(f"Exit-rule: {exit_str}")
     print(
-        f"best split by OOS net alpha: buy={best[0]}/sell={best[1]} (OOS net {_fmt_pct(best[2])})"
+        f"best split by BUY OOS net alpha: buy={best[0]}/exit={best[1]} (OOS net {_fmt_pct(best[2])})"
     )
     print(f"report: {out_path}")
     return 0
@@ -293,24 +362,34 @@ def _home() -> str:  # pragma: no cover - env
 
 
 def _write_report(  # pragma: no cover - I/O
-    path, tickers, n_have, n_bars, period, base_report, sweep, best
+    path, tickers, n_have, n_bars, period, base_report, exit_verdict, sweep, best
 ) -> None:
     b = base_report["families"].get("B", {})
-    s = base_report["families"].get("S", {})
     overall = base_report.get("overall", {})
     dsr_assumptions = base_report.get("dsr_assumptions", {})
 
     lines: list[str] = []
-    lines.append("# S2 Signal-Validation Backtest — Price-Factor Signal")
+    lines.append("# S2 Signal-Validation Backtest — Long-Only Price-Factor Signal")
     lines.append("")
     lines.append(f"_Generated {_dt.datetime.now().isoformat(timespec='seconds')}_")
+    lines.append("")
+    lines.append("## Strategy framing — LONG-ONLY")
+    lines.append("")
+    lines.append(
+        "**The v2 strategy is LONG-ONLY. There is no short sleeve.**  "
+        "The earlier 'S' (sell/short) framing was a mis-reading of the signal: "
+        "the factor composite's bottom quantile showed POSITIVE forward returns in "
+        "the backtest, so there is no short edge. 'EXIT' means close or avoid a long "
+        "position — it does NOT mean enter a short. `long_only_signal` in "
+        "`signals_v2.composite` is the canonical mapper with explicit BUY/HOLD/EXIT labels."
+    )
     lines.append("")
     lines.append("## What was tested")
     lines.append("")
     lines.append(
         "A LEAN, price-only factor signal: cross-sectional z-score of 12-1 "
         "(skip-month) momentum + z-score of inverse realized volatility (low-vol). "
-        "Top/bottom quantiles → B/S via `signals_v2.composite.map_to_signal`. "
+        "Top quantile → BUY; bottom quantile → EXIT (close/avoid long). "
         "Judged by the S0 referee (`validation.harness.evaluate`)."
     )
     lines.append("")
@@ -324,11 +403,10 @@ def _write_report(  # pragma: no cover - I/O
         f"- Costs: flat {ROUND_TRIP_COST * 1e4:.0f} bps round-trip netted into `net_alpha`."
     )
     lines.append("")
-    lines.append("## Referee verdict — NEW price-factor signal (20/20 split)")
+    lines.append("## BUY-side verdict — OOS alpha (20% top quantile)")
     lines.append("")
-    lines.append(_family_line("B (buy)", b))
-    lines.append(_family_line("S (sell)", s))
-    lines.append(_family_line("H (hold)", base_report["families"].get("H", {})))
+    lines.append(_family_line("BUY (top 20%)", b))
+    lines.append(_family_line("HOLD (middle 60%)", base_report["families"].get("H", {})))
     lines.append("")
     lines.append(f"- Overall gate passed: **{overall.get('passed')}**")
     if overall.get("reasons"):
@@ -340,9 +418,32 @@ def _write_report(  # pragma: no cover - I/O
         f"({dsr_assumptions.get('var_sr_source')})."
     )
     lines.append("")
-    lines.append("## Buy/Sell split sweep (ranked by B-family OOS net alpha)")
+    lines.append("## Exit-rule validation")
     lines.append("")
-    lines.append("| buy% | sell% | B mean alpha | B OOS alpha | B OOS net | B DSR | B passed |")
+    ej = exit_verdict.get("exit_justified")
+    lines.append(
+        f"- EXIT bucket mean alpha: {_fmt_pct(exit_verdict.get('exit_mean_alpha'))} "
+        f"(n={exit_verdict.get('exit_n')} rows)"
+    )
+    lines.append(f"- Universe mean alpha: {_fmt_pct(exit_verdict.get('universe_mean_alpha'))}")
+    if ej is True:
+        lines.append(
+            "- **exit_justified=True**: EXIT names underperform the universe mean — "
+            "exiting/avoiding this bucket is historically supported."
+        )
+    elif ej is False:
+        lines.append(
+            "- **exit_justified=False**: EXIT names do NOT underperform the universe mean — "
+            "no material exit edge in this sample. Honest finding; reported as-is."
+        )
+    else:
+        lines.append("- exit_justified=None: insufficient EXIT rows to determine.")
+    lines.append("")
+    lines.append("## BUY/EXIT split sweep (ranked by BUY-family OOS net alpha)")
+    lines.append("")
+    lines.append(
+        "| buy% | exit% | BUY mean alpha | BUY OOS alpha | BUY OOS net | BUY DSR | BUY passed |"
+    )
     lines.append("|---|---|---|---|---|---|---|")
     for bp, sp, oos_net, rep in sweep:
         fam = rep["families"].get("B", {})
@@ -355,7 +456,7 @@ def _write_report(  # pragma: no cover - I/O
         )
     lines.append("")
     lines.append(
-        f"**Best split by OOS net alpha:** buy={best[0]:.1f} / sell={best[1]:.1f} "
+        f"**Best split by BUY OOS net alpha:** buy={best[0]:.1f} / exit={best[1]:.1f} "
         f"(OOS net {_fmt_pct(best[2])})."
     )
     lines.append("")
@@ -372,6 +473,11 @@ def _write_report(  # pragma: no cover - I/O
     lines.append("## Honest caveats")
     lines.append("")
     lines.append(
+        "- **Long-only only.** There is NO short sleeve. The factor composite's "
+        "bottom quantile showed positive forward returns in the backtest — no short "
+        "edge exists. 'EXIT' is a long-exit signal, not a short-entry signal."
+    )
+    lines.append(
         "- **Price-factor ONLY.** Value / quality / size require point-in-time "
         "fundamentals (as-of trailing P/E, FCF, analyst counts, market cap). We "
         "have no point-in-time fundamental store, so those factors are "
@@ -385,8 +491,8 @@ def _write_report(  # pragma: no cover - I/O
         "actually computable out-of-sample."
     )
     lines.append(
-        "- Costs are a flat 20 bps round-trip; real slippage/borrow (esp. for the "
-        "short S sleeve) is not modelled and would be worse for S."
+        "- Costs are a flat 20 bps round-trip; real execution slippage is not "
+        "modelled and would be worse in practice."
     )
     lines.append(
         "- Sample is capped (~80 liquid names) to bound yfinance; it is not the "

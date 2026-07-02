@@ -15,6 +15,7 @@ import pytest
 
 from trade_modules.signals_v2.composite import (
     factor_composite,
+    long_only_signal,
     map_to_signal,
     price_sleeve_signal,
 )
@@ -321,3 +322,95 @@ class TestFactorComposite:
 
         factor_composite(df, factor_fns=[f])
         pd.testing.assert_frame_equal(df, original)
+
+
+# ---------------------------------------------------------------------------
+# long_only_signal — long-only semantics (BUY/EXIT/HOLD, no shorts)
+# ---------------------------------------------------------------------------
+
+
+class TestLongOnlySignal:
+    """Tests for long_only_signal(composite, buy_pct, exit_pct).
+
+    EXIT = close/avoid a long position.  There is NO short leg.
+    'S' / short labels must NEVER appear in the output.
+    """
+
+    def _monotonic(self, n: int = 20) -> pd.Series:
+        """Monotonically increasing composite (t0 worst, t{n-1} best)."""
+        return pd.Series(
+            {f"t{i}": float(i) for i in range(n)},
+            name="composite",
+        )
+
+    def test_top_20pct_are_buy(self):
+        """Top 20% of a 20-name universe → 'BUY'."""
+        comp = self._monotonic(20)
+        sig = long_only_signal(comp, buy_pct=0.20, exit_pct=0.20)
+        top4 = [f"t{i}" for i in range(16, 20)]
+        assert all(sig[t] == "BUY" for t in top4), sig[top4]
+
+    def test_bottom_20pct_are_exit(self):
+        """Bottom 20% → 'EXIT' (do NOT hold; sell if currently held, never short)."""
+        comp = self._monotonic(20)
+        sig = long_only_signal(comp, buy_pct=0.20, exit_pct=0.20)
+        bottom4 = [f"t{i}" for i in range(4)]
+        assert all(sig[t] == "EXIT" for t in bottom4), sig[bottom4]
+
+    def test_middle_are_hold(self):
+        """Middle 60% → 'HOLD'."""
+        comp = self._monotonic(20)
+        sig = long_only_signal(comp, buy_pct=0.20, exit_pct=0.20)
+        middle = [f"t{i}" for i in range(4, 16)]
+        assert all(sig[t] == "HOLD" for t in middle), sig[middle]
+
+    def test_nan_composite_maps_to_hold(self):
+        """NaN composite → 'HOLD' (not tradable on this signal; no crash)."""
+        comp = pd.Series({"A": 1.0, "B": float("nan"), "C": 3.0, "D": 4.0, "E": 5.0})
+        sig = long_only_signal(comp, buy_pct=0.20, exit_pct=0.20)
+        assert sig["B"] == "HOLD"
+
+    def test_no_short_label_ever_emitted(self):
+        """Output values are strictly {'BUY', 'HOLD', 'EXIT'} — 'S' never appears."""
+        comp = self._monotonic(30)
+        sig = long_only_signal(comp, buy_pct=0.20, exit_pct=0.20)
+        assert set(sig.unique()).issubset({"BUY", "HOLD", "EXIT"})
+        assert "S" not in sig.values
+
+    def test_exit_pct_zero_means_no_exits(self):
+        """exit_pct=0 → no 'EXIT' in output."""
+        comp = self._monotonic(10)
+        sig = long_only_signal(comp, buy_pct=0.20, exit_pct=0.0)
+        assert (sig == "EXIT").sum() == 0
+
+    def test_buy_pct_zero_means_no_buys(self):
+        """buy_pct=0 → no 'BUY' in output."""
+        comp = self._monotonic(10)
+        sig = long_only_signal(comp, buy_pct=0.0, exit_pct=0.20)
+        assert (sig == "BUY").sum() == 0
+
+    def test_buy_plus_exit_over_one_raises(self):
+        """buy_pct + exit_pct > 1 → ValueError."""
+        comp = self._monotonic(10)
+        with pytest.raises(ValueError):
+            long_only_signal(comp, buy_pct=0.60, exit_pct=0.60)
+
+    def test_empty_series_returns_empty(self):
+        """Empty composite → empty output, no crash."""
+        comp = pd.Series(dtype=float)
+        sig = long_only_signal(comp, buy_pct=0.20, exit_pct=0.20)
+        assert len(sig) == 0
+
+    def test_counts_sum_to_total(self):
+        """BUY + HOLD + EXIT must equal len(composite)."""
+        comp = self._monotonic(25)
+        sig = long_only_signal(comp, buy_pct=0.20, exit_pct=0.20)
+        total = (sig == "BUY").sum() + (sig == "HOLD").sum() + (sig == "EXIT").sum()
+        assert total == 25
+
+    def test_does_not_mutate_input(self):
+        """long_only_signal must not mutate the input Series."""
+        comp = self._monotonic(10)
+        original_values = comp.values.copy()
+        long_only_signal(comp, buy_pct=0.20, exit_pct=0.20)
+        np.testing.assert_array_equal(comp.values, original_values)
