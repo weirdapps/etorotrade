@@ -257,3 +257,51 @@ class TestSizeBookBudgetLeak:
         # Deployed should be capped at name_cap (0.12), not full budget (0.20)
         assert total_deployed < 0.20
         assert abs(total_deployed - 0.12) < 1e-9
+
+
+class TestSizeBookNoLeverage:
+    """F5 — hard no-leverage guard: resulting gross must never exceed max_gross,
+    even when the manual --cash-pct override requests more budget than free cash."""
+
+    def test_large_budget_cannot_exceed_max_gross(self):
+        """A 95%-invested book + an oversized budget must NOT breach gross=1.0."""
+        # Held names sum to 0.95 (all HOLD → retained at current). Several fresh
+        # high-cap BUYs with a 0.30 budget would push gross to ~1.07 without the
+        # guard (final-review F5 reproduced this exactly).
+        universe = [
+            {"ticker": "HOLD1", "action": "HOLD", "conviction": 50, "beta": 1.0},
+            {"ticker": "HOLD2", "action": "HOLD", "conviction": 50, "beta": 1.0},
+            {"ticker": "NEW1", "action": "BUY", "conviction": 80, "beta": 1.0},
+            {"ticker": "NEW2", "action": "BUY", "conviction": 80, "beta": 1.0},
+            {"ticker": "NEW3", "action": "BUY", "conviction": 80, "beta": 1.0},
+        ]
+        current_weights = {"HOLD1": 0.50, "HOLD2": 0.45}
+        result = size_book(universe, current_weights, budget_frac=0.30)
+        gross = sum(r["target_pct"] for r in result)
+        assert gross <= 1.0 + 1e-9, f"leverage breach: gross={gross:.4f} > 1.0"
+
+    def test_max_gross_config_override_binds(self):
+        """A tighter max_gross (0.80) must clamp deployment accordingly."""
+        universe = [
+            {"ticker": "HOLD1", "action": "HOLD", "conviction": 50, "beta": 1.0},
+            {"ticker": "NEW1", "action": "BUY", "conviction": 80, "beta": 1.0},
+            {"ticker": "NEW2", "action": "BUY", "conviction": 80, "beta": 1.0},
+        ]
+        current_weights = {"HOLD1": 0.70}
+        result = size_book(universe, current_weights, budget_frac=0.50, cfg={"max_gross": 0.80})
+        gross = sum(r["target_pct"] for r in result)
+        assert gross <= 0.80 + 1e-9, f"gross {gross:.4f} exceeded max_gross 0.80"
+
+    def test_guard_does_not_over_constrain_normal_case(self):
+        """With ample headroom the guard is a no-op — budget deploys normally."""
+        universe = [
+            {"ticker": "HOLD1", "action": "HOLD", "conviction": 50, "beta": 1.0},
+            {"ticker": "NEW1", "action": "BUY", "conviction": 80, "beta": 1.0},
+        ]
+        current_weights = {"HOLD1": 0.20}
+        # 0.20 held + 0.10 budget = 0.30 gross, far below 1.0 → full deploy.
+        result = size_book(universe, current_weights, budget_frac=0.10)
+        new1 = next(r for r in result if r["ticker"] == "NEW1")
+        # NEW1 target hits its ERC allocation (single BUY → full budget, capped
+        # only by name_cap 0.12): 0.10 < 0.12 so it deploys the whole budget.
+        assert abs(new1["target_pct"] - 0.10) < 1e-9
