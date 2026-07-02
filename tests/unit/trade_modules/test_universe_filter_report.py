@@ -14,6 +14,7 @@ from __future__ import annotations
 import pandas as pd
 
 from scripts.universe_filter_report import (
+    _format_report,
     aggregate_dropped_names,
     aggregate_gate_counts,
     compare_tier_region_filters,
@@ -337,3 +338,67 @@ class TestCompareTierRegionFilters:
         # hk region has no rows
         rankings = compare_tier_region_filters(rows, _fake_harness)
         assert isinstance(rankings, list)
+
+
+# ---------------------------------------------------------------------------
+# FIX 4 REGRESSION — Section-B history caption uses results_rows count
+# ---------------------------------------------------------------------------
+
+
+def _make_minimal_filter_result() -> dict:
+    """Minimal synthetic filter result for _format_report tests."""
+    return _make_filter_result(
+        eligible_tickers=["AAPL"],
+        price_only=["BTC-USD"],
+        excluded={},
+        reasons={"AAPL": []},
+    )
+
+
+def _make_minimal_rankings() -> list[dict]:
+    """Minimal ranking list for _format_report tests."""
+    return [
+        {
+            "rank": 1,
+            "name": "full",
+            "subset_desc": "All rows",
+            "n_rows": 86368,
+            "score": 0.05,
+            "passed": True,
+            "verdict": {},
+        }
+    ]
+
+
+class TestFormatReportHistoryCaption:
+    """Section-B caption must use results_rows count, not n_total (etoro.csv length)."""
+
+    def test_section_b_uses_results_rows_not_n_total(self):
+        """_format_report Section B caption must display results_rows count (86,368),
+        NOT n_total (12,826 — etoro.csv row count)."""
+        live_summary = summarize_filter_result(_make_minimal_filter_result())
+        gate_counts = aggregate_gate_counts(_make_minimal_filter_result())
+        report = _format_report(
+            live_summary=live_summary,
+            gate_counts=gate_counts,
+            dropped_names=[],
+            price_only_sample=[],
+            tier_region_rankings=_make_minimal_rankings(),
+            data_date="2026-07-01",
+            n_total=12826,
+            results_rows=86368,
+            forward_gated_pass_rates={
+                "analysts_pass_pct": "N/A",
+                "earnings_pass_pct": "N/A",
+                "trend_pass_pct": "N/A",
+            },
+        )
+        # The Section B history caption must show results_rows count, not n_total
+        assert "86,368" in report or "86368" in report
+        # n_total only appears in Section A header, not the Section B history line
+        # Confirm the Section B caveat line specifically mentions results_rows
+        section_b_start = report.find("## B)")
+        assert section_b_start != -1
+        section_b = report[section_b_start:]
+        # The history caveat inside Section B must show 86,368 rows
+        assert "86,368" in section_b or "86368" in section_b

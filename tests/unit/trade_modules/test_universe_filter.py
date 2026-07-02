@@ -59,28 +59,54 @@ class TestRouteAssetCrypto:
 
 
 class TestRouteAssetLeveraged:
+    """True leveraged/inverse ETPs have no analyst coverage AND no earnings data."""
+
     def test_ultra_in_name(self):
-        row = _row(TKR="UPRO", NAME="ProShares UltraPro S&P500", **{"#A": "--"})
+        row = _row(
+            TKR="UPRO",
+            NAME="ProShares UltraPro S&P500",
+            **{"#A": "--", "PET": "--", "PEF": "--", "FCF": "--"},
+        )
         assert route_asset(row) == "price_only"
 
     def test_inverse_in_name(self):
-        row = _row(TKR="SH", NAME="ProShares Inverse S&P500", **{"#A": "--"})
+        row = _row(
+            TKR="SH",
+            NAME="ProShares Inverse S&P500",
+            **{"#A": "--", "PET": "--", "PEF": "--", "FCF": "--"},
+        )
         assert route_asset(row) == "price_only"
 
     def test_2x_in_name(self):
-        row = _row(TKR="SSO", NAME="ProShares 2X S&P500", **{"#A": "--"})
+        row = _row(
+            TKR="SSO",
+            NAME="ProShares 2X S&P500",
+            **{"#A": "--", "PET": "--", "PEF": "--", "FCF": "--"},
+        )
         assert route_asset(row) == "price_only"
 
     def test_3x_in_name(self):
-        row = _row(TKR="TQQQ", NAME="ProShares 3X QQQ", **{"#A": "--"})
+        row = _row(
+            TKR="TQQQ",
+            NAME="ProShares 3X QQQ",
+            **{"#A": "--", "PET": "--", "PEF": "--", "FCF": "--"},
+        )
         assert route_asset(row) == "price_only"
 
     def test_leveraged_in_name(self):
-        row = _row(TKR="FNGU", NAME="MicroSectors Leveraged FANG ETN", **{"#A": "--"})
+        row = _row(
+            TKR="FNGU",
+            NAME="MicroSectors Leveraged FANG ETN",
+            **{"#A": "--", "PET": "--", "PEF": "--", "FCF": "--"},
+        )
         assert route_asset(row) == "price_only"
 
     def test_case_insensitive_ultra(self):
-        row = _row(TKR="X", NAME="ultra something fund", **{"#A": "--"})
+        row = _row(
+            TKR="X",
+            NAME="ultra something fund",
+            **{"#A": "--", "PET": "--", "PEF": "--", "FCF": "--"},
+        )
         assert route_asset(row) == "price_only"
 
 
@@ -346,10 +372,17 @@ class TestFilterUniversePositiveEarnings:
         reasons = result["reasons"]["LOSS"]
         assert any("negative earnings" in r.lower() for r in reasons)
 
-    def test_positive_pet_passes(self):
-        df = _make_df(_passing_row(TKR="PETOK", PET="20.0", PEF="-5.0", FCF="-2.0%"))
+    def test_positive_pet_passes_when_not_clear_loss_maker(self):
+        """PET positive, PEF negative but FCF positive → not a clear loss-maker → passes."""
+        df = _make_df(_passing_row(TKR="PETOK", PET="20.0", PEF="-5.0", FCF="2.0%"))
         result = filter_universe(df)
         assert "PETOK" in result["eligible"]["TKR"].values
+
+    def test_positive_pet_both_pef_and_fcf_negative_is_clear_loss_maker(self):
+        """PET positive, PEF<0 AND FCF<0 → clear loss-maker → fails gate (Fix 3)."""
+        df = _make_df(_passing_row(TKR="LOSERPET", PET="20.0", PEF="-5.0", FCF="-2.0%"))
+        result = filter_universe(df)
+        assert "LOSERPET" not in result["eligible"]["TKR"].values
 
     def test_positive_fcf_passes(self):
         df = _make_df(_passing_row(TKR="FCFOK", PET="-5.0", PEF="-5.0", FCF="3.0%"))
@@ -479,3 +512,194 @@ class TestFilterUniverseEdgeCases:
         df = _make_df(*rows)
         result = filter_universe(df)
         assert result["summary"]["gate_failures"]["min_cap"] == 3
+
+
+# ---------------------------------------------------------------------------
+# FIX 1 REGRESSION — name-heuristic must not misroute real equities
+# ---------------------------------------------------------------------------
+
+
+class TestRouteAssetLeveragedNameHeuristicGuard:
+    """Real operating companies with 'ULTRA'/'2X'/'3X' in their name must NOT
+    be routed to price_only when they have analyst coverage or earnings data."""
+
+    def test_vvx_ultra_name_with_analysts_is_fundamental(self):
+        """VVX — 'V2X, INC.' has 10 analysts and PET 26.6 → fundamental."""
+        row = {
+            "TKR": "VVX",
+            "NAME": "V2X, INC.",
+            "PRC": "30.0",
+            "CAP": "3B",
+            "#A": "10",
+            "PET": "26.6",
+            "PEF": "--",
+            "FCF": "--",
+            "52W": "55",
+        }
+        assert route_asset(row) == "fundamental"
+
+    def test_uctt_ultra_name_with_analysts_is_fundamental(self):
+        """UCTT — 'Ultra Clean Holdings' has 5 analysts → fundamental."""
+        row = {
+            "TKR": "UCTT",
+            "NAME": "Ultra Clean Holdings Inc",
+            "PRC": "25.0",
+            "CAP": "2.5B",
+            "#A": "5",
+            "PET": "--",
+            "PEF": "18.0",
+            "FCF": "3.5%",
+            "52W": "40",
+        }
+        assert route_asset(row) == "fundamental"
+
+    def test_rare_ultra_name_with_analysts_is_fundamental(self):
+        """RARE — 'Ultragenyx Pharmaceutical' has 20 analysts → fundamental."""
+        row = {
+            "TKR": "RARE",
+            "NAME": "Ultragenyx Pharmaceutical Inc",
+            "PRC": "50.0",
+            "CAP": "3.5B",
+            "#A": "20",
+            "PET": "--",
+            "PEF": "--",
+            "FCF": "1.2%",
+            "52W": "60",
+        }
+        assert route_asset(row) == "fundamental"
+
+    def test_ugp_ultra_name_with_analysts_is_fundamental(self):
+        """UGP — 'Ultrapar Participacoes' has 4 analysts → fundamental."""
+        row = {
+            "TKR": "UGP",
+            "NAME": "Ultrapar Participacoes S.A.",
+            "PRC": "5.0",
+            "CAP": "2.2B",
+            "#A": "4",
+            "PET": "12.0",
+            "PEF": "--",
+            "FCF": "--",
+            "52W": "48",
+        }
+        assert route_asset(row) == "fundamental"
+
+    def test_true_leveraged_etp_no_fundamentals_is_price_only(self):
+        """A genuine leveraged ETP with no analysts/earnings stays price_only."""
+        row = {
+            "TKR": "UPRO",
+            "NAME": "ProShares UltraPro 3X S&P500",
+            "PRC": "55.0",
+            "CAP": "5B",
+            "#A": "--",
+            "PET": "--",
+            "PEF": "--",
+            "FCF": "--",
+            "52W": "65",
+        }
+        assert route_asset(row) == "price_only"
+
+    def test_2x_name_with_earnings_is_fundamental(self):
+        """A real company whose name contains '2X' but has earnings → fundamental."""
+        row = {
+            "TKR": "VVX",
+            "NAME": "V2X, INC.",
+            "PRC": "30.0",
+            "CAP": "3B",
+            "#A": "--",
+            "PET": "26.6",
+            "PEF": "--",
+            "FCF": "--",
+            "52W": "55",
+        }
+        assert route_asset(row) == "fundamental"
+
+    def test_2x_name_no_fundamentals_is_price_only(self):
+        """'2X' in name with no analysts AND no earnings → price_only (true ETP)."""
+        row = {
+            "TKR": "SSO",
+            "NAME": "ProShares 2X S&P500",
+            "PRC": "80.0",
+            "CAP": "4B",
+            "#A": "--",
+            "PET": "--",
+            "PEF": "--",
+            "FCF": "--",
+            "52W": "70",
+        }
+        assert route_asset(row) == "price_only"
+
+
+# ---------------------------------------------------------------------------
+# FIX 2 REGRESSION — 52W domain: values >100 must be fail-open
+# ---------------------------------------------------------------------------
+
+
+class TestFilterUniverseTrendDomainGuard:
+    """52W values outside [0, 100] are meaningless percentiles → fail-open."""
+
+    def test_52w_above_100_is_not_excluded_even_with_high_floor(self):
+        """52W = 10000 (raw data artefact, out-of-domain) → gate must NOT exclude,
+        even when min_52w is set high enough that it would catch a real value."""
+        # With min_52w=9999, a real value of 10000 would pass (10000 >= 9999),
+        # but the spec says out-of-domain (>100) must be fail-open regardless.
+        # Use default config (min_52w=30): 10000 > 100, so it must be treated as
+        # UNKNOWN and the gate must be fail-open (not excluded).
+        df = _make_df(_passing_row(TKR="BIGW", **{"52W": "10000"}))
+        result = filter_universe(df)
+        assert "BIGW" in result["eligible"]["TKR"].values
+        reasons = result["reasons"]["BIGW"]
+        assert not any("melting" in r for r in reasons)
+
+    def test_52w_above_100_treated_as_unknown_fail_open(self):
+        """52W = 11333 (real data point observed) → UNKNOWN → fail-open.
+        Critically: even with min_52w=200 (absurd but shows the gate treats it as unknown)
+        the row must NOT be excluded."""
+        df = _make_df(_passing_row(TKR="OOD", **{"52W": "11333"}))
+        result = filter_universe(df, config={"min_52w": 200})
+        # If current code applies the gate naively: 11333 < 200 is False → passes anyway.
+        # After fix: 11333 > 100 → UNKNOWN → fail-open → passes.
+        # Both arrive at same result here; the distinguishing test is with min_52w < value.
+        # Real distinction: 50 < 10000 but 50 is a valid floor. Use min_52w=99.
+        df2 = _make_df(_passing_row(TKR="OOD2", **{"52W": "150"}))
+        result2 = filter_universe(df2, config={"min_52w": 99})
+        # 150 > 100 → out of domain → UNKNOWN → fail-open → must NOT be excluded
+        assert "OOD2" in result2["eligible"]["TKR"].values
+        reasons2 = result2["reasons"]["OOD2"]
+        assert not any("melting" in r for r in reasons2)
+
+    def test_52w_below_floor_within_domain_is_excluded(self):
+        """52W = 15 (valid percentile 0-100, below 30 floor) → excluded by trend gate."""
+        df = _make_df(_passing_row(TKR="LOWW", **{"52W": "15"}))
+        result = filter_universe(df)
+        assert "LOWW" not in result["eligible"]["TKR"].values
+        reasons = result["reasons"]["LOWW"]
+        assert any("melting" in r for r in reasons)
+
+
+# ---------------------------------------------------------------------------
+# FIX 3 REGRESSION — positive-earnings gate: (PEF<0 AND FCF<0) → fail
+# ---------------------------------------------------------------------------
+
+
+class TestFilterUniverseEarningsClearLossMaker:
+    """Stale positive PET must not rescue a clear loss-maker (PEF<0 AND FCF<0)."""
+
+    def test_positive_pet_negative_pef_and_fcf_fails(self):
+        """{PET:20, PEF:-5, FCF:-3%} → excluded (clear loss-maker)."""
+        df = _make_df(_passing_row(TKR="LOSER", PET="20.0", PEF="-5.0", FCF="-3.0%"))
+        result = filter_universe(df)
+        assert "LOSER" not in result["eligible"]["TKR"].values
+        reasons = result["reasons"]["LOSER"]
+        assert any("negative earnings" in r.lower() or "loss" in r.lower() for r in reasons)
+
+    def test_positive_pet_negative_pef_positive_fcf_passes(self):
+        """{PET:20, PEF:-5, FCF:+1%} → eligible (FCF positive saves it)."""
+        df = _make_df(_passing_row(TKR="FCFOK2", PET="20.0", PEF="-5.0", FCF="1.0%"))
+        result = filter_universe(df)
+        assert "FCFOK2" in result["eligible"]["TKR"].values
+
+    def test_positive_pet_and_pef_negative_fcf_passes(self):
+        """{PET:20, PEF:15, FCF:-1%} → eligible (PEF positive saves it)."""
+        df = _make_df(_passing_row(TKR="PEFOK", PET="20.0", PEF="15.0", FCF="-1.0%"))
+        result = filter_universe(df)
+        assert "PEFOK" in result["eligible"]["TKR"].values

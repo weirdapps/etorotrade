@@ -160,10 +160,22 @@ def route_asset(row) -> str:
 
     # ------------------------------------------------------------------ #
     # 3. Price-only — leveraged/inverse ETP by name
+    #    Guard: only fire when the row has NO fundamentals (no analyst
+    #    coverage AND no earnings data).  A real operating company whose
+    #    name happens to contain "ULTRA"/"2X"/etc. must not be misrouted.
     # ------------------------------------------------------------------ #
     name = str(_get(row, "NAME", "")).strip().upper()
     if any(frag in name for frag in _LEVERAGED_INVERSE_FRAGMENTS):
-        return "price_only"
+        # Real companies have analyst coverage OR at least one earnings figure.
+        # Only route to price_only if the row truly has no fundamentals.
+        n_analysts = _get(row, "#A")
+        pet_raw = _get(row, "PET")
+        pef_raw = _get(row, "PEF")
+        fcf_raw = _get(row, "FCF")
+        has_analysts = n_analysts is not None
+        has_earnings = any(v is not None for v in [pet_raw, pef_raw, fcf_raw])
+        if not has_analysts and not has_earnings:
+            return "price_only"
 
     # ------------------------------------------------------------------ #
     # 4. Price-only — known ticker list
@@ -263,7 +275,12 @@ def filter_universe(df: pd.DataFrame, config: dict | None = None) -> dict:
                 gate_counts["min_analysts"] += 1
                 passed = False
 
-        # Gate 3 — positive_earnings (fail-closed: all three missing → FAIL)
+        # Gate 3 — positive_earnings
+        # Fail-closed when all three fields are missing.
+        # Clear loss-maker override: if BOTH forward P/E (PEF) AND FCF are
+        # negative the company is a clear loss-maker regardless of a stale
+        # positive trailing P/E (PET) — fail the gate.
+        # Otherwise pass if ANY of {PET>0, PEF>0, FCF>0}.
         if cfg.get("require_positive_earnings", True):
             pet = _parse_pe(_get(row, "PET"))
             pef = _parse_pe(_get(row, "PEF"))
@@ -275,10 +292,11 @@ def filter_universe(df: pd.DataFrame, config: dict | None = None) -> dict:
                 gate_counts["positive_earnings"] += 1
                 passed = False
             else:
-                pet_ok = pet is not None and pet > 0
-                pef_ok = pef is not None and pef > 0
-                fcf_ok = fcf is not None and fcf > 0
-                if not (pet_ok or pef_ok or fcf_ok):
+                pef_negative = pef is not None and pef < 0
+                fcf_negative = fcf is not None and fcf < 0
+                clear_loss_maker = pef_negative and fcf_negative
+
+                if clear_loss_maker:
                     parts = []
                     if pet is not None:
                         parts.append(f"PET={pet}")
@@ -286,16 +304,34 @@ def filter_universe(df: pd.DataFrame, config: dict | None = None) -> dict:
                         parts.append(f"PEF={pef}")
                     if fcf is not None:
                         parts.append(f"FCF={fcf}%")
-                    row_reasons.append(
-                        f"negative earnings ({', '.join(parts) if parts else 'all ≤0'})"
-                    )
+                    row_reasons.append(f"negative earnings — clear loss-maker ({', '.join(parts)})")
                     gate_counts["positive_earnings"] += 1
                     passed = False
+                else:
+                    pet_ok = pet is not None and pet > 0
+                    pef_ok = pef is not None and pef > 0
+                    fcf_ok = fcf is not None and fcf > 0
+                    if not (pet_ok or pef_ok or fcf_ok):
+                        parts = []
+                        if pet is not None:
+                            parts.append(f"PET={pet}")
+                        if pef is not None:
+                            parts.append(f"PEF={pef}")
+                        if fcf is not None:
+                            parts.append(f"FCF={fcf}%")
+                        row_reasons.append(
+                            f"negative earnings ({', '.join(parts) if parts else 'all ≤0'})"
+                        )
+                        gate_counts["positive_earnings"] += 1
+                        passed = False
 
-        # Gate 4 — trend / 52W (missing → leave open; only fail if present and below floor)
+        # Gate 4 — trend / 52W
+        # Fail-open when: missing, OR value is outside the valid [0, 100] domain
+        # (values >100 appear in raw data as artefacts and are meaningless as
+        # percentiles).  Only apply the melting exclusion when 0 <= w52 <= 100.
         w52_raw = _get(row, "52W")
         w52 = _parse_52w(w52_raw)
-        if w52 is not None and w52 < cfg["min_52w"]:
+        if w52 is not None and 0.0 <= w52 <= 100.0 and w52 < cfg["min_52w"]:
             row_reasons.append(f"melting: 52W {w52:.0f} < {cfg['min_52w']}")
             gate_counts["trend"] += 1
             passed = False

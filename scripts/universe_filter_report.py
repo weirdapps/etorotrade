@@ -187,7 +187,7 @@ def _extract_score(verdict: dict) -> float:
     return -999.0
 
 
-def _format_report(  # pragma: no cover
+def _format_report(
     live_summary: dict,
     gate_counts: dict,
     dropped_names: list[dict],
@@ -196,6 +196,7 @@ def _format_report(  # pragma: no cover
     data_date: str,
     n_total: int,
     forward_gated_pass_rates: dict,
+    results_rows: int = 0,
 ) -> str:
     """Format the markdown report."""
     lines = [
@@ -271,7 +272,7 @@ def _format_report(  # pragma: no cover
         "> **Honest caveat:** only `tier` and `region` are present in",
         "> `backtest_results.csv`. OOS evidence covers ONLY these dimensions.",
         "> Analyst/earnings/trend gates are forward-gated (see § A above).",
-        f"> History: {n_total:,} rows across {len(tier_region_rankings)} subsets.",
+        f"> History: {results_rows:,} rows across {len(tier_region_rankings)} subsets.",
         "",
         "| Rank | Subset | N rows | Score (OOS α or DSR) | PASS |",
         "|---|---|---|---|---|",
@@ -405,6 +406,7 @@ def main() -> None:  # pragma: no cover
         data_date=data_date_raw,
         n_total=len(df),
         forward_gated_pass_rates=forward_gated_pass_rates,
+        results_rows=len(results_rows),
     )
 
     ts = subprocess.run(
