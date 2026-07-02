@@ -55,36 +55,51 @@ def run_data(
     usd_bloc_cap: float = 0.60,
     sector_cap: float = 0.25,
     target_vol: float = 0.12,
-    regime_overlay_enabled: bool = True,
+    regime_overlay_enabled=None,
     regime_fn=None,
     regime_state_path=None,
-    persistence_days: int = 2,
-    event_gate_enabled: bool = True,
+    persistence_days=None,
+    event_gate_enabled=None,
     event_risk_path=None,
-    earnings_blackout_days: int = 7,
+    earnings_blackout_days=None,
     earnings_fn=None,
 ) -> dict:
+    from .news_gate import load_config as _load_event_cfg
+    from .regime_state import load_config as _load_regime_cfg
+
+    _rcfg = _load_regime_cfg()
+    _ecfg = _load_event_cfg()
+    _regime_on = _rcfg["enabled"] if regime_overlay_enabled is None else regime_overlay_enabled
+    _persist = _rcfg["persistence_days"] if persistence_days is None else persistence_days
+    _regime_table = _rcfg["exposure"]
+    _event_on = _ecfg["enabled"] if event_gate_enabled is None else event_gate_enabled
+    _event_path = event_risk_path or _ecfg["event_risk_path"]
+    _blackout = (
+        _ecfg["earnings_blackout_days"]
+        if earnings_blackout_days is None
+        else earnings_blackout_days
+    )
+
     cand_df, current = build_candidates(universe_path, portfolio_path, prescreen_n)
     print(f"candidates: {len(cand_df)} (pre-screen {prescreen_n} + current book)")
     n_excluded = 0
-    if event_gate_enabled:
+    if _event_on:
         from datetime import date
 
         from .news_gate import (
-            DEFAULT_EVENT_RISK_PATH,
             apply_exclusions,
             earnings_blackout,
             load_event_risk,
         )
 
-        excl = set(load_event_risk(event_risk_path or DEFAULT_EVENT_RISK_PATH))
-        if earnings_blackout_days and earnings_blackout_days > 0:
+        excl = set(load_event_risk(_event_path))
+        if _blackout and _blackout > 0:
             _efn = earnings_fn or fetch_earnings_dates
             try:
                 emap = _efn(list(cand_df.index))
             except Exception:
                 emap = {}
-            excl |= earnings_blackout(emap, date.today().isoformat(), earnings_blackout_days)
+            excl |= earnings_blackout(emap, date.today().isoformat(), _blackout)
         before = len(cand_df)
         cand_df = apply_exclusions(cand_df, excl)
         n_excluded = before - len(cand_df)
@@ -114,13 +129,14 @@ def run_data(
         return shrunk_cov(daily_returns(prices[list(selected)]))
 
     regime = {"raw_regime": None, "confirmed_regime": None, "applied_multiplier": 1.0}
-    if regime_overlay_enabled:
+    if _regime_on:
         from .regime_state import DEFAULT_STATE_PATH, resolve_regime_multiplier
 
         _mult, regime = resolve_regime_multiplier(
             state_path=regime_state_path or DEFAULT_STATE_PATH,
-            persistence_days=persistence_days,
+            persistence_days=_persist,
             regime_fn=regime_fn,
+            table=_regime_table,
         )
 
     built = select_and_construct(

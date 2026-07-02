@@ -1005,9 +1005,9 @@ regime_overlay:
   fallback: neutral
   exposure:
     risk_on: 1.00
-    neutral: 0.90
-    risk_off: 0.65
-    crisis: 0.40
+    neutral: 0.80
+    risk_off: 0.50
+    crisis: 0.20
 
 event_gate:
   enabled: true
