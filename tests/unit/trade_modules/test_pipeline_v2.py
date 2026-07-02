@@ -531,6 +531,23 @@ class TestRunPipelineEndToEnd:
         caveats_text = " ".join(result["caveats"]).lower()
         assert "shadow" in caveats_text or "decision-support" in caveats_text
 
+    def test_sector_cap_degradation_caveat_present(self):
+        """F3: sector cap is inoperative (no sector data) — the plan MUST say so
+        explicitly rather than silently pretend to enforce it."""
+        universe = _make_universe([self._build_strong_buy_row()])
+        portfolio = _make_portfolio([])
+        result = run_pipeline(
+            universe_df=universe,
+            portfolio_df=portfolio,
+            regime_mult=1.0,
+            cash_pct=0.20,
+            generated_at="2026-07-02T09:00:00",
+        )
+        caveats_text = " ".join(result["caveats"]).lower()
+        assert "sector cap" in caveats_text and "not enforced" in caveats_text, (
+            "F3: action plan must explicitly caveat that the sector cap is not enforced"
+        )
+
     def test_budget_frac_reflects_cash_and_regime(self):
         universe = _make_universe([self._build_strong_buy_row()])
         portfolio = _make_portfolio([])
@@ -794,6 +811,20 @@ class TestWrongfulLiquidationRegression:
         # The core is retained (graded ADD/HOLD/TRIM, not zeroed): blue-chips
         # TRIM (low relative signal) and ETFs HOLD → at least 6 of 7 retained.
         assert len(retained) >= 6, f"core not retained: only {len(retained)} kept"
+
+    def test_no_leverage_even_with_large_cash_pct(self):
+        """F5: a large manual cash_pct override must NOT push resulting_gross
+        above 1.0 (no implicit leverage) on an already-invested book."""
+        result = run_pipeline(
+            universe_df=self._build_universe(),
+            portfolio_df=self._build_portfolio(),
+            regime_mult=1.0,
+            cash_pct=0.95,  # oversized override vs the ~55%-held book
+            generated_at="2026-07-02T09:00:00",
+        )
+        assert result["resulting_gross"] <= 1.0 + 1e-9, (
+            f"leverage breach: resulting_gross={result['resulting_gross']:.4f} > 1.0"
+        )
 
     def test_resulting_gross_not_collapsed(self):
         """A ~95%-invested book must not collapse to near-cash after one pass."""

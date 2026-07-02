@@ -238,6 +238,14 @@ def main() -> None:  # pragma: no cover
     print(
         f"Budget: {plan['budget_frac']:.2%}  Gross: {plan['resulting_gross']:.2%}  Cash: {plan['resulting_cash']:.2%}"
     )
+    # Loudly log the sector-cap degradation (F3): the cap is inoperative because
+    # etoro.csv carries no sector data — flag it to stderr so it is not missed.
+    if any("Sector cap" in c for c in plan["caveats"]):
+        print(
+            "WARNING: sector cap is NOT enforced (no sector data in etoro.csv) — "
+            "review sector concentration manually.",
+            file=sys.stderr,
+        )
     for c in plan["caveats"]:
         print(f"  CAVEAT: {c}")
     print("\nOutputs written:")
