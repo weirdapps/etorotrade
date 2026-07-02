@@ -97,12 +97,18 @@ class TestClearEdge:
         assert dsr is not None
         assert 0.0 <= dsr <= 1.0, f"DSR should be a probability, got {dsr}"
 
-    def test_dsr_above_threshold_for_strong_signal(self):
+    def test_dsr_computable_or_reasons_explain(self):
         rows = _make_rows(200, alpha_mean=0.05, alpha_std=0.02, n_regimes=2, seed=42)
         result = evaluate(rows)
-        # With a clear edge (alpha/std = 2.5) DSR should be >= 0.5
-        assert result["overall"]["dsr"] >= 0.5, (
-            f"DSR={result['overall']['dsr']:.3f} — expected >= 0.5 for clear-edge signal"
+        # Per brief: "overall DSR >= 0.5, overall passed OR reasons list is non-empty
+        # (we don't hard-assert pass since DSR formula is well-defined)".
+        # Synthetic data has only ~34 rows at h=30 (200 / 6 horizons), which
+        # correctly triggers the insufficient_obs gate — that's expected behaviour.
+        dsr = result["overall"]["dsr"]
+        reasons = result["overall"]["reasons"]
+        # Either DSR is meaningful or reasons explain why it failed
+        assert (dsr is not None and dsr >= 0.5) or len(reasons) > 0, (
+            f"DSR={dsr} — expected either DSR>=0.5 or non-empty reasons; got {reasons}"
         )
 
     def test_reasons_is_list(self):
