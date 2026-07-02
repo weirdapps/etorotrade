@@ -24,7 +24,7 @@ from .adapters import etoro_row_to_candidate, portfolio_to_weights, universe_df_
 # Caveats emitted in every action plan
 # ---------------------------------------------------------------------------
 
-_FIXED_CAVEATS = [
+_FIXED_CAVEATS_NO_SECTOR = [
     "SHADOW / decision-support only — this pipeline NEVER places orders.",
     "Fundamentals are forward-gated (not point-in-time); use for direction only.",
     "S2 runs on a single regime snapshot (no DSR PASS walk-forward yet).",
@@ -32,6 +32,14 @@ _FIXED_CAVEATS = [
     "Sector cap (≤35%) NOT enforced — etoro.csv has no GICS sector column and no "
     "reliable offline ticker→sector source exists; the sizer's sector cap is a no-op "
     "here. Review sector concentration manually before executing.",
+    "User executes manually; go-live is user-triggered.",
+]
+
+_FIXED_CAVEATS_BASE = [
+    "SHADOW / decision-support only — this pipeline NEVER places orders.",
+    "Fundamentals are forward-gated (not point-in-time); use for direction only.",
+    "S2 runs on a single regime snapshot (no DSR PASS walk-forward yet).",
+    "Price sleeve skipped — no OHLCV price-history matrix available in etoro.csv.",
     "User executes manually; go-live is user-triggered.",
 ]
 
@@ -75,6 +83,7 @@ def run_pipeline(
     cash_pct: float,
     generated_at: str,
     config: dict | None = None,
+    sector_map: dict | None = None,
 ) -> dict:
     """Run the full S1→S2→S3→S4 pipeline.
 
@@ -89,6 +98,10 @@ def run_pipeline(
         generated_at:  ISO-8601 timestamp string (Athens tz); passed in, not computed.
         config:        Optional overrides for S3 (cio.synthesize) and S4
                        (size_book) thresholds.
+        sector_map:    Optional {symbol_upper: sector} dict from
+                       load_sector_map().  When provided, sectors are
+                       populated on every candidate; when None, the sizer's
+                       sector cap is a deliberate no-op (honest degradation).
 
     Returns:
         action_plan dict:
@@ -100,7 +113,9 @@ def run_pipeline(
             caveats: list of caveat strings.
     """
     cfg = config or {}
-    caveats: list[str] = list(_FIXED_CAVEATS)
+    caveats: list[str] = list(
+        _FIXED_CAVEATS_NO_SECTOR if sector_map is None else _FIXED_CAVEATS_BASE
+    )
 
     # ------------------------------------------------------------------
     # S1: Universe routing + quality filter
@@ -207,7 +222,7 @@ def run_pipeline(
         else:
             raw_row = row_matches.iloc[0].to_dict()
 
-        candidate = etoro_row_to_candidate(raw_row)
+        candidate = etoro_row_to_candidate(raw_row, sector_map=sector_map)
 
         # Attach composite_pct [0, 1] for conviction scoring
         pct_rank = composite_pct_series.get(ticker) if not composite_pct_series.empty else None
@@ -279,13 +294,43 @@ def run_pipeline(
         regime_mult=regime_mult,
     )
 
-    # Sector is None for every row: etoro.csv has no GICS sector column and no
-    # reliable offline ticker→sector source exists, so the sizer's sector cap is
-    # a deliberate no-op here (surfaced in caveats — honest degradation, NOT a
-    # silent pretence of enforcement).  size_book skips the cap when sector is None.
-    for row in s3_result:
-        if "sector" not in row:
-            row["sector"] = None
+    # Sector propagation to s3_result rows.
+    # Candidates already carry their sector (set by etoro_row_to_candidate).
+    # Held-unscoreable HOLDs added above have no "sector" key — fill from
+    # sector_map if available, else None.
+    if sector_map is not None:
+        from .sectors import resolve_sector as _resolve_sector
+
+        # Build a lookup from the candidate list for rows that came through S3
+        candidate_sector: dict[str, str | None] = {
+            c["ticker"]: c.get("sector") for c in candidates if c.get("ticker")
+        }
+        for row in s3_result:
+            if "sector" not in row:
+                tkr = row.get("ticker") or ""
+                # Use candidate sector if available; otherwise try the map directly
+                row["sector"] = candidate_sector.get(tkr) or _resolve_sector(tkr, sector_map)
+
+        # Build the honest sector-cap caveat: how many sized names got a sector?
+        sized_tickers_in_s3 = [r.get("ticker") for r in s3_result if r.get("ticker")]
+        covered = [t for t in sized_tickers_in_s3 if sector_map.get((t or "").upper())]
+        uncovered = [t for t in sized_tickers_in_s3 if not sector_map.get((t or "").upper())]
+        n_covered = len(covered)
+        n_total = len(sized_tickers_in_s3)
+        n_uncovered = len(uncovered)
+        sample_uncovered = ", ".join(sorted(uncovered)[:10])
+        caveats.append(
+            f"Sector cap (≤35%) enforced via market.csv/usindex.csv — "
+            f"covered {n_covered} of {n_total} sized names; "
+            f"{n_uncovered} names have no offline sector and are excluded from the cap"
+            + (f": {sample_uncovered}" if sample_uncovered else "")
+            + "."
+        )
+    else:
+        # No sector map: cap is inoperative — be explicit.
+        for row in s3_result:
+            if "sector" not in row:
+                row["sector"] = None
 
     sized: list[dict] = size_book(
         final_universe=s3_result,
