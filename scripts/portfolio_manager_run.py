@@ -54,31 +54,25 @@ def main() -> None:  # pragma: no cover
     with open(args.universe) as f:  # pragma: no cover
         final_universe: list[dict] = json.load(f)
 
-    # --- Load current portfolio weights from input/portfolio.csv ---
-    current_weights: dict[str, float] = {}
-    portfolio_path = os.path.join(os.path.dirname(__file__), "..", "input", "portfolio.csv")
-    try:  # pragma: no cover
-        import csv
+    # --- Load current portfolio weights (single source of truth) ---
+    # Reuse adapters.portfolio_to_weights so this standalone runner reads the
+    # SAME real file + columns (symbol / totalInvestmentPct / isBuy) as the S5
+    # orchestrator — not the wrong path (../input) and wrong cols (ticker /
+    # investmentPct) that silently produced an empty book (final-review F4).
+    import pandas as pd
 
-        with open(portfolio_path) as pf:
-            reader = csv.DictReader(pf)
-            for row in reader:
-                is_buy_raw = row.get("isBuy", "").strip().lower()
-                is_long = is_buy_raw in ("true", "1", "yes")
-                if is_long:
-                    ticker = row.get("ticker", "").strip()
-                    inv_pct_raw = row.get("investmentPct", "0").strip()
-                    try:
-                        inv_frac = float(inv_pct_raw) / 100.0
-                    except (ValueError, TypeError):
-                        inv_frac = 0.0
-                    if ticker:
-                        current_weights[ticker] = inv_frac
-    except FileNotFoundError:  # pragma: no cover
-        print(
-            f"[WARN] portfolio.csv not found at {portfolio_path}; treating book as empty.",
-            file=sys.stderr,
+    from trade_modules.pipeline_v2.adapters import portfolio_to_weights
+
+    portfolio_path = os.path.join(
+        os.path.dirname(__file__), "..", "yahoofinance", "input", "portfolio.csv"
+    )
+    if not os.path.exists(portfolio_path):  # pragma: no cover
+        sys.exit(
+            f"ERROR: portfolio.csv not found at {portfolio_path}. "
+            f"Refusing to size against an empty book — run the portfolio export first."
         )
+    portfolio_df = pd.read_csv(portfolio_path, dtype=str)  # pragma: no cover
+    current_weights, _held = portfolio_to_weights(portfolio_df)  # pragma: no cover
 
     # --- Resolve regime multiplier ---
     mult: float = 1.0
