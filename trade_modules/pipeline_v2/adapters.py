@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from .sectors import resolve_sector
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -56,7 +58,7 @@ def _safe_get(row: dict, key: str):
 # ---------------------------------------------------------------------------
 
 
-def etoro_row_to_candidate(row: dict) -> dict:
+def etoro_row_to_candidate(row: dict, sector_map: dict | None = None) -> dict:
     """Map a real etoro.csv row dict → S3 candidate dict.
 
     etoro.csv columns:
@@ -67,9 +69,21 @@ def etoro_row_to_candidate(row: dict) -> dict:
     Parses "%" strings to float; missing/-- → None.
     composite_pct is NOT set here — the orchestrator attaches it after S2.
     Does NOT crash on any missing key.
+
+    Args:
+        row:        Dict of raw etoro.csv columns for one instrument.
+        sector_map: Optional {symbol_upper: sector} dict from
+                    load_sector_map().  When provided, ``sector`` is
+                    resolved via exact-match (None if not covered —
+                    international tickers and any absent symbol).
+                    When None, ``sector`` is left as None (back-compat).
     """
+    ticker = _safe_get(row, "TKR")
+    sector: str | None = None
+    if sector_map is not None and ticker:
+        sector = resolve_sector(str(ticker), sector_map)
     return {
-        "ticker": _safe_get(row, "TKR"),
+        "ticker": ticker,
         "name": _safe_get(row, "NAME"),
         "cap": _safe_get(row, "CAP"),
         # %-strings
@@ -87,9 +101,9 @@ def etoro_row_to_candidate(row: dict) -> dict:
         "DE": _parse_float(_safe_get(row, "DE")),
         "EG": _parse_float(_safe_get(row, "EG")),
         "ROE": _parse_float(_safe_get(row, "ROE")),
-        # Sector: etoro.csv has no sector column; SZ is the tier/size code.
-        # Use None — size_book treats None sector as its own bucket.
-        "sector": None,
+        # Sector: resolved from offline CSV map when provided; None otherwise.
+        # size_book treats None sector as its own bucket (sector cap skipped).
+        "sector": sector,
         # composite_pct: attached by orchestrator after S2; default None
         "composite_pct": None,
     }

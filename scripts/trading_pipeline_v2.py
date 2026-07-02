@@ -217,6 +217,31 @@ def main() -> None:  # pragma: no cover
     ts = _get_timestamp_athens()
     generated_at = _get_generated_at_athens()
 
+    # -- Sector map (offline CSV: market.csv + usindex.csv)
+    from trade_modules.pipeline_v2.sectors import load_sector_map
+
+    _sector_csv_paths = [
+        os.path.expanduser("~/SourceCode/etorotrade/yahoofinance/input/market.csv"),
+        os.path.expanduser("~/SourceCode/etorotrade/yahoofinance/input/usindex.csv"),
+    ]
+    sector_map = load_sector_map(_sector_csv_paths)
+    print(f"Sector map loaded: {len(sector_map)} symbols covered.")
+
+    # Count how many universe/held names resolve to a sector
+    if "TKR" in universe_df.columns:
+        universe_tkrs = [str(t).strip() for t in universe_df["TKR"].dropna() if str(t).strip()]
+        got_sector = sum(1 for t in universe_tkrs if sector_map.get(t.upper()))
+        print(
+            f"  Universe sector coverage: {got_sector}/{len(universe_tkrs)} names "
+            f"have a sector ({len(universe_tkrs) - got_sector} will be excluded from the cap)."
+        )
+    if not portfolio_df.empty and "symbol" in portfolio_df.columns:
+        held_tkrs = [str(t).strip() for t in portfolio_df["symbol"].dropna() if str(t).strip()]
+        held_with_sector = sum(1 for t in held_tkrs if sector_map.get(t.upper()))
+        print(
+            f"  Held sector coverage: {held_with_sector}/{len(held_tkrs)} positions have a sector."
+        )
+
     # -- Run pipeline (pure)
     from trade_modules.pipeline_v2.orchestrator import run_pipeline
 
@@ -227,6 +252,7 @@ def main() -> None:  # pragma: no cover
         regime_mult=regime_mult,
         cash_pct=cash_pct,
         generated_at=generated_at,
+        sector_map=sector_map,
     )
 
     # -- Write outputs
@@ -238,14 +264,17 @@ def main() -> None:  # pragma: no cover
     print(
         f"Budget: {plan['budget_frac']:.2%}  Gross: {plan['resulting_gross']:.2%}  Cash: {plan['resulting_cash']:.2%}"
     )
-    # Loudly log the sector-cap degradation (F3): the cap is inoperative because
-    # etoro.csv carries no sector data — flag it to stderr so it is not missed.
-    if any("Sector cap" in c for c in plan["caveats"]):
-        print(
-            "WARNING: sector cap is NOT enforced (no sector data in etoro.csv) — "
-            "review sector concentration manually.",
-            file=sys.stderr,
-        )
+    # Log sector cap status: either enforced (with coverage stats) or inoperative.
+    for c in plan["caveats"]:
+        if "Sector cap" in c:
+            if "NOT enforced" in c:
+                print(
+                    "WARNING: sector cap is NOT enforced (no sector map) — "
+                    "review sector concentration manually.",
+                    file=sys.stderr,
+                )
+            else:
+                print(f"INFO: {c}")
     for c in plan["caveats"]:
         print(f"  CAVEAT: {c}")
     print("\nOutputs written:")

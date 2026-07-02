@@ -859,3 +859,362 @@ class TestWrongfulLiquidationRegression:
             f"resulting_gross collapsed to {result['resulting_gross']:.2%} "
             f"(F1/F2 wholesale-liquidation regression)"
         )
+
+
+# ---------------------------------------------------------------------------
+# sectors.py — load_sector_map + resolve_sector
+# ---------------------------------------------------------------------------
+
+import csv
+import os
+import tempfile
+
+from trade_modules.pipeline_v2.sectors import load_sector_map, resolve_sector
+
+
+class TestLoadSectorMap:
+    def _write_csv(self, path, rows):
+        """Write a sector CSV with header to `path`."""
+        with open(path, "w", newline="") as fh:
+            writer = csv.DictWriter(
+                fh,
+                fieldnames=["symbol", "name", "sector", "subSector", "headQuarter", "founded"],
+            )
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def test_builds_correct_dict(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            fname = f.name
+        try:
+            self._write_csv(
+                fname,
+                [
+                    {
+                        "symbol": "AAPL",
+                        "name": "Apple Inc.",
+                        "sector": "Technology",
+                        "subSector": "",
+                        "headQuarter": "",
+                        "founded": "",
+                    },
+                    {
+                        "symbol": "MSFT",
+                        "name": "Microsoft",
+                        "sector": "Technology",
+                        "subSector": "",
+                        "headQuarter": "",
+                        "founded": "",
+                    },
+                ],
+            )
+            result = load_sector_map([fname])
+            assert result["AAPL"] == "Technology"
+            assert result["MSFT"] == "Technology"
+        finally:
+            os.unlink(fname)
+
+    def test_missing_file_skipped_gracefully(self):
+        result = load_sector_map(["/nonexistent/path/that/does/not/exist.csv"])
+        assert result == {}
+
+    def test_blank_sector_skipped(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            fname = f.name
+        try:
+            self._write_csv(
+                fname,
+                [
+                    {
+                        "symbol": "AAPL",
+                        "name": "Apple",
+                        "sector": "",
+                        "subSector": "",
+                        "headQuarter": "",
+                        "founded": "",
+                    },
+                    {
+                        "symbol": "MSFT",
+                        "name": "Microsoft",
+                        "sector": "Technology",
+                        "subSector": "",
+                        "headQuarter": "",
+                        "founded": "",
+                    },
+                ],
+            )
+            result = load_sector_map([fname])
+            assert "AAPL" not in result, "blank sector must be skipped"
+            assert result["MSFT"] == "Technology"
+        finally:
+            os.unlink(fname)
+
+    def test_earlier_file_takes_precedence(self):
+        """When two files cover the same symbol, the first file wins."""
+        with (
+            tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f1,
+            tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f2,
+        ):
+            fname1, fname2 = f1.name, f2.name
+        try:
+            self._write_csv(
+                fname1,
+                [
+                    {
+                        "symbol": "NVDA",
+                        "name": "Nvidia",
+                        "sector": "Technology",
+                        "subSector": "",
+                        "headQuarter": "",
+                        "founded": "",
+                    }
+                ],
+            )
+            self._write_csv(
+                fname2,
+                [
+                    {
+                        "symbol": "NVDA",
+                        "name": "Nvidia",
+                        "sector": "Energy",  # should NOT overwrite
+                        "subSector": "",
+                        "headQuarter": "",
+                        "founded": "",
+                    }
+                ],
+            )
+            result = load_sector_map([fname1, fname2])
+            assert result["NVDA"] == "Technology", "first file must win"
+        finally:
+            os.unlink(fname1)
+            os.unlink(fname2)
+
+    def test_keys_are_uppercased(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            fname = f.name
+        try:
+            self._write_csv(
+                fname,
+                [
+                    {
+                        "symbol": "aapl",
+                        "name": "Apple",
+                        "sector": "Technology",
+                        "subSector": "",
+                        "headQuarter": "",
+                        "founded": "",
+                    }
+                ],
+            )
+            result = load_sector_map([fname])
+            assert "AAPL" in result
+            assert "aapl" not in result
+        finally:
+            os.unlink(fname)
+
+
+class TestResolveSector:
+    def test_hit_exact(self):
+        sector_map = {"AAPL": "Technology", "MSFT": "Technology"}
+        assert resolve_sector("AAPL", sector_map) == "Technology"
+
+    def test_case_insensitive(self):
+        sector_map = {"AAPL": "Technology"}
+        assert resolve_sector("aapl", sector_map) == "Technology"
+        assert resolve_sector("Aapl", sector_map) == "Technology"
+
+    def test_miss_returns_none(self):
+        sector_map = {"AAPL": "Technology"}
+        assert resolve_sector("0175.HK", sector_map) is None
+        assert resolve_sector("DTE.DE", sector_map) is None
+        assert resolve_sector("BARC.L", sector_map) is None
+
+    def test_empty_map_returns_none(self):
+        assert resolve_sector("AAPL", {}) is None
+
+    def test_empty_ticker_returns_none(self):
+        assert resolve_sector("", {"AAPL": "Technology"}) is None
+
+    def test_none_map_returns_none(self):
+        # resolve_sector guards against None map
+        assert resolve_sector("AAPL", None) is None  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# adapters.etoro_row_to_candidate — sector_map wiring
+# ---------------------------------------------------------------------------
+
+
+class TestEtoroRowToCandidateSector:
+    def test_covered_ticker_gets_sector(self):
+        sector_map = {"AAPL": "Technology"}
+        row = {**FULL_ROW, "TKR": "AAPL"}
+        c = etoro_row_to_candidate(row, sector_map=sector_map)
+        assert c["sector"] == "Technology"
+
+    def test_uncovered_ticker_gets_none(self):
+        sector_map = {"AAPL": "Technology"}
+        row = {**FULL_ROW, "TKR": "0175.HK"}
+        c = etoro_row_to_candidate(row, sector_map=sector_map)
+        assert c["sector"] is None
+
+    def test_no_map_gives_none(self):
+        """Back-compat: no sector_map → sector is None."""
+        c = etoro_row_to_candidate(FULL_ROW)
+        assert c["sector"] is None
+
+    def test_case_insensitive_lookup(self):
+        sector_map = {"NVDA": "Technology"}
+        row = {**FULL_ROW, "TKR": "nvda"}  # lowercase ticker in data
+        c = etoro_row_to_candidate(row, sector_map=sector_map)
+        assert c["sector"] == "Technology"
+
+
+# ---------------------------------------------------------------------------
+# orchestrator.run_pipeline — sector cap binding + honest caveat
+# ---------------------------------------------------------------------------
+
+
+class TestSectorCapIntegration:
+    """Verify the sector cap BINDS when sector_map is provided and would
+    be a no-op when it is not.  Uses a minimal synthetic universe where two
+    BUY-quality names share a sector and their combined addition would
+    exceed the 35% cap if unsized."""
+
+    def _make_sector_map(self):
+        """Two covered tickers in the same sector."""
+        return {"HIGHQ": "Technology", "HIGHQ2": "Technology"}
+
+    def _build_universe_two_tech_buys(self):
+        """Two strong BUY-quality names, same sector (Technology)."""
+        row1 = _make_etoro_row(
+            "HIGHQ",
+            cap="10T",
+            prc="200.0",
+            up_pct="60%",
+            buy_pct="90%",
+            n_analysts="30",
+            beta="0.9",
+            w52="85",
+            pet="18",
+            pef="14",
+            peg="0.8",
+            roe="30",
+            de="40",
+            fcf="5.0%",
+            eg="25",
+        )
+        row2 = _make_etoro_row(
+            "HIGHQ2",
+            cap="8T",
+            prc="180.0",
+            up_pct="55%",
+            buy_pct="88%",
+            n_analysts="28",
+            beta="0.85",
+            w52="82",
+            pet="17",
+            pef="13",
+            peg="0.9",
+            roe="28",
+            de="35",
+            fcf="4.5%",
+            eg="22",
+        )
+        return _make_universe([row1, row2])
+
+    def test_sector_cap_binds_with_sector_map(self):
+        """With sector_map: two same-sector BUYs → summed additions ≤ 35%."""
+        universe = self._build_universe_two_tech_buys()
+        portfolio = _make_portfolio([])
+        result = run_pipeline(
+            universe_df=universe,
+            portfolio_df=portfolio,
+            regime_mult=1.0,
+            cash_pct=0.80,  # huge cash so budget is not the constraint
+            generated_at="2026-07-03T09:00:00",
+            sector_map=self._make_sector_map(),
+        )
+        # Sum additions (delta_pct) for Technology names
+        tech_additions = sum(
+            r.get("delta_pct") or 0.0
+            for r in result["actions"]
+            if r.get("ticker") in ("HIGHQ", "HIGHQ2") and r.get("action") in ("BUY", "ADD")
+        )
+        assert tech_additions <= 0.35 + 1e-9, (
+            f"Sector cap NOT binding with sector_map: Technology additions = {tech_additions:.2%} > 35%"
+        )
+
+    def test_sector_cap_not_active_without_sector_map(self):
+        """Without sector_map: sectors are None → cap logic skips → both names
+        can be sized freely (uncapped).  The sector caveat says 'NOT enforced'."""
+        universe = self._build_universe_two_tech_buys()
+        portfolio = _make_portfolio([])
+        result_no_map = run_pipeline(
+            universe_df=universe,
+            portfolio_df=portfolio,
+            regime_mult=1.0,
+            cash_pct=0.80,
+            generated_at="2026-07-03T09:00:00",
+            sector_map=None,
+        )
+        caveats_text = " ".join(result_no_map["caveats"]).lower()
+        assert "sector cap" in caveats_text and "not enforced" in caveats_text, (
+            "Without sector_map, caveat must say sector cap is NOT enforced"
+        )
+
+    def test_honest_caveat_present_with_sector_map(self):
+        """With sector_map: caveat says 'enforced via market.csv/usindex.csv'."""
+        universe = self._build_universe_two_tech_buys()
+        portfolio = _make_portfolio([])
+        result = run_pipeline(
+            universe_df=universe,
+            portfolio_df=portfolio,
+            regime_mult=1.0,
+            cash_pct=0.40,
+            generated_at="2026-07-03T09:00:00",
+            sector_map=self._make_sector_map(),
+        )
+        caveats_text = " ".join(result["caveats"]).lower()
+        assert "sector cap" in caveats_text
+        assert "enforced via" in caveats_text, (
+            "With sector_map, caveat must say 'enforced via' (honest enforcement)"
+        )
+        assert "not enforced" not in caveats_text, (
+            "With sector_map, caveat must NOT say 'NOT enforced'"
+        )
+
+    def test_existing_test_caveat_still_passes_without_map(self):
+        """The original test_sector_cap_degradation_caveat_present still passes
+        when no sector_map is provided (back-compat)."""
+        universe = _make_universe(
+            [
+                _make_etoro_row(
+                    "HIGHQ",
+                    cap="10T",
+                    prc="200.0",
+                    up_pct="60%",
+                    buy_pct="90%",
+                    n_analysts="30",
+                    beta="0.9",
+                    w52="85",
+                    pet="18",
+                    pef="14",
+                    peg="0.8",
+                    roe="30",
+                    de="40",
+                    fcf="5.0%",
+                    eg="25",
+                )
+            ]
+        )
+        portfolio = _make_portfolio([])
+        result = run_pipeline(
+            universe_df=universe,
+            portfolio_df=portfolio,
+            regime_mult=1.0,
+            cash_pct=0.20,
+            generated_at="2026-07-03T09:00:00",
+        )
+        caveats_text = " ".join(result["caveats"]).lower()
+        assert "sector cap" in caveats_text and "not enforced" in caveats_text
