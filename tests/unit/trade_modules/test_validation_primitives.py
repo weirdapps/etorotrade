@@ -232,6 +232,12 @@ class TestComputeTurnover:
         result = compute_turnover(self._actions(), window_days=90)
         assert set(result.keys()) == {"turnover_annual_pct", "annualized_drag_bps", "n_trades"}
 
+    @pytest.mark.parametrize("window", [0, -1, -100])
+    def test_window_days_nonpositive_raises(self, window):
+        actions = [{"date": "2024-01-15", "ticker": "AAPL", "weight_change": 0.05}]
+        with pytest.raises(ValueError, match="window_days must be positive"):
+            compute_turnover(actions, window_days=window)
+
 
 # ---------------------------------------------------------------------------
 # build_perf_matrix
