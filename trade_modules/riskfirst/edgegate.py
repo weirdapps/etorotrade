@@ -62,20 +62,58 @@ def deflated_sharpe_ratio(
     return probabilistic_sharpe_ratio(sr, sr0, n_obs, skew, kurt)
 
 
-def pbo_cscv(perf, n_splits: int = 10) -> dict:
+def pbo_cscv(perf, n_splits: int = 10, min_density: float = 0.5) -> dict:
     """Probability of Backtest Overfitting via Combinatorially Symmetric CV.
 
     Args:
         perf: a (T periods x N configurations) matrix of per-period performance.
+            Missing cells may be NaN; block means are computed with ``np.nanmean``.
         n_splits: number of disjoint time blocks S (forced even). All C(S, S/2)
             in-sample/out-of-sample partitions are evaluated.
+        min_density: minimum fraction of non-NaN cells required overall (after
+            pruning fully-empty columns) to trust the result. Below this the
+            matrix is too sparse for a meaningful PBO — returns pbo=None with a
+            reason rather than a misleading number.
 
     For each partition: pick the config with the best IN-sample mean, then measure
     its OUT-of-sample relative rank. PBO is the fraction of partitions where that
     IS-best config lands at or below the OOS median (an overfit selection).
+
+    Returns a dict with ``pbo`` (float in [0,1] or None) and, when None, a
+    ``reason`` string. NaN is never returned for ``pbo`` — a non-computable PBO is
+    always None with an explicit reason so it can be surfaced, not silently lost.
     """
     M = np.asarray(perf, dtype=float)
+    if M.ndim != 2:
+        return {"pbo": None, "reason": "perf_not_2d", "n_combinations": 0, "n_configs": 0}
     T, N = M.shape
+
+    # Prune configurations (columns) that are entirely NaN — a config with no
+    # data anywhere cannot be ranked and would poison nanmean/argmax.
+    if N > 0:
+        col_all_nan = np.all(np.isnan(M), axis=0)
+        if col_all_nan.any():
+            M = M[:, ~col_all_nan]
+            T, N = M.shape
+
+    if T < 2 or N < 2:
+        return {
+            "pbo": None,
+            "reason": f"insufficient_shape_T{T}_N{N}",
+            "n_combinations": 0,
+            "n_configs": N,
+        }
+
+    # Require a minimum overall density of real observations.
+    finite_frac = float(np.isfinite(M).mean()) if M.size else 0.0
+    if finite_frac < min_density:
+        return {
+            "pbo": None,
+            "reason": f"density_{finite_frac:.2f}_below_min_{min_density:.2f}",
+            "n_combinations": 0,
+            "n_configs": N,
+        }
+
     S = n_splits - (n_splits % 2)
     S = max(S, 2)
     groups = np.array_split(np.arange(T), S)
@@ -83,20 +121,36 @@ def pbo_cscv(perf, n_splits: int = 10) -> dict:
     half = S // 2
 
     logits, n_overfit, n_total = [], 0, 0
-    for is_groups in combinations(all_g, half):
-        is_rows = np.concatenate([groups[g] for g in is_groups])
-        oos_rows = np.concatenate([groups[g] for g in all_g if g not in is_groups])
-        is_best = int(np.argmax(M[is_rows].mean(axis=0)))
-        oos_perf = M[oos_rows].mean(axis=0)
-        rank = int(np.argsort(np.argsort(oos_perf))[is_best])  # 0..N-1, higher = better
-        omega = (rank + 1) / (N + 1)
-        omega = min(max(omega, 1e-9), 1 - 1e-9)
-        logits.append(math.log(omega / (1 - omega)))
-        n_total += 1
-        if omega <= 0.5:
-            n_overfit += 1
+    with np.errstate(invalid="ignore"):
+        for is_groups in combinations(all_g, half):
+            is_rows = np.concatenate([groups[g] for g in is_groups])
+            oos_rows = np.concatenate([groups[g] for g in all_g if g not in is_groups])
+            is_means = np.nanmean(M[is_rows], axis=0)
+            oos_perf = np.nanmean(M[oos_rows], axis=0)
+            # Skip partitions where a whole block is empty for every config.
+            if not np.isfinite(is_means).any() or not np.isfinite(oos_perf).any():
+                continue
+            is_best = int(np.nanargmax(is_means))
+            # Rank the IS-best config within the OOS means (NaN treated as worst).
+            oos_filled = np.where(np.isfinite(oos_perf), oos_perf, -np.inf)
+            rank = int(np.argsort(np.argsort(oos_filled))[is_best])  # 0..N-1, higher = better
+            omega = (rank + 1) / (N + 1)
+            omega = min(max(omega, 1e-9), 1 - 1e-9)
+            logits.append(math.log(omega / (1 - omega)))
+            n_total += 1
+            if omega <= 0.5:
+                n_overfit += 1
+
+    if n_total == 0:
+        return {
+            "pbo": None,
+            "reason": "no_valid_partitions",
+            "logits": logits,
+            "n_combinations": 0,
+            "n_configs": N,
+        }
     return {
-        "pbo": (n_overfit / n_total) if n_total else float("nan"),
+        "pbo": n_overfit / n_total,
         "logits": logits,
         "n_combinations": n_total,
         "n_configs": N,

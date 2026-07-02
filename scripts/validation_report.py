@@ -103,14 +103,28 @@ def build_md_report(result: dict, data_date: str) -> str:  # pragma: no cover
     lines.append(f"**Overall verdict: {status}**")
     lines.append("")
 
+    assumptions = result.get("dsr_assumptions", {})
     lines.append("## DSR assumptions")
-    lines.append(f"- n_trials = {result['n_trials']} (signal engine heavy parameterisation)")
-    lines.append("- var_sr = 0.5 (prior variance of Sharpe under null)")
+    lines.append(
+        f"- n_trials = {result['n_trials']} "
+        "(real tuned-parameter count; signal engine heavy parameterisation)"
+    )
+    lines.append(
+        f"- var_sr = {_fmt(result.get('var_sr'))} ({assumptions.get('var_sr_source', 'n/a')})"
+    )
+    lines.append(f"- n_obs = {assumptions.get('n_obs_definition', 'effective N')}")
+    lines.append(f"- Sharpe units = {assumptions.get('sharpe_units', 'per-period for DSR')}")
     lines.append("")
 
     lines.append("## Overall gate")
-    lines.append(f"- DSR: {_fmt(overall['dsr'])}")
-    lines.append(f"- PBO: {_fmt(overall['pbo'])}")
+    lines.append(f"- DSR (pooled, reporting-only): {_fmt(overall['dsr'])}")
+    lines.append(
+        f"- PBO: {_fmt(overall['pbo'])}"
+        + (f" — {overall['pbo_reason']}" if overall.get("pbo_reason") else "")
+    )
+    lines.append(f"- Decision basis: {overall.get('decision_basis', 'worst-material-family gate')}")
+    if overall.get("failing_families"):
+        lines.append(f"- Failing families: {', '.join(overall['failing_families'])}")
     if overall["reasons"]:
         lines.append("- Reasons for FAIL:")
         for r in overall["reasons"]:
@@ -133,8 +147,14 @@ def build_md_report(result: dict, data_date: str) -> str:  # pragma: no cover
     # Per-family table
     lines.append("## Per-family results")
     lines.append("")
-    lines.append("| Family | n | Sharpe | DSR | PBO | OOS_hit | OOS_alpha | gross_alpha |")
-    lines.append("|--------|---|--------|-----|-----|---------|-----------|-------------|")
+    lines.append(
+        "| Family | n | n_eff | Sharpe(ann) | pp_Sharpe | DSR | PBO | passed "
+        "| OOS | OOS_alpha | gross_alpha |"
+    )
+    lines.append(
+        "|--------|---|-------|-------------|-----------|-----|-----|--------"
+        "|-----|-----------|-------------|"
+    )
 
     families = result.get("families", {})
     # Sort by n descending
@@ -146,37 +166,63 @@ def build_md_report(result: dict, data_date: str) -> str:  # pragma: no cover
     for fam, stats in sorted_fams:
         if stats.get("insufficient_data"):
             lines.append(
-                f"| {fam} | {stats.get('n', '?')} | — | — | — | — | — | — | *(insufficient data)* |"
+                f"| {fam} | {stats.get('n', '?')} | — | — | — | — | — | — | — | — "
+                "| *(insufficient data)* |"
             )
         else:
+            oos = stats.get("oos", {}) or {}
+            if oos.get("computed"):
+                oos_cell = f"{oos.get('n_folds', 0)} folds"
+                oos_alpha_cell = _fmt(oos.get("oos_alpha"))
+            else:
+                oos_cell = f"n/a ({oos.get('reason', 'not computed')})"
+                oos_alpha_cell = "—"
+            pbo_cell = _fmt(stats.get("pbo"))
+            if stats.get("pbo") is None and stats.get("pbo_reason"):
+                pbo_cell = "n/a"
             lines.append(
                 f"| {fam} | {stats.get('n', '?')} "
-                f"| {_fmt(stats.get('sharpe'))} "
+                f"| {stats.get('n_eff', '?')} "
+                f"| {_fmt(stats.get('sharpe_annual'))} "
+                f"| {_fmt(stats.get('per_period_sharpe'))} "
                 f"| {_fmt(stats.get('dsr'))} "
-                f"| {_fmt(stats.get('pbo'))} "
-                f"| {_fmt(stats.get('oos_hit'), pct=True)} "
-                f"| {_fmt(stats.get('oos_alpha'))} "
+                f"| {pbo_cell} "
+                f"| {'PASS' if stats.get('passed') else 'FAIL'} "
+                f"| {oos_cell} "
+                f"| {oos_alpha_cell} "
                 f"| {_fmt(stats.get('alpha_gross'))} |"
             )
     lines.append("")
-
-    # IC half-life per family
-    lines.append("## IC half-life per family")
+    lines.append(
+        "> PBO is `n/a` at S0: with a single ruleset, per-ticker PBO is not a "
+        "valid overfitting measure (reason: pbo_not_applicable_single_ruleset). "
+        "A real PBO requires a T×N matrix across candidate configurations."
+    )
     lines.append("")
-    has_ic = False
+
+    # Alpha-persistence half-life per family (NOT a true IC — see field note)
+    lines.append("## Alpha-persistence half-life per family")
+    lines.append("")
+    lines.append(
+        "*(Spearman(|alpha@primary|, alpha@h) — a realized-outcome persistence "
+        "measure, NOT an information coefficient.)*"
+    )
+    lines.append("")
+    has_persistence = False
     for fam, stats in sorted_fams:
         if stats.get("insufficient_data"):
             continue
-        ic = stats.get("ic_decay", {})
-        hl = ic.get("half_life_days")
-        note = ic.get("note", "")
+        persistence = stats.get("alpha_persistence", {}) or {}
+        decay = persistence.get("decay", {}) or {}
+        hl = decay.get("half_life_days")
+        note = decay.get("note", "")
         if hl is not None:
-            lines.append(f"- **{fam}**: half-life = {hl:.1f} days (IC0={_fmt(ic.get('ic0'))})")
-            has_ic = True
+            lines.append(f"- **{fam}**: half-life = {hl:.1f} days (IC0={_fmt(decay.get('ic0'))})")
+            has_persistence = True
         elif note:
             lines.append(f"- **{fam}**: N/A — {note}")
-    if not has_ic:
-        lines.append("*(IC decay not computable — insufficient horizon overlap in data)*")
+    if not has_persistence:
+        lines.append("*(Persistence half-life not computable — insufficient horizon overlap)*")
     lines.append("")
 
     # Regime stratified
