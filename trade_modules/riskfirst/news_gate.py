@@ -21,6 +21,8 @@ import json
 import os
 from datetime import date, datetime, timedelta
 
+import yaml
+
 DEFAULT_EVENT_RISK_PATH = os.path.expanduser("~/.weirdapps-trading/news/event_risk.json")
 
 
@@ -74,6 +76,23 @@ def apply_exclusions(df, exclude):
         return df
     keep = ~df.index.astype(str).str.upper().isin(ex)
     return df.loc[keep]
+
+
+def load_config(path=None):
+    """Load the event_gate section from config.yaml; fall back to defaults."""
+    path = path or os.path.expanduser("~/SourceCode/etorotrade/config.yaml")
+    try:
+        with open(path) as f:
+            sec = (yaml.safe_load(f) or {}).get("event_gate") or {}
+    except Exception:
+        sec = {}
+    return {
+        "enabled": bool(sec.get("enabled", True)),
+        "earnings_blackout_days": int(sec.get("earnings_blackout_days", 7)),
+        "event_risk_path": os.path.expanduser(
+            sec.get("event_risk_path") or DEFAULT_EVENT_RISK_PATH
+        ),
+    }
 
 
 def load_event_risk(path) -> set:

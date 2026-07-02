@@ -73,6 +73,7 @@ def test_shadow_run_overlay_scales_gross(tmp_path):
     sp = str(tmp_path / "state.json")
     base = run(regime_overlay_enabled=False)
     # crisis confirmed by seeding two days via persistence_days=1
+    # config.yaml is now AGGRESSIVE: crisis=0.20
     scaled = run(
         regime_overlay_enabled=True,
         regime_fn=lambda: "crisis",
@@ -80,5 +81,5 @@ def test_shadow_run_overlay_scales_gross(tmp_path):
         persistence_days=1,
     )
     assert scaled["regime"]["confirmed_regime"] == "crisis"
-    assert scaled["regime"]["applied_multiplier"] == 0.40
+    assert scaled["regime"]["applied_multiplier"] == 0.20
     assert scaled["gross"] <= base["gross"] + 1e-9

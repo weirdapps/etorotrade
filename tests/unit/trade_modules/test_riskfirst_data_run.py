@@ -31,6 +31,7 @@ def test_run_data_overlay_scales_gross(tmp_path, monkeypatch):
     monkeypatch.setattr(dr, "fetch_prices", _fake_prices)
     monkeypatch.setattr(dr, "fetch_sectors", _fake_sectors)
     sp = str(tmp_path / "state.json")
+    # config.yaml is now AGGRESSIVE: crisis=0.20
     res = dr.run_data(
         regime_overlay_enabled=True,
         regime_fn=lambda: "crisis",
@@ -38,4 +39,4 @@ def test_run_data_overlay_scales_gross(tmp_path, monkeypatch):
         persistence_days=1,
     )
     assert res["regime"]["confirmed_regime"] == "crisis"
-    assert res["regime"]["applied_multiplier"] == 0.40
+    assert res["regime"]["applied_multiplier"] == 0.20
