@@ -124,6 +124,16 @@ def run_pipeline(
     excluded: dict = s1_result.get("excluded", {})
     price_only_tickers: set[str] = {str(t).strip() for t in s1_result.get("price_only", [])}
 
+    # Every ticker present in the universe file (used to distinguish "held & IN
+    # the universe but failed S1" → SELL, from "held & ABSENT from the universe"
+    # → unscoreable → HOLD, not a fabricated SELL).
+    if "TKR" in adapted_df.columns:
+        universe_tickers: set[str] = {
+            str(t).strip() for t in adapted_df["TKR"].tolist() if str(t).strip()
+        }
+    else:
+        universe_tickers = set()
+
     # ------------------------------------------------------------------
     # S2: Factor composite + long_only_signal on fundamental sleeve
     #
@@ -206,11 +216,16 @@ def run_pipeline(
         candidates.append(candidate)
         eligible_tickers.add(str(candidate.get("ticker")).strip())
 
-    # Held names that TRULY dropped from the investable universe: held, and
-    # neither S1-eligible nor price-only (i.e. failed a quality gate or were
-    # excluded for no usable price).  These — and only these — become SELL.
+    # Held names that TRULY dropped from the investable universe: held, PRESENT
+    # in the universe file, and neither S1-eligible nor price-only (i.e. they are
+    # IN the data but failed a quality gate / were excluded for no usable price).
+    # These — and only these — become SELL.  A held name ABSENT from the universe
+    # file is unscoreable, not a genuine S1 failure → HOLD (handled below), never
+    # a fabricated SELL.
     held_failed_eligibility: set[str] = {
-        t for t in held_tickers if t not in eligible_tickers and t not in price_only_tickers
+        t
+        for t in held_tickers
+        if t in universe_tickers and t not in eligible_tickers and t not in price_only_tickers
     }
 
     # ------------------------------------------------------------------
@@ -224,13 +239,26 @@ def run_pipeline(
     )
 
     # ------------------------------------------------------------------
-    # Held PRICE-ONLY names → HOLD (untouched; price sleeve unavailable)
+    # Held UNSCOREABLE names → HOLD (untouched; never a fabricated SELL):
+    #   - price-only (ETF/crypto routed to the skipped price sleeve), AND
+    #   - held names ABSENT from the universe file entirely (no data to score).
+    # Both are compute gaps, not eligibility failures (final-review F2).
     # ------------------------------------------------------------------
-    held_price_only: set[str] = {t for t in held_tickers if t in price_only_tickers}
     s3_tickers = {r.get("ticker") for r in s3_result}
-    for ticker in sorted(held_price_only):
-        if ticker in s3_tickers:
-            continue  # already represented (shouldn't happen — price-only ≠ candidate)
+    held_unscoreable: set[str] = {
+        t
+        for t in held_tickers
+        if t not in s3_tickers
+        and t not in held_failed_eligibility
+        and (t in price_only_tickers or t not in universe_tickers)
+    }
+    for ticker in sorted(held_unscoreable):
+        is_price_only = ticker in price_only_tickers
+        reason = (
+            "price-only (ETF/crypto) held position — unscored (price sleeve skipped)"
+            if is_price_only
+            else "held position not in the scored universe — unscored (no data)"
+        )
         s3_result.append(
             {
                 "ticker": ticker,
@@ -238,10 +266,7 @@ def run_pipeline(
                 "conviction": None,
                 "persona_consensus": "neutral",
                 "persona_dissent": [],
-                "rationale": (
-                    f"{ticker}: HOLD | price-only (ETF/crypto) held position — "
-                    f"unscored (price sleeve skipped); left untouched"
-                ),
+                "rationale": f"{ticker}: HOLD | {reason}; left untouched",
             }
         )
 

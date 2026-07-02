@@ -787,6 +787,29 @@ class TestWrongfulLiquidationRegression:
                 f"held price-only {t} must be HOLD (unscored/held), got {action_by_ticker[t]}"
             )
 
+    def test_held_absent_from_universe_becomes_hold(self):
+        """A held name ABSENT from the universe file entirely is unscoreable (a
+        compute gap, NOT an S1 failure) → HOLD, never a fabricated SELL."""
+        portfolio = _make_portfolio(
+            [
+                ("MEGA1", 10.0, True),
+                ("ABSENTCO", 6.0, True),  # held, not present in the universe
+            ]
+        )
+        result = run_pipeline(
+            universe_df=self._build_universe(),
+            portfolio_df=portfolio,
+            regime_mult=1.0,
+            cash_pct=0.20,
+            generated_at="2026-07-02T09:00:00",
+        )
+        all_rows = result["actions"] + result["holds"]
+        action_by_ticker = {r["ticker"]: r.get("action") for r in all_rows}
+        assert action_by_ticker.get("ABSENTCO") == "HOLD", (
+            "held name absent from the universe must be HOLD (unscored), got "
+            f"{action_by_ticker.get('ABSENTCO')}"
+        )
+
     def test_only_s1_failing_name_is_sold(self):
         """The single held name that FAILS S1 eligibility (JUNKCO) is the ONLY
         SELL — SELL is reserved for names dropped from the investable universe."""
