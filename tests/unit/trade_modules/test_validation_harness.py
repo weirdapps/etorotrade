@@ -116,6 +116,21 @@ class TestClearEdge:
         result = evaluate(rows)
         assert isinstance(result["overall"]["reasons"], list)
 
+    def test_alpha_gross_present_and_float(self):
+        # _analyse_family() must return alpha_gross for families with enough data.
+        rows = _make_rows(200, alpha_mean=0.05, alpha_std=0.02, n_regimes=2, seed=42)
+        result = evaluate(rows)
+        families = result["families"]
+        # Find at least one family that is NOT insufficient_data
+        computed = {f: s for f, s in families.items() if not s.get("insufficient_data")}
+        assert computed, "Expected at least one family with sufficient data"
+        for fam, stats in computed.items():
+            assert "alpha_gross" in stats, f"alpha_gross missing from family '{fam}'"
+            ag = stats["alpha_gross"]
+            assert isinstance(ag, float), (
+                f"alpha_gross for '{fam}' should be float, got {type(ag).__name__}: {ag}"
+            )
+
 
 # ---------------------------------------------------------------------------
 # 2. pure_noise — zero-alpha signal must FAIL
@@ -227,19 +242,68 @@ class TestNoRegimeKey:
 
 
 # ---------------------------------------------------------------------------
-# 7. no_action_records — turnover should be None
+# 7. no_action_records — turnover None vs. action_log-found-but-no-weight cases
 # ---------------------------------------------------------------------------
 class TestNoActionRecords:
     def test_turnover_is_none_without_action_records(self):
+        # When action_records is not passed at all, turnover must be None.
         rows = _make_rows(100, alpha_mean=0.03, alpha_std=0.02, seed=42)
         result = evaluate(rows)
         assert result["turnover"] is None
 
-    def test_turnover_not_none_with_action_records(self):
+    def test_turnover_not_none_with_weight_change_records(self):
         rows = _make_rows(100, alpha_mean=0.03, alpha_std=0.02, seed=42)
-        # Build minimal valid action records
+        # Records with real weight_change values → computation should succeed.
         actions = [
             {"weight_change": 0.05, "tier": "large", "date": "2022-01-01", "ticker": "T00"}
         ] * 10
         result = evaluate(rows, action_records=actions)
         assert result["turnover"] is not None
+        # Must be a computed result (has turnover_annual_pct), not a note-only dict.
+        assert "turnover_annual_pct" in result["turnover"]
+
+    def test_turnover_note_when_size_is_null(self):
+        # Real action_log schema: committee_date + size=null, no weight_change.
+        # Harness must NOT silently return None — must return a dict with a note.
+        rows = _make_rows(100, alpha_mean=0.03, alpha_std=0.02, seed=42)
+        actions = [
+            {
+                "committee_date": "2026-03-17",
+                "ticker": "AAPL",
+                "action": "BUY",
+                "size": None,  # null in real log
+            }
+        ] * 5
+        result = evaluate(rows, action_records=actions)
+        turnover = result["turnover"]
+        # Must be a dict (not None) with a human-readable note
+        assert isinstance(turnover, dict), (
+            f"Expected dict with note, got {type(turnover).__name__}: {turnover}"
+        )
+        assert "note" in turnover, f"Expected 'note' key in turnover dict, got: {turnover}"
+        assert "null" in turnover["note"] or "weight_change" in turnover["note"], (
+            f"Note should explain missing weight_change, got: {turnover['note']}"
+        )
+
+    def test_turnover_accepts_committee_date_field(self):
+        # Harness normalises committee_date → date; records with real size values
+        # should produce a valid computed result.
+        rows = _make_rows(100, alpha_mean=0.03, alpha_std=0.02, seed=42)
+        actions = [
+            {
+                "committee_date": "2026-01-01",
+                "ticker": "AAPL",
+                "action": "BUY",
+                "size": 0.05,  # non-null size → weight_change mapped to 0.05
+            },
+            {
+                "committee_date": "2026-06-01",
+                "ticker": "AAPL",
+                "action": "SELL",
+                "size": 0.05,
+            },
+        ]
+        result = evaluate(rows, action_records=actions)
+        turnover = result["turnover"]
+        assert isinstance(turnover, dict)
+        assert "turnover_annual_pct" in turnover, f"Expected computed turnover, got: {turnover}"

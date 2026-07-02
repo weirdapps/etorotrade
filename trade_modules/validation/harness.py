@@ -119,6 +119,10 @@ def _analyse_family(
     alphas = [_alpha_value(r) for r in h30_rows]
     alphas = [a for a in alphas if a is not None]
 
+    # Gross alpha (raw alpha, not net) for independent comparison
+    gross_alphas = [_safe_float(r.get("alpha")) for r in h30_rows]
+    gross_alphas = [a for a in gross_alphas if a is not None]
+
     if len(alphas) < min_obs:
         return {"insufficient_data": True, "n": n}
 
@@ -217,6 +221,7 @@ def _analyse_family(
         "pbo": pbo,
         "oos_hit": oos_hit,
         "oos_alpha": oos_alpha,
+        "alpha_gross": float(np.mean(gross_alphas)) if gross_alphas else None,
         "ic_decay": ic_decay_result,
         "insufficient_data": False,
     }
@@ -241,6 +246,15 @@ def evaluate(
 
     results_rows: list of dicts from backtest_results.csv.
     action_records: list of dicts for turnover calculation (optional).
+        Schema note: the real action_log.jsonl uses ``committee_date`` (not
+        ``date``) for the date field and ``size`` (not ``weight_change``) for
+        the position-size delta.  ``size`` is ``null`` in all current records,
+        so meaningful turnover cannot be computed from the live log.  To obtain
+        a real turnover figure, supply records that contain a numeric
+        ``weight_change`` key (fraction of portfolio, e.g. 0.05 = 5 %).
+        When only the action_log schema is available and ``weight_change`` is
+        absent or all-null, turnover will be a dict with a ``note`` key
+        explaining why the computation was skipped — NOT bare None.
 
     Returns VerdictReport dict.  Never crashes.
     """
@@ -374,21 +388,61 @@ def evaluate(
     # -----------------------------------------------------------------------
     turnover_result: dict | None = None
     if action_records is not None:
-        try:
-            # Estimate window from date range of action_records
-            dates = [r.get("date", "") for r in action_records if r.get("date")]
-            if dates:
-                dates_sorted = sorted(dates)
-                from datetime import date as date_cls
+        # Normalise real action_log schema → harness schema.
+        # Real log uses "committee_date" (not "date") and "size" (not
+        # "weight_change").  If "weight_change" is absent but "size" is
+        # present, map it — treating null size as 0.0.
+        normalised: list[dict] = []
+        for r in action_records:
+            rec = dict(r)
+            # Date field: prefer "date", fall back to "committee_date"
+            if "date" not in rec or rec["date"] is None:
+                rec["date"] = rec.get("committee_date")
+            # Weight field: use "weight_change" if present and non-null,
+            # otherwise fall back to "size" (null → 0.0)
+            if rec.get("weight_change") is None:
+                size_val = rec.get("size")
+                rec["weight_change"] = float(size_val) if size_val is not None else None
+            normalised.append(rec)
 
-                d0 = date_cls.fromisoformat(str(dates_sorted[0])[:10])
-                d1 = date_cls.fromisoformat(str(dates_sorted[-1])[:10])
-                window_days = max(1, (d1 - d0).days)
-            else:
-                window_days = 365
-            turnover_result = compute_turnover(action_records, window_days)
-        except Exception:
-            turnover_result = None
+        # Check whether weight_change data is available for computation.
+        has_weight = any(r.get("weight_change") is not None for r in normalised)
+
+        if not has_weight:
+            # Honest reporting: log was found but lacks the data needed.
+            turnover_result = {
+                "note": (
+                    "action_log found but lacks weight_change; "
+                    "size is null in all records — turnover not computed"
+                ),
+                "n_records": len(normalised),
+            }
+        else:
+            try:
+                # Estimate window from date range of normalised records
+                dates = [r.get("date", "") for r in normalised if r.get("date")]
+                if dates:
+                    dates_sorted = sorted(dates)
+                    from datetime import date as date_cls
+
+                    d0 = date_cls.fromisoformat(str(dates_sorted[0])[:10])
+                    d1 = date_cls.fromisoformat(str(dates_sorted[-1])[:10])
+                    window_days = max(1, (d1 - d0).days)
+                else:
+                    window_days = 365
+                # Filter to records with a usable weight_change value
+                computable = [r for r in normalised if r.get("weight_change") is not None]
+                turnover_result = compute_turnover(computable, window_days)
+            except KeyError as exc:
+                turnover_result = {
+                    "note": f"turnover computation failed — missing key: {exc}",
+                    "n_records": len(normalised),
+                }
+            except Exception as exc:
+                turnover_result = {
+                    "note": f"turnover computation failed: {exc}",
+                    "n_records": len(normalised),
+                }
 
     # -----------------------------------------------------------------------
     # Assemble report

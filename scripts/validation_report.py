@@ -133,8 +133,8 @@ def build_md_report(result: dict, data_date: str) -> str:  # pragma: no cover
     # Per-family table
     lines.append("## Per-family results")
     lines.append("")
-    lines.append("| Family | n | Sharpe | DSR | PBO | OOS_hit | OOS_alpha |")
-    lines.append("|--------|---|--------|-----|-----|---------|-----------|")
+    lines.append("| Family | n | Sharpe | DSR | PBO | OOS_hit | OOS_alpha | gross_alpha |")
+    lines.append("|--------|---|--------|-----|-----|---------|-----------|-------------|")
 
     families = result.get("families", {})
     # Sort by n descending
@@ -146,7 +146,7 @@ def build_md_report(result: dict, data_date: str) -> str:  # pragma: no cover
     for fam, stats in sorted_fams:
         if stats.get("insufficient_data"):
             lines.append(
-                f"| {fam} | {stats.get('n', '?')} | — | — | — | — | — | *(insufficient data)* |"
+                f"| {fam} | {stats.get('n', '?')} | — | — | — | — | — | — | *(insufficient data)* |"
             )
         else:
             lines.append(
@@ -155,7 +155,8 @@ def build_md_report(result: dict, data_date: str) -> str:  # pragma: no cover
                 f"| {_fmt(stats.get('dsr'))} "
                 f"| {_fmt(stats.get('pbo'))} "
                 f"| {_fmt(stats.get('oos_hit'), pct=True)} "
-                f"| {_fmt(stats.get('oos_alpha'))} |"
+                f"| {_fmt(stats.get('oos_alpha'))} "
+                f"| {_fmt(stats.get('alpha_gross'))} |"
             )
     lines.append("")
 
@@ -209,9 +210,17 @@ def build_md_report(result: dict, data_date: str) -> str:  # pragma: no cover
 
     # Turnover
     turnover = result.get("turnover")
-    if turnover is not None:
-        lines.append("## Turnover")
-        lines.append("")
+    lines.append("## Turnover")
+    lines.append("")
+    if turnover is None:
+        # turnover is None only when action_records was not passed at all
+        lines.append("*(No action_log passed to harness — turnover not computed)*")
+    elif "note" in turnover:
+        # action_log was found but computation was skipped or failed
+        lines.append(f"*(Turnover skipped: {turnover['note']})*")
+        if "n_records" in turnover:
+            lines.append(f"- Action records found: {turnover['n_records']}")
+    else:
         lines.append(
             f"- Annualised turnover: {_fmt(turnover.get('turnover_annual_pct'), decimals=1)}%"
         )
@@ -219,12 +228,7 @@ def build_md_report(result: dict, data_date: str) -> str:  # pragma: no cover
             f"- Annualised drag: {_fmt(turnover.get('annualized_drag_bps'), decimals=1)} bps"
         )
         lines.append(f"- N trades in window: {turnover.get('n_trades', 'N/A')}")
-        lines.append("")
-    else:
-        lines.append("## Turnover")
-        lines.append("")
-        lines.append("*(No action_log found — turnover not computed)*")
-        lines.append("")
+    lines.append("")
 
     return "\n".join(lines)
 
