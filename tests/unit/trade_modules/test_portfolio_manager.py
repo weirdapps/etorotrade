@@ -112,14 +112,14 @@ class TestSizeBookSectorCap:
 
 class TestSizeBookActions:
     def test_trim_target_is_trim_to_fraction_of_current(self):
-        """TRIM → 60% of current (default trim_to=0.60)."""
+        """TRIM → 80% of current (default trim_to=0.80, softened haircut)."""
         result = size_book(
             [{"ticker": "TSLA", "action": "TRIM", "conviction": 4}],
             {"TSLA": 0.10},
             budget_frac=0.0,
         )
         tsla = next(r for r in result if r["ticker"] == "TSLA")
-        assert abs(tsla["target_pct"] - 0.06) < 1e-9
+        assert abs(tsla["target_pct"] - 0.08) < 1e-9
 
     def test_sell_target_is_zero(self):
         """SELL → 0."""

@@ -151,7 +151,7 @@ class TestScoreConviction:
 class TestAssignAction:
     """Table-driven tests for the long-only action assignment."""
 
-    # Default thresholds: buy=65, add=70, hold=45, trim=30
+    # Default thresholds: buy=65, add=70, hold=40, trim=30
 
     # --- new names (not held) ---
 
@@ -197,10 +197,10 @@ class TestAssignAction:
         assert assign_action(69.9, is_held=True, in_universe=True) == "HOLD"
 
     def test_held_at_hold_threshold_is_hold(self):
-        assert assign_action(45.0, is_held=True, in_universe=True) == "HOLD"
+        assert assign_action(40.0, is_held=True, in_universe=True) == "HOLD"
 
     def test_held_just_below_hold_is_trim(self):
-        assert assign_action(44.9, is_held=True, in_universe=True) == "TRIM"
+        assert assign_action(39.9, is_held=True, in_universe=True) == "TRIM"
 
     def test_held_at_trim_threshold_is_trim(self):
         assert assign_action(30.0, is_held=True, in_universe=True) == "TRIM"

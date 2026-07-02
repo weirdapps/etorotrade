@@ -19,7 +19,7 @@ Decision logic (thresholds are >= comparisons):
 Default thresholds:
   buy  = 65
   add  = 70
-  hold = 45
+  hold = 40   (softened: widens the HOLD band so borderline held names are not trimmed on a mid score)
   trim = 30
 
 Long-only: never emits 'SHORT' or any bearish direction label.
@@ -31,7 +31,7 @@ from __future__ import annotations
 _DEFAULT_CFG = {
     "buy": 65,
     "add": 70,
-    "hold": 45,
+    "hold": 40,
     "trim": 30,
 }
 

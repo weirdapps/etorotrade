@@ -19,7 +19,7 @@ from trade_modules.riskfirst.covariance import single_factor_cov
 _DEFAULT_CFG: dict = {
     "name_cap": 0.12,
     "sector_cap": 0.35,
-    "trim_to": 0.60,
+    "trim_to": 0.80,
     "min_position": 0.01,
     "max_gross": 1.0,  # hard no-leverage ceiling on total post-sizing gross
 }
