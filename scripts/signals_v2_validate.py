@@ -193,7 +193,8 @@ def exit_bucket_alpha(rows: list[dict]) -> dict:
         }
 
     all_alphas = [r["alpha"] for r in rows]
-    exit_alphas = [r["alpha"] for r in rows if r.get("signal") == "EXIT"]
+    # Accept both 'EXIT' (long_only_signal) and 'S' (map_to_signal legacy) as the exit bucket.
+    exit_alphas = [r["alpha"] for r in rows if r.get("signal") in ("EXIT", "S")]
 
     universe_mean = float(sum(all_alphas) / len(all_alphas))
 
