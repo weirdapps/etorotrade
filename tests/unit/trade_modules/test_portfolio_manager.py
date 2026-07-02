@@ -305,3 +305,34 @@ class TestSizeBookNoLeverage:
         # NEW1 target hits its ERC allocation (single BUY → full budget, capped
         # only by name_cap 0.12): 0.10 < 0.12 so it deploys the whole budget.
         assert abs(new1["target_pct"] - 0.10) < 1e-9
+
+
+class TestSizeBookBudgetConcentration:
+    """A large candidate set must not dilute the budget below min_position."""
+
+    def test_large_deploy_set_funds_only_top_conviction(self):
+        """20 BUYs, 6% budget, 1% min → only the top 6 by conviction fund at ~1%.
+
+        Without concentration, ERC would spread 6% across all 20 (0.3% each),
+        every name would fall below min_position, and NOTHING would deploy.
+        """
+        universe = [
+            {"ticker": f"B{i:02d}", "action": "BUY", "conviction": float(i), "beta": 1.0}
+            for i in range(20)
+        ]
+        result = size_book(universe, {}, budget_frac=0.06, cfg={"min_position": 0.01})
+        funded = [r for r in result if r["action"] == "BUY"]
+        # 0.06 / 0.01 = 6 fundable slots
+        assert len(funded) == 6
+        # they are the six highest convictions (19..14)
+        assert sorted((r["conviction"] for r in funded), reverse=True) == [
+            19.0,
+            18.0,
+            17.0,
+            16.0,
+            15.0,
+            14.0,
+        ]
+        # each funded position clears min_position, and the whole budget deploys
+        assert all(r["target_pct"] >= 0.01 - 1e-9 for r in funded)
+        assert abs(sum(r["target_pct"] for r in funded) - 0.06) < 1e-6

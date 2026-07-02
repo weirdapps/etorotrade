@@ -114,7 +114,20 @@ def size_book(
     budget_frac = min(budget_frac, gross_headroom)
 
     # Step 1 — compute raw ERC additions for deploy set
+    # Concentrate the budget: fund only the top-conviction names the budget can
+    # actually support at >= min_position. Without this, a large candidate set
+    # (e.g. hundreds of BUYs above the conviction threshold) would dilute the
+    # ERC allocation until every new position falls below min_position and is
+    # dropped — deploying nothing. Prioritise by conviction; ties keep order.
     deploy_rows = [r for r in universe if r.get("action") in _DEPLOY_ACTIONS]
+    if deploy_rows and budget_frac > 0 and min_position > 0:
+        max_fundable = max(1, int(budget_frac / min_position + 1e-9))
+        if len(deploy_rows) > max_fundable:
+            deploy_rows = sorted(
+                deploy_rows,
+                key=lambda r: r.get("conviction") or 0.0,
+                reverse=True,
+            )[:max_fundable]
     raw_add = _erc_additions(deploy_rows, budget_frac)
 
     # Step 2 & 3 — raw targets + name cap
