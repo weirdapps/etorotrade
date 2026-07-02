@@ -18,6 +18,18 @@ def compute_turnover(
     """
     Compute annualised turnover and estimated transaction-cost drag.
 
+    Turnover convention — TWO-WAY counting:
+        Each entry in ``actions`` represents ONE leg of a trade (either the
+        opening buy or the closing sell).  Both legs are counted independently,
+        so a full round trip (buy +5 %, then unwind -5 %) contributes 10 % to
+        ``sum_abs_weight_change`` and therefore 10 % worth of annualised
+        turnover — not 5 %.  This matches the standard industry convention for
+        two-way (round-trip) turnover reporting.
+
+        If the caller wants ONE-WAY turnover (only opening legs), pass only the
+        opening-leg actions and divide the result by 2, or supply a pre-filtered
+        ``actions`` list that contains at most one leg per trade.
+
     Args:
         actions:       List of dicts with keys:
                          - weight_change (float): signed weight delta as a

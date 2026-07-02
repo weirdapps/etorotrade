@@ -104,6 +104,19 @@ class TestRollingWalkForward:
         folds = rolling_walk_forward(items, n_folds=3, embargo_days=0, date_key="ts")
         assert len(folds) > 0
 
+    def test_last_date_included_in_test_set(self):
+        """The item with the maximum date must appear in at least one test set."""
+        items = self._make_items([f"2026-01-{d:02d}" for d in range(1, 31)])
+        folds = rolling_walk_forward(items, n_folds=3, embargo_days=0)
+        assert len(folds) > 0
+
+        max_date = max(item["signal_date"] for item in items)
+        test_items = [item for _, test in folds for item in test]
+        test_dates = {item["signal_date"] for item in test_items}
+        assert max_date in test_dates, (
+            f"Last date {max_date} not found in any test set; test dates: {sorted(test_dates)}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # compute_ic_decay

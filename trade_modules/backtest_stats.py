@@ -228,6 +228,7 @@ def rolling_walk_forward(
     sorted_items = sorted(items, key=lambda x: _to_date(x[date_key]))
     unique_dates = sorted({_to_date(x[date_key]) for x in sorted_items})
     n_dates = len(unique_dates)
+    max_date = unique_dates[-1]
 
     if n_dates < 2:
         return []
@@ -246,7 +247,10 @@ def rolling_walk_forward(
     for k in range(n_folds):
         train_cutoff = cut_dates[k + 1]  # train: date < train_cutoff
         test_start = train_cutoff + datetime.timedelta(days=embargo_days)
-        test_end = cut_dates[k + 2]  # test: date < test_end
+        # For the last fold, use max_date + 1 day so the final date is included
+        # (strict `date < test_end` would otherwise exclude it).
+        is_last = k + 2 == len(cut_dates) - 1
+        test_end = max_date + datetime.timedelta(days=1) if is_last else cut_dates[k + 2]
 
         train = [x for x in sorted_items if _to_date(x[date_key]) < train_cutoff]
         test = [x for x in sorted_items if test_start <= _to_date(x[date_key]) < test_end]
