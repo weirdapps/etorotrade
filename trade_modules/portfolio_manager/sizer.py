@@ -21,6 +21,7 @@ _DEFAULT_CFG: dict = {
     "sector_cap": 0.35,
     "trim_to": 0.60,
     "min_position": 0.01,
+    "max_gross": 1.0,  # hard no-leverage ceiling on total post-sizing gross
 }
 
 _DEPLOY_ACTIONS = {"BUY", "ADD"}
@@ -86,6 +87,31 @@ def size_book(
     sector_cap: float = c["sector_cap"]
     trim_to: float = c["trim_to"]
     min_position: float = c["min_position"]
+    max_gross: float = c["max_gross"]
+
+    # Step 0 — hard no-leverage guard (F5): the deployed additions must never
+    # push total post-sizing gross above max_gross (default 1.0 = fully invested,
+    # no leverage).  Existing holds are fixed in this single pass, so we clamp the
+    # deployable budget to the gross headroom that REMAINS after accounting for
+    # every non-addition target (HOLD→current, TRIM→current*trim_to, SELL→0, and
+    # the retained core of ADD names→current).  This bounds the manual --cash-pct
+    # override, which can otherwise request more budget than free cash exists.
+    committed_gross = 0.0
+    for row in universe:
+        action = row.get("action", "HOLD")
+        current = float(weights.get(row["ticker"], 0.0))
+        if action == "TRIM":
+            committed_gross += current * trim_to
+        elif action == "SELL":
+            committed_gross += 0.0
+        elif action == "BUY":
+            committed_gross += 0.0  # fresh addition, counted separately
+        elif action == "ADD":
+            committed_gross += current  # retained core; top-up is an addition
+        else:  # HOLD / unknown → held at current
+            committed_gross += current
+    gross_headroom = max(0.0, max_gross - committed_gross)
+    budget_frac = min(budget_frac, gross_headroom)
 
     # Step 1 — compute raw ERC additions for deploy set
     deploy_rows = [r for r in universe if r.get("action") in _DEPLOY_ACTIONS]
