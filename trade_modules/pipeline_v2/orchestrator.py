@@ -29,6 +29,9 @@ _FIXED_CAVEATS = [
     "Fundamentals are forward-gated (not point-in-time); use for direction only.",
     "S2 runs on a single regime snapshot (no DSR PASS walk-forward yet).",
     "Price sleeve skipped — no OHLCV price-history matrix available in etoro.csv.",
+    "Sector cap (≤35%) NOT enforced — etoro.csv has no GICS sector column and no "
+    "reliable offline ticker→sector source exists; the sizer's sector cap is a no-op "
+    "here. Review sector concentration manually before executing.",
     "User executes manually; go-live is user-triggered.",
 ]
 
@@ -251,7 +254,10 @@ def run_pipeline(
         regime_mult=regime_mult,
     )
 
-    # Propagate sector to size_book rows (None is fine — sizer handles it)
+    # Sector is None for every row: etoro.csv has no GICS sector column and no
+    # reliable offline ticker→sector source exists, so the sizer's sector cap is
+    # a deliberate no-op here (surfaced in caveats — honest degradation, NOT a
+    # silent pretence of enforcement).  size_book skips the cap when sector is None.
     for row in s3_result:
         if "sector" not in row:
             row["sector"] = None
