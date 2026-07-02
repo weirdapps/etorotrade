@@ -141,15 +141,20 @@ def _analyse_family(
     # PBO via CSCV performance matrix
     pbo: float | None = None
     try:
-        _, col_labels, matrix = build_perf_matrix(
-            h30_rows,
-            period_key="signal_date",
-            config_key="ticker",
-            value_key="net_alpha" if any("net_alpha" in r for r in h30_rows) else "alpha",
-        )
-        T, N = matrix.shape
-        if T >= 10 and N >= 2:
-            pbo = pbo_cscv(matrix)["pbo"]
+        # Use net_alpha if present; filter rows where the chosen value is None
+        use_net = any("net_alpha" in r and r["net_alpha"] is not None for r in h30_rows)
+        pbo_value_key = "net_alpha" if use_net else "alpha"
+        pbo_rows = [r for r in h30_rows if r.get(pbo_value_key) is not None]
+        if pbo_rows:
+            _, col_labels, matrix = build_perf_matrix(
+                pbo_rows,
+                period_key="signal_date",
+                config_key="ticker",
+                value_key=pbo_value_key,
+            )
+            T, N = matrix.shape
+            if T >= 10 and N >= 2:
+                pbo = pbo_cscv(matrix)["pbo"]
     except Exception:
         pbo = None
 
