@@ -998,3 +998,18 @@ hk_micro_sell_scoring:
   hard_trigger_buy_pct: 52
   quality_override_buy_pct: 95
   quality_override_upside: 32
+
+regime_overlay:
+  enabled: true
+  persistence_days: 2
+  fallback: neutral
+  exposure:
+    risk_on: 1.00
+    neutral: 0.80
+    risk_off: 0.50
+    crisis: 0.20
+
+event_gate:
+  enabled: true
+  earnings_blackout_days: 7
+  event_risk_path: ~/.weirdapps-trading/news/event_risk.json
