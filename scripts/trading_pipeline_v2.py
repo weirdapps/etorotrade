@@ -182,7 +182,7 @@ def main() -> None:  # pragma: no cover
         "--cash-pct",
         type=float,
         default=None,
-        help="Override cash % (e.g. 0.20 = 20%%). Auto-derived from portfolio if omitted.",
+        help="Override cash fraction, e.g. 0.20 for 20 percent; auto-derived from portfolio if omitted.",
     )
     args = parser.parse_args()
 
