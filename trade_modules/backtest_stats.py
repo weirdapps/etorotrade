@@ -3,10 +3,11 @@ Statistical Utilities for Backtesting
 
 Provides:
 - Bootstrap confidence intervals for hit rates and returns
-- Walk-forward train/test splitting
+- Walk-forward train/test splitting (simple and rolling expanding-window)
 - Benjamini-Hochberg FDR correction for multiple testing
 """
 
+import datetime
 from collections.abc import Callable
 from typing import Any
 
@@ -188,3 +189,74 @@ def fdr_correction(
             break  # All subsequent are rejected too
 
     return significant
+
+
+def rolling_walk_forward(
+    items: list[dict[str, Any]],
+    n_folds: int = 5,
+    embargo_days: int = 30,
+    date_key: str = "signal_date",
+) -> list[tuple[list, list]]:
+    """
+    Expanding-window walk-forward split with purge/embargo buffer.
+
+    Sorts items by date, computes n_folds+1 cut points across unique dates,
+    and produces up to n_folds (train, test) pairs where:
+      - train = all items with date < cut_k
+      - test  = items with date in [cut_k + embargo_days, cut_{k+1})
+
+    Folds whose test set is empty are skipped.
+
+    Args:
+        items:        List of dicts each containing a date field (ISO string or date).
+        n_folds:      Number of folds to attempt.
+        embargo_days: Days to exclude after the train cutoff before test starts.
+        date_key:     Key name for the date field.
+
+    Returns:
+        List of (train_items, test_items) tuples; folds with empty test omitted.
+    """
+    if not items:
+        return []
+
+    def _to_date(v: Any) -> datetime.date:
+        if isinstance(v, datetime.date):
+            return v
+        return datetime.date.fromisoformat(str(v)[:10])
+
+    # Sort by date
+    sorted_items = sorted(items, key=lambda x: _to_date(x[date_key]))
+    unique_dates = sorted({_to_date(x[date_key]) for x in sorted_items})
+    n_dates = len(unique_dates)
+    max_date = unique_dates[-1]
+
+    if n_dates < 2:
+        return []
+
+    # Compute n_folds+1 cut points across unique dates (indices, evenly spaced)
+    # cuts[0] is index 0, cuts[n_folds] is the last index
+    n_cuts = n_folds + 1
+    # Spread n_cuts+1 boundary indices across [0, n_dates-1]
+    step = n_dates / n_cuts
+    cut_indices = [int(round(i * step)) for i in range(n_cuts + 1)]
+    # Clamp to valid range
+    cut_indices = [min(max(idx, 0), n_dates - 1) for idx in cut_indices]
+    cut_dates = [unique_dates[i] for i in cut_indices]
+
+    folds = []
+    for k in range(n_folds):
+        train_cutoff = cut_dates[k + 1]  # train: date < train_cutoff
+        test_start = train_cutoff + datetime.timedelta(days=embargo_days)
+        # For the last fold, use max_date + 1 day so the final date is included
+        # (strict `date < test_end` would otherwise exclude it).
+        is_last = k + 2 == len(cut_dates) - 1
+        test_end = max_date + datetime.timedelta(days=1) if is_last else cut_dates[k + 2]
+
+        train = [x for x in sorted_items if _to_date(x[date_key]) < train_cutoff]
+        test = [x for x in sorted_items if test_start <= _to_date(x[date_key]) < test_end]
+
+        if not test:
+            continue
+        folds.append((train, test))
+
+    return folds
