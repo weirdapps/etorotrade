@@ -208,7 +208,10 @@ def exit_bucket_alpha(rows: list[dict]) -> dict:
         }
 
     exit_mean = float(sum(exit_alphas) / len(exit_alphas))
-    exit_justified = exit_mean < universe_mean
+    # Strict underperformance with a floating-point guard: means that are equal
+    # up to fp rounding (e.g. identical alphas summed over EXIT vs the larger
+    # universe) are NOT an edge → not justified.
+    exit_justified = exit_mean < universe_mean - 1e-12
 
     return {
         "exit_mean_alpha": exit_mean,
