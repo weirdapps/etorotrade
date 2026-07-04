@@ -194,6 +194,9 @@ class TestTradingConfigLoading:
         assert config.performance is not None
         assert config.logging is not None
         assert config.output is not None
+        # Risk-first v2 sections must parse through the strict schema (regression: schema drift)
+        assert config.regime_overlay is not None
+        assert config.event_gate is not None
 
         # Verify values
         # min_analyst_count is 4 for $5B+ stocks (6 for $2-5B small caps via small_cap_min_analysts)

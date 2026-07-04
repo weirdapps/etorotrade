@@ -22,8 +22,12 @@ from .factors import lowvol, momentum, quality, size, value
 FACTORS = [value.compute, quality.compute, momentum.compute, lowvol.compute, size.compute]
 FACTOR_NAMES = ["value", "quality", "momentum", "lowvol", "size"]
 
-DEFAULT_UNIVERSE = os.path.expanduser("~/SourceCode/etorotrade/yahoofinance/output/etoro.csv")
-DEFAULT_PORTFOLIO = os.path.expanduser("~/SourceCode/etorotrade/yahoofinance/output/portfolio.csv")
+# Resolve the live universe/portfolio relative to the repo so the runner works
+# on any host (CI, VPS), not just a checkout under ~/SourceCode. On the Mac this
+# is the same output dir the daily-signals pipeline writes to.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DEFAULT_UNIVERSE = os.path.join(_REPO_ROOT, "yahoofinance", "output", "etoro.csv")
+DEFAULT_PORTFOLIO = os.path.join(_REPO_ROOT, "yahoofinance", "output", "portfolio.csv")
 
 _NUMERIC_COLS = [
     "PRC",
