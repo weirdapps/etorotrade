@@ -330,6 +330,35 @@ class SectorRotationConfig(BaseModel):
     min_sector_stocks: int = Field(default=3, ge=1)
 
 
+class RegimeOverlayConfig(BaseModel):
+    """Market-regime exposure overlay (risk-first v2).
+
+    Read directly from config.yaml by ``trade_modules.riskfirst.regime_state``;
+    modelled here so the strict TradingConfig schema accepts the section.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=True)
+    persistence_days: int = Field(default=2, ge=1)
+    fallback: str = Field(default="neutral")
+    exposure: dict[str, float] = Field(default_factory=dict)
+
+
+class EventGateConfig(BaseModel):
+    """Earnings/event blackout gate (risk-first v2).
+
+    Read directly from config.yaml by ``trade_modules.riskfirst.news_gate``;
+    modelled here so the strict TradingConfig schema accepts the section.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = Field(default=True)
+    earnings_blackout_days: int = Field(default=7, ge=0)
+    event_risk_path: str = Field(default="~/.weirdapps-trading/news/event_risk.json")
+
+
 class RegionalAdjustmentConfig(BaseModel):
     """Regional adjustment for a specific market"""
 
@@ -809,6 +838,15 @@ class TradingConfig(BaseModel):
     )
     sector_rotation: SectorRotationConfig | None = Field(
         default=None, description="Sector rotation detection (CIO M6)"
+    )
+
+    # Risk-first v2 subsystem — read directly from config.yaml by
+    # trade_modules.riskfirst; modelled here so the strict schema accepts them.
+    regime_overlay: RegimeOverlayConfig | None = Field(
+        default=None, description="Market-regime exposure overlay (risk-first v2)"
+    )
+    event_gate: EventGateConfig | None = Field(
+        default=None, description="Earnings/event blackout gate (risk-first v2)"
     )
 
     @classmethod
