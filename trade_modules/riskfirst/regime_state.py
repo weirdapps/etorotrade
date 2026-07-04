@@ -23,6 +23,17 @@ from .regime_overlay import (
 DEFAULT_STATE_PATH = os.path.expanduser("~/.weirdapps-trading/regime/state.json")
 _MAX_HISTORY = 10
 
+# config.yaml ships with the repo; resolve it relative to this module so the
+# loader works on any host (CI, VPS), not just a checkout under ~/SourceCode.
+_REPO_CONFIG_YAML = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "config.yaml")
+)
+_DEFAULT_CONFIG_YAML = (
+    _REPO_CONFIG_YAML
+    if os.path.exists(_REPO_CONFIG_YAML)
+    else os.path.expanduser("~/SourceCode/etorotrade/config.yaml")
+)
+
 
 def _read_state(path):
     try:
@@ -87,7 +98,7 @@ def resolve_regime_multiplier(
 
 def load_config(path=None):
     """Load the regime_overlay section from config.yaml; fall back to defaults."""
-    path = path or os.path.expanduser("~/SourceCode/etorotrade/config.yaml")
+    path = path or _DEFAULT_CONFIG_YAML
     try:
         with open(path) as f:
             sec = (yaml.safe_load(f) or {}).get("regime_overlay") or {}
