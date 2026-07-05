@@ -78,7 +78,7 @@ def synthesize(
     conviction/action computation.
     """
     candidate_tickers = {row["ticker"] for row in candidates}
-    held_set = set(held_tickers) if not isinstance(held_tickers, set) else set(held_tickers)
+    held_set = set(held_tickers)
 
     # Only held names that genuinely failed S1 eligibility are force-SELL'd.
     if held_failed_eligibility is None:

@@ -103,7 +103,7 @@ def select_and_construct(
         w = cap_groups(w, sub["SECTOR"].astype(str).to_numpy(), sector_cap)
         w = apply_name_cap(w, name_cap)
 
-    if regime_multiplier != 1.0:
+    if regime_multiplier < 1.0:
         w = scale_for_regime(w, regime_multiplier)
 
     full = pd.Series(0.0, index=df.index)

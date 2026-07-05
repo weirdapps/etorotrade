@@ -105,7 +105,7 @@ def map_to_signal(
     # NaN → will be mapped to 'H' at the end
     valid = comp.dropna()
 
-    if len(valid) == 0 or buy_pct == 0.0 and sell_pct == 0.0:
+    if len(valid) == 0 or (buy_pct <= 0.0 and sell_pct <= 0.0):
         return pd.Series("H", index=composite.index)
 
     # Compute quantile cut-points from the non-NaN values
@@ -166,7 +166,7 @@ def long_only_signal(
     comp = composite.copy()
     valid = comp.dropna()
 
-    if len(valid) == 0 or (buy_pct == 0.0 and exit_pct == 0.0):
+    if len(valid) == 0 or (buy_pct <= 0.0 and exit_pct <= 0.0):
         return pd.Series("HOLD", index=composite.index)
 
     buy_cut: float = float(valid.quantile(1.0 - buy_pct)) if buy_pct > 0.0 else float("inf")
