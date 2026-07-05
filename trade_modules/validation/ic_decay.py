@@ -53,14 +53,17 @@ def compute_ic_decay(ic_by_horizon: dict[int, float]) -> dict:
     # log(IC) = log(IC0) - h/τ  →  slope = -1/τ, intercept = log(IC0)
     slope, intercept = np.polyfit(horizons, log_ic, deg=1)
 
-    # A valid decay requires a negative slope (IC decreasing with horizon)
-    if slope >= 0:
+    # A valid decay requires a MEANINGFULLY negative slope (IC decreasing with
+    # horizon). A near-zero slope is flat, not decay — guard against fp noise from
+    # np.polyfit on a flat log-IC series (slope ≈ ±1e-17), which would otherwise
+    # make tau = -1/slope explode (~1e17) and yield a bogus giant half-life.
+    if slope >= -1e-9:
         return {
             "half_life_days": None,
             "ic0": None,
             "curve": curve,
             "note": (
-                f"IC is not decaying (slope={slope:.4f} >= 0); "
+                f"IC is not decaying (slope={slope:.4g} ~>= 0); "
                 "half-life undefined for flat or rising IC."
             ),
         }
