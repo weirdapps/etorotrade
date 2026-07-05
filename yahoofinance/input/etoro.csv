@@ -34,7 +34,7 @@ UNH,UnitedHealth,NYSE
 RTX,Raytheon-Technologies,NYSE
 VZ,Verizon,NYSE
 WMT,Walmart Inc.,Nasdaq
-XOM,Exxon-Mobil,NYSE
+XOM,ExxonMobil Holdings Corp,NYSE
 C,Citigroup,NYSE
 HMC,"Honda Motor Co, Ltd-ADR",NYSE
 HSBC,HSBC-ADR,NYSE
@@ -2011,7 +2011,7 @@ EWL,iShares MSCI Switzerland ETF,NYSE
 EWN,iShares MSCI Netherlands ETF,NYSE
 FAS,Direxion Daily Financial Bull 3X ETF,NYSE
 CA316.OL,CA316,Oslo Stock Exchange
-UFOX,Defiance Connective Technologies ETF,Nasdaq
+UFOX,Defiance Space and Connective Tech ETF,Nasdaq
 CAPT.OL,Capital Tankers Corp.,Oslo Stock Exchange
 FNGA,MicroSectors FANG+ Index 3X Leveraged ETN ,NYSE
 FREL,Fidelity MSCI Real Estate Index ETF,NYSE
@@ -3616,7 +3616,7 @@ SINT,SiNtx Technologies Inc,Nasdaq
 TWOUQ,2U Inc,Nasdaq
 SOLO,ElectraMeccanica Vehicles Corp,Nasdaq
 SRNE,Sorrento Therapeutics Inc,OTC Markets
-SSSS,SuRo Capital Corp,Nasdaq
+NSLR,Neostellar Capital Corp,Nasdaq
 SSTI,ShotSpotter Inc,Nasdaq
 SUNWQ,Sunworks Inc,OTC Markets
 SXTC,China SXT Pharmaceuticals Inc.,Nasdaq
@@ -4242,7 +4242,7 @@ PLM,PolyMet Mining Corp,NYSE
 PTN,Palatin Technologies Inc,OTC Markets
 SQM,Sociedad Quimica y Minera de Chile SA-ADR,NYSE
 SVM,Silvercorp Metals Inc,NYSE
-TGB,Taseko Mines Ltd,NYSE
+TGB,Trekor Metals Ltd,NYSE
 UAVS,AgEagle Aerial Systems Inc,NYSE
 EFR,Eaton Vance Senior Floating-Rate Trust,NYSE
 YCBD,cbdMD Inc,NYSE
@@ -4523,7 +4523,7 @@ LQDA,Liquidia Corporation,Nasdaq
 CFFN,Capitol Federal Financial Inc,Nasdaq
 PRA,ProAssurance Corporation,NYSE
 HLLY,Holley Inc,NYSE
-FDP,Del Monte Corp,NYSE
+DMC,Del Monte Corp,NYSE
 AZZ,Azz Inc,NYSE
 NPWR,Net Power Inc,NYSE
 BRKL,Brookline Bancorp Inc,Nasdaq
@@ -8042,7 +8042,7 @@ NTG.DE,Nabaltec AG,FRA
 TNIE.DE,tonies SE,FRA
 RAW.DE,Raiffeisen Bank International AG,FRA
 HHF.DE,Hamburger Hafen und Logistik AG,FRA
-C3RY.DE,Cherry SE,FRA
+C3R.DE,Cherry SE,FRA
 JY0.DE,ParTec AG,FRA
 PCZ.DE,ProCredit Holding AG,FRA
 NWO.DE,New Work SE,FRA
@@ -8491,7 +8491,7 @@ CFN.LS,Cofina SGPS SA,Euronext Lisbon
 TDSA.LS,Teixeira Duarte SA,Euronext Lisbon
 RAM.LS,Ramada Investimentos e Industria SA,Euronext Lisbon
 NBA.LS,NOVABASE SGPS SA,Euronext Lisbon
-PHR.LS,Pharol SGPS SA,Euronext Lisbon
+PHR.LS,Pharol SA,Euronext Lisbon
 VAF.LS,VAA Vista Alegre Atlantis SGPS SA,Euronext Lisbon
 MAR.LS,Martifer SGPS SA,Euronext Lisbon
 SNC.LS,Sonaecom SGPS SA,Euronext Lisbon
@@ -8665,7 +8665,7 @@ SPOG.OL,Sparebanken Ost,Oslo Stock Exchange
 ROMER.OL,Romerike Sparebank,Oslo Stock Exchange
 NORTH.OL,North Energy ASA,Oslo Stock Exchange
 PROXI.OL,Proximar Seafood AS,Oslo Stock Exchange
-EMGS.OL,Electromagnetic Geoservices ASA,Oslo Stock Exchange
+VOIM.OL,Voim ASA,Oslo Stock Exchange
 XPLRA.OL,Xplora Technologies AS,Oslo Stock Exchange
 ELIMP.OL,Elektroimportoren AS,Oslo Stock Exchange
 STSU.OL,Standard Supply AS,Oslo Stock Exchange
@@ -8818,7 +8818,7 @@ NACON.PA,Nacon SAS,Euronext Paris
 NRO.PA,Neurones SA,Euronext Paris
 ALHPI.PA,Hopium SA,Euronext Paris
 DRM5,Drm5,Euronext Paris
-ALREW.PA,Reworld Media SA,Euronext Paris
+ALUNI.PA,Unify Group,Euronext Paris
 POXEL.PA,Poxel SA,Euronext Paris
 ALKLH.PA,Klea Holding,Euronext Paris
 WAGA.PA,Waga Energy SA,Euronext Paris
@@ -9669,6 +9669,7 @@ GOOY,YieldMax GOOGL Option Income Strategy ETF,NYSE
 R1GR.L,iShares Russell 1000 Growth UCITS ETF USD (Acc),LSE
 IUIS.L,iShares S&P 500 Industrials Sector UCITS ETF USD A,LSE
 SOXL.L,Leverage Shares 4x Long Semiconductors,LSE
+ABX,"Abacus Global Management, Inc",NYSE
 ERNS.L,iShares GBP Ultrashort Bond UCITS ETF,LSE
 CSH2.L,Amundi Smart Overnight Return GBP Hedged UCITS ETF Acc,LSE
 L100.L,Amundi FTSE 100 UCITS ETF Acc,LSE
@@ -9695,7 +9696,7 @@ B28X.L,Invesco BulletShares 2028 USD Corporate Bond UCITS ETF GBP Hdg Acc,LSE
 2282.T,NH Foods Ltd.,Tokyo Stock Exchange
 2413.T,M3 Inc.,Tokyo Stock Exchange
 2432.T,DeNA Co. Ltd.,Tokyo Stock Exchange
-2501.T,Sapporo Holdings Ltd.,Tokyo Stock Exchange
+2501.T,Sapporo Breweries Ltd,Tokyo Stock Exchange
 2502.T,Asahi Group Holdings Ltd.,Tokyo Stock Exchange
 2503.T,Kirin Holdings Co. Ltd.,Tokyo Stock Exchange
 2768.T,Sojitz Corp.,Tokyo Stock Exchange
@@ -9904,6 +9905,7 @@ B28X.L,Invesco BulletShares 2028 USD Corporate Bond UCITS ETF GBP Hdg Acc,LSE
 9984.T,SoftBank Group Corp.,Tokyo Stock Exchange
 3436.T,Sumco Corp,Tokyo Stock Exchange
 3289.T,Tokyu Fudosan Holdings Corp,Tokyo Stock Exchange
+285A.T,Kioxia Holdings Corp,Tokyo Stock Exchange
 LMRI,"Lumexa Imaging Holdings, Inc",Nasdaq
 WLTH,Wealthfront Corporation,Nasdaq
 MDLN,Medline Inc,Nasdaq
@@ -10128,7 +10130,7 @@ WDNA.L,WisdomTree BioRevolution UCITS ETF - USD Acc,LSE
 PCOM.L,WisdomTree Broad Commodities UCITS ETF - USD Acc,LSE
 WCLD.L,WisdomTree Cloud Computing UCITS ETF - USD Acc,LSE
 WCBR.L,WisdomTree Cybersecurity UCITS ETF - USD Acc,LSE
-DEMR.L,WisdomTree Emerging Markets Equity Income UCITS ETF - Acc,LSE
+DEMR.L,WisdomTree Emerging Markets High Dividend UCITS ETF,LSE
 XSOE.L,WisdomTree Emerging Markets ex-State-Owned Enterprises UCITS ETF - USD Acc,LSE
 DGSD.L,WisdomTree Emerging Markets SmallCap Dividend UCITS ETF,LSE
 WXAG.L,WisdomTree Enhanced Commodity ex-Agriculture UCITS ETF - USD Acc,LSE
@@ -10148,7 +10150,7 @@ RARE.L,WisdomTree Strategic Metals and Rare Earths Miners UCITS ETF - USD Acc,LS
 WENU.L,WisdomTree Strategic Metals UCITS ETF - USD Acc,LSE
 NCLR.L,WisdomTree Uranium and Nuclear Energy UCITS ETF - USD Acc,LSE
 NTSX.L,WisdomTree US Efficient Core UCITS ETF - USD Acc,LSE
-DHSA.L,WisdomTree US Equity Income UCITS ETF - Acc,LSE
+DHSA.L,WisdomTree US High Dividend UCITS ETF,LSE
 DGRA.L,WisdomTree US Quality Dividend Growth UCITS ETF - USD Acc,LSE
 TFRN.L,WisdomTree USD Floating Rate Treasury Bond UCITS ETF - USD Acc,LSE
 CRUD.L,WisdomTree WTI Crude Oil,LSE
@@ -10404,12 +10406,16 @@ BBDO,Banco Bradesco SA,NYSE
 HBM,Hudbay Minerals Inc,NYSE
 ATROB,Astronics Corp,OTC Markets
 LILAP,"Liberty Latin American ""preferred stock""",Nasdaq
-HONAV,Honeywell Aerospace Inc,Nasdaq
+HONA,Honeywell Aerospace Inc,Nasdaq
 DPC,DPC Holdings PLC,NYSE
 QLD,ProShares Ultra QQQ,NYSE
+MBGL,Mobility Global Inc -W,Nasdaq
+LIME,"Neutron Holdings, Inc",Nasdaq
+ITG,"ITG, Inc",Nasdaq
 KARD,"Kardigan, Inc",Nasdaq
 C50U.L,Amundi Core EURO STOXX 50 UCITS ETF USD Acc,LSE
 MEUH.L,Amundi Core Stoxx Europe 600 UCITS ETF USD Hedged Acc,LSE
+BSP,Bending Spoons S.p.A,Nasdaq
 AASU.L,Amundi MSCI Em Asia UCITS ETF - USD (C),LSE
 FINW.L,Amundi MSCI World Financials UCITS ETF USD Acc,LSE
 NDIA.L,iShares MSCI India UCITS ETF,LSE
@@ -11512,7 +11518,7 @@ ALCYF,Alchemy Investments Acquisition Corp 1,OTC Markets
 XTNT,Xtant Medical Holdings Inc,NYSE
 RJET,Republic Airways Holdings Inc,Nasdaq
 VFF,Village Farms International Inc,Nasdaq
-SRXH,SRX Health Solutions Inc,NYSE
+SRXH,SRX Global Inc,NYSE
 LIQT,LiqTech International Inc,Nasdaq
 XMAX,XMAX Inc,Nasdaq
 ELMD,Electromed Inc,NYSE
@@ -11922,7 +11928,7 @@ PSBD,Palmer Square Capital BDC Inc,NYSE
 NCDL,Nuveen Churchill Direct Lending Corp,NYSE
 NCEL,NewcelX Ltd,Nasdaq
 DFNS,T3 Defense Inc,Nasdaq
-WTO,UTime Ltd,Nasdaq
+FXHO,UTime Ltd,Nasdaq
 NXGL,Nexgel Inc,Nasdaq
 CISO,CISO Global Inc,Nasdaq
 LGHL,Lion Group Holding Ltd,Nasdaq
@@ -11947,7 +11953,6 @@ RBOT,Vicarious Surgical Inc,NYSE
 PRFX,PRF Technologies Ltd,Nasdaq
 CNEY,CN Energy Group Inc,Nasdaq
 VSTA,Vasta Platform Ltd,Nasdaq
-ABX,Abacus Global Management Inc,NYSE
 AUST,Austin Gold Corp,NYSE
 VMAR,Vision Marine Technologies Inc,Nasdaq
 BAOS,Baosheng Media Group Holding Ltd,Nasdaq
@@ -12442,7 +12447,7 @@ CCIX,Churchill Capital Corp IX,Nasdaq
 LPAA,Launch One Acquisition Corp,Nasdaq
 STFS,Star Fashion Culture Holdings Ltd,Nasdaq
 MACI,Melar Acquisition Corp I,Nasdaq
-TBH,Brag House Holdings Inc,Nasdaq
+HODO,House of Doge Inc,Nasdaq
 YSXT,YSX Tech Co Ltd,Nasdaq
 PUSA,Aureus Greenway Holdings Inc,Nasdaq
 ZJK,ZJK Industrial Co Ltd,Nasdaq
@@ -12483,7 +12488,7 @@ ELOG,Eastern International Ltd / CN,Nasdaq
 MIMI,Mint Incorporation Ltd,Nasdaq
 AVR,Anteris Technologies Global Corp,Nasdaq
 JEM,707 Cayman Holdings Ltd,Nasdaq
-HDRN,Hadron Energy Inc,OTC Markets
+HDRN,Hadron Energy Inc,Nasdaq
 FCHL,Fitness Champs Holdings Ltd,Nasdaq
 EURK,Eureka Acquisition Corp,Nasdaq
 DTSQ,DT Cloud Star Acquisition Corp,Nasdaq
@@ -12595,7 +12600,7 @@ TMS,Teamshares Inc,Nasdaq
 FERA,Fifth Era Acquisition Corp I,Nasdaq
 GSHR,Gesher Acquisition Corp II,Nasdaq
 QSEA,Quartzsea Acquisition Corp,Nasdaq
-CEPT,Cantor Equity Partners II Inc,Nasdaq
+SECZ,Securitize Corp,NYSE
 TACH,Titan Acquisition Corp,Nasdaq
 CCAQ,Collective Acquisition Corp,Nasdaq
 TVAI,Thayer Ventures Acquisition Corp II,Nasdaq
@@ -12612,7 +12617,7 @@ JLHL,Julong Holding Ltd,Nasdaq
 CHOW,ChowChow Cloud International Holdings Ltd,NYSE
 BSAA,BEST SPAC I Acquisition Corp,Nasdaq
 LCCC,Lakeshore Acquisition III Corp,Nasdaq
-RAAQ,Real Asset Acquisition Corp,Nasdaq
+IQMX,IQM Quantum Computers Oyj,Nasdaq
 GLND,Greenland Energy Co,Nasdaq
 TDIC,Dreamland Ltd,Nasdaq
 BLUW,Blue Water Acquisition Corp III,Nasdaq
