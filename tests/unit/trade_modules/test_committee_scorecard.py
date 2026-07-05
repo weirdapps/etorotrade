@@ -656,6 +656,20 @@ class TestConstants:
 class TestCustomKillTheses:
     """Tests for CIO Legacy D2: machine-checkable kill thesis conditions."""
 
+    @pytest.fixture(autouse=True)
+    def _isolate_user_committee_dir(self, tmp_path, monkeypatch):
+        """Isolate check_kill_theses from the developer's real
+        ~/.weirdapps-trading/committee dir so a live concordance.json cannot
+        inject extra triggers (e.g. bearish_divergence) into these hermetic
+        tests. No-op on clean CI where the dir does not exist."""
+        from trade_modules import committee_scorecard
+
+        monkeypatch.setattr(
+            committee_scorecard,
+            "_USER_COMMITTEE_DIR",
+            tmp_path / "committee",
+        )
+
     def test_log_kill_thesis_with_conditions(self, tmp_path):
         """log_kill_theses should store conditions field."""
         from trade_modules.committee_scorecard import log_kill_theses
