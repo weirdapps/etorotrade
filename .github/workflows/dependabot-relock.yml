@@ -1,0 +1,87 @@
+name: Dependabot Auto-Relock
+
+# Dependabot bumps pyproject.toml + poetry.lock but never runs
+# scripts/dev/relock.sh, so the committed requirements-*-lock.txt exports go
+# stale and the CI `lockfile sync` job fails on every Python-dependency PR.
+# This job regenerates the exports and pushes them back to the PR branch,
+# clearing the failure with no human intervention.
+#
+# SECURITY (why this is not a "fork code execution" risk):
+#   - It checks out the TRUSTED base repo (no PR head ref), so the relock script
+#     that runs is always the base version — never PR-controlled code.
+#   - Only the PR's *data* manifests (pyproject.toml, poetry.lock) are pulled in,
+#     and only `poetry export` reads them (metadata only; no package code runs).
+#   - Gated to Dependabot-authored PRs.
+#   - The PR branch name reaches shell only via a quoted env var (no injection).
+# pull_request_target + PUSH_PAT are required so the push re-triggers CI
+# (a Dependabot `pull_request` run gets a read-only token and no secrets;
+# a GITHUB_TOKEN push would not re-trigger the CI workflows).
+
+'on':
+  pull_request_target:
+    paths:
+      - 'pyproject.toml'
+      - 'poetry.lock'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependabot-relock-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  relock:
+    name: relock
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+      - name: Checkout base (trusted — never the PR head)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v6
+        with:
+          token: ${{ secrets.PUSH_PAT }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263  # v1.4.2
+        with:
+          version: '2.4.0'
+          plugins: 'poetry-plugin-export==1.10.0'
+
+      - name: Re-export requirements against the PR's manifests
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          # Pull ONLY the PR's dependency manifests (data, not code) onto the
+          # trusted base checkout, then run the trusted base relock script.
+          git fetch --no-tags origin "$HEAD_REF"
+          git checkout FETCH_HEAD -- pyproject.toml poetry.lock
+          bash scripts/dev/relock.sh --export-only
+          mkdir -p "$RUNNER_TEMP/relock"
+          cp requirements-lock.txt requirements-dev-lock.txt requirements-smoketest-lock.txt "$RUNNER_TEMP/relock/"
+
+      - name: Commit + push regenerated exports to the PR branch (if drifted)
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$HEAD_REF"
+          git checkout -f -B relock_head FETCH_HEAD
+          cp "$RUNNER_TEMP/relock/requirements-lock.txt" requirements-lock.txt
+          cp "$RUNNER_TEMP/relock/requirements-dev-lock.txt" requirements-dev-lock.txt
+          cp "$RUNNER_TEMP/relock/requirements-smoketest-lock.txt" requirements-smoketest-lock.txt
+          if git diff --quiet -- requirements-lock.txt requirements-dev-lock.txt requirements-smoketest-lock.txt; then
+            echo "Committed requirements exports already match poetry.lock — nothing to do."
+            exit 0
+          fi
+          git config user.name "dependabot-relock[bot]"
+          git config user.email "49699333+dependabot[bot]@users.noreply.github.com"
+          git add requirements-lock.txt requirements-dev-lock.txt requirements-smoketest-lock.txt
+          git commit -m "build: relock requirements exports for Dependabot bump"
+          git push origin "HEAD:$HEAD_REF"
