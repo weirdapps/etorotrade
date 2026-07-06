@@ -1,204 +1,186 @@
-# eToro Trade Analysis Tool
+# etorotrade
 
+Yahoo Finance analyst data, aggregated into BUY / SELL / HOLD signals for equities and ETFs, with position sizing and CSV+HTML reports.
+
+[![CI](https://github.com/weirdapps/etorotrade/actions/workflows/ci.yml/badge.svg)](https://github.com/weirdapps/etorotrade/actions/workflows/ci.yml)
+[![Daily Signals](https://github.com/weirdapps/etorotrade/actions/workflows/daily-signals.yml/badge.svg)](https://github.com/weirdapps/etorotrade/actions/workflows/daily-signals.yml)
+[![CodeQL](https://github.com/weirdapps/etorotrade/actions/workflows/codeql.yml/badge.svg)](https://github.com/weirdapps/etorotrade/actions/workflows/codeql.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=coverage)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=weirdapps_etorotrade&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=weirdapps_etorotrade)
-
-**Make data-driven investment decisions with confidence.** This tool aggregates analyst recommendations, price targets, and fundamental metrics into a single, clear display—helping you identify opportunities, manage your portfolio, and make educated investment choices.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](pyproject.toml)
 
 ![eToro Trade Analysis Tool](docs/assets/etorotrade.png)
 
-> **Created by**: [plessas](https://www.etoro.com/people/plessas) - eToro Popular Investor
-> **Important**: This tool provides analysis only, not investment advice. All investment decisions are your own responsibility.
+> Created by [plessas](https://www.etoro.com/people/plessas), an eToro Popular Investor. This tool provides analysis only, not investment advice. Every investment decision is the user's own responsibility.
 
-## What Does This Tool Do?
+## What it is
 
-Instead of manually checking multiple websites for analyst ratings, price targets, and financial metrics, this tool:
+`etorotrade` is a Python-based investment-signals engine. It pulls analyst consensus, price targets, and fundamentals from Yahoo Finance (`yfinance` + `yahooquery`), applies tier and region-specific thresholds from `config.yaml`, and writes color-coded reports to `yahoofinance/output/`.
 
-✅ **Aggregates Data**: Pulls analyst consensus from 20+ investment banks via Yahoo Finance
-✅ **Analyzes Metrics**: Evaluates 15+ financial indicators (upside potential, analyst ratings, P/E ratios, ROE, etc.)
-✅ **Generates Signals**: Applies systematic criteria to suggest BUY, SELL, HOLD, or INCONCLUSIVE
-✅ **Calculates Position Sizes**: Recommends allocation based on risk-adjusted framework
-✅ **Produces Reports**: Exports results to CSV and HTML for easy review
+The universe it scans is the ~12k tickers offered on eToro, plus your own portfolio. A full nightly pass runs on GitHub Actions in six parallel shards and commits the fresh CSVs back to the repo.
 
-**What this is**: A research tool that organizes publicly available analyst data into actionable insights.
-**What this is NOT**: Investment advice, a guarantee of returns, or a fully automated trading system.
+### Who it is for
 
-## Quick Start
+- eToro users who want a systematic, second-opinion read on their positions.
+- Retail investors who prefer analyst consensus + fundamentals over discretionary picks.
+- Developers who want a reproducible, testable signal pipeline they can extend.
 
-### For eToro Users
+### What it is NOT
 
-1. **Export your portfolio** from eToro (Portfolio → Export to CSV)
-2. **Save as** `yahoofinance/input/portfolio.csv`
-3. **Run analysis**: `python trade.py -o p`
-4. **View results** in console or check `yahoofinance/output/portfolio.html`
+- Not investment advice, not a robo-advisor, not an automated trading system.
+- Not a source of proprietary data. Everything downstream of Yahoo Finance.
+- Not a promise of returns. Historical signal accuracy is measured by the built-in backtester, and results are advisory.
 
-That's it! You'll see color-coded recommendations (🟢 BUY, 🔴 SELL, ⚪ HOLD) for each position.
+## Signal pipeline
 
-### For All Investors
-
-```bash
-# 1. Install pinned, SHA256-hashed deps from the committed lockfile
-pip install --only-binary :all: --require-hashes -r requirements-lock.txt
-
-# 2. Analyze specific stocks
-python trade.py -o i -t AAPL,MSFT,GOOGL
-
-# 3. Screen market opportunities
-python trade.py -o m
-
-# 4. Generate buy recommendations
-python trade.py -o t -t b
+```mermaid
+flowchart LR
+    A[Ticker universe<br/>yahoofinance/input/*.csv] --> B[AsyncHybridProvider<br/>yfinance + yahooquery]
+    B --> C[Analysis engine<br/>tier + region gates from config.yaml]
+    C --> D{BS classifier}
+    D -->|B| E[buy.csv / .html]
+    D -->|S| F[sell.csv / .html]
+    D -->|H| G[hold.csv / .html]
+    D -->|I| H[market.csv / .html]
+    C --> I[etoro.csv<br/>full scored universe]
+    E & F & G --> J[signal_log.jsonl]
+    J --> K[Backtester<br/>T+7 / T+30 vs SPY]
 ```
 
-📖 **New to this?** See the complete [User Guide](docs/USER_GUIDE.md) for detailed instructions.
+## Quick start
 
-## Technical Specifications
+### Prerequisites
 
-### Data Processing Capabilities
+Python 3.10, 3.11, or 3.12.
 
-- **Throughput**: ~100 securities per second (vectorized operations)
-- **Batch Processing**: 5,544 securities in approximately 15 minutes
-- **API Optimization**: 48-hour cache layer reducing redundant API calls by ~80%
-- **Concurrency**: 15 parallel request threads with adaptive rate limiting
-
-### Data Sources
-
-- **Primary**: Yahoo Finance API (yfinance)
-- **Supplementary**: YahooQuery API (PEG ratios, missing metrics)
-- **Coverage**: 20+ investment bank analyst recommendations
-- **Update Frequency**: Real-time market data with cached analyst consensus
-
-## Methodology
-
-### 5-Tier Market Capitalization System
-
-The framework employs a sophisticated five-tier classification with region-specific adjustments:
-
-| Tier | Market Cap Range | Example Companies | Strategy Focus |
-|------|------------------|-------------------|----------------|
-| **MEGA** | ≥ $500B | AAPL, MSFT, GOOGL | Blue-chip stability |
-| **LARGE** | $100B - $500B | NFLX, DIS, UBER | Established growth |
-| **MID** | $10B - $100B | ROKU, SNAP, DOCN | Growth opportunities |
-| **SMALL** | $2B - $10B | Emerging leaders | Higher growth potential |
-
-> **Note**: Stocks below $2B market cap are automatically marked as INCONCLUSIVE due to insufficient institutional coverage. Small caps ($2-5B) require 6+ analysts, while larger caps require 4+ analysts.
-
-**Regional Adjustments:**
-
-- **US**: Baseline criteria for NYSE/NASDAQ securities
-- **EU**: Modified thresholds for European exchanges (.L, .PA, .AS)
-- **HK**: Adjusted parameters for Hong Kong/Asian markets (.HK)
-
-### Signal Generation
-
-Trading signals are generated through a systematic evaluation process:
-
-1. **Data Collection**: Aggregate analyst recommendations, price targets, and fundamental metrics
-2. **Confidence Validation**: Require minimum 4 analysts and 4 price targets
-3. **Criteria Application**: Apply tier and region-specific thresholds
-4. **Signal Classification**: Categorize as BUY, SELL, HOLD, or INCONCLUSIVE
-
-### Position Sizing Algorithm
-
-Position sizes are calculated using a risk-adjusted framework:
-
-- Base position scaled by market capitalization tier
-- Adjustments for expected return (EXRET)
-- Beta-weighted volatility adjustments
-- Maximum position constraints
-
-## Installation
+### Install
 
 ```bash
-# Clone repository
 git clone https://github.com/weirdapps/etorotrade
 cd etorotrade
 
-# Create venv + install pinned, SHA256-hashed deps from the committed lockfile.
-# Matches CI exactly. No Poetry needed at install time.
+# Create a venv and install the pinned, SHA256-hashed lockfile.
+# Same install path CI uses. Poetry is NOT needed to install; only to change deps.
 python3 -m venv venv && source venv/bin/activate
 pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 ```
 
-Or run `scripts/dev/setup.sh` which performs the same steps + installs pre-commit hooks.
+Or run `scripts/dev/setup.sh`, which does the same and also installs pre-commit hooks and copies `.env.example` to `.env`.
 
-**Updating dependencies**: edit `pyproject.toml`, then run `scripts/dev/relock.sh`. This regenerates `poetry.lock` and the three checked-in `requirements-*-lock.txt` files via Poetry. Commit all five together. Poetry is only needed when *changing* deps — installing them uses pip directly.
+### Analyse your eToro portfolio
+
+1. Export your positions from eToro (Portfolio, Export to CSV).
+2. Save the file as `yahoofinance/input/portfolio.csv`. See `yahoofinance/input/portfolio.csv.example` for the schema.
+3. Run:
+
+```bash
+python trade.py -o p
+```
+
+Results print to the console and land in `yahoofinance/output/portfolio.csv` and `portfolio.html`.
 
 ## Usage
 
-### Basic Analysis
+`trade.py` is the single entry point. It runs interactively when called with no arguments, or takes an operation via `-o` and a target via `-t`.
 
 ```bash
-# Interactive mode
-python trade.py
-
-# Analyze portfolio
-python trade.py -o p
-
-# Market screening
-python trade.py -o m
-
-# Trade signal generation
-python trade.py -o t -t b  # Buy signals
-python trade.py -o t -t s  # Sell signals
-
-# Backtest signal accuracy
-python trade.py -o b
+python trade.py                      # interactive menu
+python trade.py -o p                 # portfolio analysis
+python trade.py -o p -t n            # portfolio, fetch fresh eToro data first
+python trade.py -o m                 # market screening
+python trade.py -o m -t 10           # market, first 10 tickers
+python trade.py -o e                 # full eToro universe scan (~12k tickers)
+python trade.py -o t -t b            # BUY opportunities (from etoro.csv, excludes holdings)
+python trade.py -o t -t s            # SELL opportunities (portfolio holdings with S signal)
+python trade.py -o t -t h            # HOLD opportunities (from etoro.csv, excludes holdings)
+python trade.py -o i -t AAPL,MSFT    # ad-hoc analysis for specific tickers
+python trade.py -o b                 # backtest signals (T+7 / T+30 forward validation)
+python trade.py -o sc                # signal scorecard
+python trade.py --validate-config    # validate config + exit
 ```
 
-### Advanced Analysis
+### Standalone analysis scripts
 
 ```bash
-# Portfolio analysis with position sizing
-python trade.py -o p -pv 50000  # $50,000 portfolio value
-
-# Geographic exposure analysis
-python scripts/analyze_geography.py
-
-# Sector allocation analysis
-python scripts/analyze_industry.py
-
-# Specific ticker analysis
-python trade.py -o i -t AAPL,MSFT,GOOGL
+python scripts/analyze_geography.py       # ETF geographic-exposure decomposition
+python scripts/analyze_industry.py        # sector-allocation analysis
+python scripts/refresh_etoro_universe.py  # refresh the eToro ticker universe
+python scripts/market_snapshot.py         # quick market snapshot
 ```
 
-## Output Format
+## Output
 
-### Signal Definitions
+Reports are written to `yahoofinance/output/`:
 
-| Signal | Criteria | Interpretation |
-|--------|----------|----------------|
-| **BUY** | Meets all tier-specific buy thresholds | Positive analyst consensus with favorable risk/reward |
-| **SELL** | Triggers any sell condition | Deteriorating fundamentals or overvaluation |
-| **HOLD** | Between buy and sell thresholds | Fairly valued at current levels |
-| **INCONCLUSIVE** | Insufficient analyst coverage | Requires additional research |
+| File | Content |
+|---|---|
+| `etoro.csv` / `.html` | Full scored eToro universe with `BS` signal per row |
+| `portfolio.csv` / `.html` | Your current holdings, scored |
+| `buy.csv` / `.html` | Non-holdings with a BUY signal, ranked by market cap |
+| `sell.csv` / `.html` | Holdings with a SELL signal |
+| `hold.csv` / `.html` | Non-holdings with a HOLD signal |
+| `market.csv` / `.html` | Market screening pass |
+| `manual.csv` / `.html` | Ad-hoc `-o i` runs |
+| `backtest_*.csv/json` | Forward-validation results, vs SPY |
+| `signal_log.jsonl` | Append-only signal history (input to the backtester) |
 
-### Key Metrics
+### CSV columns
 
-- **UPSIDE**: Percentage difference between current price and analyst target
-- **%BUY**: Percentage of analysts with buy recommendations
-- **EXRET**: Expected return (upside × buy percentage / 100)
-- **SIZE**: Calculated position size based on risk parameters
-- **PP**: Twelve-month price performance
-- **EG**: Year-over-year earnings growth
-- **PEF/PET**: Forward P/E to Trailing P/E ratio comparison
+The scored files share a common schema:
 
-### Output Files
+```text
+TKR, NAME, CAP, PRC, TGT, UP%, #T, %B, #A, AM, A, EXR, B, 52W,
+2H, PET, PEF, P/S, PEG, DV, SI, EG, PP, ROE, DE, FCF, ERN, SZ, BS,
+SIGNAL_TRACK, SIGNAL_HORIZON
+```
 
-The system generates both CSV and HTML reports in `yahoofinance/output/`:
+Key fields:
 
-- `portfolio.csv/html` - Current holdings analysis
-- `market.csv/html` - Market screening results
-- `buy.csv/html` - Securities meeting buy criteria
-- `sell.csv/html` - Securities meeting sell criteria
+- `TKR` / `NAME` / `CAP`: ticker, company, market cap.
+- `PRC` / `TGT` / `UP%`: current price, mean analyst target, implied upside.
+- `#T` / `#A`: number of analyst targets and analysts.
+- `%B` / `AM`: percent BUY consensus, analyst momentum.
+- `EXR`: expected return (upside * buy% / 100).
+- `PET` / `PEF` / `PEG` / `P/S`: valuation multiples.
+- `DV` / `SI` / `EG` / `PP`: dividend, short interest, earnings growth, price performance.
+- `ROE` / `DE` / `FCF`: return on equity, debt/equity, free-cash-flow yield.
+- `ERN`: next earnings date.
+- `SZ`: recommended position size (from `PositionSizer`).
+- `BS`: the signal itself, one of `B`, `S`, `H`, `I` (INCONCLUSIVE).
+- `SIGNAL_TRACK` / `SIGNAL_HORIZON`: metadata for the backtester.
+
+## How the signal is computed
+
+1. **Universe load**: tickers are read from `yahoofinance/input/etoro.csv`, `portfolio.csv`, or `market.csv` depending on operation.
+2. **Data fetch**: `AsyncHybridProvider` calls yfinance for the bulk of fields and falls back to `yahooquery` for the fields yfinance drops (PEG, some fundamentals). Rate limiting and a disk cache sit in front.
+3. **Tier + region gating**: each ticker is classified into one of five buckets. Cutoffs live in `config.yaml`:
+
+    | Tier | Market cap |
+    |---|---|
+    | MEGA | >= $500B |
+    | LARGE | $100B to $500B |
+    | MID | $10B to $100B |
+    | SMALL | $2B to $10B (needs 6+ analysts, vs 4+ for larger tiers) |
+    | (below $2B) | Marked INCONCLUSIVE, hard floor |
+
+    Region overlays exist for US (baseline), EU (`.L`, `.PA`, `.AS`), and HK (`.HK`).
+
+4. **Signal classification**: `BS` is set to `B`, `S`, `H`, or `I` based on the tier/region-specific `buy` and `sell` blocks in `config.yaml` (upside, buy%, PE, PEG, ROE, DE, beta, FCF yield, analyst momentum, and more).
+5. **Position sizing**: `PositionSizer` in `trade_modules/trade_engine.py` produces `SZ` based on market-cap tier, expected return, and risk constraints.
+6. **Persist**: results are written to CSV and HTML, and appended to `signal_log.jsonl` for backtesting.
+
+![Buy signal flow](docs/buy_signal_flow.png)
 
 ## Configuration
 
-### Portfolio Input Format
+### `config.yaml`
 
-Create `yahoofinance/input/portfolio.csv`:
+All thresholds live in a single ~1,000-line YAML file: tier gates, per-region `buy` and `sell` blocks, position-sizing parameters, calibration metadata. Parameters are calibrated quarterly against the T+7 / T+30 backtester and edited only by human review.
+
+### Portfolio CSV schema
+
+`yahoofinance/input/portfolio.csv` (mirror of the eToro export):
 
 ```csv
 symbol,totalInvestmentPct,totalNetProfitPct,instrumentDisplayName
@@ -206,127 +188,143 @@ AAPL,5.2,12.5,Apple Inc
 MSFT,4.8,8.3,Microsoft Corporation
 ```
 
-### Threshold Customization
+### Environment variables
 
-Trading thresholds can be modified in `config.yaml`:
+Optional. Copy `.env.example` to `.env`.
 
-- Tier-specific buy/sell criteria
-- Regional adjustments
-- Position size parameters
-- Risk management constraints
+| Variable | Purpose |
+|---|---|
+| `ETORO_API_KEY`, `ETORO_USER_KEY`, `ETORO_USERNAME` | eToro Public API credentials, used by `scripts/refresh_etoro_universe.py` |
+| `ALPHA_VANTAGE_API_KEY` | Alternative data provider |
+| `POLYGON_API_KEY` | Alternative data provider |
+| `NEWS_API_KEY` | News sentiment enrichment |
+| `YFINANCE_MAX_CALLS` | Rate-limit override |
+| `YFINANCE_CACHE_TTL` | Cache TTL override (seconds) |
+| `YFINANCE_API_TIMEOUT` | Request timeout override |
+| `YFINANCE_CIRCUIT_BREAKER_ENABLED` | `true` / `false` |
+| `YAHOOFINANCE_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, etc. |
+| `YAHOOFINANCE_DEBUG` | `true` enables debug logging |
+| `SHARD_COUNT`, `SHARD_INDEX` | Universe sharding, used by the daily-signals workflow |
 
 ## Architecture
 
-### Performance Optimizations
+```text
+trade.py                    # CLI entry point
+trade_modules/              # Trading logic
+  trade_cli.py              # argparse + async orchestration
+  trade_engine.py           # TradingEngine, PositionSizer
+  analysis_engine.py        # signal generation
+  config_manager.py         # ConfigManager, ticker substitutions
+  backtest_engine.py        # T+7 / T+30 forward validation
+  signal_scorecard.py       # per-signal accuracy scorecard
+  committee_*.py            # optional multi-agent research committee
+  signals_v2/, riskfirst/   # next-gen signal pipeline (WIP)
+yahoofinance/               # Data layer
+  api/providers/            # AsyncHybridProvider, AsyncYahooFinance,
+                            # AsyncYahooQuery, AlphaVantage, Polygon
+  analysis/                 # StockAnalyzer, market filters, tiers
+  core/                     # DI container, logging, errors, config
+  utils/                    # trade criteria, async helpers, market utils
+  presentation/             # console + HTML renderers
+  input/                    # portfolio.csv, etoro.csv, region files
+  output/                   # committed CSV + HTML reports
+scripts/                    # standalone analysis + ops scripts
+  dev/                      # setup.sh, test.sh, lint.sh, format.sh, relock.sh
+config.yaml                 # buy/sell thresholds per tier/region
+docs/                       # USER_GUIDE, TECHNICAL, POSITION_SIZING, CI_CD, FAQ
+tests/                      # unit, integration, e2e, benchmarks
+```
 
-- Vectorized pandas operations for efficient data processing
-- Set-based filtering algorithms (O(n) vs O(n²))
-- Asynchronous API requests with connection pooling
-- Memory-efficient streaming for large datasets
+## Automation
 
-### Error Handling
+Seven workflows run in `.github/workflows/`:
 
-- Automatic retry with exponential backoff
-- Graceful degradation for missing data
-- Comprehensive logging for debugging
-- Circuit breaker pattern for API failures
-
-### Code Quality
-
-- Type hints throughout codebase
-- Comprehensive test coverage
-- Continuous integration pipeline
-- SonarCloud quality gates
+| Workflow | Schedule | Purpose |
+|---|---|---|
+| `ci.yml` | push, PR, nightly 02:00 UTC | Test matrix (3.10, 3.11, 3.12), bandit, safety, flake8, mypy, coverage, quality-gates, lockfile-sync, yfinance-compat smoke test |
+| `codeql.yml` | push to master, PR, Mon 06:00 UTC | GitHub CodeQL static analysis |
+| `sonarcloud.yml` | push, PR | Quality gate on SonarCloud (project `weirdapps_etorotrade`) |
+| `daily-signals.yml` | daily 22:00 UTC | Full universe scan in 6 parallel shards, merges + commits `etoro.csv` and derived buy/sell/hold |
+| `weekly-universe-refresh.yml` | Sun 21:00 UTC | Refreshes the ~12k-ticker universe from the eToro market-data API |
+| `weekly-backtest.yml` | Sat 23:00 UTC | Runs T+7 / T+30 backtest pipeline and commits report |
+| `deps-refresh.yml` | monthly, 4th at 04:17 UTC | Regenerates the lockfiles and opens a PR |
+| `dependabot-relock.yml`, `dependabot-auto-merge.yml` | on Dependabot PRs | Auto-relock + auto-merge for green updates |
 
 ## Backtesting
 
-The tool includes a forward-validation backtest engine that measures how well trading signals predict actual price movements. Since Yahoo Finance doesn't provide historical analyst recommendations, the engine uses the `signal_log.jsonl` (accumulated since January 2026) to track signals and compare them against actual returns at T+7 and T+30 trading days.
+There is a forward-validation backtester in `trade_modules/backtest_engine.py`. Since Yahoo Finance does not expose historical analyst recommendations, the engine uses `signal_log.jsonl` (accumulated by every run since January 2026) and compares each signal against actual price movements at T+7 and T+30 trading days.
 
 ```bash
-# Run backtest validation
 python trade.py -o b
 ```
 
-**Output includes:**
+Output:
 
-- Per-signal accuracy (BUY vs SELL vs HOLD performance)
-- Tier and region breakdowns
-- Comparison against SPY benchmark
-- Results exported to `yahoofinance/output/backtest_*.csv`
+- Per-signal accuracy (BUY, SELL, HOLD).
+- Tier and region breakdowns.
+- Comparison against SPY as benchmark.
+- Reports in `yahoofinance/output/backtest_*.csv` and `backtest_report.json`.
 
-## ETF Analysis
-
-The tool provides transparency into ETF holdings:
-
-- Geographic exposure decomposition
-- Sector allocation analysis
-- Underlying asset classification
-- Concentration risk assessment
-
-## Risk Considerations
-
-### Limitations
-
-- Analysis based on publicly available data
-- No intraday trading signals
-- No derivative strategies
-- Historical performance not indicative of future results
-
-### Important Disclaimers
-
-- This tool provides analysis only, not investment advice
-- All investment decisions should incorporate multiple sources
-- Past signals do not guarantee future performance
-- Users assume all investment risk
+The `weekly-backtest.yml` workflow runs the same pipeline on GitHub Actions and commits the reports.
 
 ## Development
 
 ### Testing
 
 ```bash
-# Run all tests
-pytest tests/
-
-# Run specific test suites
-pytest tests/unit/           # Unit tests
-pytest tests/integration/    # Integration tests
-pytest tests/e2e/           # End-to-end tests
-
-# Code quality checks
-flake8 yahoofinance/ trade_modules/ --max-line-length=100
-mypy yahoofinance/ trade_modules/ --ignore-missing-imports
-
-# Coverage report
+pytest tests/                              # full suite
+pytest tests/unit/                         # unit tests only (fast)
+pytest tests/integration/                  # requires network
+pytest -m "not slow"                       # skip slow tests
 pytest --cov=yahoofinance --cov=trade_modules --cov-report=html
+scripts/dev/test.sh                        # wrapper with coverage
 ```
 
-### Contributing
+CI runs the suite with `--cov-fail-under=58`.
 
-Contributions are welcome. Please ensure:
+### Linting and formatting
 
-- All tests pass (`pytest tests/`)
-- Code follows PEP 8 style guidelines
-- Type hints are included for new functions
-- Documentation is updated accordingly
-- Security best practices are followed
+```bash
+scripts/dev/lint.sh          # black --check + isort --check + flake8 + mypy
+scripts/dev/format.sh        # black + isort auto-format
+```
+
+Line length: 100. Formatter: `black`. Import sort: `isort`. Linter: `flake8` + `ruff` (see `pyproject.toml`). Type checker: `mypy` runs in lenient mode and does not gate CI.
+
+### Updating dependencies
+
+The three `requirements-*-lock.txt` files (production, production+dev, production+smoketest) are all exported from `poetry.lock`, committed, and enforced by the `lockfile-sync` CI job. To bump a package:
+
+```bash
+# 1. Edit pyproject.toml
+# 2. Regenerate all four lockfiles atomically
+scripts/dev/relock.sh
+# 3. Commit poetry.lock + requirements-*-lock.txt together
+```
+
+Poetry is only needed to *change* dependencies. Installing them uses pip directly with `--require-hashes`.
+
+### Docker
+
+A `Dockerfile` is provided for containerised runs.
 
 ## Documentation
 
-- [User Guide](docs/USER_GUIDE.md) - Getting started and common workflows
-- [Technical Architecture](docs/TECHNICAL.md) - System design and implementation details
-- [Position Sizing](docs/POSITION_SIZING.md) - Risk management algorithms and methodology
-- [CI/CD Pipeline](docs/CI_CD.md) - Testing, quality gates, and deployment procedures
+- [User Guide](docs/USER_GUIDE.md): getting started, common workflows.
+- [Technical Architecture](docs/TECHNICAL.md): system design, providers, DI.
+- [Position Sizing](docs/POSITION_SIZING.md): the risk-adjusted sizing algorithm.
+- [CI/CD](docs/CI_CD.md): pipeline stages, quality gates.
+- [Examples](docs/EXAMPLES.md), [FAQ](docs/FAQ.md), [Troubleshooting](docs/TROUBLESHOOTING.md).
+- [Evidence-based threshold changes](docs/EVIDENCE_BASED_THRESHOLD_CHANGES.md) and [Large/Mega threshold changes](docs/LARGE_MEGA_THRESHOLD_CHANGES.md): historical calibration decisions.
+
+## Security
+
+See [SECURITY.md](SECURITY.md). Do not open a public issue for a vulnerability; email `plessas@nbg.gr`.
 
 ## License
 
-MIT License - See LICENSE file for details
+MIT, see [LICENSE](LICENSE).
 
-## Support
+## Disclaimer
 
-For issues or questions, please use the [GitHub issue tracker](https://github.com/weirdapps/etorotrade/issues).
-
----
-
-*Last Updated: March 2026*
-
-**Disclaimer**: This tool is designed for quantitative analysis and research purposes only. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting with qualified financial advisors before making investment decisions. Past performance does not guarantee future results.
+This tool is designed for quantitative analysis and research. It does not constitute investment advice. Users should conduct their own due diligence and consider consulting a qualified financial advisor before making investment decisions. Past signal performance does not guarantee future results.
