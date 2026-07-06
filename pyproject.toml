@@ -82,6 +82,9 @@ dev = [
     # GHSA: cryptography <48.0.1 vuln, pulled transitively via safety->authlib/joserfc.
     # Pin the security floor here (dev-only, not in the runtime path) to force the patched build.
     "cryptography>=48.0.1",
+    # GHSA-wphv-vfrh-23q5: joserfc <1.6.7 JWS payload-size-limit bypass. Same transitive
+    # chain (safety->authlib->joserfc); direct floor so the resolver keeps it patched.
+    "joserfc>=1.6.7",
     "bandit>=1.9.4",
     "radon>=6.0.1",
     "autoflake>=2.3.3",

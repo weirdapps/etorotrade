@@ -1025,9 +1025,9 @@ jinja2==3.1.6 ; python_version >= "3.10" and python_version < "4.0" \
 joblib==1.5.3 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713 \
     --hash=sha256:8561a3269e6801106863fd0d6d84bb737be9e7631e33aaed3fb9ce5953688da3
-joserfc==1.6.5 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:1482a7db78fb4602e44ed89e51b599d052e091288c7c532c5b694e20149dec48 \
-    --hash=sha256:e9878a0f8243fe7b95e11fdda81374ca9f7a689e302751579d3dfdeec559675e
+joserfc==1.7.2 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:537ffb8888b2df039cb5b6d017d7cff6f09d521ce65d89cc9b8ab752b1cff947 \
+    --hash=sha256:ddd818c0ca9b4f17bbc2d72cb3966e6ded7502be089316c62c3cc64ae86132b5
 kiwisolver==1.5.0 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:012b1eb16e28718fa782b5e61dc6f2da1f0792ca73bd05d54de6cb9561665fc9 \
     --hash=sha256:01808c6d15f4c3e8559595d6d1fe6411c68e4a3822b4b9972b44473b24f4e679 \
