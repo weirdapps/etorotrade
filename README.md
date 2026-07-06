@@ -161,10 +161,10 @@ Key fields:
     | MEGA | >= $500B |
     | LARGE | $100B to $500B |
     | MID | $10B to $100B |
-    | SMALL | $2B to $10B (needs 6+ analysts, vs 4+ for larger tiers) |
+    | SMALL | $2B to $10B |
     | (below $2B) | Marked INCONCLUSIVE, hard floor |
 
-    Region overlays exist for US (baseline), EU (`.L`, `.PA`, `.AS`), and HK (`.HK`).
+    Universal analyst gates apply on top: $2B to $5B needs 6+ analysts, $5B and up needs 4+ (per-region tier blocks tighten further, e.g. US MEGA/LARGE/MID min_analysts: 8, HK MEGA: 15). Region blocks exist for US (baseline), EU (`.L`, `.PA`, `.AS`, `.DE`, `.MI`, etc.), and HK (`.HK`).
 
 4. **Signal classification**: `BS` is set to `B`, `S`, `H`, or `I` based on the tier/region-specific `buy` and `sell` blocks in `config.yaml` (upside, buy%, PE, PEG, ROE, DE, beta, FCF yield, analyst momentum, and more).
 5. **Position sizing**: `PositionSizer` in `trade_modules/trade_engine.py` produces `SZ` based on market-cap tier, expected return, and risk constraints.
@@ -237,7 +237,7 @@ tests/                      # unit, integration, e2e, benchmarks
 
 ## Automation
 
-Seven workflows run in `.github/workflows/`:
+Nine workflow files in `.github/workflows/`:
 
 | Workflow | Schedule | Purpose |
 |---|---|---|
