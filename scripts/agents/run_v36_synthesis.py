@@ -39,9 +39,33 @@ from trade_modules.vol_targeting import (  # noqa: E402
 
 REPORTS_DIR = Path.home() / ".weirdapps-trading" / "committee" / "reports"
 PORTFOLIO_CSV = REPO / "yahoofinance" / "output" / "portfolio.csv"
+INPUT_PORTFOLIO_CSV = REPO / "yahoofinance" / "input" / "portfolio.csv"
 ETORO_CSV = REPO / "yahoofinance" / "output" / "etoro.csv"
 SYNTHESIS_JSON = REPORTS_DIR / "synthesis.json"
 PREV_CONCORDANCE = Path.home() / ".weirdapps-trading" / "committee" / "concordance.json"
+
+
+def load_position_open_days() -> dict[str, int]:
+    """Parse earliestOpenTimestamp from input/portfolio.csv → {ticker: days_held}."""
+    if not INPUT_PORTFOLIO_CSV.exists():
+        return {}
+    from datetime import datetime, timezone
+
+    result: dict[str, int] = {}
+    with open(INPUT_PORTFOLIO_CSV) as f:
+        reader = csv.DictReader(f)
+        now = datetime.now(timezone.utc)
+        for row in reader:
+            sym = (row.get("symbol") or "").strip()
+            ts = (row.get("earliestOpenTimestamp") or "").strip()
+            if not sym or not ts:
+                continue
+            try:
+                opened = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                result[sym] = (now - opened).days
+            except (ValueError, TypeError):
+                continue
+    return result
 
 
 def load_report(name: str) -> dict:
@@ -312,6 +336,14 @@ def main():
         f"{len(opp_signals)} opportunities, v36 active set)...",
         file=sys.stderr,
     )
+    open_days = load_position_open_days()
+    if open_days:
+        print(
+            f"Loaded position open dates for {len(open_days)} tickers "
+            f"(range: {min(open_days.values())}–{max(open_days.values())} days)",
+            file=sys.stderr,
+        )
+
     concordance = build_concordance(
         portfolio_signals=portfolio_signals,
         fund_report=fund,
@@ -326,6 +358,7 @@ def main():
         opportunity_sector_map=opp_sectors,
         previous_concordance=prev_concordance,
         sentiment_report=sentiment,
+        position_open_days=open_days,
     )
 
     # Sizing with v36 fx-aware + dynamic base + M9 vol targeting

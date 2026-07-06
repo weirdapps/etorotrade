@@ -120,9 +120,14 @@ def check_liquidity(ticker: str, tier: str) -> dict[str, Any]:
     adv = get_adv(ticker)
 
     if adv is None:
-        # Can't determine liquidity — pass by default (don't block on missing data)
+        # FAIL-SAFE: when ADV is unavailable, fail the gate for non-MEGA tiers — a
+        # tradable name must have ADV data to clear liquidity. Prior behavior passed
+        # by default (fail-open), which let illiquid micro/small names slip through
+        # whenever the data feed missed. MEGA is preserved as lenient: blue-chip names
+        # are practically always tradable, and yfinance ADV outages on them are noisy.
+        mega_lenient = tier_upper == "MEGA"
         return {
-            "passes": True,
+            "passes": mega_lenient,
             "adv": None,
             "min_adv": min_adv,
             "spread_cost_bps": spread_bps,

@@ -62,6 +62,6 @@ jobs:
                   yahoofinance/input/.universe-refresh-log.json
           git commit -m "chore(universe): weekly refresh from eToro market-data API
 
-          Source: https://public-api.etoro.com/api/v1/market-data/instruments
+          Source: https://www.etoro.com/api/public/v1/market-data/instruments
           Run via .github/workflows/weekly-universe-refresh.yml"
           git push

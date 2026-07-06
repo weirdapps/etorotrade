@@ -7590,3 +7590,98 @@ class TestV41CensusAlignmentTightened:
         assert waterfall.get("~census_alignment") == 5, (
             f"Expected ~census_alignment=+5 (shadow) for div_score=-35, got waterfall: {waterfall}"
         )
+
+
+class TestHorizonDaysHeld:
+    """CIO v46.0: Verify position_open_days flows into days_held correctly."""
+
+    @staticmethod
+    def _build(
+        ticker: str = "AAPL",
+        signal: str = "B",
+        exret: float = 12.0,
+        position_open_days: dict | None = None,
+        previous_concordance: list | None = None,
+    ) -> list[dict]:
+        portfolio_signals = {
+            ticker: {
+                "signal": signal,
+                "exret": exret,
+                "buy_pct": 80,
+                "beta": 1.0,
+                "pet": 15,
+                "pef": 18,
+            }
+        }
+        return build_concordance(
+            portfolio_signals=portfolio_signals,
+            fund_report={},
+            tech_report={},
+            macro_report={"sector_rankings": {}},
+            census_report={},
+            news_report={},
+            risk_report={},
+            sector_map={ticker: "Technology"},
+            position_open_days=position_open_days,
+            previous_concordance=previous_concordance,
+        )
+
+    def test_trade_date_source_used_when_open_days_provided(self):
+        result = self._build(position_open_days={"AAPL": 120})
+        entry = result[0]
+        assert entry["days_held"] == 120
+        assert entry["days_held_source"] == "trade_date"
+
+    def test_signal_reset_overrides_open_days(self):
+        prev = [{"ticker": "AAPL", "signal": "H", "conviction": 50, "action": "HOLD"}]
+        result = self._build(
+            signal="B",
+            position_open_days={"AAPL": 120},
+            previous_concordance=prev,
+        )
+        entry = result[0]
+        assert entry["days_held"] == 0
+        assert entry["days_held_source"] == "signal_reset"
+
+    def test_horizon_status_extended(self):
+        result = self._build(position_open_days={"AAPL": 120})
+        entry = result[0]
+        horizon_days = entry.get("suggested_horizon_days", 90)
+        pct = entry["days_held"] / horizon_days * 100
+        assert pct > 100, f"Expected >100% for 120d/90d, got {pct:.0f}%"
+        assert entry.get("horizon_status") in ("EXTENDED", "OVERSTAYED")
+
+    def test_horizon_status_early(self):
+        result = self._build(position_open_days={"AAPL": 10})
+        entry = result[0]
+        horizon_days = entry.get("suggested_horizon_days", 90)
+        pct = entry["days_held"] / horizon_days * 100
+        assert pct <= 50
+        assert entry.get("horizon_status") == "EARLY"
+
+    def test_no_open_days_falls_back_to_signal_continuity(self):
+        result = self._build(position_open_days=None)
+        entry = result[0]
+        assert entry.get("days_held_source") in ("signal_continuity", None)
+
+    def test_multiple_tickers_get_different_days(self):
+        portfolio_signals = {
+            "MSFT": {"signal": "B", "exret": 10, "buy_pct": 75, "beta": 1.1, "pet": 20, "pef": 22},
+            "GLD": {"signal": "H", "exret": 5, "buy_pct": 60, "beta": 0.3, "pet": 0, "pef": 0},
+        }
+        result = build_concordance(
+            portfolio_signals=portfolio_signals,
+            fund_report={},
+            tech_report={},
+            macro_report={"sector_rankings": {}},
+            census_report={},
+            news_report={},
+            risk_report={},
+            sector_map={"MSFT": "Technology", "GLD": "Materials"},
+            position_open_days={"MSFT": 800, "GLD": 60},
+        )
+        by_ticker = {e["ticker"]: e for e in result}
+        assert by_ticker["MSFT"]["days_held"] == 800
+        assert by_ticker["GLD"]["days_held"] == 60
+        assert by_ticker["MSFT"]["days_held_source"] == "trade_date"
+        assert by_ticker["GLD"]["days_held_source"] == "trade_date"

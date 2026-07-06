@@ -160,12 +160,22 @@ class TestGetAdv:
 class TestCheckLiquidity:
     """Tests for check_liquidity tier/pass logic."""
 
-    def test_adv_unavailable_passes(self, monkeypatch):
+    def test_adv_unavailable_mega_passes(self, monkeypatch):
+        # MEGA stays lenient on missing ADV (blue-chips are practically always tradable).
         monkeypatch.setattr(liquidity_filter, "get_adv", lambda t: None)
         result = check_liquidity("X", "MEGA")
         assert result["passes"] is True
         assert result["adv"] is None
         assert result["reason"] == "adv_unavailable"
+
+    def test_adv_unavailable_non_mega_fails_closed(self, monkeypatch):
+        # FAIL-SAFE: missing ADV must fail the gate for non-MEGA tiers.
+        monkeypatch.setattr(liquidity_filter, "get_adv", lambda t: None)
+        for tier in ("LARGE", "MID", "SMALL", "MICRO"):
+            result = check_liquidity("X", tier)
+            assert result["passes"] is False, f"{tier} should fail-closed on missing ADV"
+            assert result["adv"] is None
+            assert result["reason"] == "adv_unavailable"
 
     def test_sufficient_liquidity(self, monkeypatch):
         monkeypatch.setattr(liquidity_filter, "get_adv", lambda t: 100_000_000)

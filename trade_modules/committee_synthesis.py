@@ -4858,6 +4858,20 @@ def build_concordance(
         # CIO v27.0: Adversarial debate data for this stock
         _debate = debate_results.get(ticker, {})
         _debate_signal = _debate.get("conviction_signal") if _debate else None
+
+        # CIO v46.0: Short position handling.
+        # When is_short=True (from eToro isBuy=False), invert the effective
+        # signal before synthesis so the existing scoring logic works correctly:
+        # - SELL signal on the underlying CONFIRMS the short thesis → treat as "B"
+        # - BUY signal on the underlying CONTRADICTS the short → treat as "S"
+        # The original signal is preserved in the concordance entry for display.
+        _is_short = bool(sig_data.get("is_short", False))
+        _orig_signal = sig_data.get("signal", "H")
+        if _is_short:
+            _sig_invert = {"B": "S", "S": "B", "H": "H", "I": "I", "N": "N"}
+            sig_data = dict(sig_data)  # Don't mutate the original
+            sig_data["signal"] = _sig_invert.get(_orig_signal, _orig_signal)
+
         entry = _synthesize_with_lookups(
             ticker,
             sig_data,
@@ -4881,6 +4895,19 @@ def build_concordance(
         entry["is_opportunity"] = False
         entry["kill_thesis_triggered"] = triggered_kill_theses.get(ticker, False)
         entry["risk_diluted"] = risk_diluted
+
+        # CIO v46.0: Annotate short positions in concordance
+        if _is_short:
+            entry["is_short"] = True
+            entry["original_signal"] = _orig_signal
+            # For shorts, action semantics are inverted:
+            # ADD → increase short exposure, TRIM → reduce short, SELL → cover/close
+            # The actions stay the same labels but the display layer adds context.
+
+        # Carry company name from portfolio signals for HTML display
+        _name = sig_data.get("name") or sig_data.get("full_name") or ""
+        if _name:
+            entry["name"] = _name
 
         # CIO audit: days_held for horizon tracking.
         # When the signal changes (e.g., H→B or B→H), the horizon clock resets
@@ -5936,6 +5963,23 @@ def generate_synthesis_output(
         news_report,
     )
 
+    # CIO v46.0: Quantitative regime detector — multi-factor model
+    # Complements the macro agent's qualitative regime with data-driven
+    # scoring from VIX level, term structure, SPY momentum, drawdown, VIX trend.
+    quantitative_regime: dict[str, Any] = {}
+    try:
+        from trade_modules.regime_detector import get_regime_detail
+
+        quantitative_regime = get_regime_detail()
+        logger.info(
+            "Quantitative regime: %s (score=%.1f, VIX=%.1f)",
+            quantitative_regime.get("regime", "?"),
+            quantitative_regime.get("score", 0),
+            quantitative_regime.get("vix", 0),
+        )
+    except Exception as _qr_err:
+        logger.warning("Quantitative regime detector failed: %s", _qr_err)
+
     # CIO v23.3: Build watchlist from gated opportunities
     watchlist = [
         {
@@ -5957,6 +6001,7 @@ def generate_synthesis_output(
         # Flat keys for HTML generator compatibility
         "regime": regime,
         "regime_momentum": regime_momentum,
+        "quantitative_regime": quantitative_regime,
         "macro_score": macro_score,
         "macro_label": macro_label,
         "rotation_phase": rotation,

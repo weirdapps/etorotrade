@@ -1,6 +1,6 @@
 """Refresh yahoofinance/input/etoro.csv from the eToro market-data API.
 
-Fetches stocks + ETFs from https://public-api.etoro.com/api/v1/market-data/instruments
+Fetches stocks + ETFs from https://www.etoro.com/api/public/v1/market-data/instruments
 and atomically overwrites the input file with one row per (symbol, company, exchange).
 Symbols come back from the API mostly in Yahoo-Finance format but need
 light normalization: strip .US suffix, drop .RTH duplicates, trim HK
@@ -22,21 +22,46 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-INSTRUMENTS_URL = "https://public-api.etoro.com/api/v1/market-data/instruments"
+INSTRUMENTS_URL = "https://www.etoro.com/api/public/v1/market-data/instruments"
 STOCK_TYPE_ID = 5
 ETF_TYPE_ID = 6
 MIN_INSTRUMENTS_THRESHOLD = 1000
 
 EXCHANGE_NAMES: dict[int, str] = {
-    2: "NYSE", 4: "Nasdaq", 5: "NYSE", 6: "FRA", 7: "LSE", 8: "NYSE",
-    9: "Euronext Paris", 10: "Bolsa De Madrid", 11: "Borsa Italiana",
-    12: "SIX", 14: "Oslo Stock Exchange", 15: "Stockholm Stock Exchange",
-    16: "Copenhagen Stock Exchange", 17: "Helsinki Stock Exchange",
-    19: "OTC Markets", 20: "CBOE", 21: "HKEX", 22: "Euronext Lisbon",
-    23: "Euronext Brussels", 24: "Tadawul", 30: "Euronext Amsterdam",
-    31: "ASX", 32: "Vienna", 33: "Xetra", 34: "Dublin", 35: "Prague SE",
-    36: "Warsaw", 37: "Budapest", 38: "Xetra ETFs", 39: "DFM",
-    41: "Abu Dhabi", 42: "LSE AIM", 43: "LSE AIM", 44: "LSE",
+    2: "NYSE",
+    4: "Nasdaq",
+    5: "NYSE",
+    6: "FRA",
+    7: "LSE",
+    8: "NYSE",
+    9: "Euronext Paris",
+    10: "Bolsa De Madrid",
+    11: "Borsa Italiana",
+    12: "SIX",
+    14: "Oslo Stock Exchange",
+    15: "Stockholm Stock Exchange",
+    16: "Copenhagen Stock Exchange",
+    17: "Helsinki Stock Exchange",
+    19: "OTC Markets",
+    20: "CBOE",
+    21: "HKEX",
+    22: "Euronext Lisbon",
+    23: "Euronext Brussels",
+    24: "Tadawul",
+    30: "Euronext Amsterdam",
+    31: "ASX",
+    32: "Vienna",
+    33: "Xetra",
+    34: "Dublin",
+    35: "Prague SE",
+    36: "Warsaw",
+    37: "Budapest",
+    38: "Xetra ETFs",
+    39: "DFM",
+    41: "Abu Dhabi",
+    42: "LSE AIM",
+    43: "LSE AIM",
+    44: "LSE",
     56: "Tokyo Stock Exchange",
 }
 
@@ -257,12 +282,14 @@ def fetch_all_instruments(
                 ]
                 items = []
                 for i in filtered:
-                    items.append({
-                        "instrumentId": i.get("instrumentID"),
-                        "symbol": i.get("symbolFull", ""),
-                        "displayName": i.get("instrumentDisplayName", ""),
-                        "exchangeName": EXCHANGE_NAMES.get(i.get("exchangeID", 0), ""),
-                    })
+                    items.append(
+                        {
+                            "instrumentId": i.get("instrumentID"),
+                            "symbol": i.get("symbolFull", ""),
+                            "displayName": i.get("instrumentDisplayName", ""),
+                            "exchangeName": EXCHANGE_NAMES.get(i.get("exchangeID", 0), ""),
+                        }
+                    )
                 logger.info(
                     "  Fetched %d total, %d Stocks+ETFs after type filter",
                     len(raw),

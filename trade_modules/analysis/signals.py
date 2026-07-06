@@ -440,6 +440,35 @@ def evaluate_momentum_track(
     return {"qualified": True, "reason": "momentum_track", "dampened": False}
 
 
+def is_quality_override(
+    buy_pct: float,
+    upside: float,
+    roe: float,
+    de: float,
+    am_blocks: bool,
+    *,
+    buy_pct_threshold: float = 85,
+    upside_threshold: float = 20,
+) -> bool:
+    """Whether a stock earns the SELL-protection quality override.
+
+    A strong-fundamentals name (high analyst buy%, high upside, profitable, low
+    leverage, momentum not deteriorating) is shielded from SELL evaluation.
+
+    FAIL-SAFE: ROE and D/E must be PRESENT and good — missing fundamentals do NOT
+    earn the shield, so a name with unknown data stays eligible to be SOLD. This
+    inverts the prior "or no data" leniency, which let missing-data names dodge SELL.
+    Returns a plain ``bool`` (never a numpy bool_).
+    """
+    return bool(
+        buy_pct >= buy_pct_threshold
+        and upside >= upside_threshold
+        and (not pd.isna(roe) and roe > 0)
+        and (not pd.isna(de) and de < 200)
+        and not am_blocks
+    )
+
+
 def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.Series:
     """Vectorized calculation of trading actions for improved performance.
 
@@ -1222,12 +1251,16 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
 
             # Quality Override with fundamental floors + momentum gate
             # EXRET check removed — mathematically redundant (buy%≥85 AND upside≥20 → EXRET≥17 always)
-            is_quality_stock = (
-                row_buy_pct >= quality_override_buy_pct
-                and row_upside >= quality_override_upside
-                and (pd.isna(row_roe) or row_roe > 0)  # Require profitability (or no data)
-                and (pd.isna(row_de) or row_de < 200)  # Limit leverage (or no data)
-                and not am_blocks_override  # M1: Momentum gate
+            # FAIL-SAFE (survival rails): require CONFIRMED good fundamentals to earn
+            # SELL-protection; missing ROE/D-E no longer grants the shield.
+            is_quality_stock = is_quality_override(
+                row_buy_pct,
+                row_upside,
+                row_roe,
+                row_de,
+                am_blocks_override,
+                buy_pct_threshold=quality_override_buy_pct,
+                upside_threshold=quality_override_upside,
             )
 
             if is_quality_stock:

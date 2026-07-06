@@ -53,15 +53,19 @@ class TestLiquidityFilter:
             assert "below" in result["reason"]
 
     def test_check_liquidity_unavailable(self):
-        """Stock with unavailable ADV passes by default."""
+        """FAIL-SAFE: missing ADV blocks non-MEGA tiers; MEGA stays lenient."""
         from trade_modules.liquidity_filter import check_liquidity, invalidate_cache
 
         invalidate_cache()
 
         with patch("trade_modules.liquidity_filter._fetch_adv", return_value=None):
-            result = check_liquidity("UNKNOWN", "MID")
-            assert result["passes"] is True
-            assert result["reason"] == "adv_unavailable"
+            non_mega = check_liquidity("UNKNOWN", "MID")
+            assert non_mega["passes"] is False
+            assert non_mega["reason"] == "adv_unavailable"
+
+            mega = check_liquidity("UNKNOWN", "MEGA")
+            assert mega["passes"] is True
+            assert mega["reason"] == "adv_unavailable"
 
     def test_estimate_transaction_cost(self):
         """Transaction cost estimation includes spread + financing."""

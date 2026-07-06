@@ -335,9 +335,13 @@ class RegimeDetector:
             MarketRegime.CRISIS: "Crisis mode — extreme volatility, defensive positioning",
         }
 
-        # Bear market dampener: SPY 2-year return < 0 (Daniel & Moskowitz 2016)
+        # Bear market dampener: SPY 2-year return < 0 (Daniel & Moskowitz 2016).
+        # FAIL-SAFE: when spy_2yr_return is unavailable (SPY data outage), treat as bear
+        # so the momentum-BUY track is disabled while the regime view is blind. Prior
+        # behavior treated missing data as "not bear" — a fail-open hole the survival
+        # rails close. Behavior is identical when the data IS present.
         spy_2yr_return = (data or self._market_data or {}).get("spy_2yr_return")
-        bear_market_active = spy_2yr_return is not None and spy_2yr_return < 0
+        bear_market_active = (spy_2yr_return is None) or (spy_2yr_return < 0)
 
         return {
             "regime": regime.value,

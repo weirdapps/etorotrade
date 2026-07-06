@@ -411,6 +411,31 @@ _GICS_MAP = {
     "Entertainment": "Comm. Services",
     "Gold ETF": "Materials",
     "ETF/Greece": "ETF",
+    "ETF": "ETF",
+    "Volatility": "ETF",
+    "VIX": "ETF",
+    "E-commerce/Cloud": "Technology",
+    "Cloud": "Technology",
+    "AI": "Technology",
+    "AI Infrastructure": "Technology",
+    "Trading Platform": "Financials",
+    "Conglomerate": "Industrials",
+    "Trading Company": "Industrials",
+    "Airlines": "Industrials",
+    "Transportation": "Industrials",
+    "Construction": "Industrials",
+    "Marine": "Industrials",
+    "Machinery": "Industrials",
+    "Heavy Industry": "Industrials",
+    "Property": "Real Estate",
+    "Property Development": "Real Estate",
+    "Food & Beverage": "Consumer Staples",
+    "Food": "Consumer Staples",
+    "Leisure": "Consumer Disc.",
+    "Apparel": "Consumer Disc.",
+    "Sportswear": "Consumer Disc.",
+    "Travel": "Consumer Disc.",
+    "Hospitality": "Consumer Disc.",
     "Unknown": "Other",
     "": "Other",
 }
@@ -794,6 +819,7 @@ def generate_report_html(
 
     # --- Extract data ---
     concordance = synth.get("concordance", [])
+    _portfolio_tickers = {en.get("ticker") for en in concordance if not en.get("is_opportunity")}
     regime = synth.get("regime", "CAUTIOUS")
     macro_score = synth.get("macro_score", 0)
     rotation = synth.get("rotation_phase") or synth.get("macro_label") or "Neutral"
@@ -1289,27 +1315,124 @@ def generate_report_html(
         f"</div></div></div>"
     )
 
-    # ── S1b: PORTFOLIO PERFORMANCE (CIO v35.0) ──
-    # Read P&L data from etoro-portfolio if available
+    # ── S1b: PORTFOLIO PERFORMANCE (CIO v46.0 — API-sourced) ──
+    # Use real eToro API data from account_summary (fetched via tradeinfo endpoint).
+    # Falls back to equity_daily from portfolio.db only if API data missing.
+    _acct = synth.get("account_summary", {})
+    _has_api_perf = _acct.get("monthly_gain") is not None
+    if _has_api_perf:
+        _mg = _acct.get("monthly_gain", 0)
+        _wg = _acct.get("weekly_gain", 0)
+        _dg = _acct.get("daily_gain", 0)
+        _yg = _acct.get("ytd_gain", 0)
+        _ly = _acct.get("last_year_gain")
+        _ptv = _acct.get("peak_to_valley", 0)
+        _rs = _acct.get("risk_score_etoro", 0)
+        _cop = _acct.get("copiers", 0)
+        _wr = _acct.get("win_ratio", 0)
+        _eq = _acct.get("total_equity") or pv or 0
+
+        h.append(f'<div style="padding:20px 0;border-bottom:1px solid {_C["border"]};">')
+        h.append(
+            f'<div style="font-size:10px;font-weight:700;letter-spacing:1px;'
+            f'text-transform:uppercase;color:{_C["text_muted"]};margin-bottom:10px;">'
+            f'PORTFOLIO PERFORMANCE <span style="font-weight:400;">(eToro API)</span></div>'
+        )
+        h.append(
+            '<table style="width:100%;border-collapse:separate;border-spacing:6px 0;" cellpadding="0"><tr>'
+        )
+        _perf_cards = [
+            ("Today", _dg, None),
+            ("This Week", _wg, None),
+            ("This Month", _mg, _ptv),
+            ("YTD", _yg, None),
+        ]
+        if _ly is not None:
+            _perf_cards.append(("Last Year", _ly, None))
+
+        for _label, _val, _dd in _perf_cards:
+            _pc = (
+                _C["bull"]
+                if _val and _val > 0
+                else _C["bear"]
+                if _val and _val < 0
+                else _C["text_muted"]
+            )
+            _val_str = f"{_val:+.2f}%" if _val is not None else "—"
+            _sub = f"DD: {_dd:.1f}%" if _dd else ""
+            h.append(
+                f'<td style="width:{100 // len(_perf_cards)}%;background:{_C["bg_alt"]};'
+                f'border:1px solid {_C["border"]};padding:10px 12px;text-align:center;">'
+                f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
+                f'text-transform:uppercase;color:{_C["text_muted"]};">{_label}</div>'
+                f'<div style="font-size:18px;font-weight:800;color:{_pc};">{_val_str}</div>'
+            )
+            if _sub:
+                h.append(f'<div style="font-size:9px;color:{_C["text_muted"]};">{_sub}</div>')
+            h.append("</td>")
+
+        h.append("</tr></table>")
+
+        # Second row: eToro stats
+        if _rs or _cop or _wr:
+            h.append(
+                '<table style="width:100%;border-collapse:separate;border-spacing:6px 0;margin-top:6px;" cellpadding="0"><tr>'
+            )
+            _stat_cards = []
+            if _rs:
+                _stat_cards.append(("eToro Risk", str(_rs), "out of 10"))
+            if _cop:
+                _stat_cards.append(("Copiers", f"{_cop:,}", "active"))
+            if _wr:
+                _stat_cards.append(("Win Rate", f"{_wr:.1f}%", "of trades"))
+            if _eq:
+                _stat_cards.append(("AUM", f"${_eq:,.0f}", "total equity"))
+
+            for _sl, _sv, _ss in _stat_cards:
+                h.append(
+                    f'<td style="width:{100 // max(len(_stat_cards), 1)}%;background:{_C["bg_alt"]};'
+                    f'border:1px solid {_C["border"]};padding:8px 12px;text-align:center;">'
+                    f'<div style="font-size:9px;font-weight:700;letter-spacing:0.8px;'
+                    f'text-transform:uppercase;color:{_C["text_muted"]};">{_sl}</div>'
+                    f'<div style="font-size:16px;font-weight:800;color:{_C["text_dark"]};">{_sv}</div>'
+                    f'<div style="font-size:9px;color:{_C["text_muted"]};">{_ss}</div></td>'
+                )
+            h.append("</tr></table>")
+        h.append("</div>")
+
+    # Legacy fallback: equity_daily from portfolio.db (statement-imported)
     _perf_db = Path.home() / ".weirdapps-trading" / "portfolio" / "portfolio.db"
-    if _perf_db.exists():
+    if not _has_api_perf and _perf_db.exists():
         try:
             import sqlite3 as _sql3
 
             _pconn = _sql3.connect(str(_perf_db))
             _pconn.row_factory = _sql3.Row
-            _eq_count = (
-                _pconn.execute("SELECT COUNT(*) FROM equity_daily").fetchone()[0]
-                if _pconn.execute(
-                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='equity_daily'"
-                ).fetchone()[0]
-                else 0
-            )
+            _eq_count = 0
+            _has_eq = _pconn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='equity_daily'"
+            ).fetchone()[0]
+            if _has_eq:
+                _eq_count = _pconn.execute("SELECT COUNT(*) FROM equity_daily").fetchone()[0]
 
             if _eq_count > 30:
                 _eq_latest = _pconn.execute(
                     "SELECT equity_usd, cumulative_return_pct, date FROM equity_daily ORDER BY date DESC LIMIT 1"
                 ).fetchone()
+                # Skip if data is stale (>14 days old)
+                if _eq_latest:
+                    from datetime import datetime as _dt_check
+
+                    try:
+                        _db_age = (
+                            _dt_check.now()
+                            - _dt_check.strptime(str(_eq_latest["date"])[:10], "%Y-%m-%d")
+                        ).days
+                        if _db_age > 14:
+                            _pconn.close()
+                            raise StopIteration("stale_db")
+                    except (ValueError, TypeError):
+                        pass
                 _eq_30d = _pconn.execute(
                     "SELECT cumulative_return_pct FROM equity_daily WHERE date >= date('now', '-30 days') ORDER BY date LIMIT 1"
                 ).fetchone()
@@ -1325,10 +1448,20 @@ def generate_report_html(
                     _cb_level = _cb.get("level", "NORMAL")
                     _cb_dd = _cb.get("drawdown_pct", 0)
 
-                _eq_val_db = _eq_latest["equity_usd"] if _eq_latest else 0
+                # daily_metrics lacks equity_usd — use synth portfolio_value
+                _eq_val_db = (
+                    _eq_latest["equity_usd"]
+                    if _eq_latest and "equity_usd" in _eq_latest.keys()
+                    else 0
+                )
                 _eq_date_db = _eq_latest["date"] if _eq_latest else ""
                 _cum_ret = _eq_latest["cumulative_return_pct"] if _eq_latest else 0
-                _ret_30d = (_cum_ret - _eq_30d["cumulative_return_pct"]) if _eq_30d else 0
+                # CIO v46.0: Geometric 30d return, not additive subtraction
+                if _eq_30d and _eq_30d["cumulative_return_pct"] is not None:
+                    _c30 = _eq_30d["cumulative_return_pct"]
+                    _ret_30d = ((1 + _cum_ret / 100) / (1 + _c30 / 100) - 1) * 100
+                else:
+                    _ret_30d = 0
                 _eq_val = acct.get("total_equity") or pv or _eq_val_db
 
                 _cb_color = (
@@ -1884,18 +2017,7 @@ def generate_report_html(
             f'<span style="color:{_C["warn"]};font-weight:700;font-style:normal;">Kill thesis:</span> {e(kill)}</div>'
             f"{wf_html}"
         )
-        # CIO v35.0: Shadow waterfall comparison
-        shadow_keys = [k for k in wf if k.startswith("~")]
-        if shadow_keys:
-            shadow_sum = sum(wf[k] for k in shadow_keys)
-            if shadow_sum != 0:
-                _shadow_dir = "penalties" if shadow_sum < 0 else "bonuses"
-                inner += (
-                    f'<div style="font-size:9px;color:{_C["text_muted"]};margin-top:4px;'
-                    f'font-style:italic;">'
-                    f"v35 shadow: {len(shadow_keys)} disabled modifiers would have added "
-                    f"{shadow_sum:+d} {_shadow_dir}</div>"
-                )
+        # CIO v35.0: Shadow waterfall (internal calibration — not rendered)
         h.append(_card(inner, card_border, action_bg(act)))
 
     # SELL
@@ -2259,10 +2381,22 @@ def generate_report_html(
         else:
             # Show rank + outlook table when no return data available
             _outlook_colors = {
+                "OVERWEIGHT": _C["bull"],
                 "FAVORABLE": _C["bull"],
+                "UNDERWEIGHT": _C["bear"],
                 "UNFAVORABLE": _C["bear"],
                 "NEUTRAL": _C["text_muted"],
             }
+            # Derive outlook from rank when agent provides only ordinal ranks
+            _n_sectors = len([v for v in sector_rankings.values() if isinstance(v, dict)])
+            _all_neutral = all(
+                isinstance(v, dict) and v.get("relative_strength", "NEUTRAL") == "NEUTRAL"
+                for v in sector_rankings.values()
+                if isinstance(v, dict)
+            )
+            _top_n = max(_n_sectors // 3, 1)
+            _bot_n = max(_n_sectors // 3, 1)
+
             h.append(
                 f'<div style="{_LABEL}margin:16px 0 8px 0;">Sector Rankings (Macro View)</div>'
             )
@@ -2280,14 +2414,23 @@ def generate_report_html(
                 if not isinstance(data, dict):
                     continue
                 rank = data.get("rank", "?")
-                outlook = data.get("relative_strength", data.get("outlook", "NEUTRAL"))
-                oc = _outlook_colors.get(
-                    outlook.upper() if isinstance(outlook, str) else "", _C["text_muted"]
-                )
                 try:
                     rank_int = int(str(rank))
                 except (ValueError, TypeError):
                     rank_int = 99
+                # Derive outlook from rank position when agent gave all-NEUTRAL
+                if _all_neutral and rank_int <= _n_sectors:
+                    if rank_int <= _top_n:
+                        outlook = "OVERWEIGHT"
+                    elif rank_int > _n_sectors - _bot_n:
+                        outlook = "UNDERWEIGHT"
+                    else:
+                        outlook = "NEUTRAL"
+                else:
+                    outlook = data.get("relative_strength", data.get("outlook", "NEUTRAL"))
+                oc = _outlook_colors.get(
+                    outlook.upper() if isinstance(outlook, str) else "", _C["text_muted"]
+                )
                 bg = _C["bg_page"] if rank_int % 2 == 0 else _C["bg_white"]
                 h.append(
                     f'<tr style="background:{bg};">'
@@ -2333,6 +2476,88 @@ def generate_report_html(
                 f"{e(sr.get('quadrant', ''))}</span></td></tr>"
             )
         h.append("</table>")
+
+    # CIO v46.0: Quantitative Regime Detector panel
+    qr = synth.get("quantitative_regime", {})
+    if qr and qr.get("score") is not None:
+        qr_score = qr.get("score", 50)
+        qr_regime = str(qr.get("regime", "neutral")).upper().replace("_", " ")
+        qr_features = qr.get("features", {})
+        qr_vix = qr.get("vix", 0)
+        qr_bear = qr.get("bear_market_active", False)
+        qr_mult = qr.get("position_multiplier", 1.0)
+
+        # Score → color
+        if qr_score >= 60:
+            qr_col, qr_bg, qr_brd = _C["bull"], _C["bull_bg"], _C["bull_border"]
+        elif qr_score >= 40:
+            qr_col, qr_bg, qr_brd = _C["warn"], _C["warn_bg"], _C["warn_border"]
+        else:
+            qr_col, qr_bg, qr_brd = _C["bear"], _C["bear_bg"], _C["bear_border"]
+
+        h.append(
+            f'<div style="margin-top:20px;background:{qr_bg};border:1px solid {qr_brd};'
+            f'border-left:4px solid {qr_col};padding:16px 20px;">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+            f"<div>"
+            f'<div style="{_LABEL}color:{qr_col};margin-bottom:4px;">QUANTITATIVE REGIME MODEL</div>'
+            f'<div style="font-size:22px;font-weight:800;color:{qr_col};">'
+            f'{qr_regime} <span style="font-size:14px;font-weight:600;color:{_C["text_muted"]};">'
+            f"({qr_score:.0f}/100)</span></div>"
+        )
+        if qr_bear:
+            h.append(
+                f'<div style="font-size:10px;color:{_C["bear"]};font-weight:700;margin-top:2px;">'
+                f"&#9888; BEAR MARKET DAMPENER ACTIVE (SPY 2Y return negative)</div>"
+            )
+        h.append(
+            f'<div style="font-size:10px;color:{_C["text_muted"]};margin-top:2px;">'
+            f"Position sizing: {qr_mult:.0%} of normal</div>"
+            f"</div>"
+        )
+
+        # Score bar
+        h.append(
+            f'<div style="width:120px;text-align:center;">'
+            f'<div style="height:8px;background:{_C["border"]};width:100%;margin-bottom:4px;">'
+            f'<div style="height:100%;background:{qr_col};width:{min(qr_score, 100):.0f}%;"></div></div>'
+            f'<div style="font-size:9px;color:{_C["text_muted"]};">0 ← CRISIS | RISK ON → 100</div>'
+            f"</div></div>"
+        )
+
+        # Feature breakdown
+        if qr_features:
+            feature_labels = {
+                "vix_score": ("VIX Level", 0.30),
+                "spy_momentum": ("SPY Momentum", 0.25),
+                "term_structure": ("VIX Term Structure", 0.15),
+                "spy_drawdown": ("SPY Drawdown", 0.15),
+                "vix_trend": ("VIX Trend (5d)", 0.15),
+            }
+            h.append(
+                f'<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:11px;">'
+                f'<tr style="border-bottom:1px solid {qr_brd};">'
+                f'<th style="padding:4px 8px;text-align:left;{_LABEL}font-size:9px;">Factor</th>'
+                f'<th style="padding:4px 8px;text-align:center;{_LABEL}font-size:9px;">Weight</th>'
+                f'<th style="padding:4px 8px;text-align:center;{_LABEL}font-size:9px;">Score</th>'
+                f'<th style="padding:4px 8px;text-align:left;{_LABEL}font-size:9px;">Signal</th></tr>'
+            )
+            for feat_key, (feat_name, feat_weight) in feature_labels.items():
+                fval = qr_features.get(feat_key, 50)
+                fc = _C["bull"] if fval >= 60 else _C["bear"] if fval < 40 else _C["warn"]
+                fs_label = "RISK ON" if fval >= 60 else "RISK OFF" if fval < 40 else "NEUTRAL"
+                h.append(
+                    f'<tr><td style="padding:3px 8px;font-weight:600;">{feat_name}</td>'
+                    f'<td style="padding:3px 8px;text-align:center;color:{_C["text_muted"]};">'
+                    f"{feat_weight:.0%}</td>"
+                    f'<td style="padding:3px 8px;text-align:center;{_MONO}font-weight:700;color:{fc};">'
+                    f"{fval:.0f}</td>"
+                    f'<td style="padding:3px 8px;">{dot(fc)} '
+                    f'<span style="font-size:10px;color:{_C["text_muted"]};">{fs_label}</span>'
+                    f"</td></tr>"
+                )
+            h.append("</table>")
+        h.append("</div>")
 
     h.append(_section_close())
 
@@ -3268,56 +3493,8 @@ def generate_report_html(
 
         h.append(_section_close())
 
-        # CIO Phase 2: Currency Exposure & FX Hedge (monitor only).
-        try:
-            from trade_modules.fx_hedge_monitor import (
-                compute_currency_exposure,
-                hedge_pct_table,
-            )
-
-            _fx_exp = compute_currency_exposure(_cur_pos_map)
-        except Exception:
-            _fx_exp = None
-        if _fx_exp and _fx_exp["by_currency"]:
-            h.append(
-                _section_open(
-                    "Currency Exposure &amp; FX Hedge",
-                    "EUR-home view: currency split of the book and the EURUSD hedge implied "
-                    "at 0/50/100% of the USD bloc (recommend-only &mdash; no standing hedge set).",
-                )
-            )
-            h.append(f'<table style="{_TABLE}">')
-            h.append(
-                f'<tr style="border-bottom:2px solid {_C["border"]};">'
-                f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Currency</th>'
-                f'<th style="padding:6px 10px;text-align:right;{_LABEL}">Weight</th></tr>'
-            )
-            for _row in _fx_exp["by_currency"]:
-                h.append(
-                    f'<tr><td style="padding:6px 10px;">{e(_row["currency"])}</td>'
-                    f'<td style="padding:6px 10px;text-align:right;{_MONO}">'
-                    f"{_row['weight_pct']:.1f}%</td></tr>"
-                )
-            h.append("</table>")
-            _usd = _fx_exp["usd_bloc_pct"]
-            h.append(
-                f'<div style="{_LABEL}margin:12px 0 6px 0;">USD bloc (USD + USD-pegged HKD): '
-                f"<b>{_usd:.1f}%</b> of book &mdash; EURUSD hedge implied:</div>"
-            )
-            h.append(f'<table style="{_TABLE}">')
-            h.append(
-                f'<tr style="border-bottom:2px solid {_C["border"]};">'
-                f'<th style="padding:6px 10px;text-align:left;{_LABEL}">Hedge ratio</th>'
-                f'<th style="padding:6px 10px;text-align:right;{_LABEL}">EURUSD long (% of equity)</th></tr>'
-            )
-            for _hr in hedge_pct_table(_usd):
-                h.append(
-                    f'<tr><td style="padding:6px 10px;">{int(_hr["ratio"] * 100)}%</td>'
-                    f'<td style="padding:6px 10px;text-align:right;{_MONO}">'
-                    f"{_hr['hedge_pct_of_equity']:.1f}%</td></tr>"
-                )
-            h.append("</table>")
-            h.append(_section_close())
+        # CIO v46.0: FX Hedge table merged into Currency Exposure (section 3).
+        # The standalone duplicate section is removed to cut report bloat.
 
     # ══════════════════════════════════════════════════════════════════
     # ACT III: DEEP CONTEXT (full mode only)
@@ -3642,11 +3819,16 @@ def generate_report_html(
         h.append(_section_close())
 
     # ── S10: TECHNICAL ANALYSIS ──
-    if tech_stocks and not daily:
+    # CIO v46.0: Filter technical analysis to portfolio stocks only
+    # (universe-level data adds bulk without decision value)
+    _port_tech = (
+        {t: d for t, d in tech_stocks.items() if t in _portfolio_tickers} if tech_stocks else {}
+    )
+    if _port_tech and not daily:
         h.append(
             _section_open(
                 "Technical Analysis",
-                f"{total_tech} stocks. Price momentum and trend signals &mdash; "
+                f"{len(_port_tech)} portfolio stocks. Price momentum and trend signals &mdash; "
                 f"RSI measures momentum (below 30 = oversold opportunity, above 70 = overheated). "
                 f"ADX measures trend strength (above 30 = strong trend).",
             )
@@ -3669,7 +3851,7 @@ def generate_report_html(
                 ]
             )
         )
-        sorted_tech = sorted(tech_stocks.items(), key=lambda x: x[1].get("momentum_score", 0))
+        sorted_tech = sorted(_port_tech.items(), key=lambda x: x[1].get("momentum_score", 0))
         for i, (tkr, td) in enumerate(sorted_tech[:20]):
             rsi_v = td.get("rsi", 50)
             macd = td.get("macd_signal", "?")
@@ -3792,9 +3974,9 @@ def generate_report_html(
                 )
             )
         h.append("</table>")
-        # Oversold / Overbought callouts
-        oversold = [t for t, d in tech_stocks.items() if d.get("rsi", 50) < 30]
-        overbought = [t for t, d in tech_stocks.items() if d.get("rsi", 50) > 70]
+        # Oversold / Overbought callouts (portfolio-only)
+        oversold = [t for t, d in _port_tech.items() if d.get("rsi", 50) < 30]
+        overbought = [t for t, d in _port_tech.items() if d.get("rsi", 50) > 70]
         if oversold:
             h.append(
                 f'<div style="margin-top:12px;"><span style="{_LABEL}color:{_C["bull"]};">Oversold (RSI&lt;30): </span>'
@@ -3806,8 +3988,8 @@ def generate_report_html(
                 f"{_pill_list(overbought, _C['bear_bg'], _C['bear_text'], _C['bear_border'])}</div>"
             )
         # Divergence alerts (CIO v22.0 E4)
-        bull_divs = [t for t, d in tech_stocks.items() if d.get("divergence") == "bullish"]
-        bear_divs = [t for t, d in tech_stocks.items() if d.get("divergence") == "bearish"]
+        bull_divs = [t for t, d in _port_tech.items() if d.get("divergence") == "bullish"]
+        bear_divs = [t for t, d in _port_tech.items() if d.get("divergence") == "bearish"]
         if bull_divs:
             h.append(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bull"]};">Bullish Divergence: </span>'
@@ -3818,15 +4000,15 @@ def generate_report_html(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">Bearish Divergence: </span>'
                 f"{_pill_list(bear_divs, _C['bear_bg'], _C['bear_text'], _C['bear_border'])}</div>"
             )
-        # CIO v23.3: Multi-timeframe confluence highlights
+        # CIO v23.3: Multi-timeframe confluence highlights (portfolio-only)
         strong_conf = [
             (t, d.get("confluence_score", 0))
-            for t, d in tech_stocks.items()
+            for t, d in _port_tech.items()
             if d.get("confluence_score", 0) >= 5
         ]
         weak_conf = [
             (t, d.get("confluence_score", 0))
-            for t, d in tech_stocks.items()
+            for t, d in _port_tech.items()
             if d.get("confluence_score", 0) <= -3
         ]
         if strong_conf:
@@ -3841,10 +4023,10 @@ def generate_report_html(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["bear"]};">Conflicting Timeframes: </span>'
                 f"{_pill_list(wconf_items, _C['bear_bg'], _C['bear_text'], _C['bear_border'], mono=False)}</div>"
             )
-        # CIO v23.4: High IV rank alerts
+        # CIO v23.4: High IV rank alerts (portfolio-only)
         high_iv = [
             (t, d.get("iv_rank", 0))
-            for t, d in tech_stocks.items()
+            for t, d in _port_tech.items()
             if d.get("iv_rank") and d["iv_rank"] > 70
         ]
         if high_iv:
@@ -3853,10 +4035,10 @@ def generate_report_html(
                 f'<div style="margin-top:8px;"><span style="{_LABEL}color:{_C["warn"]};">High IV Rank (&gt;70): </span>'
                 f"{_pill_list(iv_items, _C['warn_bg'], _C['warn_text'], _C['warn_border'], mono=False)}</div>"
             )
-        # CIO v23.4: Volatility regime extremes
+        # CIO v23.4: Volatility regime extremes (portfolio-only)
         extreme_vol = [
             t
-            for t, d in tech_stocks.items()
+            for t, d in _port_tech.items()
             if d.get("volatility_regime") in ("HIGH_VOL", "EXTREME")
         ]
         if extreme_vol:
@@ -3883,16 +4065,83 @@ def generate_report_html(
                 "patterns reveal crowd positioning.",
             )
         )
-        if cash100 > 0:
+        # Cash KPI
+        _cen_sentiment = synth.get("census_sentiment", {})
+        _cash_broad = _cen_sentiment.get("cash_broad", 0)
+        _cash_trend = _cen_sentiment.get("trend_summary", "")
+        if cash100 > 0 or _cash_broad > 0:
             h.append(
                 '<table style="width:100%;border-collapse:separate;border-spacing:10px 0;margin-bottom:16px;"><tr>'
             )
             h.append(_kpi_card("Cash Top 100", f"{cash100:.1f}%", cash_label))
+            if _cash_broad > 0:
+                _bl = (
+                    "Defensive"
+                    if _cash_broad > 15
+                    else "Deploying"
+                    if _cash_broad < 8
+                    else "Normal"
+                )
+                h.append(_kpi_card("Cash Broad 1500", f"{_cash_broad:.1f}%", _bl))
+            if _cash_trend:
+                h.append(_kpi_card("Trend", str(_cash_trend)[:20], "assessment"))
             h.append("</tr></table>")
+
+        # CIO v46.0: Top PI Holdings table — most valuable census insight
+        _top_holdings = synth.get("top_holdings_top100", [])
+        if _top_holdings:
+            h.append(f'<div style="{_LABEL}margin-bottom:8px;">Top 10 Holdings (Top 100 PIs)</div>')
+            h.append(
+                f'<table style="{_TABLE}">'
+                f'<tr style="border-bottom:2px solid {_C["border"]};">'
+                f'<th style="padding:5px 8px;text-align:left;{_LABEL}font-size:9px;">#</th>'
+                f'<th style="padding:5px 8px;text-align:left;{_LABEL}font-size:9px;">Stock</th>'
+                f'<th style="padding:5px 8px;text-align:center;{_LABEL}font-size:9px;">Holders %</th>'
+                f'<th style="padding:5px 8px;text-align:center;{_LABEL}font-size:9px;">Avg Alloc</th>'
+                f'<th style="padding:5px 8px;text-align:center;{_LABEL}font-size:9px;">In Portfolio</th>'
+                f"</tr>"
+            )
+            for _i, _th in enumerate(_top_holdings[:10], 1):
+                _sym = _th.get("symbol", _th.get("ticker", "?"))
+                _hp = _th.get("holders_pct", _th.get("percentage", 0))
+                _aa = _th.get("avg_alloc", _th.get("average_allocation", 0))
+                _in_port = "&#10003;" if _sym in _portfolio_tickers else "&#10007;"
+                _in_col = _C["bull"] if _sym in _portfolio_tickers else _C["bear"]
+                _bg = _C["bg_page"] if _i % 2 == 0 else _C["bg_white"]
+                h.append(
+                    f'<tr style="background:{_bg};">'
+                    f'<td style="padding:4px 8px;font-weight:700;color:{_C["text_muted"]};">{_i}</td>'
+                    f'<td style="padding:4px 8px;{_MONO}font-weight:700;">{e(str(_sym))}</td>'
+                    f'<td style="padding:4px 8px;text-align:center;">{_hp:.1f}%</td>'
+                    f'<td style="padding:4px 8px;text-align:center;">{_aa:.1f}%</td>'
+                    f'<td style="padding:4px 8px;text-align:center;color:{_in_col};font-weight:700;">{_in_port}</td>'
+                    f"</tr>"
+                )
+            h.append("</table>")
+
+        # Census divergences — signal vs crowd disagree
+        _cen_divs = census.get("divergences", census.get("divergence_analysis", {}))
+        if isinstance(_cen_divs, dict):
+            _sig_divs = _cen_divs.get("signal_divergences", [])
+            _cen_divs_list = _cen_divs.get("census_divergences", [])
+            if _sig_divs:
+                h.append(
+                    f'<div style="margin-top:12px;{_LABEL}color:{_C["warn"]};">Signal Divergences '
+                    f"(strong signal but PIs absent)</div>"
+                )
+                for _sd in _sig_divs[:5]:
+                    _dtk = _sd.get("ticker", "?")
+                    _dnote = _sd.get("note", "")
+                    h.append(
+                        f'<div style="font-size:11px;color:{_C["text_body"]};margin:3px 0;">'
+                        f'<span style="{_MONO}font-weight:700;">{e(str(_dtk))}</span> — {e(str(_dnote)[:100])}</div>'
+                    )
+
+        # Popular stocks not in portfolio
         missing = synth.get("missing_popular", [])
         if missing:
             h.append(
-                f'<div style="{_LABEL}color:{_C["warn"]};margin-bottom:8px;">Popular NOT in Portfolio</div><div>'
+                f'<div style="{_LABEL}color:{_C["warn"]};margin:12px 0 8px 0;">Popular NOT in Portfolio</div><div>'
             )
             for m in missing[:10]:
                 tkr = m if isinstance(m, str) else m.get("symbol", m.get("ticker", "?"))
@@ -4224,7 +4473,25 @@ def generate_report_html(
         h.append(_section_close())
 
     # ── S13: NEW OPPORTUNITIES ──
-    opp_list = opps.get("top_opportunities", [])
+    # CIO v46.0: Deduplicate by ticker (keep highest score) and exclude
+    # stocks already in portfolio (those belong in Action Items, not here).
+    _portfolio_tickers = {en.get("ticker") for en in concordance if not en.get("is_opportunity")}
+    _raw_opps = opps.get("top_opportunities", [])
+    _seen_opp: dict[str, dict] = {}
+    for _o in _raw_opps:
+        _ot = _o.get("ticker", "")
+        if not _ot or _ot in _portfolio_tickers:
+            continue
+        _os = _o.get("opportunity_score", _o.get("score", 0))
+        if _ot not in _seen_opp or _os > _seen_opp[_ot].get(
+            "opportunity_score", _seen_opp[_ot].get("score", 0)
+        ):
+            _seen_opp[_ot] = _o
+    opp_list = sorted(
+        _seen_opp.values(),
+        key=lambda x: x.get("opportunity_score", x.get("score", 0)),
+        reverse=True,
+    )
     opp_stats = opps.get("screening_stats", {})
     if opp_list:
         if daily:
@@ -4449,11 +4716,23 @@ def generate_report_html(
         h.append(_section_close())
 
     # ── S16: TRACK RECORD (moved to epilogue) ──
+    # CIO v46.0: Hide when data is broken (all returns 0.0% = no real measurement)
     perf = synth.get("performance", {})
+    _perf_actions = perf.get("actions", {})
+    _all_returns_zero = (
+        all(
+            abs(v.get("avg_return", 0)) < 0.01
+            for v in _perf_actions.values()
+            if isinstance(v, dict)
+        )
+        if _perf_actions
+        else True
+    )
     if (
         perf
         and perf.get("status") == "complete"
         and perf.get("total_evaluated", 0) > 0
+        and not _all_returns_zero
         and not daily
     ):
         h.append(
@@ -4558,8 +4837,14 @@ def generate_report_html(
     _calibration_data = synth.get("calibration_report", {}) or synth.get("performance", {}).get(
         "calibration", {}
     )
+    _s17_actions = perf_data.get("actions", {})
+    _s17_all_zero = (
+        all(abs(v.get("avg_return", 0)) < 0.01 for v in _s17_actions.values() if isinstance(v, dict))
+        if _s17_actions
+        else True
+    )
     _has_s17_content = (
-        perf_data.get("actions")
+        (perf_data.get("actions") and not _s17_all_zero)
         or _scorecard_data.get("buy_recommendations", {}).get("total", 0) > 0
         or any(e.get("conviction_waterfall") for e in concordance)
     )
@@ -4983,8 +5268,9 @@ def generate_report_html(
         h.append("</div>")
         h.append(_section_close())
 
-    # ── GLOSSARY (casual investor reference) ──
-    if not daily:
+    # ── GLOSSARY — removed (CIO v46.0: static reference content,
+    # not regenerated per report. Glossary terms defined in the Reading Guide above.)
+    if False and not daily:  # Disabled
         _gloss = [
             (
                 "RSI",
@@ -5073,7 +5359,156 @@ def generate_report_html(
     )
     h.append("</div></body></html>")
 
-    return "\n".join(h)
+    raw_html = "\n".join(h)
+
+    # CIO v46.0: Restructure sections from ~15 → 9 to match Brief narrative.
+    if not daily:
+        raw_html = _restructure_sections(raw_html)
+
+    return raw_html
+
+
+def _restructure_sections(html: str) -> str:
+    """Reorder and merge report sections: 15 → 9.
+
+    New structure:
+      ACT I  — S1: Executive Summary, S2: Action Items
+      ACT II — S3: Stock Analysis Grid, S4: Market Intelligence (macro+census+news),
+               S5: Where We Disagreed, S6: Portfolio Risk (risk+construction+FX)
+      ACT III — S7: Opportunity Pipeline (opps+watchlist),
+                S8: Deep Analysis (fundamental+technical), S9: Track Record
+    """
+    import re
+
+    # Split HTML into sections by H2 boundaries
+    h2_pattern = re.compile(r'(<h2[^>]*>[^<]+</h2>)')
+    parts = h2_pattern.split(html)
+
+    # Build named section dict: header → content
+    sections: dict[str, str] = {}
+    # First part is everything before the first H2 (header, hero, act labels)
+    preamble = parts[0] if parts else ""
+    i = 1
+    while i < len(parts) - 1:
+        header = parts[i]
+        content = parts[i + 1]
+        # Extract section name from H2
+        m = re.search(r'>([^<]+)<', header)
+        name = m.group(1).strip() if m else f"section_{i}"
+        sections[name] = header + content
+        i += 2
+    # Anything after last section
+    trailer = parts[-1] if len(parts) > 1 and not h2_pattern.match(parts[-1]) else ""
+
+    # Define merge groups with new titles
+    # Each group: (new_title, [old_section_names_to_merge], act_label)
+    act_i = (
+        '<div style="padding:20px 0 8px 0;border-bottom:2px solid #1a1a1a;">'
+        '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;'
+        'text-transform:uppercase;color:#888888;">DECISIONS</div>'
+        '<div style="font-size:11px;color:#888888;">What to do with your portfolio right now</div></div>'
+    )
+    act_ii = (
+        '<div style="padding:20px 0 8px 0;border-bottom:2px solid #1a1a1a;">'
+        '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;'
+        'text-transform:uppercase;color:#888888;">MARKET INTELLIGENCE</div>'
+        '<div style="font-size:11px;color:#888888;">The bigger picture: economy, markets, and how your portfolio fits</div></div>'
+    )
+    act_iii = (
+        '<div style="padding:20px 0 8px 0;border-bottom:2px solid #1a1a1a;">'
+        '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;'
+        'text-transform:uppercase;color:#888888;">REFERENCE</div>'
+        '<div style="font-size:11px;color:#888888;">Detailed data behind the recommendations</div></div>'
+    )
+
+    def _find(name_fragment: str) -> str:
+        """Find a section by partial name match."""
+        for k, v in sections.items():
+            if name_fragment.lower() in k.lower():
+                return v
+        return ""
+
+    def _merge_under(new_title: str, fragments: list[str]) -> str:
+        """Merge sections, replacing their individual H2s with subsection labels."""
+        merged_content = []
+        for frag_name in fragments:
+            s = _find(frag_name)
+            if not s:
+                continue
+            # Replace the H2 with a subsection label (smaller, no section break)
+            s = re.sub(
+                r'<h2[^>]*>[^<]+</h2>',
+                lambda m: (
+                    f'<div style="font-size:13px;font-weight:700;color:#1a1a1a;'
+                    f'margin:24px 0 12px 0;padding-top:16px;'
+                    f'border-top:1px solid #e5e5e5;">'
+                    f'{re.search(r">([^<]+)<", m.group()).group(1).strip()}</div>'
+                ),
+                s,
+                count=1,
+            )
+            merged_content.append(s)
+        if not merged_content:
+            return ""
+        # Wrap with new H2
+        h2 = (
+            f'<div style="padding:28px 0;border-bottom:1px solid #e5e5e5;">'
+            f'<h2 style="margin:0 0 8px 0;font-size:18px;font-weight:700;'
+            f'color:#1a1a1a;letter-spacing:-0.3px;">{new_title}</h2>'
+        )
+        close = "</div>"
+        return h2 + "".join(merged_content) + close
+
+    # Build the restructured report
+    out = [preamble]
+
+    # ACT I — DECISIONS
+    out.append(act_i)
+    out.append(_find("Executive Summary"))
+    out.append(_find("Action Items"))
+
+    # ACT II — INTELLIGENCE
+    out.append(act_ii)
+    out.append(_find("Stock Analysis Grid"))
+    out.append(
+        _merge_under(
+            "Market Intelligence",
+            ["Macro", "Sentiment", "News"],
+        )
+    )
+    out.append(_find("Where We Disagreed"))
+    out.append(
+        _merge_under(
+            "Portfolio Risk &amp; Construction",
+            ["Portfolio Risk", "Portfolio Construction", "Currency Exposure"],
+        )
+    )
+
+    # ACT III — REFERENCE
+    out.append(act_iii)
+    out.append(
+        _merge_under(
+            "Opportunity Pipeline",
+            ["New Opportunities", "Watchlist"],
+        )
+    )
+    out.append(
+        _merge_under(
+            "Deep Analysis",
+            ["Fundamental", "Technical"],
+        )
+    )
+    # Track Record + Signal Report Card (if they rendered)
+    _tr = _find("Track Record")
+    _sr = _find("Signal Report Card")
+    if _tr or _sr:
+        out.append(
+            _merge_under("Track Record", ["Track Record", "Signal Report Card"])
+        )
+
+    out.append(trailer)
+
+    return "\n".join(part for part in out if part)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -6494,8 +6929,12 @@ def generate_report_html_v2(
         )
     h.append("</tr></table>")
 
-    # Sector heatmap
-    if sector_rankings:
+    # Sector heatmap — only show when return data is available (not all zero)
+    _sr_has_returns = sector_rankings and any(
+        isinstance(d, dict) and (d.get("return_1m", 0) != 0 or d.get("return_3m", 0) != 0)
+        for d in sector_rankings.values()
+    )
+    if _sr_has_returns:
         h.append(
             f'<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;'
             f'text-transform:uppercase;color:{_TXM};margin:0 0 8px 0;">Sector Rotation</div>'
