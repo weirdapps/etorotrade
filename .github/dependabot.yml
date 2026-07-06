@@ -45,3 +45,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Group all GitHub Actions bumps into a single PR. codeql-action/init and
+    # codeql-action/analyze are pinned to the same SHA and MUST move together;
+    # separate PRs leave the steps on different versions and fail the analyze job.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
