@@ -289,7 +289,7 @@ scripts/dev/lint.sh          # black --check + isort --check + flake8 + mypy
 scripts/dev/format.sh        # black + isort auto-format
 ```
 
-Line length: 100. Formatter: `black`. Import sort: `isort`. Linter: `flake8` + `ruff` (see `pyproject.toml`). Type checker: `mypy` runs in lenient mode and does not gate CI.
+Line length: 100. Enforced formatter and linter: `ruff` (`ruff-format` + `ruff check`, via `.pre-commit-config.yaml`). The legacy `scripts/dev/lint.sh` and `format.sh` still call `black`/`isort`/`flake8`, but they are not CI-gated. Type checker: `mypy` runs in lenient mode and does not gate CI.
 
 ### Updating dependencies
 
