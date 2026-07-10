@@ -35,7 +35,7 @@ The universe it scans is the ~12k tickers offered on eToro, plus your own portfo
 ## Signal pipeline
 
 ```mermaid
-flowchart LR
+flowchart TD
     A[Ticker universe<br/>yahoofinance/input/*.csv] --> B[AsyncHybridProvider<br/>yfinance + yahooquery]
     B --> C[Analysis engine<br/>tier + region gates from config.yaml]
     C --> D{BS classifier}
