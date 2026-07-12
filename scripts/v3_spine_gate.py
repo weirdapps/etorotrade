@@ -12,7 +12,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd
 
 from trade_modules.v3.labels import forward_returns
 from trade_modules.v3.prices import load_eur_close
@@ -25,8 +24,8 @@ HORIZONS = [5, 21, 63]
 
 
 def month_end_rebalances(index) -> list:
-    s = pd.Series(index=index, data=1)
-    return list(s.resample("ME").last().dropna().index.intersection(index))
+    s = index.to_series()
+    return sorted(s.groupby([index.year, index.month]).max().tolist())
 
 
 def main() -> None:
@@ -71,6 +70,9 @@ def main() -> None:
         f"  primary_ic_pass={verdict['primary_ic_pass']}  dsr_pass={verdict['dsr_pass']}  "
         f"GATE_PASS={verdict['gate_pass']}"
     )
+    reasons = verdict["harness"].get("overall", {}).get("reasons", [])
+    if reasons:
+        print("  harness reasons: " + "; ".join(str(r) for r in reasons))
     print(f"  report: {out}")
 
 
