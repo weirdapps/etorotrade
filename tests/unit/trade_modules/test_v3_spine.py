@@ -41,3 +41,9 @@ def test_spine_scores_shape():
     s = spine_scores(c, dates)
     assert set(s.columns) == {"as_of", "ticker", "score"}
     assert len(s) == 3
+
+
+def test_momentum_empty_when_skip_exceeds_index():
+    """skip > i must not wrap to a future bar via negative iloc."""
+    c = _trend_close()
+    assert momentum_12_1(c, c.index[-1], skip=10_000).empty

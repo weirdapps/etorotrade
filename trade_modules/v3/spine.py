@@ -23,7 +23,7 @@ def momentum_12_1(
     if asof not in idx:
         return pd.Series(dtype=float)
     i = idx.get_loc(asof)
-    if i - lookback < 0:
+    if i - skip < 0 or i - lookback < 0:
         return pd.Series(dtype=float)
     mom = (eur_close.iloc[i - skip] / eur_close.iloc[i - lookback]) - 1.0
     return _z(mom.dropna())
