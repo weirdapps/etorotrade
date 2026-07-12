@@ -1,8 +1,9 @@
-"""v3 factor report renderer — house Swiss style, Outlook-safe HTML.
+"""v3 factor report renderer — refined editorial financial style.
 
 ``render_report(scores, meta) -> str`` returns a full standalone HTML
-document.  All multi-column layout uses ``<table>`` (no flex/gap, no
-border-radius) so it renders in Outlook as well as browsers.
+document meant to be read in a browser: a luxury research-note layout with
+Fraunces / IBM Plex typography, a light editorial palette, responsive
+CSS-grid cards, diverging factor z-bars and conviction meters.
 
 ``compute_regime(index_close) -> (label, detail)`` is a pure helper the
 driver script feeds with a fetched index series; kept network-free here.
@@ -15,23 +16,25 @@ import html as _html
 import numpy as np
 import pandas as pd
 
-# --- Swiss palette / type tokens -------------------------------------------
-BG = "#ffffff"
-BG_ALT = "#fafafa"
-INK = "#1a1a1a"
-TXT = "#333333"
-MUTE = "#888888"
-FAINT = "#999999"
-LINE = "#e5e5e5"
+# --- editorial palette (light; the user's) ---------------------------------
+INK = "#16181d"  # primary ink
+INK2 = "#4a4e57"  # secondary ink
+MUTED = "#9aa0a8"  # muted labels
+LINE = "#e7e6e2"  # hairline
+WARM = "#faf9f7"  # whisper-warm section tone
+ACCENT = "#123b3a"  # deep ink-teal structural accent
 BULL = "#2d6a4f"
-BULL_BG = "#ecfdf5"
-BEAR = "#c0392b"
-BEAR_BG = "#fdf2f2"
-FONT = "'Helvetica Neue',Helvetica,Arial,sans-serif"
+BULL_BAR = "#bfe3cd"
+BEAR = "#b3402f"
+BEAR_BAR = "#f2c4bb"
+TRACK = "#efeeea"  # neutral z-bar track
 
-_EYEBROW = (
-    f"font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:{MUTE};"
-)
+# Bar scaling: metric z clamps at ±2.5; conviction meter uses a robust
+# per-frame scale (90th pct of |conviction|) so typical names read strongly
+# and rare outliers simply saturate. Clamped to a sane [floor, cap] band.
+_Z_METRIC = 2.5
+_CONV_FLOOR = 1.75
+_CONV_CAP = 3.0
 
 # Display grouping of metrics: (group label, [(feature_key, metric label), ...]).
 # A z-score column ``{key}_z`` is shown when present; else the raw value only.
@@ -83,6 +86,15 @@ DISPLAY_GROUPS = [
     ("Income", [("div_yield", "Div Yield")]),
 ]
 
+# Group label -> the cluster z column shown beside the group header (when present).
+GROUP_CLUSTER = {
+    "Value": "value_z",
+    "Quality": "quality_z",
+    "Momentum": "momentum_z",
+    "Low-vol": "lowvol_z",
+    "Strength": "strength_z",
+}
+
 # Formatting hints.
 _PCT_FRACTION = {
     "roa",
@@ -95,14 +107,6 @@ _PCT_FRACTION = {
 _PCT_NUMBER = {"upside", "buy_pct", "fcf", "div_yield"}
 _MONEY = {"price", "target_high", "target_low"}
 _HUMAN = {"cap", "adv_usd", "avg_volume"}
-
-CLUSTER_LABELS = [
-    ("value_z", "Val"),
-    ("quality_z", "Qual"),
-    ("momentum_z", "Mom"),
-    ("lowvol_z", "LoVol"),
-    ("strength_z", "Str"),
-]
 
 
 # --- small helpers ----------------------------------------------------------
@@ -129,7 +133,7 @@ def _human_money(v: float) -> str:
 
 def _fmt(key: str, v) -> str:
     if _isnan(v):
-        return "—"
+        return "–"
     try:
         v = float(v)
     except (TypeError, ValueError):
@@ -148,31 +152,58 @@ def _fmt(key: str, v) -> str:
 
 def _z_color(z) -> str:
     if _isnan(z):
-        return FAINT
-    return BULL if z > 0 else (BEAR if z < 0 else FAINT)
+        return MUTED
+    return BULL if z > 0 else (BEAR if z < 0 else MUTED)
 
 
-def _z_cell(z) -> str:
-    if _isnan(z):
-        return f'<span style="color:{FAINT};">·</span>'
-    return f'<span style="color:{_z_color(z)};font-weight:600;">{z:+.2f}</span>'
+def _znum(z) -> str:
+    return "·" if _isnan(z) else f"{z:+.2f}"
 
 
-def _tilt(conv: float, is_portfolio: bool) -> tuple[str, str, str]:
-    """Return (label, text_color, bg_color) for the tilt badge."""
+def _tilt(conv: float, is_portfolio: bool) -> tuple[str, str]:
+    """Return (label, css_class) for the tilt badge."""
     if _isnan(conv):
-        return ("n/a", FAINT, BG_ALT)
+        return ("n/a", "tilt-flat")
     if is_portfolio:
         if conv > 0.5:
-            return ("ADD", BULL, BULL_BG)
+            return ("ADD", "tilt-bull")
         if conv < -0.5:
-            return ("TRIM", BEAR, BEAR_BG)
-        return ("HOLD", TXT, BG_ALT)
+            return ("TRIM", "tilt-bear")
+        return ("HOLD", "tilt-flat")
     if conv > 0.5:
-        return ("BUY-WATCH", BULL, BULL_BG)
+        return ("BUY-WATCH", "tilt-bull")
     if conv < -0.5:
-        return ("PASS", BEAR, BEAR_BG)
-    return ("WATCH", TXT, BG_ALT)
+        return ("PASS", "tilt-bear")
+    return ("WATCH", "tilt-flat")
+
+
+def _conv_scale(scores: pd.DataFrame) -> float:
+    """Robust symmetric scale for conviction meters.
+
+    Uses the 90th percentile of |conviction| (clamped to [floor, cap]) so the
+    bulk of names fill a meaningful portion of the meter and a lone extreme
+    (its numeric value still shown) saturates rather than crushing everything.
+    """
+    c = pd.to_numeric(scores.get("conviction", pd.Series(dtype=float)), errors="coerce").abs()
+    c = c.dropna()
+    if c.empty:
+        return _CONV_FLOOR
+    p90 = float(np.nanpercentile(c, 90))
+    return min(_CONV_CAP, max(_CONV_FLOOR, p90))
+
+
+def _bar(z, zmax: float, cls: str) -> str:
+    """A diverging horizontal bar centered at 0 (green right / red left).
+
+    ``cls`` is the CSS base class (``zbar`` or ``meter``); the fill spans up
+    to half the track (50%) at ``|z| >= zmax``. NaN renders the bare track.
+    """
+    if _isnan(z) or zmax <= 0:
+        return f'<span class="{cls}"></span>'
+    frac = min(abs(float(z)) / zmax, 1.0)
+    w = frac * 50.0
+    side = "pos" if z >= 0 else "neg"
+    return f'<span class="{cls}"><span class="{cls}-fill {cls}-{side}" style="width:{w:.1f}%;"></span></span>'
 
 
 # --- regime (pure; script supplies the fetched index series) ----------------
@@ -205,173 +236,305 @@ def compute_regime(index_close: pd.Series) -> tuple[str, str]:
 
 
 # --- card + section builders ------------------------------------------------
-def _group_block(row: pd.Series, cols, group_label: str, metrics) -> str:
-    rows_html = []
-    for key, label in metrics:
-        raw = row.get(key, np.nan) if key in cols else np.nan
-        zkey = f"{key}_z"
-        has_z = zkey in cols
-        z_html = (
-            _z_cell(row.get(zkey, np.nan)) if has_z else f'<span style="color:{FAINT};">·</span>'
+def _unit(row: pd.Series, cols, key: str, label: str) -> str:
+    """One metric tile.
+
+    Scored metrics (a ``{key}_z`` column exists) show label + value (mono) +
+    a tiny diverging z-bar and numeric z. Reference metrics with no z column
+    (Mkt Cap, Avg Vol, ADV, Div Yield, Tgt High/Low) show only label + value,
+    so context data reads distinctly from scored factors.
+    """
+    raw = row.get(key, np.nan) if key in cols else np.nan
+    val = _fmt(key, raw)
+    zkey = f"{key}_z"
+    if zkey not in cols:
+        return (
+            f'<div class="unit unit-ctx">'
+            f'<div class="unit-l">{label}</div>'
+            f'<div class="unit-v">{val}</div>'
+            f"</div>"
         )
-        rows_html.append(
-            f"<tr>"
-            f'<td style="padding:2px 8px 2px 0;color:{TXT};font-size:11px;white-space:nowrap;">{label}</td>'
-            f'<td style="padding:2px 8px;color:{INK};font-size:11px;font-weight:600;text-align:right;white-space:nowrap;">{_fmt(key, raw)}</td>'
-            f'<td style="padding:2px 0 2px 8px;font-size:11px;text-align:right;white-space:nowrap;">{z_html}</td>'
-            f"</tr>"
-        )
+    z = row.get(zkey, np.nan)
     return (
-        f'<div style="{_EYEBROW}margin:0 0 4px 0;color:{FAINT};">{group_label}</div>'
-        f'<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:14px;">'
-        f"{''.join(rows_html)}</table>"
+        f'<div class="unit">'
+        f'<div class="unit-l">{label}</div>'
+        f'<div class="unit-v">{val}</div>'
+        f'<div class="unit-z">{_bar(z, _Z_METRIC, "zbar")}'
+        f'<span class="znum" style="color:{_z_color(z)};">{_znum(z)}</span></div>'
+        f"</div>"
     )
 
 
-def _card(tkr: str, row: pd.Series, cols) -> str:
+def _group(row: pd.Series, cols, label: str, metrics) -> str:
+    cluster_key = GROUP_CLUSTER.get(label)
+    cz_html = ""
+    if cluster_key:
+        cz = row.get(cluster_key, np.nan)
+        cz_html = f'<span class="grp-z" style="color:{_z_color(cz)};">{_znum(cz)}</span>'
+    units = "".join(_unit(row, cols, k, lbl) for k, lbl in metrics)
+    return (
+        f'<div class="grp">'
+        f'<div class="grp-head"><span class="grp-name">{label}</span>{cz_html}</div>'
+        f'<div class="units">{units}</div>'
+        f"</div>"
+    )
+
+
+def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> str:
     conv = row.get("conviction", np.nan)
     rank = row.get("rank", np.nan)
     is_port = bool(row.get("is_portfolio", False))
-    name = _esc(row.get("name", ""))
-    sector = _esc(row.get("sector", "")) or "—"
+    name = _esc(row.get("name", "")) or "&nbsp;"
+    sector = _esc(row.get("sector", "")) or "–"
     price = _fmt("price", row.get("price", np.nan))
-    conv_color = _z_color(conv)
-    conv_txt = "—" if _isnan(conv) else f"{conv:+.2f}"
-    rank_txt = "—" if _isnan(rank) else f"#{int(rank)}"
-    tilt_label, tilt_c, tilt_bg = _tilt(conv, is_port)
+    conv_txt = "·" if _isnan(conv) else f"{conv:+.2f}"
+    rank_txt = "–" if _isnan(rank) else f"#{int(rank)}"
+    tilt_label, tilt_cls = _tilt(conv, is_port)
 
-    # cluster-z strip
-    chips = []
-    for ckey, clabel in CLUSTER_LABELS:
-        cz = row.get(ckey, np.nan)
-        chips.append(
-            f'<td style="padding:0 10px 0 0;white-space:nowrap;">'
-            f'<span style="{_EYEBROW}color:{FAINT};">{clabel}</span> '
-            f'<span style="font-size:12px;font-weight:600;color:{_z_color(cz)};">'
-            f"{'·' if _isnan(cz) else f'{cz:+.2f}'}</span></td>"
-        )
-    cluster_strip = (
-        f'<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:10px;"><tr>'
-        f"{''.join(chips)}</tr></table>"
-    )
-
-    # header (two columns via table): identity left, verdict right
-    header = (
-        f'<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">'
-        f"<tr>"
-        f'<td style="vertical-align:top;">'
-        f'<span style="font-size:20px;font-weight:600;color:{INK};letter-spacing:-0.3px;">{_esc(tkr)}</span>'
-        f'<span style="font-size:12px;color:{FAINT};">&nbsp;&nbsp;{price}</span>'
-        f'<div style="font-size:12px;color:{TXT};margin-top:2px;">{name}</div>'
-        f'<div style="{_EYEBROW}margin-top:4px;">{sector}</div>'
-        f"</td>"
-        f'<td style="vertical-align:top;text-align:right;white-space:nowrap;">'
-        f'<div style="font-size:28px;font-weight:300;color:{conv_color};line-height:1;">{conv_txt}</div>'
-        f'<div style="{_EYEBROW}margin-top:2px;">Conviction {rank_txt}</div>'
-        f'<div style="display:inline-block;margin-top:6px;padding:3px 10px;background:{tilt_bg};'
-        f'color:{tilt_c};font-size:11px;font-weight:600;letter-spacing:1px;">{tilt_label}</div>'
-        f"</td>"
-        f"</tr></table>"
-        f"{cluster_strip}"
-    )
-
-    # factor grid: 8 display groups laid two-per-row via a table
-    blocks = [_group_block(row, cols, gl, ms) for gl, ms in DISPLAY_GROUPS]
-    grid_rows = []
-    for i in range(0, len(blocks), 2):
-        left = blocks[i]
-        right = blocks[i + 1] if i + 1 < len(blocks) else ""
-        grid_rows.append(
-            f"<tr>"
-            f'<td style="width:50%;vertical-align:top;padding:0 20px 0 0;">{left}</td>'
-            f'<td style="width:50%;vertical-align:top;padding:0 0 0 20px;">{right}</td>'
-            f"</tr>"
-        )
-    grid = (
-        f'<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:18px;'
-        f'border-top:1px solid {LINE};padding-top:12px;">{"".join(grid_rows)}</table>'
-    )
+    groups = "".join(_group(row, cols, gl, ms) for gl, ms in DISPLAY_GROUPS)
 
     return (
-        f'<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;'
-        f'border:1px solid {LINE};background:{BG};margin:0 0 16px 0;">'
-        f'<tr><td style="padding:20px 22px;">{header}{grid}</td></tr></table>'
+        f'<article class="card" style="animation-delay:{delay:.2f}s;">'
+        f'<div class="card-top">'
+        f'<div class="id">'
+        f'<div class="tkr">{_esc(tkr)}</div>'
+        f'<div class="name">{name}</div>'
+        f'<div class="id-meta"><span class="chip">{sector}</span>'
+        f'<span class="price">{price}</span></div>'
+        f"</div>"
+        f'<div class="verdict">'
+        f'<div class="conv" style="color:{_z_color(conv)};">{conv_txt}</div>'
+        f'<div class="conv-l">Conviction · {rank_txt}</div>'
+        f'<div class="tilt {tilt_cls}">{tilt_label}</div>'
+        f"</div>"
+        f"</div>"
+        f'<div class="meter-wrap">{_bar(conv, conv_scale, "meter")}</div>'
+        f'<div class="groups">{groups}</div>'
+        f"</article>"
     )
 
 
-def _section_header(label: str, sub: str) -> str:
+def _section_head(numeral: str, label: str, sub: str) -> str:
     return (
-        f'<div style="padding:28px 0 12px 0;border-bottom:1px solid {LINE};margin-bottom:18px;">'
-        f'<div style="{_EYEBROW}">{label}</div>'
-        f'<div style="color:{FAINT};font-size:11px;margin-top:2px;">{sub}</div></div>'
+        f'<div class="section-head">'
+        f'<span class="sec-num">{numeral}</span>'
+        f'<div class="sec-txt"><div class="sec-title">{label}</div>'
+        f'<div class="sec-sub">{sub}</div></div>'
+        f"</div>"
     )
 
 
-def _signed(v) -> str:
-    """'·' when NaN, else a signed 2dp string (for compact table cells)."""
-    return "·" if _isnan(v) else f"{v:+.2f}"
-
-
-def _summary_table(scores: pd.DataFrame) -> str:
+def _summary(scores: pd.DataFrame, conv_scale: float) -> str:
     ordered = scores.sort_values("conviction", ascending=False)
     top = ordered.head(5)
-    bottom = ordered.tail(5)
+    bottom = ordered.tail(5).iloc[::-1]
 
-    def _rows(frame):
+    def _rows(frame: pd.DataFrame) -> str:
         out = []
         for tkr, r in frame.iterrows():
             conv = r.get("conviction", np.nan)
             rank = r.get("rank", np.nan)
-            conv_s = "—" if _isnan(conv) else f"{conv:+.2f}"
-            rank_s = "—" if _isnan(rank) else f"#{int(rank)}"
-            sector_s = _esc(r.get("sector", "")) or "—"
-            cluster_tds = "".join(
-                f'<td style="padding:5px 8px;text-align:right;font-size:11px;'
-                f'color:{_z_color(r.get(ck, np.nan))};">{_signed(r.get(ck, np.nan))}</td>'
-                for ck, _ in CLUSTER_LABELS
-            )
+            rank_s = "–" if _isnan(rank) else f"{int(rank)}"
+            sector_s = _esc(r.get("sector", "")) or "–"
             out.append(
-                f"<tr>"
-                f'<td style="padding:5px 8px;font-size:12px;font-weight:600;color:{INK};">{_esc(tkr)}</td>'
-                f'<td style="padding:5px 8px;font-size:11px;color:{FAINT};">{sector_s}</td>'
-                f'<td style="padding:5px 8px;text-align:right;font-size:12px;font-weight:600;'
-                f'color:{_z_color(conv)};">{conv_s}</td>'
-                f'<td style="padding:5px 8px;text-align:right;font-size:11px;color:{TXT};">{rank_s}</td>'
-                f"{cluster_tds}</tr>"
+                f'<div class="sum-row">'
+                f'<span class="sum-rank">{rank_s}</span>'
+                f'<span class="sum-tkr">{_esc(tkr)}</span>'
+                f'<span class="sum-sector">{sector_s}</span>'
+                f'<span class="sum-bar">{_bar(conv, conv_scale, "meter")}</span>'
+                f'<span class="sum-conv" style="color:{_z_color(conv)};">{_znum(conv)}</span>'
+                f"</div>"
             )
         return "".join(out)
 
-    head = (
-        f'<tr style="border-bottom:1px solid {LINE};">'
-        f'<td style="{_EYEBROW}padding:0 8px 6px 8px;">Ticker</td>'
-        f'<td style="{_EYEBROW}padding:0 8px 6px 8px;">Sector</td>'
-        f'<td style="{_EYEBROW}padding:0 8px 6px 8px;text-align:right;">Conv</td>'
-        f'<td style="{_EYEBROW}padding:0 8px 6px 8px;text-align:right;">Rank</td>'
-        + "".join(
-            f'<td style="{_EYEBROW}padding:0 8px 6px 8px;text-align:right;">{lbl}</td>'
-            for _, lbl in CLUSTER_LABELS
-        )
-        + "</tr>"
-    )
-    divider = (
-        f'<tr><td colspan="9" style="{_EYEBROW}padding:12px 8px 4px 8px;color:{FAINT};">'
-        f"Bottom 5</td></tr>"
-    )
     return (
-        f'<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:8px;">'
-        f"{head}{_rows(top)}{divider}{_rows(bottom)}</table>"
+        f'<div class="summary">'
+        f'<div class="sum-col">'
+        f'<div class="sum-head"><span class="dot dot-bull"></span>Highest conviction</div>'
+        f"{_rows(top)}</div>"
+        f'<div class="sum-col">'
+        f'<div class="sum-head"><span class="dot dot-bear"></span>Lowest conviction</div>'
+        f"{_rows(bottom)}</div>"
+        f"</div>"
     )
 
 
-def _cards_section(scores: pd.DataFrame, is_port: bool, label: str, sub: str) -> str:
+def _cards_section(
+    scores: pd.DataFrame, is_port: bool, numeral: str, label: str, sub: str, conv_scale: float
+) -> str:
     cols = scores.columns
     subset = scores[scores.get("is_portfolio", pd.Series(False, index=scores.index)) == is_port]
     subset = subset.sort_values("conviction", ascending=False)
     if subset.empty:
-        body = f'<div style="color:{FAINT};font-size:12px;padding:8px 0;">No names in this group.</div>'
+        body = '<div class="empty">No names in this group.</div>'
     else:
-        body = "".join(_card(t, r, cols) for t, r in subset.iterrows())
-    return _section_header(label, sub) + body
+        cards = []
+        for i, (t, r) in enumerate(subset.iterrows()):
+            cards.append(_card(t, r, cols, conv_scale, min(i * 0.05, 0.4)))
+        body = f'<div class="cards">{"".join(cards)}</div>'
+    return _section_head(numeral, label, sub) + body
+
+
+# --- stylesheet -------------------------------------------------------------
+def _stylesheet() -> str:
+    return """
+:root{
+  --canvas:#ffffff;--warm:#faf9f7;--ink:#16181d;--ink2:#4a4e57;--muted:#9aa0a8;
+  --line:#e7e6e2;--accent:#123b3a;--track:#ecebe4;
+  --bull:#2d6a4f;--bull-bar:#bfe3cd;--bull-fill:#e9f5ee;
+  --bear:#b3402f;--bear-bar:#f2c4bb;--bear-fill:#fbeeec;
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',monospace;
+}
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans);
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;}
+.wrap{max-width:1180px;margin:0 auto;padding:0 40px 72px;}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.eyebrow{font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:1.3px;
+  text-transform:uppercase;color:var(--muted);}
+
+/* masthead */
+.masthead{padding:56px 0 26px;}
+.mast-eyebrow{font-size:10.5px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--accent);}
+.mast-title{font-family:var(--serif);font-optical-sizing:auto;font-weight:400;
+  font-size:52px;line-height:1.02;letter-spacing:-.6px;color:var(--ink);margin:12px 0 0;}
+.mast-rule{width:60px;height:2px;background:var(--accent);margin:22px 0 20px;}
+.standfirst{font-family:var(--serif);font-optical-sizing:auto;font-style:italic;font-weight:400;
+  font-size:19px;line-height:1.5;color:var(--ink2);margin:0;max-width:760px;}
+.mast-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-top:24px;
+  padding-top:20px;border-top:1px solid var(--line);}
+.regime{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:11px;
+  font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:5px 12px;border-radius:100px;
+  border:1px solid var(--line);background:var(--warm);color:var(--ink2);}
+.regime .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+.regime-on{background:var(--bull-fill);border-color:var(--bull-bar);color:var(--bull);}
+.regime-on .dot{background:var(--bull);}
+.regime-off{background:var(--bear-fill);border-color:var(--bear-bar);color:var(--bear);}
+.regime-off .dot{background:var(--bear);}
+.mast-detail{font-size:12.5px;color:var(--ink2);}
+.mast-stats{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums;letter-spacing:.2px;}
+
+/* section headers */
+.section-head{display:flex;align-items:baseline;gap:18px;margin:52px 0 22px;
+  padding-bottom:14px;border-bottom:1px solid var(--line);}
+.sec-num{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:40px;
+  line-height:.8;color:var(--accent);min-width:44px;}
+.sec-title{font-family:var(--serif);font-weight:500;font-size:24px;letter-spacing:-.3px;
+  color:var(--ink);}
+.sec-sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+
+/* summary band */
+.summary{display:grid;grid-template-columns:1fr;gap:18px;background:var(--warm);
+  border:1px solid var(--line);border-radius:8px;padding:22px 24px;}
+.sum-head{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:600;
+  letter-spacing:1.3px;text-transform:uppercase;color:var(--ink2);margin-bottom:12px;}
+.sum-head .dot{width:8px;height:8px;border-radius:50%;}
+.dot-bull{background:var(--bull);}
+.dot-bear{background:var(--bear);}
+.sum-row{display:grid;grid-template-columns:22px 66px minmax(0,1fr) 112px 52px;align-items:center;
+  gap:10px;padding:7px 0;border-top:1px solid var(--line);}
+.sum-col .sum-row:first-of-type{border-top:none;}
+.sum-rank{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;
+  font-variant-numeric:tabular-nums;}
+.sum-tkr{font-family:var(--serif);font-weight:600;font-size:15px;color:var(--ink);
+  letter-spacing:-.2px;}
+.sum-sector{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;}
+.sum-conv{font-family:var(--mono);font-size:13px;font-weight:500;text-align:right;
+  font-variant-numeric:tabular-nums;}
+
+/* cards */
+.cards{display:grid;grid-template-columns:1fr;gap:20px;}
+.card{background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:24px 26px;
+  box-shadow:0 1px 2px rgba(22,24,29,.04);transition:transform .25s ease,box-shadow .25s ease,
+  border-color .25s ease;animation:rise .6s cubic-bezier(.2,.7,.2,1) both;}
+.card:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(22,24,29,.09);
+  border-color:#dad8d2;}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;}
+.tkr{font-family:var(--serif);font-optical-sizing:auto;font-weight:600;font-size:28px;
+  line-height:1;letter-spacing:-.4px;color:var(--ink);}
+.name{font-size:13px;color:var(--ink2);margin-top:5px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:280px;}
+.id-meta{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.chip{font-size:9.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--ink2);background:var(--warm);border:1px solid var(--line);border-radius:100px;
+  padding:3px 9px;white-space:nowrap;}
+.price{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+.verdict{text-align:right;flex-shrink:0;}
+.conv{font-family:var(--mono);font-weight:500;font-size:32px;line-height:1;letter-spacing:-1px;
+  font-variant-numeric:tabular-nums;}
+.conv-l{font-size:9.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);margin-top:6px;}
+.tilt{display:inline-block;margin-top:9px;font-size:10px;font-weight:600;letter-spacing:1px;
+  text-transform:uppercase;padding:4px 11px;border-radius:100px;border:1px solid var(--line);}
+.tilt-bull{color:var(--bull);background:var(--bull-fill);border-color:var(--bull-bar);}
+.tilt-bear{color:var(--bear);background:var(--bear-fill);border-color:var(--bear-bar);}
+.tilt-flat{color:var(--ink2);background:var(--warm);}
+.meter-wrap{margin:20px 0 4px;}
+
+/* factor groups + metric tiles */
+.groups{margin-top:8px;}
+.grp{padding:15px 0 3px;border-top:1px solid var(--line);}
+.grp-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px;}
+.grp-name{font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--ink);}
+.grp-z{font-family:var(--mono);font-size:11.5px;font-weight:500;font-variant-numeric:tabular-nums;}
+.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:14px 16px;
+  align-items:start;}
+.unit-l{font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.unit-v{font-family:var(--mono);font-size:13.5px;font-weight:500;color:var(--ink);margin-top:3px;
+  font-variant-numeric:tabular-nums;letter-spacing:-.2px;}
+.unit-z{display:flex;align-items:center;gap:6px;margin-top:6px;}
+.znum{font-family:var(--mono);font-size:10px;font-weight:500;font-variant-numeric:tabular-nums;
+  min-width:30px;}
+
+/* diverging bars */
+.zbar,.meter{position:relative;display:inline-block;background:var(--track);border-radius:100px;
+  vertical-align:middle;overflow:hidden;}
+.zbar{width:100%;max-width:52px;height:5px;}
+.meter{width:100%;height:8px;}
+.zbar::before,.meter::before{content:"";position:absolute;left:calc(50% - .5px);top:0;bottom:0;
+  width:1px;background:rgba(22,24,29,.16);z-index:1;}
+.zbar-fill,.meter-fill{position:absolute;top:0;bottom:0;z-index:0;}
+.zbar-pos,.meter-pos{left:50%;background:var(--bull-bar);}
+.zbar-neg,.meter-neg{right:50%;background:var(--bear-bar);}
+.meter-pos{background:linear-gradient(90deg,#cdead9,var(--bull));}
+.meter-neg{background:linear-gradient(270deg,#f4cec6,var(--bear));}
+
+.empty{color:var(--muted);font-size:13px;padding:12px 0;}
+
+/* footer */
+.footer{margin-top:56px;padding-top:24px;border-top:2px solid var(--ink);}
+.footer .eyebrow{margin-bottom:10px;}
+.method{font-size:11.5px;color:var(--muted);line-height:1.7;max-width:820px;}
+.method b{color:var(--ink2);font-weight:600;}
+.foot-stamp{margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--muted);
+  font-variant-numeric:tabular-nums;}
+
+@keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+
+@media (min-width:1100px){
+  .cards{grid-template-columns:1fr 1fr;}
+  .summary{grid-template-columns:1fr 1fr;gap:36px;}
+}
+@media (max-width:680px){
+  .wrap{padding:0 20px 56px;}
+  .mast-title{font-size:38px;}
+  .mast-stats{margin-left:0;width:100%;}
+  .card{padding:20px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .card{animation:none;}
+  .card:hover{transform:none;}
+}
+""".strip()
 
 
 # --- top-level --------------------------------------------------------------
@@ -383,70 +546,79 @@ def render_report(scores: pd.DataFrame, meta: dict) -> str:
     regime = _esc(meta.get("regime", "NEUTRAL"))
     regime_detail = _esc(meta.get("regime_detail", ""))
     system_read = _esc(meta.get("system_read", ""))
-    priced = meta.get("priced", "")
-    enriched = meta.get("enriched", "")
+    priced = _esc(meta.get("priced", ""))
+    enriched = _esc(meta.get("enriched", ""))
     generated = _esc(meta.get("generated_utc", ""))
 
-    regime_color = {"RISK_ON": BULL, "RISK_OFF": BEAR}.get(str(meta.get("regime")), MUTE)
+    regime_cls = {"RISK_ON": "regime-on", "RISK_OFF": "regime-off"}.get(
+        str(meta.get("regime")), "regime-neutral"
+    )
+    conv_scale = _conv_scale(scores)
 
-    header = (
-        f'<div style="padding:48px 0 28px 0;border-bottom:2px solid {INK};">'
-        f'<div style="{_EYEBROW}">Trading Model v3 · Factor Report</div>'
-        f'<h1 style="margin:8px 0 0 0;font-size:32px;font-weight:300;color:{INK};letter-spacing:-0.5px;">'
-        f"Factor Snapshot</h1>"
-        f'<div style="margin-top:8px;font-size:13px;color:{MUTE};">{date} &nbsp;&middot;&nbsp; '
-        f"Portfolio {n_port} &nbsp;&middot;&nbsp; Candidates {n_cand} &nbsp;&middot;&nbsp; "
-        f"Priced {priced} / Enriched {enriched}</div>"
-        f'<div style="margin-top:14px;font-size:13px;color:{TXT};">'
-        f'<span style="{_EYEBROW}">Regime</span> &nbsp;'
-        f'<span style="font-weight:600;color:{regime_color};">{regime}</span> '
-        f'<span style="color:{FAINT};">&nbsp;{regime_detail}</span></div>'
-        f'<div style="margin-top:8px;font-size:13px;color:{TXT};font-style:italic;">{system_read}</div>'
-        f"</div>"
+    masthead = (
+        f'<header class="masthead">'
+        f'<div class="mast-eyebrow">Trading Model v3 · Factor Report</div>'
+        f'<h1 class="mast-title">Factor Snapshot</h1>'
+        f'<div class="mast-rule"></div>'
+        f'<p class="standfirst">{system_read}</p>'
+        f'<div class="mast-meta">'
+        f'<span class="regime {regime_cls}"><span class="dot"></span>{regime}</span>'
+        f'<span class="mast-detail">{regime_detail}</span>'
+        f'<span class="mast-stats">{date} · Portfolio {n_port} · Candidates {n_cand} · '
+        f"Priced {priced} / Enriched {enriched}</span>"
+        f"</div></header>"
     )
 
-    summary = _section_header(
-        "Top & Bottom", "Ranked by conviction across the full universe"
-    ) + _summary_table(scores)
+    summary = _section_head(
+        "I", "Conviction extremes", "Ranked across the full universe · long vs. avoid"
+    ) + _summary(scores, conv_scale)
     port_sec = _cards_section(
-        scores, True, "Portfolio", "Current holdings · tilt = ADD / HOLD / TRIM"
+        scores, True, "II", "Portfolio", "Current holdings · tilt = ADD / HOLD / TRIM", conv_scale
     )
     cand_sec = _cards_section(
-        scores, False, "Candidates", "BUY-signal watchlist · tilt = BUY-WATCH / WATCH / PASS"
+        scores,
+        False,
+        "III",
+        "Candidates",
+        "Buy-signal watchlist · tilt = BUY-WATCH / WATCH / PASS",
+        conv_scale,
     )
 
     footer = (
-        f'<div style="padding:28px 0 48px 0;border-top:2px solid {INK};margin-top:24px;">'
-        f'<div style="{_EYEBROW}margin-bottom:8px;">Methodology</div>'
-        f'<div style="font-size:11px;color:{FAINT};line-height:1.6;">'
+        f'<footer class="footer">'
+        f'<div class="eyebrow">Methodology</div>'
+        f'<div class="method">'
         f"Each metric is winsorized (1/99) and cross-sectionally z-scored; low-is-good "
         f"metrics (valuation, leverage, beta, realized-vol, short interest, target dispersion) "
         f"are negated so a high z is always attractive. Metric z-scores are sector-neutral "
         f"(demeaned within GICS sector). Five cluster z-scores (Value, Quality, Momentum, "
-        f"Low-vol, Strength) combine into conviction with a near-equal weighting — Value + "
-        f"Quality jointly capped at ~55% — renormalized per-row over the clusters actually "
-        f"present. Conviction is re-z-scored cross-sectionally; rank 1 = best.<br><br>"
-        f"This is a SHADOW / decision-support snapshot, not yet capital-authorized. The naive "
-        f"price-spine (12-1 momentum + low-vol) showed no standalone out-of-sample edge in "
-        f"validation, so treat single-factor tilts with caution and weigh the full-cluster "
-        f"conviction over any one number.<br><br>"
-        f"Generated {generated}. Not investment advice."
-        f"</div></div>"
+        f"Low-vol, Strength) combine into <b>conviction</b> with a near-equal weighting: Value "
+        f"plus Quality jointly capped at ~55%, renormalized per row over the clusters actually "
+        f"present. Conviction is re-z-scored cross-sectionally; rank 1 = best. Bars are centered "
+        f"at 0: green extends right (attractive), red extends left (unattractive).<br><br>"
+        f"This is a <b>shadow / decision-support</b> snapshot, not yet capital-authorized. The "
+        f"naive price-spine (12-1 momentum plus low-vol) showed no standalone out-of-sample edge "
+        f"in validation, so treat single-factor tilts with caution and weigh the full-cluster "
+        f"conviction over any one number."
+        f"</div>"
+        f'<div class="foot-stamp">Generated {generated} · decision-support, not investment advice.</div>'
+        f"</footer>"
     )
 
-    body = (
-        f'<div class="container" style="max-width:880px;margin:0 auto;padding:0 48px;">'
-        f"{header}{summary}{port_sec}{cand_sec}{footer}</div>"
-    )
+    body = f'<div class="wrap">{masthead}{summary}{port_sec}{cand_sec}{footer}</div>'
 
     return (
         "<!DOCTYPE html>\n"
         '<html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         "<title>Trading Model v3 · Factor Report</title>"
-        "<style>@media screen and (max-width:768px){.container{padding:0 16px !important;}}</style>"
+        '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
+        "family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;"
+        "1,9..144,400&family=IBM+Plex+Mono:wght@400;500;600&"
+        'family=IBM+Plex+Sans:wght@400;500;600&display=swap">'
+        f"<style>{_stylesheet()}</style>"
         "</head>"
-        f'<body style="margin:0;padding:0;background:{BG};font-family:{FONT};color:{TXT};'
-        f'line-height:1.55;-webkit-font-smoothing:antialiased;">'
-        f"{body}</body></html>"
+        f"<body>{body}</body></html>"
     )
