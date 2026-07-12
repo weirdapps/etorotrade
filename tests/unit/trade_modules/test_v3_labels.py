@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from trade_modules.v3.labels import demean_by_date, forward_returns
+from trade_modules.v3.labels import cross_sectional_ic, demean_by_date, forward_returns, ic_summary
 
 
 def _close():
@@ -35,3 +35,26 @@ def test_demean_by_date():
     fwd = demean_by_date(forward_returns(c, [asof], [2]))
     grp = fwd[fwd.horizon == 2]
     assert np.isclose(grp["net_alpha"].sum(), 0.0, atol=1e-9)
+
+
+def test_cross_sectional_ic_perfect_rank():
+    asof = pd.Timestamp("2026-01-01")
+    scores = pd.DataFrame(
+        {"as_of": [asof] * 3, "ticker": ["A", "B", "C"], "score": [1.0, 2.0, 3.0]}
+    )
+    fwd = pd.DataFrame(
+        {
+            "as_of": [asof] * 3,
+            "ticker": ["A", "B", "C"],
+            "horizon": [5, 5, 5],
+            "fwd_ret": [0.01, 0.02, 0.03],
+        }
+    )
+    ic = cross_sectional_ic(scores, fwd, 5)
+    assert np.isclose(ic.loc[asof], 1.0)
+
+
+def test_ic_summary_stats():
+    ic = pd.Series([0.1, 0.1, 0.1, 0.1])
+    s = ic_summary(ic)
+    assert s["n"] == 4 and np.isclose(s["mean_ic"], 0.1) and s["hit_rate"] == 1.0
