@@ -23,19 +23,20 @@ ETORO_CSV = "yahoofinance/output/etoro.csv"
 HORIZONS = [5, 21, 63]
 
 
-def month_end_rebalances(index) -> list:
+def weekly_rebalances(index) -> list:
+    """Last trading day of each ISO week."""
     s = index.to_series()
-    return sorted(s.groupby([index.year, index.month]).max().tolist())
+    return sorted(s.groupby([index.isocalendar().year, index.isocalendar().week]).max().tolist())
 
 
 def main() -> None:
     tickers = load_universe(ETORO_CSV)
     print(f"USD universe: {len(tickers)} names")
-    eur = load_eur_close(tickers, period="2y")
+    eur = load_eur_close(tickers, period="5y")
     eur = eur.dropna(axis=1, thresh=int(0.6 * len(eur)))  # keep names with ≥60% history
     print(f"priced (EUR) names: {eur.shape[1]}, bars: {eur.shape[0]}")
 
-    rebal = [d for d in month_end_rebalances(eur.index)]
+    rebal = [d for d in weekly_rebalances(eur.index)]
     rebal = [d for d in rebal if eur.index.get_loc(d) >= 252]  # momentum warmup
     print(f"rebalance dates (warmed up): {len(rebal)}")
 
