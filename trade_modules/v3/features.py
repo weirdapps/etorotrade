@@ -123,6 +123,81 @@ def _num(s: pd.Series) -> pd.Series:
     )
 
 
+# yfinance row-label candidates for Sloan accruals (defensive: label varies by ticker/version).
+_NI_LABELS = ("Net Income", "Net Income Common Stockholders")
+_OCF_LABELS = ("Operating Cash Flow", "Total Cash From Operating Activities")
+_TA_LABELS = ("Total Assets",)
+
+
+def _first_label_value(df, labels: tuple) -> float:
+    """Return the most-recent non-null value for the first matching row label."""
+    nan = float("nan")
+    if df is None or df.empty:
+        return nan
+    for label in labels:
+        if label in df.index:
+            row = pd.to_numeric(df.loc[label], errors="coerce").dropna()
+            if not row.empty:
+                return float(row.iloc[0])
+    return nan
+
+
+def _two_most_recent(df, labels: tuple) -> list:
+    """Return up to 2 most-recent non-null floats for the first matching row label."""
+    if df is None or df.empty:
+        return []
+    for label in labels:
+        if label in df.index:
+            row = pd.to_numeric(df.loc[label], errors="coerce").dropna()
+            return [float(v) for v in row.iloc[:2]]
+    return []
+
+
+def _default_accruals_fetch(tickers: list[str]) -> dict[str, float]:
+    """Throttled per-ticker yfinance accruals fetch (Hribar-Collins, cash-flow basis).
+
+    accruals = (net_income - operating_cash_flow) / average_total_assets
+
+    where average_total_assets = mean of the two most recent annual values.
+    Lower / more-negative accruals = higher earnings quality = GOOD.
+    Sleeps ~0.3 s between tickers, retries twice on exception, skips
+    (never raises) tickers where data is unavailable.
+    Imported at call time so the module stays importable without yfinance.
+    """
+    import math  # noqa: PLC0415
+    import time  # noqa: PLC0415
+
+    import yfinance as yf  # noqa: PLC0415
+
+    out: dict[str, float] = {}
+    for t in tickers:
+        for attempt in range(3):
+            try:
+                tkr = yf.Ticker(t)
+                ni = _first_label_value(tkr.financials, _NI_LABELS)
+                ocf = _first_label_value(tkr.cashflow, _OCF_LABELS)
+                ta_vals = _two_most_recent(tkr.balance_sheet, _TA_LABELS)
+                if len(ta_vals) >= 2:
+                    avg_ta = (ta_vals[0] + ta_vals[1]) / 2.0
+                elif len(ta_vals) == 1:
+                    avg_ta = ta_vals[0]
+                else:
+                    avg_ta = float("nan")
+                if (
+                    math.isfinite(ni)
+                    and math.isfinite(ocf)
+                    and math.isfinite(avg_ta)
+                    and avg_ta != 0
+                ):
+                    out[t] = (ni - ocf) / avg_ta
+                break
+            except Exception:  # noqa: BLE001
+                if attempt < 2:
+                    time.sleep(0.3 * (attempt + 1))
+        time.sleep(0.3)
+    return out
+
+
 def _default_info_fetch(tickers: list[str]) -> dict[str, dict]:
     """Throttled per-ticker yfinance ``.info`` fetch.
 
@@ -182,6 +257,7 @@ def enrich_features(
     price_period: str = "2y",
     info_fetch=None,
     price_fetch=None,
+    accruals_fetch=None,
 ) -> pd.DataFrame:
     """Build the merged per-ticker feature frame (indexed by ticker).
 
@@ -193,16 +269,24 @@ def enrich_features(
             throttled yfinance fetcher.  Inject a fake in tests.
         price_fetch: ``(tickers, period=...) -> dates×tickers close frame``;
             defaults to :func:`robust_fetch_prices`.  Inject a fake in tests.
+        accruals_fetch: ``(tickers) -> {ticker: float}``; computes Sloan
+            accruals (net_income − ocf) / avg_total_assets.  Defaults to
+            :func:`_default_accruals_fetch` (throttled yfinance, skip-not-raise).
+            Pass ``lambda tickers: {}`` to skip the network call in report runs
+            that supply a pre-cached value or don't need the column.
 
     Returns:
         pd.DataFrame indexed by ticker with native + added + derived columns.
         Tickers absent from ``.info`` still appear (native present, added NaN).
+        ``accruals`` is always present; NaN when unavailable.
     """
     tickers = list(dict.fromkeys(str(t) for t in tickers))  # de-dupe, preserve order
     if info_fetch is None:
         info_fetch = _default_info_fetch
     if price_fetch is None:
         price_fetch = robust_fetch_prices
+    if accruals_fetch is None:
+        accruals_fetch = _default_accruals_fetch
 
     # --- (1) native factors from the etoro CSV ---
     raw = pd.read_csv(etoro_csv_path, na_values=["--"])
@@ -242,6 +326,16 @@ def enrich_features(
     )
     for col in ("entry", "sigma_m", "stop_loss", "take_profit", "rr"):
         feats[col] = lv[col]
+
+    # --- (5) Sloan accruals — earnings-quality factor (optional/lazy) ---
+    # accruals = (net_income - operating_cash_flow) / average_total_assets.
+    # Lower / more-negative = higher earnings quality = GOOD.
+    # NaN-tolerant: missing tickers or fetch failures leave the column NaN.
+    accruals_data = accruals_fetch(list(tickers)) or {}
+    feats["accruals"] = pd.to_numeric(
+        pd.Series([accruals_data.get(t) for t in feats.index], index=feats.index),
+        errors="coerce",
+    )
 
     feats.index.name = "ticker"
     return feats

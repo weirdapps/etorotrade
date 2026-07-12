@@ -207,6 +207,7 @@ def _run(tmp_path):
         _write_csv(tmp_path),
         info_fetch=_fake_info,
         price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {},  # no-op: no network in unit tests
     )
 
 
@@ -256,6 +257,8 @@ def test_expected_columns_present(tmp_path):
         "adv_usd",
         "mom_12_1",
         "realized_vol",
+        # earnings quality
+        "accruals",
     }
     assert expected.issubset(set(feats.columns))
 
@@ -363,3 +366,54 @@ def test_enrich_adds_trade_level_columns(tmp_path):
     assert feats.loc["MSFT", "entry"] == feats.loc["MSFT", "price"]
     assert pd.isna(feats.loc["MSFT", "stop_loss"])
     assert pd.isna(feats.loc["MSFT", "rr"])
+
+
+# ---------------------------------------------------------------------------
+# Sloan accruals (earnings-quality)
+# ---------------------------------------------------------------------------
+
+
+def test_accruals_formula_math(tmp_path):
+    """inject a fake accruals_fetch with known (ni-cfo)/avg_assets values."""
+    # ni=100, cfo=60, avg_assets=500  → (100-60)/500 = 0.08  (AAPL)
+    # ni=50,  cfo=80, avg_assets=1000 → (50-80)/1000 = -0.03 (MSFT)
+    expected = {"AAPL": 0.08, "MSFT": -0.03}
+    feats = enrich_features(
+        ["AAPL", "MSFT", "ZZZ"],
+        _write_csv(tmp_path),
+        info_fetch=_fake_info,
+        price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {t: expected[t] for t in tickers if t in expected},
+    )
+    assert "accruals" in feats.columns
+    assert abs(feats.loc["AAPL", "accruals"] - 0.08) < 1e-12
+    assert abs(feats.loc["MSFT", "accruals"] - (-0.03)) < 1e-12
+    # ZZZ absent from fake fetcher dict -> NaN
+    assert pd.isna(feats.loc["ZZZ", "accruals"])
+
+
+def test_accruals_noop_fetcher_yields_all_nan(tmp_path):
+    """A no-op accruals_fetch (empty dict) produces NaN accruals for every ticker."""
+    feats = enrich_features(
+        ["AAPL", "MSFT"],
+        _write_csv(tmp_path),
+        info_fetch=_fake_info,
+        price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {},
+    )
+    assert "accruals" in feats.columns
+    assert feats["accruals"].isna().all()
+
+
+def test_accruals_partial_coverage(tmp_path):
+    """Tickers present in the fetcher dict get values; absent ones get NaN."""
+    feats = enrich_features(
+        ["AAPL", "MSFT", "ZZZ"],
+        _write_csv(tmp_path),
+        info_fetch=_fake_info,
+        price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {"AAPL": -0.05},
+    )
+    assert np.isfinite(feats.loc["AAPL", "accruals"])
+    assert pd.isna(feats.loc["MSFT", "accruals"])
+    assert pd.isna(feats.loc["ZZZ", "accruals"])
