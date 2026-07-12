@@ -1,35 +1,22 @@
 {
-  "timestamp": "2026-07-05T21:59:37.986774+00:00",
+  "timestamp": "2026-07-12T21:46:55.298171+00:00",
   "total_count": 12908,
-  "new_count": 15,
-  "removed_count": 10,
+  "new_count": 6,
+  "removed_count": 6,
   "sample_new": [
-    "285A.T",
-    "ALUNI.PA",
-    "BSP",
-    "C3R.DE",
-    "DMC",
-    "FXHO",
-    "HODO",
-    "HONA",
-    "IQMX",
-    "ITG",
-    "LIME",
-    "MBGL",
-    "NSLR",
-    "SECZ",
-    "VOIM.OL"
+    "LIVE.L",
+    "MFP",
+    "NMAD",
+    "PMA",
+    "SKHYV",
+    "UENH.L"
   ],
   "sample_removed": [
-    "ALREW.PA",
-    "C3RY.DE",
-    "CEPT",
-    "EMGS.OL",
-    "FDP",
-    "HONAV",
-    "RAAQ",
-    "SSSS",
-    "TBH",
-    "WTO"
+    "LIXT",
+    "MSW",
+    "MTSR",
+    "QMMM",
+    "SOHO.L",
+    "USEN.L"
   ]
 }
