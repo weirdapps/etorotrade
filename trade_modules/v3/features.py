@@ -15,6 +15,8 @@ the network.
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 from trade_modules.v3.fetch import robust_fetch_prices
@@ -53,11 +55,58 @@ _INFO_NUM = {
     "targetLowPrice": "target_low",
     "averageVolume": "avg_volume",
 }
-_INFO_STR = {"sector": "sector", "industry": "industry"}
+_INFO_STR = {"sector": "sector", "industry": "industry", "quoteType": "quote_type"}
 
 # Price-spine windows (mirror trade_modules.v3.spine).
 _MOM_SKIP = 21
 _MOM_LOOKBACK = 252
+
+# Trade-level windows: monthly move ~= daily vol × √21; annualized vol ÷ √252.
+_TRADING_DAYS_MONTH = 21
+_TRADING_DAYS_YEAR = 252
+# 2·sigma_m must stay below 1 so the stop is a positive price.
+_SIGMA_M_CAP = 0.5
+
+
+def trade_levels(entry, realized_vol) -> dict[str, float]:
+    """Vol-scaled stop-loss / take-profit levels from annualized realized vol.
+
+    ``realized_vol`` is the annualized (×√252) Close-based realized vol from
+    :func:`_price_factors`. The approximate monthly move fraction is
+    ``sigma_m = (realized_vol / √252) · √21``. Levels:
+
+        stop_loss   = entry · (1 - 2·sigma_m)
+        take_profit = entry · (1 + 3·sigma_m)
+        rr          = (take_profit - entry) / (entry - stop_loss)  (= 1.5)
+
+    ``entry`` echoes the price whenever the price itself is valid. Degenerate
+    inputs (NaN/≤0 entry or vol, so ``sigma_m`` NaN/0, or a vol so large the
+    stop would be non-positive) yield NaN levels; the report shows "n/a".
+    """
+    nan = float("nan")
+    try:
+        e = float(entry)
+    except (TypeError, ValueError):
+        e = nan
+    e = e if (math.isfinite(e) and e > 0) else nan
+
+    try:
+        v = float(realized_vol)
+    except (TypeError, ValueError):
+        v = nan
+
+    out = {"entry": e, "sigma_m": nan, "stop_loss": nan, "take_profit": nan, "rr": nan}
+    if math.isnan(e) or not (math.isfinite(v) and v > 0):
+        return out
+
+    sigma_m = (v / math.sqrt(_TRADING_DAYS_YEAR)) * math.sqrt(_TRADING_DAYS_MONTH)
+    if not (math.isfinite(sigma_m) and 0 < sigma_m < _SIGMA_M_CAP):
+        return out
+
+    stop = e * (1.0 - 2.0 * sigma_m)
+    target = e * (1.0 + 3.0 * sigma_m)
+    out.update(sigma_m=sigma_m, stop_loss=stop, take_profit=target, rr=(target - e) / (e - stop))
+    return out
 
 
 def _num(s: pd.Series) -> pd.Series:
@@ -185,6 +234,14 @@ def enrich_features(
 
     prices = price_fetch(list(tickers), period=price_period)
     feats = feats.join(_price_factors(prices, tickers))
+
+    # --- (4) vol-scaled trade levels (entry / stop / target / R:R) ---
+    lv = pd.DataFrame(
+        [trade_levels(p, v) for p, v in zip(feats["price"], feats["realized_vol"], strict=False)],
+        index=feats.index,
+    )
+    for col in ("entry", "sigma_m", "stop_loss", "take_profit", "rr"):
+        feats[col] = lv[col]
 
     feats.index.name = "ticker"
     return feats

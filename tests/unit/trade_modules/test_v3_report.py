@@ -185,6 +185,68 @@ def test_render_report_accepts_curation_kwargs():
     assert html.startswith("<!DOCTYPE") and "</html>" in html
 
 
+def _scores_with_etf():
+    """A scored frame with quote_type set and one ineligible ETF (GLD)."""
+    idx = ["AAA", "BBB", "GLD"]
+    df = pd.DataFrame(
+        {
+            "name": ["Alpha Corp", "Beta Corp", "SPDR Gold"],
+            "sector": ["Technology", "Technology", "Financial Services"],
+            "price": [100.0, 50.0, 200.0],
+            "quote_type": ["EQUITY", "EQUITY", "ETF"],
+            "pe_trailing": [10.0, 20.0, 15.0],
+            "roe": [30.0, 20.0, 25.0],
+            "mom_12_1": [0.20, 0.10, 0.15],
+            "pct_52w_high": [90.0, 80.0, 70.0],
+            "realized_vol": [0.20, 0.25, 0.22],
+            "upside": [15.0, 10.0, 12.0],
+            "buy_pct": [70.0, 60.0, 50.0],
+        },
+        index=idx,
+    )
+    scores = compute_scores(df, sector_neutral=True)
+    scores["is_portfolio"] = [True, False, False]
+    return scores
+
+
+def test_render_excludes_ineligible_and_shows_footnote():
+    scores = _scores_with_etf()
+    assert not bool(scores.loc["GLD", "eligible"])  # sanity: ETF ineligible
+    html = render_report(scores, {"regime": "NEUTRAL"})
+    # only the two equities appear in the overview + cards
+    assert html.count('class="hm-row"') == 2
+    assert '<div class="tkr">GLD' not in html
+    # small footnote surfaces the exclusion
+    assert "1 name excluded" in html
+    assert "non-equity or insufficient data" in html
+
+
+def test_render_shows_trade_levels():
+    scores = _scores()
+    scores["entry"] = [200.0, 400.0, 10.0]
+    scores["stop_loss"] = [180.0, 360.0, np.nan]
+    scores["take_profit"] = [230.0, 460.0, np.nan]
+    scores["rr"] = [1.5, 1.5, np.nan]
+    html = render_report(scores, _meta())
+    assert "Trade Levels" in html
+    for lbl in ("Entry", "Stop", "Target", "R:R"):
+        assert lbl in html
+    assert "$180.00" in html  # AAPL stop-loss tile
+    assert "n/a" in html  # ZZZ has no vol -> degenerate levels
+
+
+def test_cards_single_column_and_container_grid():
+    html = render_report(_scores(), _meta())
+    # the old two-up card grid is gone
+    assert "min-width:1100px" not in html
+    # cards are a single full-width column
+    assert ".cards{display:grid;grid-template-columns:1fr;" in html
+    # internals reflow via container queries (4 / 2 / 1 by card width)
+    assert "container-type:inline-size" in html
+    assert "@container (min-width:1000px)" in html
+    assert "repeat(4,1fr)" in html
+
+
 def test_compute_regime_uptrend_low_vol_is_risk_on():
     idx = pd.date_range("2023-01-01", periods=400, freq="B")
     series = pd.Series(np.linspace(100, 200, 400), index=idx)  # steady uptrend

@@ -287,7 +287,7 @@ def _overview(scores: pd.DataFrame, conv_scale: float) -> str:
         '<span class="hm-h">Ticker</span>'
         '<span class="hm-h">Sector</span>'
         '<span class="hm-h right">Conv</span>'
-        "<span></span>"
+        '<span class="hm-barcell"></span>'
         '<div class="hm-cells">'
         + "".join(f'<span class="hm-h center">{lbl}</span>' for _, lbl in CLUSTER_CELLS)
         + "</div></div>"
@@ -324,28 +324,25 @@ def _overview(scores: pd.DataFrame, conv_scale: float) -> str:
 
 # --- card + section builders ------------------------------------------------
 def _unit(row: pd.Series, cols, key: str, label: str) -> str:
-    """One metric tile.
+    """One metric row inside a factor group.
 
-    Scored metrics (a ``{key}_z`` column exists) show label + value (mono) +
-    a tiny diverging z-bar and numeric z. Reference metrics with no z column
-    (Mkt Cap, Avg Vol, ADV, Div Yield, Tgt High/Low) show only label + value,
-    so context data reads distinctly from scored factors.
+    Scored metrics (a ``{key}_z`` column exists) show label + value (mono) on
+    one line, then a full-width diverging z-bar and numeric z beneath. Reference
+    metrics with no z column (Mkt Cap, Avg Vol, ADV, Div Yield, Tgt High/Low)
+    show only label + value, so context data reads distinctly from scored ones.
     """
     raw = row.get(key, np.nan) if key in cols else np.nan
     val = _fmt(key, raw)
+    top = (
+        f'<div class="unit-row"><span class="unit-l">{label}</span>'
+        f'<span class="unit-v">{val}</span></div>'
+    )
     zkey = f"{key}_z"
     if zkey not in cols:
-        return (
-            f'<div class="unit unit-ctx">'
-            f'<div class="unit-l">{label}</div>'
-            f'<div class="unit-v">{val}</div>'
-            f"</div>"
-        )
+        return f'<div class="unit unit-ctx">{top}</div>'
     z = row.get(zkey, np.nan)
     return (
-        f'<div class="unit">'
-        f'<div class="unit-l">{label}</div>'
-        f'<div class="unit-v">{val}</div>'
+        f'<div class="unit">{top}'
         f'<div class="unit-z">{_bar(z, _Z_METRIC, "zbar")}'
         f'<span class="znum" style="color:{_z_color(z)};">{_znum(z)}</span></div>'
         f"</div>"
@@ -353,6 +350,10 @@ def _unit(row: pd.Series, cols, key: str, label: str) -> str:
 
 
 def _group(row: pd.Series, cols, label: str, metrics) -> str:
+    """One factor group: header (label + cluster z) over its stacked metrics.
+
+    Rendered as a single cell of the card's responsive group grid.
+    """
     cluster_key = GROUP_CLUSTER.get(label)
     cz_html = ""
     if cluster_key:
@@ -367,15 +368,57 @@ def _group(row: pd.Series, cols, label: str, metrics) -> str:
     )
 
 
+def _levels_block(row: pd.Series) -> str:
+    """Trade Levels tiles: Entry / Stop / Target / R:R (vol-scaled).
+
+    Values come from the ``entry``/``stop_loss``/``take_profit``/``rr`` feature
+    columns. Entry falls back to price when present; degenerate levels (missing
+    vol) render "n/a" rather than a dash.
+    """
+    entry = row.get("entry", np.nan)
+    if _isnan(entry):
+        entry = row.get("price", np.nan)
+    stop = row.get("stop_loss", np.nan)
+    target = row.get("take_profit", np.nan)
+    rr = row.get("rr", np.nan)
+
+    def _px(v) -> str:
+        return "n/a" if _isnan(v) else f"${float(v):,.2f}"
+
+    rr_s = "n/a" if _isnan(rr) else f"{float(rr):.2f}"
+    tiles = (
+        f'<div class="lvl"><div class="lvl-l">Entry</div><div class="lvl-v">{_px(entry)}</div></div>'
+        f'<div class="lvl lvl-stop"><div class="lvl-l">Stop</div>'
+        f'<div class="lvl-v">{_px(stop)}</div></div>'
+        f'<div class="lvl lvl-tgt"><div class="lvl-l">Target</div>'
+        f'<div class="lvl-v">{_px(target)}</div></div>'
+        f'<div class="lvl"><div class="lvl-l">R:R</div><div class="lvl-v">{rr_s}</div></div>'
+    )
+    return (
+        f'<div class="levels">'
+        f'<div class="levels-head">Trade Levels</div>'
+        f'<div class="levels-tiles">{tiles}</div>'
+        f'<div class="levels-note">Vol-scaled: monthly ~2σ stop / 3σ target.</div>'
+        f"</div>"
+    )
+
+
 def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> str:
+    """One full-width card: a balanced top band over a responsive factor grid.
+
+    Top band, left: ticker + name + sector chip. Right: price, conviction
+    figure + diverging meter, tilt badge, and the Trade Levels tiles. Body: the
+    eight factor groups as a container-query grid that reflows 4 / 2 / 1 columns
+    with the card's own width.
+    """
     conv = row.get("conviction", np.nan)
     rank = row.get("rank", np.nan)
     is_port = bool(row.get("is_portfolio", False))
     name = _esc(row.get("name", "")) or "&nbsp;"
-    sector = _esc(row.get("sector", "")) or "–"
+    sector = _esc(row.get("sector", "")) or "n/a"
     price = _fmt("price", row.get("price", np.nan))
     conv_txt = "·" if _isnan(conv) else f"{conv:+.2f}"
-    rank_txt = "–" if _isnan(rank) else f"#{int(rank)}"
+    rank_txt = "n/a" if _isnan(rank) else f"#{int(rank)}"
     tilt_label, tilt_cls = _tilt(conv, is_port)
     pf_tag = '<span class="pf-tag" title="Portfolio holding">PF</span>' if is_port else ""
 
@@ -387,16 +430,23 @@ def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> st
         f'<div class="id">'
         f'<div class="tkr">{_esc(tkr)}{pf_tag}</div>'
         f'<div class="name">{name}</div>'
-        f'<div class="id-meta"><span class="chip">{sector}</span>'
-        f'<span class="price">{price}</span></div>'
+        f'<div class="id-meta"><span class="chip">{sector}</span></div>'
         f"</div>"
-        f'<div class="verdict">'
+        f'<div class="verdict-top">'
+        f'<div class="price-block"><div class="vk">Price</div>'
+        f'<div class="price">{price}</div></div>'
+        f'<div class="conv-block">'
         f'<div class="conv" style="color:{_z_color(conv)};">{conv_txt}</div>'
         f'<div class="conv-l">Conviction · {rank_txt}</div>'
         f'<div class="tilt {tilt_cls}">{tilt_label}</div>'
         f"</div>"
         f"</div>"
-        f'<div class="meter-wrap">{_bar(conv, conv_scale, "meter")}</div>'
+        f"</div>"
+        f'<div class="card-strip">'
+        f'<div class="meter-col"><div class="vk">Conviction vs peers</div>'
+        f'<div class="meter-wrap">{_bar(conv, conv_scale, "meter")}</div></div>'
+        f"{_levels_block(row)}"
+        f"</div>"
         f'<div class="groups">{groups}</div>'
         f"</article>"
     )
@@ -480,7 +530,7 @@ html{-webkit-text-size-adjust:100%;}
 body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans);
   font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;}
-.wrap{max-width:1200px;margin:0 auto;padding:0 44px 84px;}
+.wrap{max-width:1168px;margin:0 auto;padding:0 44px 90px;}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
 .eyebrow{font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:1.3px;
   text-transform:uppercase;color:var(--muted);}
@@ -543,62 +593,91 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 .hm-cell{height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;
   font-family:var(--mono);font-size:10px;color:transparent;}
 .hm-cell.nan{background:transparent;color:var(--muted);}
+.excluded-note{margin-top:15px;font-size:11.5px;font-style:italic;color:var(--muted);letter-spacing:.2px;}
 
-/* cards */
-.cards{display:grid;grid-template-columns:1fr;gap:28px;}
-.card{background:var(--canvas);border:1px solid var(--line);border-radius:12px;padding:28px 30px;
+/* cards: always one full-width card per row, on every device */
+.cards{display:grid;grid-template-columns:1fr;gap:32px;max-width:1080px;margin:0 auto;}
+.card{position:relative;background:var(--canvas);border:1px solid var(--line);border-radius:14px;
+  padding:30px 32px 34px;overflow:hidden;container-type:inline-size;
   box-shadow:0 1px 2px rgba(22,24,29,.04);transition:transform .25s ease,box-shadow .25s ease,
   border-color .25s ease;animation:rise .6s cubic-bezier(.2,.7,.2,1) both;}
-.card:hover{transform:translateY(-3px);box-shadow:0 16px 38px rgba(22,24,29,.10);
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),#3a7d6b 55%,rgba(18,59,58,0));opacity:.55;}
+.card:hover{transform:translateY(-3px);box-shadow:0 18px 44px rgba(22,24,29,.11);
   border-color:#dad8d2;}
-.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;}
-.tkr{font-family:var(--serif);font-optical-sizing:auto;font-weight:600;font-size:30px;
-  line-height:1;letter-spacing:-.4px;color:var(--ink);display:flex;align-items:baseline;gap:10px;}
-.pf-tag{font-family:var(--sans);font-size:9px;font-weight:600;letter-spacing:1px;
-  color:var(--accent);background:var(--warm);border:1px solid var(--line);border-radius:100px;
-  padding:2px 7px;}
-.name{font-size:13px;color:var(--ink2);margin-top:6px;white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis;max-width:300px;}
-.id-meta{display:flex;align-items:center;gap:10px;margin-top:11px;}
-.chip{font-size:9.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
-  color:var(--ink2);background:var(--warm);border:1px solid var(--line);border-radius:100px;
-  padding:3px 9px;white-space:nowrap;}
-.price{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
-.verdict{text-align:right;flex-shrink:0;}
-.conv{font-family:var(--mono);font-weight:500;font-size:34px;line-height:1;letter-spacing:-1px;
+
+/* card header: identity (left) + verdict (right) */
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:22px 40px;}
+.id{min-width:0;}
+.tkr{font-family:var(--serif);font-optical-sizing:auto;font-weight:600;font-size:34px;line-height:1;
+  letter-spacing:-.5px;color:var(--ink);display:flex;align-items:baseline;gap:11px;}
+.pf-tag{font-family:var(--sans);font-size:9px;font-weight:600;letter-spacing:1px;color:var(--accent);
+  background:var(--warm);border:1px solid var(--line);border-radius:100px;padding:2px 7px;}
+.name{font-size:13.5px;color:var(--ink2);margin-top:8px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;}
+.id-meta{display:flex;align-items:center;gap:10px;margin-top:12px;}
+.chip{font-size:9.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--ink2);
+  background:var(--warm);border:1px solid var(--line);border-radius:100px;padding:3px 10px;
+  white-space:nowrap;}
+.verdict-top{display:flex;align-items:flex-start;gap:26px;flex-shrink:0;}
+.price-block{text-align:left;}
+.vk{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.price{font-family:var(--mono);font-size:16px;font-weight:500;color:var(--ink);margin-top:6px;
+  font-variant-numeric:tabular-nums;letter-spacing:-.2px;}
+.conv-block{text-align:right;}
+.conv{font-family:var(--mono);font-weight:500;font-size:38px;line-height:.9;letter-spacing:-1.2px;
   font-variant-numeric:tabular-nums;}
-.conv-l{font-size:9.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
-  color:var(--muted);margin-top:7px;}
-.tilt{display:inline-block;margin-top:10px;font-size:10px;font-weight:600;letter-spacing:1px;
+.conv-l{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);
+  margin-top:7px;}
+.tilt{display:inline-block;margin-top:11px;font-size:10px;font-weight:600;letter-spacing:1px;
   text-transform:uppercase;padding:4px 11px;border-radius:100px;border:1px solid var(--line);}
 .tilt-bull{color:var(--bull);background:var(--bull-fill);border-color:var(--bull-bar);}
 .tilt-bear{color:var(--bear);background:var(--bear-fill);border-color:var(--bear-bar);}
 .tilt-flat{color:var(--ink2);background:var(--warm);}
-.meter-wrap{margin:22px 0 6px;}
 
-/* factor groups + metric tiles */
-.groups{margin-top:10px;}
-.grp{padding:20px 0 6px;border-top:1px solid var(--line);}
-.grp:first-child{border-top:none;padding-top:8px;}
-.grp-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;}
-.grp-name{font-size:10.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;
-  color:var(--ink);}
-.grp-z{font-family:var(--mono);font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;}
-.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:16px 18px;
-  align-items:start;}
-.unit-l{font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
-  color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.unit-v{font-family:var(--mono);font-size:13.5px;font-weight:500;color:var(--ink);margin-top:4px;
-  font-variant-numeric:tabular-nums;letter-spacing:-.2px;}
-.unit-z{display:flex;align-items:center;gap:7px;margin-top:7px;}
+/* full-width strip: conviction meter (left) + trade-level tiles (right) */
+.card-strip{display:flex;align-items:flex-end;gap:32px;margin-top:22px;padding-top:20px;
+  border-top:1px solid var(--line);}
+.meter-col{flex:1;min-width:120px;}
+.meter-col .vk{margin-bottom:10px;}
+.meter-wrap{width:100%;}
+.levels{flex:0 0 auto;width:360px;max-width:100%;}
+.levels-head{font-size:9px;font-weight:600;letter-spacing:1.1px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:9px;}
+.levels-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.lvl{border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--warm);}
+.lvl-l{font-size:8.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);}
+.lvl-v{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink);margin-top:4px;
+  font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
+.lvl-stop .lvl-v{color:var(--bear);}
+.lvl-tgt .lvl-v{color:var(--bull);}
+.levels-note{font-size:9px;color:var(--muted);margin-top:9px;letter-spacing:.2px;}
+
+/* factor groups: a responsive grid inside the card (4 / 2 / 1 by card width) */
+.groups{margin-top:28px;padding-top:26px;border-top:1px solid var(--line);
+  display:grid;grid-template-columns:1fr;gap:26px 34px;}
+.grp{min-width:0;}
+.grp-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:11px;
+  padding-bottom:9px;border-bottom:1px solid var(--line);}
+.grp-name{font-size:10px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase;color:var(--ink);}
+.grp-z{font-family:var(--mono);font-size:11.5px;font-weight:500;font-variant-numeric:tabular-nums;}
+.units{display:grid;grid-template-columns:1fr;gap:0;}
+.unit{padding:7px 0;border-top:1px dotted var(--line);}
+.unit:first-child{border-top:none;padding-top:1px;}
+.unit-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.unit-l{font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.unit-v{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink);
+  font-variant-numeric:tabular-nums;letter-spacing:-.2px;white-space:nowrap;}
+.unit-z{display:flex;align-items:center;gap:8px;margin-top:7px;}
 .znum{font-family:var(--mono);font-size:10px;font-weight:500;font-variant-numeric:tabular-nums;
-  min-width:32px;}
+  min-width:32px;text-align:right;}
 
 /* diverging bars */
 .zbar,.meter{position:relative;display:inline-block;background:var(--track);border-radius:100px;
   vertical-align:middle;overflow:hidden;}
-.zbar{width:100%;max-width:64px;height:7px;}
-.meter{width:100%;height:9px;}
+.zbar{width:100%;height:6px;flex:1;}
+.meter{width:100%;height:10px;}
 .zbar::before,.meter::before{content:"";position:absolute;left:calc(50% - .5px);top:0;bottom:0;
   width:1px;background:rgba(22,24,29,.20);z-index:1;}
 .zbar-fill,.meter-fill{position:absolute;top:0;bottom:0;z-index:0;}
@@ -606,7 +685,7 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 .zbar-neg,.meter-neg{right:50%;background:linear-gradient(270deg,#f4cec6,var(--bear));}
 
 /* labeled divider between the long block and the avoid block */
-.cards-divider{display:flex;align-items:center;gap:18px;margin:40px 0 28px;}
+.cards-divider{display:flex;align-items:center;gap:18px;margin:44px auto 30px;max-width:1080px;}
 .cards-divider::before,.cards-divider::after{content:"";height:1px;background:var(--line);flex:1;}
 .cards-divider span{font-size:10px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase;
   color:var(--muted);white-space:nowrap;}
@@ -623,18 +702,28 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 
 @keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
 
-@media (min-width:1100px){
-  .cards{grid-template-columns:1fr 1fr;}
+/* card internals reflow to the CARD's own width (not the viewport) */
+@container (max-width:640px){
+  .card-top{flex-direction:column;}
+  .verdict-top{width:100%;justify-content:space-between;}
+  .card-strip{flex-direction:column;align-items:stretch;gap:18px;}
+  .levels{width:100%;}
+}
+@container (min-width:640px){
+  .groups{grid-template-columns:1fr 1fr;}
+}
+@container (min-width:1000px){
+  .groups{grid-template-columns:repeat(4,1fr);}
 }
 @media (max-width:820px){
   .hm-head,.hm-row{grid-template-columns:12px 26px 62px minmax(60px,1fr) 46px 200px;}
   .hm-barcell{display:none;}
 }
 @media (max-width:680px){
-  .wrap{padding:0 20px 56px;}
+  .wrap{padding:0 18px 60px;}
   .mast-title{font-size:42px;}
   .mast-stats{margin-left:0;width:100%;}
-  .card{padding:22px;}
+  .card{padding:22px 20px 26px;}
 }
 @media (prefers-reduced-motion:reduce){
   .card{animation:none;}
@@ -664,7 +753,17 @@ def render_report(
         A complete HTML document string.
     """
     meta = meta or {}
-    n_port = meta.get("n_portfolio", int(scores.get("is_portfolio", pd.Series(dtype=bool)).sum()))
+
+    # Eligibility gate: only equities with core data are ranked / shown. Frames
+    # without an ``eligible`` column (older callers) are treated as all-eligible.
+    if "eligible" in scores.columns:
+        elig = scores["eligible"].fillna(False).astype(bool)
+    else:
+        elig = pd.Series(True, index=scores.index)
+    scored = scores[elig]
+    n_excluded = int((~elig).sum())
+
+    n_port = meta.get("n_portfolio", int(scored.get("is_portfolio", pd.Series(dtype=bool)).sum()))
     n_cand = meta.get("n_candidates", 0)
     date = _esc(meta.get("date", ""))
     regime = _esc(meta.get("regime", "NEUTRAL"))
@@ -677,8 +776,8 @@ def render_report(
     regime_cls = {"RISK_ON": "regime-on", "RISK_OFF": "regime-off"}.get(
         str(meta.get("regime")), "regime-neutral"
     )
-    conv_scale = _conv_scale(scores)
-    n_universe = len(scores)
+    conv_scale = _conv_scale(scored)
+    n_universe = len(scored)
 
     masthead = (
         f'<header class="masthead">'
@@ -699,9 +798,15 @@ def render_report(
         "Overview",
         f"Conviction heatmap · all {n_universe} scored names ranked · "
         "cluster factor tilt by cell color",
-    ) + _overview(scores, conv_scale)
-    port_sec = _portfolio_section(scores, conv_scale)
-    cand_sec = _candidates_section(scores, conv_scale, max_long_cards, max_avoid_cards)
+    ) + _overview(scored, conv_scale)
+    if n_excluded:
+        plural = "" if n_excluded == 1 else "s"
+        overview += (
+            f'<div class="excluded-note">{n_excluded} name{plural} excluded '
+            f"(non-equity or insufficient data).</div>"
+        )
+    port_sec = _portfolio_section(scored, conv_scale)
+    cand_sec = _candidates_section(scored, conv_scale, max_long_cards, max_avoid_cards)
 
     footer = (
         f'<footer class="footer">'
@@ -715,8 +820,13 @@ def render_report(
         f"plus Quality jointly capped at ~55%, renormalized per row over the clusters actually "
         f"present. Conviction is re-z-scored cross-sectionally; rank 1 = best. Bars and heat-cells "
         f"are centered at 0: green reads attractive, red unattractive, intensity scaling with the "
-        f"z. The <b>Overview</b> ranks the full universe; detailed cards are curated to the "
-        f"portfolio plus the strongest and weakest candidates.<br><br>"
+        f"z. The <b>Overview</b> ranks the full eligible universe; detailed cards are curated to "
+        f"the portfolio plus the strongest and weakest candidates. Non-equity instruments (ETFs, "
+        f"funds) and names missing core data are held out of the ranking so equity-factor "
+        f"convictions are not applied to instruments they do not describe. <b>Trade Levels</b> "
+        f"are vol-scaled: the monthly move sigma is the Close-based realized daily vol times the "
+        f"square root of 21; the stop sits near 2 sigma below entry, the target near 3 sigma "
+        f"above (about 1.5:1 reward-to-risk), and are indicative, not orders.<br><br>"
         f"This is a <b>shadow / decision-support</b> snapshot, not yet capital-authorized. The "
         f"naive price-spine (12-1 momentum plus low-vol) showed no standalone out-of-sample edge "
         f"in validation, so treat single-factor tilts with caution and weigh the full-cluster "
