@@ -66,6 +66,10 @@ CLUSTER_WEIGHTS = {
     "strength_z": 0.10,
 }
 
+# Eligibility: cluster columns whose availability is counted (need >= 3 of 5).
+_ELIG_CLUSTERS = ["value_z", "quality_z", "momentum_z", "lowvol_z", "strength_z"]
+_MIN_CLUSTERS = 3
+
 
 def _winsor_z(s: pd.Series) -> pd.Series:
     """Winsorize to the 1st/99th pct, then cross-sectional z (ddof=0)."""
@@ -98,6 +102,36 @@ def _sector_demean(z: pd.Series, sector: pd.Series) -> pd.Series:
     group (their own subset mean), leaving the global ~0-mean z ~unchanged."""
     grp = sector.fillna("__NA__").astype(str)
     return z - z.groupby(grp).transform("mean")
+
+
+def _eligibility(out: pd.DataFrame) -> pd.Series:
+    """Boolean per-ticker eligibility for ranking / display.
+
+    A name is eligible when it is an equity with the core data present:
+    ``quote_type == "EQUITY"`` AND price present (>0) AND ``mom_12_1`` present
+    AND ``realized_vol`` present AND at least three of the five cluster z's are
+    non-NaN. Non-equities (ETFs, funds) and dataless names are excluded so
+    their equity-factor conviction never leaks into the ranking.
+
+    Frames without a ``quote_type`` column (abstract combiner inputs) are all
+    eligible, so the numeric scoring contract is unchanged for callers that do
+    not run the yfinance enrichment.
+    """
+    idx = out.index
+    if "quote_type" not in out.columns:
+        return pd.Series(True, index=idx)
+
+    qt = out["quote_type"].astype("string").str.upper()
+    ok = qt.eq("EQUITY").fillna(False)
+    if "price" in out.columns:
+        price = pd.to_numeric(out["price"], errors="coerce")
+        ok &= price.notna() & (price > 0)
+    for col in ("mom_12_1", "realized_vol"):
+        if col in out.columns:
+            ok &= pd.to_numeric(out[col], errors="coerce").notna()
+    clusters_present = out[_ELIG_CLUSTERS].notna().sum(axis=1)
+    ok &= clusters_present >= _MIN_CLUSTERS
+    return ok.fillna(False).astype(bool)
 
 
 def compute_scores(features: pd.DataFrame, sector_neutral: bool = True) -> pd.DataFrame:
@@ -146,6 +180,11 @@ def compute_scores(features: pd.DataFrame, sector_neutral: bool = True) -> pd.Da
     wsum = wmat.sum(axis=1)
     conv_raw = (zmat * wmat).sum(axis=1) / wsum.where(wsum > 0)
 
-    out["conviction"] = _z_plain(conv_raw)
+    # Eligibility gate: ineligible names never enter the ranked cross-section,
+    # so their conviction is NaN (which yields a NaN rank) and the re-z baseline
+    # is the eligible equity universe only.
+    eligible = _eligibility(out)
+    out["eligible"] = eligible
+    out["conviction"] = _z_plain(conv_raw.where(eligible))
     out["rank"] = out["conviction"].rank(ascending=False, method="min").astype("Int64")
     return out

@@ -6,7 +6,7 @@ All tests inject FAKE info_fetch + price_fetch and a tmp CSV — no network.
 import numpy as np
 import pandas as pd
 
-from trade_modules.v3.features import enrich_features
+from trade_modules.v3.features import enrich_features, trade_levels
 
 # The 31-column etoro/portfolio/buy schema.
 FULL_COLS = [
@@ -167,6 +167,7 @@ def _fake_info(tickers):
             "averageVolume": 1_000_000,
             "sector": "Technology",
             "industry": "Consumer Electronics",
+            "quoteType": "EQUITY",
         },
         "MSFT": {
             "priceToBook": 12.0,
@@ -180,6 +181,7 @@ def _fake_info(tickers):
             "averageVolume": 800_000,
             "sector": "Technology",
             "industry": "Software",
+            "quoteType": "EQUITY",
         },
     }
     return {t: data[t] for t in tickers if t in data}
@@ -312,3 +314,52 @@ def test_price_factors_last_bar(tmp_path):
     # MSFT/ZZZ have only 100 bars -> too short -> NaN.
     assert pd.isna(feats.loc["MSFT", "mom_12_1"])
     assert pd.isna(feats.loc["ZZZ", "realized_vol"])
+
+
+def test_quote_type_from_info(tmp_path):
+    feats = _run(tmp_path)
+    assert feats.loc["AAPL", "quote_type"] == "EQUITY"
+    assert feats.loc["MSFT", "quote_type"] == "EQUITY"
+    # ZZZ is absent from the fake .info -> quote_type NaN.
+    assert pd.isna(feats.loc["ZZZ", "quote_type"])
+
+
+def test_trade_levels_known_values():
+    # realized_vol chosen so sigma_m = realized_vol/sqrt(12) = 0.10 exactly.
+    lv = trade_levels(100.0, (12**0.5) * 0.1)
+    assert abs(lv["sigma_m"] - 0.10) < 1e-9
+    assert abs(lv["entry"] - 100.0) < 1e-9
+    assert abs(lv["stop_loss"] - 80.0) < 1e-9  # 100 * (1 - 2*0.10)
+    assert abs(lv["take_profit"] - 130.0) < 1e-9  # 100 * (1 + 3*0.10)
+    assert abs(lv["rr"] - 1.5) < 1e-9  # (130-100)/(100-80)
+
+
+def test_trade_levels_degenerate():
+    # Missing vol -> entry still echoes price, but stop/target/rr NaN.
+    miss = trade_levels(100.0, float("nan"))
+    assert miss["entry"] == 100.0
+    for k in ("sigma_m", "stop_loss", "take_profit", "rr"):
+        assert pd.isna(miss[k])
+    # Zero vol is degenerate too.
+    assert pd.isna(trade_levels(100.0, 0.0)["stop_loss"])
+    # Missing / non-positive price -> everything NaN (no valid entry).
+    for bad in (float("nan"), 0.0, -5.0):
+        lv = trade_levels(bad, 0.30)
+        assert all(pd.isna(lv[k]) for k in ("entry", "stop_loss", "take_profit", "rr"))
+
+
+def test_enrich_adds_trade_level_columns(tmp_path):
+    feats = _run(tmp_path)
+    for col in ("entry", "sigma_m", "stop_loss", "take_profit", "rr"):
+        assert col in feats.columns
+    # AAPL has a realized_vol -> full levels, entry == price, rr ~ 1.5.
+    assert feats.loc["AAPL", "entry"] == feats.loc["AAPL", "price"]
+    assert np.isfinite(feats.loc["AAPL", "stop_loss"])
+    assert np.isfinite(feats.loc["AAPL", "take_profit"])
+    assert feats.loc["AAPL", "stop_loss"] < feats.loc["AAPL", "price"]
+    assert feats.loc["AAPL", "take_profit"] > feats.loc["AAPL", "price"]
+    assert abs(feats.loc["AAPL", "rr"] - 1.5) < 1e-9
+    # MSFT has NaN realized_vol -> entry echoes price, but stop/target NaN.
+    assert feats.loc["MSFT", "entry"] == feats.loc["MSFT", "price"]
+    assert pd.isna(feats.loc["MSFT", "stop_loss"])
+    assert pd.isna(feats.loc["MSFT", "rr"])

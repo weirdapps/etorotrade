@@ -101,3 +101,43 @@ def test_value_quality_weight_cap_about_55pct():
     total = sum(CLUSTER_WEIGHTS.values())
     vq = CLUSTER_WEIGHTS["value_z"] + CLUSTER_WEIGHTS["quality_z"]
     assert abs(vq / total - 0.55) < 0.01
+
+
+def test_no_quote_type_column_means_all_eligible():
+    """Abstract combiner frames (no quote_type) keep the full ranked cross-section."""
+    df = _base(["A", "B", "C"])
+    df["pe_trailing"] = [5.0, 15.0, 40.0]
+    df["roe"] = [40.0, 20.0, 10.0]
+    scores = compute_scores(df, sector_neutral=False)
+    assert scores["eligible"].all()
+    assert scores["rank"].notna().all()
+
+
+def test_eligibility_excludes_non_equity_and_dataless():
+    """With quote_type present, ETFs and dataless names drop out of the ranking."""
+    idx = ["EQ1", "EQ2", "ETF1", "DATALESS"]
+    df = _base(idx)
+    df["quote_type"] = ["EQUITY", "EQUITY", "ETF", "EQUITY"]
+    df["price"] = [100.0, 50.0, 200.0, 30.0]
+    df["pe_trailing"] = [10.0, 20.0, 15.0, 12.0]
+    df["roe"] = [30.0, 20.0, 25.0, 18.0]
+    df["mom_12_1"] = [0.20, 0.10, 0.15, 0.05]
+    df["realized_vol"] = [0.20, 0.25, 0.22, 0.30]
+    # DATALESS: strip its core data (no price/mom/vol, and its cluster members go NaN).
+    df.loc["DATALESS", ["price", "pe_trailing", "roe", "mom_12_1", "realized_vol"]] = np.nan
+
+    scores = compute_scores(df, sector_neutral=False)
+
+    # Two data-complete equities are eligible and ranked.
+    assert bool(scores.loc["EQ1", "eligible"]) is True
+    assert bool(scores.loc["EQ2", "eligible"]) is True
+    assert scores.loc["EQ1", "rank"] in (1, 2)
+    # The ETF is excluded despite having full data (non-equity).
+    assert bool(scores.loc["ETF1", "eligible"]) is False
+    assert pd.isna(scores.loc["ETF1", "conviction"])
+    assert pd.isna(scores.loc["ETF1", "rank"])
+    # The dataless equity is excluded (insufficient data).
+    assert bool(scores.loc["DATALESS", "eligible"]) is False
+    assert pd.isna(scores.loc["DATALESS", "rank"])
+    # Ranking is dense over the two eligible names only.
+    assert sorted(int(r) for r in scores["rank"].dropna()) == [1, 2]
