@@ -62,6 +62,34 @@ def _meta():
     }
 
 
+def _many_scores(n: int = 34, n_port: int = 4):
+    """A larger frame (distinct convictions) to exercise the overview + curation."""
+    rng = np.random.default_rng(3)
+    idx = [f"T{i:02d}" for i in range(n)]
+    sectors = [["Technology", "Energy", "Financials"][i % 3] for i in range(n)]
+    df = pd.DataFrame(
+        {
+            "name": [f"Company {i:02d}" for i in range(n)],
+            "sector": sectors,
+            "price": rng.uniform(20, 400, n),
+            "pe_trailing": rng.normal(22, 7, n),
+            "pb": rng.normal(6, 3, n),
+            "roe": rng.normal(20, 10, n),
+            "de": rng.normal(90, 40, n),
+            "mom_12_1": rng.normal(0.08, 0.25, n),
+            "pct_52w_high": rng.uniform(40, 100, n),
+            "beta": rng.normal(1.1, 0.4, n),
+            "realized_vol": rng.normal(0.28, 0.12, n),
+            "upside": rng.normal(12, 15, n),
+            "buy_pct": rng.uniform(20, 100, n),
+        },
+        index=idx,
+    )
+    scores = compute_scores(df, sector_neutral=True)
+    scores["is_portfolio"] = [True] * n_port + [False] * (n - n_port)
+    return scores
+
+
 def test_render_is_well_formed_html():
     html = render_report(_scores(), _meta())
     assert html.startswith("<!DOCTYPE")
@@ -107,6 +135,54 @@ def test_render_handles_ampersand_in_name():
     scores.loc["ZZZ", "name"] = "Z & Co <Ltd>"
     html = render_report(scores, _meta())
     assert "&amp;" in html  # escaped, not raw &
+
+
+def test_render_has_overview_heatmap_with_all_names():
+    scores = _scores()
+    html = render_report(scores, _meta())
+    assert "Overview" in html
+    # one heatmap row per scored name (head is a separate .hm-head)
+    assert html.count('class="hm-row"') == len(scores)
+    for tkr in ["AAPL", "MSFT", "ZZZ"]:
+        assert tkr in html
+    # portfolio names carry a marker dot in the heatmap
+    assert "hm-dot pf" in html
+
+
+def test_overview_blank_cell_for_nan_cluster():
+    scores = _scores()
+    scores["momentum_z"] = np.nan  # force every Mom heat-cell blank
+    html = render_report(scores, _meta())
+    assert "hm-cell nan" in html
+
+
+def test_render_curates_candidate_cards_and_notes_count():
+    scores = _many_scores(n=34, n_port=4)  # 30 candidates
+    html = render_report(scores, {"regime": "NEUTRAL"}, max_long_cards=5, max_avoid_cards=3)
+    # overview still lists the FULL universe
+    assert html.count('class="hm-row"') == 34
+    # detailed cards curated to portfolio(4) + top(5) + bottom(3) = 12
+    assert html.count('<article class="card"') == 12
+    # honest "showing X of Y" note for the curated candidate subset
+    assert "showing 8 of 30" in html
+    # the avoid block is separated by a labeled divider
+    assert "potential avoids" in html.lower()
+
+
+def test_render_curation_excludes_midpack_candidate_cards():
+    scores = _many_scores(n=34, n_port=4)
+    html = render_report(scores, {}, max_long_cards=5, max_avoid_cards=3)
+    cand = scores[~scores["is_portfolio"]].sort_values("conviction", ascending=False)
+    midpack = cand.index[len(cand) // 2]  # neither top-5 nor bottom-3
+    # present in the overview heatmap, absent as a detailed card
+    assert midpack in html
+    assert f'<div class="tkr">{midpack}' not in html
+
+
+def test_render_report_accepts_curation_kwargs():
+    scores = _scores()
+    html = render_report(scores, _meta(), max_long_cards=1, max_avoid_cards=0)
+    assert html.startswith("<!DOCTYPE") and "</html>" in html
 
 
 def test_compute_regime_uptrend_low_vol_is_risk_on():

@@ -2,8 +2,9 @@
 
 ``render_report(scores, meta) -> str`` returns a full standalone HTML
 document meant to be read in a browser: a luxury research-note layout with
-Fraunces / IBM Plex typography, a light editorial palette, responsive
-CSS-grid cards, diverging factor z-bars and conviction meters.
+Fraunces / IBM Plex typography, a light editorial palette, an at-a-glance
+conviction heatmap of the whole scored universe, and curated full-factor
+cards (diverging z-bars, conviction meters) for the names that matter.
 
 ``compute_regime(index_close) -> (label, detail)`` is a pure helper the
 driver script feeds with a fetched index series; kept network-free here.
@@ -33,8 +34,22 @@ TRACK = "#efeeea"  # neutral z-bar track
 # per-frame scale (90th pct of |conviction|) so typical names read strongly
 # and rare outliers simply saturate. Clamped to a sane [floor, cap] band.
 _Z_METRIC = 2.5
+_Z_HEAT = 2.0  # cluster-z at which a heatmap cell reaches full tint
 _CONV_FLOOR = 1.75
 _CONV_CAP = 3.0
+
+# Curation defaults: how many candidate cards to render in detail.
+_MAX_LONG_CARDS = 12
+_MAX_AVOID_CARDS = 6
+
+# The five scoring clusters, shown as the overview heatmap's heat-strip.
+CLUSTER_CELLS = [
+    ("value_z", "Value"),
+    ("quality_z", "Quality"),
+    ("momentum_z", "Mom"),
+    ("lowvol_z", "Low-vol"),
+    ("strength_z", "Strength"),
+]
 
 # Display grouping of metrics: (group label, [(feature_key, metric label), ...]).
 # A z-score column ``{key}_z`` is shown when present; else the raw value only.
@@ -160,6 +175,16 @@ def _znum(z) -> str:
     return "·" if _isnan(z) else f"{z:+.2f}"
 
 
+def _heat_bg(z) -> str:
+    """RGBA tint for a heatmap cell: bull-green (pos) / bear-red (neg), the
+    opacity ramping with |z| (clamped at ``_Z_HEAT``). Same two hues as the
+    rest of the palette, so near-zero cells recede toward the paper."""
+    a = min(abs(float(z)) / _Z_HEAT, 1.0)
+    alpha = 0.10 + a * 0.50
+    rgb = "45,106,79" if z >= 0 else "179,64,47"
+    return f"rgba({rgb},{alpha:.2f})"
+
+
 def _tilt(conv: float, is_portfolio: bool) -> tuple[str, str]:
     """Return (label, css_class) for the tilt badge."""
     if _isnan(conv):
@@ -235,6 +260,68 @@ def compute_regime(index_close: pd.Series) -> tuple[str, str]:
     return (label, detail)
 
 
+# --- overview heatmap -------------------------------------------------------
+def _heat_cell(label: str, z) -> str:
+    """One cluster heat-cell: color-only, |z|-scaled tint; value on hover."""
+    if _isnan(z):
+        return f'<span class="hm-cell nan" title="{label}: no data">·</span>'
+    return (
+        f'<span class="hm-cell" style="background:{_heat_bg(z)};" '
+        f'title="{label}: {float(z):+.2f}"></span>'
+    )
+
+
+def _overview(scores: pd.DataFrame, conv_scale: float) -> str:
+    """A scannable, ranked table of the FULL scored universe.
+
+    rank · ticker · sector · conviction (numeric + diverging bar) · a compact
+    strip of the five cluster z's as diverging heat-cells. Portfolio names
+    carry a small accent dot. This is the report's centerpiece.
+    """
+    ordered = scores.sort_values("conviction", ascending=False, na_position="last")
+
+    head = (
+        '<div class="hm-head">'
+        "<span></span>"
+        '<span class="hm-h right">#</span>'
+        '<span class="hm-h">Ticker</span>'
+        '<span class="hm-h">Sector</span>'
+        '<span class="hm-h right">Conv</span>'
+        "<span></span>"
+        '<div class="hm-cells">'
+        + "".join(f'<span class="hm-h center">{lbl}</span>' for _, lbl in CLUSTER_CELLS)
+        + "</div></div>"
+    )
+
+    rows = []
+    for tkr, r in ordered.iterrows():
+        conv = r.get("conviction", np.nan)
+        rank = r.get("rank", np.nan)
+        is_port = bool(r.get("is_portfolio", False))
+        dot = (
+            '<span class="hm-dot pf" title="Portfolio holding"></span>'
+            if is_port
+            else '<span class="hm-dot"></span>'
+        )
+        rank_s = "–" if _isnan(rank) else str(int(rank))
+        sector_s = _esc(r.get("sector", "")) or "–"
+        conv_s = "·" if _isnan(conv) else f"{conv:+.2f}"
+        cells = "".join(_heat_cell(lbl, r.get(k, np.nan)) for k, lbl in CLUSTER_CELLS)
+        rows.append(
+            '<div class="hm-row">'
+            f"{dot}"
+            f'<span class="hm-rank">{rank_s}</span>'
+            f'<span class="hm-tkr">{_esc(tkr)}</span>'
+            f'<span class="hm-sector">{sector_s}</span>'
+            f'<span class="hm-conv" style="color:{_z_color(conv)};">{conv_s}</span>'
+            f'<span class="hm-barcell">{_bar(conv, conv_scale, "meter")}</span>'
+            f'<div class="hm-cells">{cells}</div>'
+            "</div>"
+        )
+
+    return f'<div class="hm">{head}<div class="hm-body">{"".join(rows)}</div></div>'
+
+
 # --- card + section builders ------------------------------------------------
 def _unit(row: pd.Series, cols, key: str, label: str) -> str:
     """One metric tile.
@@ -290,6 +377,7 @@ def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> st
     conv_txt = "·" if _isnan(conv) else f"{conv:+.2f}"
     rank_txt = "–" if _isnan(rank) else f"#{int(rank)}"
     tilt_label, tilt_cls = _tilt(conv, is_port)
+    pf_tag = '<span class="pf-tag" title="Portfolio holding">PF</span>' if is_port else ""
 
     groups = "".join(_group(row, cols, gl, ms) for gl, ms in DISPLAY_GROUPS)
 
@@ -297,7 +385,7 @@ def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> st
         f'<article class="card" style="animation-delay:{delay:.2f}s;">'
         f'<div class="card-top">'
         f'<div class="id">'
-        f'<div class="tkr">{_esc(tkr)}</div>'
+        f'<div class="tkr">{_esc(tkr)}{pf_tag}</div>'
         f'<div class="name">{name}</div>'
         f'<div class="id-meta"><span class="chip">{sector}</span>'
         f'<span class="price">{price}</span></div>'
@@ -324,55 +412,55 @@ def _section_head(numeral: str, label: str, sub: str) -> str:
     )
 
 
-def _summary(scores: pd.DataFrame, conv_scale: float) -> str:
-    ordered = scores.sort_values("conviction", ascending=False)
-    top = ordered.head(5)
-    bottom = ordered.tail(5).iloc[::-1]
-
-    def _rows(frame: pd.DataFrame) -> str:
-        out = []
-        for tkr, r in frame.iterrows():
-            conv = r.get("conviction", np.nan)
-            rank = r.get("rank", np.nan)
-            rank_s = "–" if _isnan(rank) else f"{int(rank)}"
-            sector_s = _esc(r.get("sector", "")) or "–"
-            out.append(
-                f'<div class="sum-row">'
-                f'<span class="sum-rank">{rank_s}</span>'
-                f'<span class="sum-tkr">{_esc(tkr)}</span>'
-                f'<span class="sum-sector">{sector_s}</span>'
-                f'<span class="sum-bar">{_bar(conv, conv_scale, "meter")}</span>'
-                f'<span class="sum-conv" style="color:{_z_color(conv)};">{_znum(conv)}</span>'
-                f"</div>"
-            )
-        return "".join(out)
-
-    return (
-        f'<div class="summary">'
-        f'<div class="sum-col">'
-        f'<div class="sum-head"><span class="dot dot-bull"></span>Highest conviction</div>'
-        f"{_rows(top)}</div>"
-        f'<div class="sum-col">'
-        f'<div class="sum-head"><span class="dot dot-bear"></span>Lowest conviction</div>'
-        f"{_rows(bottom)}</div>"
-        f"</div>"
-    )
+def _card_grid(frame: pd.DataFrame, cols, conv_scale: float) -> str:
+    cards = [
+        _card(t, r, cols, conv_scale, min(i * 0.04, 0.36))
+        for i, (t, r) in enumerate(frame.iterrows())
+    ]
+    return f'<div class="cards">{"".join(cards)}</div>'
 
 
-def _cards_section(
-    scores: pd.DataFrame, is_port: bool, numeral: str, label: str, sub: str, conv_scale: float
+def _portfolio_section(scores: pd.DataFrame, conv_scale: float) -> str:
+    cols = scores.columns
+    mask = scores.get("is_portfolio", pd.Series(False, index=scores.index)) == True  # noqa: E712
+    port = scores[mask].sort_values("conviction", ascending=False, na_position="last")
+    sub = f"Current holdings · {len(port)} name(s) · tilt = ADD / HOLD / TRIM"
+    head = _section_head("II", "Portfolio", sub)
+    if port.empty:
+        return head + '<div class="empty">No portfolio holdings in this run.</div>'
+    return head + _card_grid(port, cols, conv_scale)
+
+
+def _candidates_section(
+    scores: pd.DataFrame, conv_scale: float, max_long: int, max_avoid: int
 ) -> str:
     cols = scores.columns
-    subset = scores[scores.get("is_portfolio", pd.Series(False, index=scores.index)) == is_port]
-    subset = subset.sort_values("conviction", ascending=False)
-    if subset.empty:
-        body = '<div class="empty">No names in this group.</div>'
-    else:
-        cards = []
-        for i, (t, r) in enumerate(subset.iterrows()):
-            cards.append(_card(t, r, cols, conv_scale, min(i * 0.05, 0.4)))
-        body = f'<div class="cards">{"".join(cards)}</div>'
-    return _section_head(numeral, label, sub) + body
+    mask = scores.get("is_portfolio", pd.Series(False, index=scores.index)) == False  # noqa: E712
+    cand = scores[mask].sort_values("conviction", ascending=False, na_position="last")
+    total = len(cand)
+    if cand.empty:
+        return (
+            _section_head("III", "Candidates", "Buy-signal watchlist")
+            + '<div class="empty">No candidates in this run.</div>'
+        )
+
+    longs = cand.head(max_long)
+    remaining = cand.drop(longs.index)
+    avoids = remaining[remaining["conviction"].notna()].tail(max_avoid).iloc[::-1]
+    shown = len(longs) + len(avoids)
+
+    sub = (
+        f"Buy-signal watchlist · showing {shown} of {total} in detail · "
+        f"top {len(longs)} by conviction"
+        + (f" and bottom {len(avoids)}" if len(avoids) else "")
+        + " · tilt = BUY-WATCH / WATCH / PASS"
+    )
+    head = _section_head("III", "Candidates", sub)
+    body = _card_grid(longs, cols, conv_scale)
+    if len(avoids):
+        body += '<div class="cards-divider"><span>Lowest conviction · potential avoids</span></div>'
+        body += _card_grid(avoids, cols, conv_scale)
+    return head + body
 
 
 # --- stylesheet -------------------------------------------------------------
@@ -380,7 +468,7 @@ def _stylesheet() -> str:
     return """
 :root{
   --canvas:#ffffff;--warm:#faf9f7;--ink:#16181d;--ink2:#4a4e57;--muted:#9aa0a8;
-  --line:#e7e6e2;--accent:#123b3a;--track:#ecebe4;
+  --line:#e7e6e2;--accent:#123b3a;--track:#ecebe4;--hover:#f4f2ee;
   --bull:#2d6a4f;--bull-bar:#bfe3cd;--bull-fill:#e9f5ee;
   --bear:#b3402f;--bear-bar:#f2c4bb;--bear-fill:#fbeeec;
   --serif:'Fraunces',Georgia,'Times New Roman',serif;
@@ -392,22 +480,22 @@ html{-webkit-text-size-adjust:100%;}
 body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans);
   font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;}
-.wrap{max-width:1180px;margin:0 auto;padding:0 40px 72px;}
+.wrap{max-width:1200px;margin:0 auto;padding:0 44px 84px;}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
 .eyebrow{font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:1.3px;
   text-transform:uppercase;color:var(--muted);}
 
 /* masthead */
-.masthead{padding:56px 0 26px;}
-.mast-eyebrow{font-size:10.5px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;
+.masthead{padding:66px 0 30px;}
+.mast-eyebrow{font-size:10.5px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
   color:var(--accent);}
 .mast-title{font-family:var(--serif);font-optical-sizing:auto;font-weight:400;
-  font-size:52px;line-height:1.02;letter-spacing:-.6px;color:var(--ink);margin:12px 0 0;}
-.mast-rule{width:60px;height:2px;background:var(--accent);margin:22px 0 20px;}
+  font-size:64px;line-height:1;letter-spacing:-1px;color:var(--ink);margin:14px 0 0;}
+.mast-rule{width:80px;height:3px;background:var(--accent);margin:26px 0 22px;}
 .standfirst{font-family:var(--serif);font-optical-sizing:auto;font-style:italic;font-weight:400;
-  font-size:19px;line-height:1.5;color:var(--ink2);margin:0;max-width:760px;}
-.mast-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-top:24px;
-  padding-top:20px;border-top:1px solid var(--line);}
+  font-size:20px;line-height:1.5;color:var(--ink2);margin:0;max-width:780px;}
+.mast-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-top:28px;
+  padding-top:22px;border-top:1px solid var(--line);}
 .regime{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:11px;
   font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:5px 12px;border-radius:100px;
   border:1px solid var(--line);background:var(--warm);color:var(--ink2);}
@@ -421,114 +509,132 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
   font-variant-numeric:tabular-nums;letter-spacing:.2px;}
 
 /* section headers */
-.section-head{display:flex;align-items:baseline;gap:18px;margin:52px 0 22px;
-  padding-bottom:14px;border-bottom:1px solid var(--line);}
-.sec-num{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:40px;
-  line-height:.8;color:var(--accent);min-width:44px;}
-.sec-title{font-family:var(--serif);font-weight:500;font-size:24px;letter-spacing:-.3px;
+.section-head{display:flex;align-items:baseline;gap:20px;margin:64px 0 24px;
+  padding-bottom:16px;border-bottom:1px solid var(--line);}
+.sec-num{font-family:var(--serif);font-optical-sizing:auto;font-weight:300;font-size:44px;
+  line-height:.8;color:var(--accent);min-width:48px;}
+.sec-title{font-family:var(--serif);font-weight:500;font-size:25px;letter-spacing:-.3px;
   color:var(--ink);}
-.sec-sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+.sec-sub{font-size:12.5px;color:var(--muted);margin-top:4px;}
 
-/* summary band */
-.summary{display:grid;grid-template-columns:1fr;gap:18px;background:var(--warm);
-  border:1px solid var(--line);border-radius:8px;padding:22px 24px;}
-.sum-head{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:600;
-  letter-spacing:1.3px;text-transform:uppercase;color:var(--ink2);margin-bottom:12px;}
-.sum-head .dot{width:8px;height:8px;border-radius:50%;}
-.dot-bull{background:var(--bull);}
-.dot-bear{background:var(--bear);}
-.sum-row{display:grid;grid-template-columns:22px 66px minmax(0,1fr) 112px 52px;align-items:center;
-  gap:10px;padding:7px 0;border-top:1px solid var(--line);}
-.sum-col .sum-row:first-of-type{border-top:none;}
-.sum-rank{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;
+/* overview heatmap */
+.hm{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--canvas);
+  box-shadow:0 1px 2px rgba(22,24,29,.04);}
+.hm-head,.hm-row{display:grid;
+  grid-template-columns:14px 30px 74px minmax(90px,1fr) 52px 96px 250px;
+  align-items:center;gap:14px;padding:0 20px;}
+.hm-head{height:40px;background:var(--warm);border-bottom:1px solid var(--line);}
+.hm-row{min-height:34px;border-top:1px solid var(--line);}
+.hm-body .hm-row:first-child{border-top:none;}
+.hm-body .hm-row:nth-child(even){background:var(--warm);}
+.hm-row:hover{background:var(--hover);}
+.hm-h{font-size:9px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);}
+.hm-h.center{text-align:center;}
+.hm-h.right{text-align:right;}
+.hm-dot{width:7px;height:7px;border-radius:50%;}
+.hm-dot.pf{background:var(--accent);}
+.hm-rank{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;
   font-variant-numeric:tabular-nums;}
-.sum-tkr{font-family:var(--serif);font-weight:600;font-size:15px;color:var(--ink);
-  letter-spacing:-.2px;}
-.sum-sector{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis;}
-.sum-conv{font-family:var(--mono);font-size:13px;font-weight:500;text-align:right;
+.hm-tkr{font-family:var(--serif);font-weight:600;font-size:15.5px;color:var(--ink);letter-spacing:-.2px;}
+.hm-sector{font-size:11.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hm-conv{font-family:var(--mono);font-size:12.5px;font-weight:500;text-align:right;
   font-variant-numeric:tabular-nums;}
+.hm-cells{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;align-items:center;}
+.hm-cell{height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;color:transparent;}
+.hm-cell.nan{background:transparent;color:var(--muted);}
 
 /* cards */
-.cards{display:grid;grid-template-columns:1fr;gap:20px;}
-.card{background:var(--canvas);border:1px solid var(--line);border-radius:10px;padding:24px 26px;
+.cards{display:grid;grid-template-columns:1fr;gap:28px;}
+.card{background:var(--canvas);border:1px solid var(--line);border-radius:12px;padding:28px 30px;
   box-shadow:0 1px 2px rgba(22,24,29,.04);transition:transform .25s ease,box-shadow .25s ease,
   border-color .25s ease;animation:rise .6s cubic-bezier(.2,.7,.2,1) both;}
-.card:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(22,24,29,.09);
+.card:hover{transform:translateY(-3px);box-shadow:0 16px 38px rgba(22,24,29,.10);
   border-color:#dad8d2;}
 .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;}
-.tkr{font-family:var(--serif);font-optical-sizing:auto;font-weight:600;font-size:28px;
-  line-height:1;letter-spacing:-.4px;color:var(--ink);}
-.name{font-size:13px;color:var(--ink2);margin-top:5px;white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis;max-width:280px;}
-.id-meta{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.tkr{font-family:var(--serif);font-optical-sizing:auto;font-weight:600;font-size:30px;
+  line-height:1;letter-spacing:-.4px;color:var(--ink);display:flex;align-items:baseline;gap:10px;}
+.pf-tag{font-family:var(--sans);font-size:9px;font-weight:600;letter-spacing:1px;
+  color:var(--accent);background:var(--warm);border:1px solid var(--line);border-radius:100px;
+  padding:2px 7px;}
+.name{font-size:13px;color:var(--ink2);margin-top:6px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:300px;}
+.id-meta{display:flex;align-items:center;gap:10px;margin-top:11px;}
 .chip{font-size:9.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;
   color:var(--ink2);background:var(--warm);border:1px solid var(--line);border-radius:100px;
   padding:3px 9px;white-space:nowrap;}
 .price{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
 .verdict{text-align:right;flex-shrink:0;}
-.conv{font-family:var(--mono);font-weight:500;font-size:32px;line-height:1;letter-spacing:-1px;
+.conv{font-family:var(--mono);font-weight:500;font-size:34px;line-height:1;letter-spacing:-1px;
   font-variant-numeric:tabular-nums;}
 .conv-l{font-size:9.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
-  color:var(--muted);margin-top:6px;}
-.tilt{display:inline-block;margin-top:9px;font-size:10px;font-weight:600;letter-spacing:1px;
+  color:var(--muted);margin-top:7px;}
+.tilt{display:inline-block;margin-top:10px;font-size:10px;font-weight:600;letter-spacing:1px;
   text-transform:uppercase;padding:4px 11px;border-radius:100px;border:1px solid var(--line);}
 .tilt-bull{color:var(--bull);background:var(--bull-fill);border-color:var(--bull-bar);}
 .tilt-bear{color:var(--bear);background:var(--bear-fill);border-color:var(--bear-bar);}
 .tilt-flat{color:var(--ink2);background:var(--warm);}
-.meter-wrap{margin:20px 0 4px;}
+.meter-wrap{margin:22px 0 6px;}
 
 /* factor groups + metric tiles */
-.groups{margin-top:8px;}
-.grp{padding:15px 0 3px;border-top:1px solid var(--line);}
-.grp-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px;}
-.grp-name{font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+.groups{margin-top:10px;}
+.grp{padding:20px 0 6px;border-top:1px solid var(--line);}
+.grp:first-child{border-top:none;padding-top:8px;}
+.grp-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;}
+.grp-name{font-size:10.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;
   color:var(--ink);}
-.grp-z{font-family:var(--mono);font-size:11.5px;font-weight:500;font-variant-numeric:tabular-nums;}
-.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:14px 16px;
+.grp-z{font-family:var(--mono);font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;}
+.units{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:16px 18px;
   align-items:start;}
 .unit-l{font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
   color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.unit-v{font-family:var(--mono);font-size:13.5px;font-weight:500;color:var(--ink);margin-top:3px;
+.unit-v{font-family:var(--mono);font-size:13.5px;font-weight:500;color:var(--ink);margin-top:4px;
   font-variant-numeric:tabular-nums;letter-spacing:-.2px;}
-.unit-z{display:flex;align-items:center;gap:6px;margin-top:6px;}
+.unit-z{display:flex;align-items:center;gap:7px;margin-top:7px;}
 .znum{font-family:var(--mono);font-size:10px;font-weight:500;font-variant-numeric:tabular-nums;
-  min-width:30px;}
+  min-width:32px;}
 
 /* diverging bars */
 .zbar,.meter{position:relative;display:inline-block;background:var(--track);border-radius:100px;
   vertical-align:middle;overflow:hidden;}
-.zbar{width:100%;max-width:52px;height:5px;}
-.meter{width:100%;height:8px;}
+.zbar{width:100%;max-width:64px;height:7px;}
+.meter{width:100%;height:9px;}
 .zbar::before,.meter::before{content:"";position:absolute;left:calc(50% - .5px);top:0;bottom:0;
-  width:1px;background:rgba(22,24,29,.16);z-index:1;}
+  width:1px;background:rgba(22,24,29,.20);z-index:1;}
 .zbar-fill,.meter-fill{position:absolute;top:0;bottom:0;z-index:0;}
-.zbar-pos,.meter-pos{left:50%;background:var(--bull-bar);}
-.zbar-neg,.meter-neg{right:50%;background:var(--bear-bar);}
-.meter-pos{background:linear-gradient(90deg,#cdead9,var(--bull));}
-.meter-neg{background:linear-gradient(270deg,#f4cec6,var(--bear));}
+.zbar-pos,.meter-pos{left:50%;background:linear-gradient(90deg,#cdead9,var(--bull));}
+.zbar-neg,.meter-neg{right:50%;background:linear-gradient(270deg,#f4cec6,var(--bear));}
 
-.empty{color:var(--muted);font-size:13px;padding:12px 0;}
+/* labeled divider between the long block and the avoid block */
+.cards-divider{display:flex;align-items:center;gap:18px;margin:40px 0 28px;}
+.cards-divider::before,.cards-divider::after{content:"";height:1px;background:var(--line);flex:1;}
+.cards-divider span{font-size:10px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap;}
+
+.empty{color:var(--muted);font-size:13px;padding:14px 0;}
 
 /* footer */
-.footer{margin-top:56px;padding-top:24px;border-top:2px solid var(--ink);}
-.footer .eyebrow{margin-bottom:10px;}
-.method{font-size:11.5px;color:var(--muted);line-height:1.7;max-width:820px;}
+.footer{margin-top:72px;padding-top:26px;border-top:2px solid var(--ink);}
+.footer .eyebrow{margin-bottom:12px;}
+.method{font-size:11.5px;color:var(--muted);line-height:1.75;max-width:840px;}
 .method b{color:var(--ink2);font-weight:600;}
-.foot-stamp{margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--muted);
+.foot-stamp{margin-top:18px;font-family:var(--mono);font-size:11px;color:var(--muted);
   font-variant-numeric:tabular-nums;}
 
 @keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
 
 @media (min-width:1100px){
   .cards{grid-template-columns:1fr 1fr;}
-  .summary{grid-template-columns:1fr 1fr;gap:36px;}
+}
+@media (max-width:820px){
+  .hm-head,.hm-row{grid-template-columns:12px 26px 62px minmax(60px,1fr) 46px 200px;}
+  .hm-barcell{display:none;}
 }
 @media (max-width:680px){
   .wrap{padding:0 20px 56px;}
-  .mast-title{font-size:38px;}
+  .mast-title{font-size:42px;}
   .mast-stats{margin-left:0;width:100%;}
-  .card{padding:20px;}
+  .card{padding:22px;}
 }
 @media (prefers-reduced-motion:reduce){
   .card{animation:none;}
@@ -538,7 +644,25 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 
 
 # --- top-level --------------------------------------------------------------
-def render_report(scores: pd.DataFrame, meta: dict) -> str:
+def render_report(
+    scores: pd.DataFrame,
+    meta: dict,
+    *,
+    max_long_cards: int = _MAX_LONG_CARDS,
+    max_avoid_cards: int = _MAX_AVOID_CARDS,
+) -> str:
+    """Render the full standalone HTML factor report.
+
+    Args:
+        scores: Scored frame (from ``compute_scores``) indexed by ticker,
+            with cluster z's, ``conviction``, ``rank`` and ``is_portfolio``.
+        meta: Header metadata (date, regime, counts, system_read, ...).
+        max_long_cards: Max highest-conviction candidate cards to detail.
+        max_avoid_cards: Max lowest-conviction candidate cards to detail.
+
+    Returns:
+        A complete HTML document string.
+    """
     meta = meta or {}
     n_port = meta.get("n_portfolio", int(scores.get("is_portfolio", pd.Series(dtype=bool)).sum()))
     n_cand = meta.get("n_candidates", 0)
@@ -554,6 +678,7 @@ def render_report(scores: pd.DataFrame, meta: dict) -> str:
         str(meta.get("regime")), "regime-neutral"
     )
     conv_scale = _conv_scale(scores)
+    n_universe = len(scores)
 
     masthead = (
         f'<header class="masthead">'
@@ -569,20 +694,14 @@ def render_report(scores: pd.DataFrame, meta: dict) -> str:
         f"</div></header>"
     )
 
-    summary = _section_head(
-        "I", "Conviction extremes", "Ranked across the full universe · long vs. avoid"
-    ) + _summary(scores, conv_scale)
-    port_sec = _cards_section(
-        scores, True, "II", "Portfolio", "Current holdings · tilt = ADD / HOLD / TRIM", conv_scale
-    )
-    cand_sec = _cards_section(
-        scores,
-        False,
-        "III",
-        "Candidates",
-        "Buy-signal watchlist · tilt = BUY-WATCH / WATCH / PASS",
-        conv_scale,
-    )
+    overview = _section_head(
+        "I",
+        "Overview",
+        f"Conviction heatmap · all {n_universe} scored names ranked · "
+        "cluster factor tilt by cell color",
+    ) + _overview(scores, conv_scale)
+    port_sec = _portfolio_section(scores, conv_scale)
+    cand_sec = _candidates_section(scores, conv_scale, max_long_cards, max_avoid_cards)
 
     footer = (
         f'<footer class="footer">'
@@ -594,8 +713,10 @@ def render_report(scores: pd.DataFrame, meta: dict) -> str:
         f"(demeaned within GICS sector). Five cluster z-scores (Value, Quality, Momentum, "
         f"Low-vol, Strength) combine into <b>conviction</b> with a near-equal weighting: Value "
         f"plus Quality jointly capped at ~55%, renormalized per row over the clusters actually "
-        f"present. Conviction is re-z-scored cross-sectionally; rank 1 = best. Bars are centered "
-        f"at 0: green extends right (attractive), red extends left (unattractive).<br><br>"
+        f"present. Conviction is re-z-scored cross-sectionally; rank 1 = best. Bars and heat-cells "
+        f"are centered at 0: green reads attractive, red unattractive, intensity scaling with the "
+        f"z. The <b>Overview</b> ranks the full universe; detailed cards are curated to the "
+        f"portfolio plus the strongest and weakest candidates.<br><br>"
         f"This is a <b>shadow / decision-support</b> snapshot, not yet capital-authorized. The "
         f"naive price-spine (12-1 momentum plus low-vol) showed no standalone out-of-sample edge "
         f"in validation, so treat single-factor tilts with caution and weigh the full-cluster "
@@ -605,7 +726,7 @@ def render_report(scores: pd.DataFrame, meta: dict) -> str:
         f"</footer>"
     )
 
-    body = f'<div class="wrap">{masthead}{summary}{port_sec}{cand_sec}{footer}</div>'
+    body = f'<div class="wrap">{masthead}{overview}{port_sec}{cand_sec}{footer}</div>'
 
     return (
         "<!DOCTYPE html>\n"
