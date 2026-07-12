@@ -25,7 +25,7 @@ DIRECTION = {
     "pb": -1,
     "ev_ebitda": -1,
     "peg": -1,
-    # quality (high is good; leverage negated)
+    # quality (high is good; leverage and accruals negated)
     "roe": +1,
     "roa": +1,
     "gross_margin": +1,
@@ -33,6 +33,7 @@ DIRECTION = {
     "fcf": +1,
     "current_ratio": +1,
     "de": -1,
+    "accruals": -1,  # high accruals = lower earnings quality = BAD
     # momentum (high is good)
     "mom_12_1": +1,
     "price_perf": +1,
@@ -51,7 +52,16 @@ DIRECTION = {
 # Scoring clusters -> member metrics.
 CLUSTERS = {
     "value_z": ["pe_trailing", "pe_forward", "ps_sector", "pb", "ev_ebitda", "peg"],
-    "quality_z": ["roe", "roa", "gross_margin", "op_margin", "fcf", "current_ratio", "de"],
+    "quality_z": [
+        "roe",
+        "roa",
+        "gross_margin",
+        "op_margin",
+        "fcf",
+        "current_ratio",
+        "de",
+        "accruals",
+    ],
     "momentum_z": ["mom_12_1", "price_perf", "pct_52w_high"],
     "lowvol_z": ["beta", "realized_vol"],
     "strength_z": ["analyst_mom", "upside", "buy_pct", "short_interest", "target_dispersion"],

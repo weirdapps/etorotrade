@@ -113,6 +113,25 @@ def test_no_quote_type_column_means_all_eligible():
     assert scores["rank"].notna().all()
 
 
+def test_accruals_in_quality_negated_low_accruals_scores_higher():
+    """Low (more negative) accruals = higher earnings quality = higher quality_z.
+
+    accruals direction is -1 (negated), consistent with the existing quality
+    metrics that penalise leverage (de: -1).  CLEAN has negative accruals
+    (cash-flow exceeds reported income) which is the gold standard for
+    earnings quality and must rank above DIRTY (high accruals = inflated
+    earnings, lower quality).
+    """
+    df = _base(["CLEAN", "DIRTY"])
+    df["accruals"] = [-0.10, 0.15]  # CLEAN: quality earner; DIRTY: accrual-heavy
+    scores = compute_scores(df, sector_neutral=False)
+    # CLEAN (low/negative accruals) must outscore DIRTY on quality_z.
+    assert scores.loc["CLEAN", "quality_z"] > scores.loc["DIRTY", "quality_z"]
+    # With only one metric, the direction must produce the right sign.
+    assert scores.loc["CLEAN", "quality_z"] > 0
+    assert scores.loc["DIRTY", "quality_z"] < 0
+
+
 def test_eligibility_excludes_non_equity_and_dataless():
     """With quote_type present, ETFs and dataless names drop out of the ranking."""
     idx = ["EQ1", "EQ2", "ETF1", "DATALESS"]
