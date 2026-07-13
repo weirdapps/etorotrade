@@ -24,7 +24,6 @@ DIRECTION = {
     "ps_sector": -1,
     "pb": -1,
     "ev_ebitda": -1,
-    "peg": -1,
     # quality (high is good; leverage and accruals negated)
     "roe": +1,
     "roa": +1,
@@ -51,7 +50,7 @@ DIRECTION = {
 
 # Scoring clusters -> member metrics.
 CLUSTERS = {
-    "value_z": ["pe_trailing", "pe_forward", "ps_sector", "pb", "ev_ebitda", "peg"],
+    "value_z": ["pe_trailing", "pe_forward", "ps_sector", "pb", "ev_ebitda"],
     "quality_z": [
         "roe",
         "roa",
@@ -75,6 +74,52 @@ CLUSTER_WEIGHTS = {
     "lowvol_z": 0.15,
     "strength_z": 0.10,
 }
+
+# The Value+Quality joint weight is capped here regardless of the weighting scheme.
+_VALUE_QUALITY = ("value_z", "quality_z")
+_VQ_CAP = 0.55
+
+
+def derive_cluster_weights(ic_weights: dict | None = None) -> dict[str, float]:
+    """Resolve the per-cluster conviction weights.
+
+    Args:
+        ic_weights: Optional ``{cluster -> information coefficient}`` map. When
+            ``None`` (the default until IC is measured on-panel) the fixed
+            near-equal :data:`CLUSTER_WEIGHTS` are returned unchanged.
+
+    When ``ic_weights`` is supplied, cluster weights are derived ∝ ``max(IC, 0)``
+    and renormalized to sum to 1, while **preserving the Value+Quality ≤ 0.55
+    cap**: if the IC-implied Value+Quality weight exceeds the cap it is scaled
+    back to exactly 0.55 (split within the bucket by IC) and the freed weight is
+    redistributed across the other three clusters (by IC). A degenerate vector
+    with no positive IC falls back to the fixed :data:`CLUSTER_WEIGHTS`.
+    """
+    if ic_weights is None:
+        return dict(CLUSTER_WEIGHTS)
+
+    names = list(CLUSTERS.keys())
+    raw = {c: max(float(ic_weights.get(c, 0.0)), 0.0) for c in names}
+    total = sum(raw.values())
+    if total <= 0:  # no positive IC anywhere -> keep the fixed baseline
+        return dict(CLUSTER_WEIGHTS)
+
+    w = {c: raw[c] / total for c in names}
+    vq = w["value_z"] + w["quality_z"]
+    if vq > _VQ_CAP:
+        rest = [c for c in names if c not in _VALUE_QUALITY]
+        rest_sum = sum(w[c] for c in rest)
+        for c in _VALUE_QUALITY:  # scale the VQ bucket down to the cap, by IC
+            w[c] = _VQ_CAP * (w[c] / vq)
+        target_rest = 1.0 - _VQ_CAP
+        if rest_sum > 0:
+            for c in rest:
+                w[c] = target_rest * (w[c] / rest_sum)
+        else:  # all remaining IC non-positive -> spread the freed weight equally
+            for c in rest:
+                w[c] = target_rest / len(rest)
+    return w
+
 
 # Eligibility: cluster columns whose availability is counted (need >= 3 of 5).
 _ELIG_CLUSTERS = ["value_z", "quality_z", "momentum_z", "lowvol_z", "strength_z"]
@@ -144,12 +189,22 @@ def _eligibility(out: pd.DataFrame) -> pd.Series:
     return ok.fillna(False).astype(bool)
 
 
-def compute_scores(features: pd.DataFrame, sector_neutral: bool = True) -> pd.DataFrame:
+def compute_scores(
+    features: pd.DataFrame,
+    sector_neutral: bool = True,
+    ic_weights: dict | None = None,
+) -> pd.DataFrame:
     """Add metric-z, cluster-z, conviction and rank columns to ``features``.
 
     Args:
         features: Per-ticker feature frame (from ``enrich_features``).
         sector_neutral: If True, demean each metric-z within its sector.
+        ic_weights: Optional ``{cluster -> information coefficient}`` map. When
+            supplied, cluster weights are derived ∝ ``max(IC, 0)`` (renormalized,
+            still honoring the Value+Quality ≤ 0.55 cap) via
+            :func:`derive_cluster_weights`. Leave ``None`` (the default) to use
+            the fixed near-equal :data:`CLUSTER_WEIGHTS`; IC-weighting only
+            activates once the ICs have actually been measured on-panel.
 
     Returns:
         The input frame plus ``{metric}_z``, the five cluster columns,
@@ -181,7 +236,7 @@ def compute_scores(features: pd.DataFrame, sector_neutral: bool = True) -> pd.Da
     # Weighted conviction, renormalized per-row over the clusters actually present.
     cluster_names = list(CLUSTERS.keys())
     zmat = out[cluster_names]
-    weights = pd.Series(CLUSTER_WEIGHTS)[cluster_names]
+    weights = pd.Series(derive_cluster_weights(ic_weights))[cluster_names]
     wmat = pd.DataFrame(
         np.tile(weights.to_numpy(), (len(out), 1)),
         index=out.index,
