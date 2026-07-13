@@ -37,6 +37,9 @@ DIRECTION = {
     "mom_12_1": +1,
     "price_perf": +1,
     "pct_52w_high": +1,
+    # growth (high is good)
+    "earn_growth": +1,
+    "rev_growth": +1,
     # low-vol (low is good)
     "beta": -1,
     "realized_vol": -1,
@@ -62,15 +65,20 @@ CLUSTERS = {
         "accruals",
     ],
     "momentum_z": ["mom_12_1", "price_perf", "pct_52w_high"],
+    "growth_z": ["earn_growth", "rev_growth"],
     "lowvol_z": ["beta", "realized_vol"],
     "strength_z": ["analyst_mom", "upside", "buy_pct", "short_interest", "target_dispersion"],
 }
 
 # Cluster weights: Value + Quality = 0.55 (the ~55% joint cap), rest sum to 0.45.
+# Growth carries ZERO weight by default — it exists as a 6th cluster but is OFF
+# in the default / IC path (backward-compat: the default model is unchanged).
+# The growth rebalance is exposed only via the explicit ``cluster_weights`` arg.
 CLUSTER_WEIGHTS = {
     "value_z": 0.275,
     "quality_z": 0.275,
     "momentum_z": 0.20,
+    "growth_z": 0.0,
     "lowvol_z": 0.15,
     "strength_z": 0.10,
 }
@@ -78,6 +86,59 @@ CLUSTER_WEIGHTS = {
 # The Value+Quality joint weight is capped here regardless of the weighting scheme.
 _VALUE_QUALITY = ("value_z", "quality_z")
 _VQ_CAP = 0.55
+
+# The five "evidence" clusters the IC / default weighting operates over. Growth
+# is deliberately EXCLUDED here: it is off (weight 0) in the default + IC paths
+# and only activated through the explicit ``cluster_weights`` arg, so the IC
+# redistribution math (and its unit tests) are unchanged.
+_IC_CLUSTERS = ["value_z", "quality_z", "momentum_z", "lowvol_z", "strength_z"]
+
+# Short-name aliases for the explicit ``cluster_weights`` arg: "value" -> "value_z".
+_CLUSTER_ALIASES = {c[:-2]: c for c in CLUSTERS}
+
+
+def _canonical_cluster(key: str) -> str:
+    """Map a cluster key to its canonical ``{name}_z`` form.
+
+    Accepts both the z-column name (``"value_z"``) and the short name
+    (``"value"``); an unknown key is returned unchanged (it then resolves to a
+    zero weight because it matches no cluster).
+    """
+    key = str(key)
+    if key in CLUSTERS:
+        return key
+    return _CLUSTER_ALIASES.get(key, key)
+
+
+def resolve_cluster_weights(
+    cluster_weights: dict | None,
+    ic_weights: dict | None,
+    cluster_names: list[str],
+) -> dict[str, float]:
+    """Resolve the per-cluster weight vector used for conviction.
+
+    Precedence: an explicit ``cluster_weights`` dict wins over ``ic_weights``
+    and the default. Explicit weights are read DIRECTLY — keys may be short
+    (``"growth"``) or canonical (``"growth_z"``), negatives are clamped to 0,
+    missing clusters get 0, and the vector is renormalized to sum 1. A degenerate
+    all-zero (or empty) explicit dict falls back to the IC / default resolution.
+    When ``cluster_weights`` is ``None`` the fixed / IC weights from
+    :func:`derive_cluster_weights` are used (the unchanged default model).
+    """
+    if cluster_weights:
+        provided: dict[str, float] = {}
+        for k, v in cluster_weights.items():
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                continue
+            provided[_canonical_cluster(k)] = max(fv, 0.0)
+        resolved = {c: provided.get(c, 0.0) for c in cluster_names}
+        total = sum(resolved.values())
+        if total > 0:
+            return {c: resolved[c] / total for c in cluster_names}
+        # degenerate (all-zero / unrecognized) -> fall through to the default.
+    return {c: derive_cluster_weights(ic_weights).get(c, 0.0) for c in cluster_names}
 
 
 def derive_cluster_weights(ic_weights: dict | None = None) -> dict[str, float]:
@@ -98,7 +159,7 @@ def derive_cluster_weights(ic_weights: dict | None = None) -> dict[str, float]:
     if ic_weights is None:
         return dict(CLUSTER_WEIGHTS)
 
-    names = list(CLUSTERS.keys())
+    names = list(_IC_CLUSTERS)  # growth excluded from IC weighting (off by default)
     raw = {c: max(float(ic_weights.get(c, 0.0)), 0.0) for c in names}
     total = sum(raw.values())
     if total <= 0:  # no positive IC anywhere -> keep the fixed baseline
@@ -118,11 +179,14 @@ def derive_cluster_weights(ic_weights: dict | None = None) -> dict[str, float]:
         else:  # all remaining IC non-positive -> spread the freed weight equally
             for c in rest:
                 w[c] = target_rest / len(rest)
+    w["growth_z"] = 0.0  # growth stays off in the IC path
     return w
 
 
-# Eligibility: cluster columns whose availability is counted (need >= 3 of 5).
-_ELIG_CLUSTERS = ["value_z", "quality_z", "momentum_z", "lowvol_z", "strength_z"]
+# Eligibility: cluster columns whose availability is counted (need >= 3 of 6).
+# Growth is included so a name rich in growth data counts toward the minimum;
+# the threshold stays at 3 (a name never becomes ineligible by adding a cluster).
+_ELIG_CLUSTERS = ["value_z", "quality_z", "momentum_z", "growth_z", "lowvol_z", "strength_z"]
 _MIN_CLUSTERS = 3
 
 
@@ -193,6 +257,7 @@ def compute_scores(
     features: pd.DataFrame,
     sector_neutral: bool = True,
     ic_weights: dict | None = None,
+    cluster_weights: dict | None = None,
 ) -> pd.DataFrame:
     """Add metric-z, cluster-z, conviction and rank columns to ``features``.
 
@@ -205,9 +270,15 @@ def compute_scores(
             :func:`derive_cluster_weights`. Leave ``None`` (the default) to use
             the fixed near-equal :data:`CLUSTER_WEIGHTS`; IC-weighting only
             activates once the ICs have actually been measured on-panel.
+        cluster_weights: Optional explicit ``{cluster -> weight}`` map (keys may
+            be short like ``"growth"`` or canonical like ``"growth_z"``). When
+            given it is used DIRECTLY — normalized to sum 1, missing clusters →
+            0 — taking precedence over both ``ic_weights`` and the default. This
+            is the ONLY path that activates the Growth cluster; leaving it
+            ``None`` reproduces the current model exactly (growth weight 0).
 
     Returns:
-        The input frame plus ``{metric}_z``, the five cluster columns,
+        The input frame plus ``{metric}_z``, the six cluster columns,
         ``conviction`` and ``rank`` (1 = best; NaN conviction -> NaN rank).
     """
     out = features.copy()
@@ -236,7 +307,9 @@ def compute_scores(
     # Weighted conviction, renormalized per-row over the clusters actually present.
     cluster_names = list(CLUSTERS.keys())
     zmat = out[cluster_names]
-    weights = pd.Series(derive_cluster_weights(ic_weights))[cluster_names]
+    weights = pd.Series(resolve_cluster_weights(cluster_weights, ic_weights, cluster_names))[
+        cluster_names
+    ]
     wmat = pd.DataFrame(
         np.tile(weights.to_numpy(), (len(out), 1)),
         index=out.index,
