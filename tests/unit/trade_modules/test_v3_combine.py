@@ -252,6 +252,36 @@ def test_derive_cluster_weights_all_nonpositive_falls_back_to_fixed():
     assert derive_cluster_weights(ic) == CLUSTER_WEIGHTS
 
 
+def test_derive_cluster_weights_equal_spread_when_rest_ic_nonpositive():
+    """Freed weight spreads equally when non-VQ clusters all have IC ≤ 0 (else branch).
+
+    Triggers the ``else`` branch at combine.py ~line 118: VQ IC is high enough
+    to push sum above the 0.55 cap, and the three remaining clusters (momentum,
+    lowvol, strength) have IC ≤ 0 so their raw weights are all zero.  The freed
+    weight (1 - 0.55 = 0.45) must be spread equally across the three clusters,
+    giving each 0.15, and the VQ pair is still exactly at the 0.55 cap.
+    """
+    from trade_modules.v3.combine import derive_cluster_weights
+
+    ic = {
+        "value_z": 0.6,
+        "quality_z": 0.6,
+        "momentum_z": -0.1,  # negative IC -> clamped to 0 (else branch triggered)
+        "lowvol_z": 0.0,  # zero IC -> clamped to 0
+        "strength_z": -0.2,  # negative IC -> clamped to 0
+    }
+    w = derive_cluster_weights(ic)
+
+    assert abs(sum(w.values()) - 1.0) < 1e-9, f"weights sum {sum(w.values())} != 1.0"
+    assert abs(w["value_z"] + w["quality_z"] - 0.55) < 1e-9, "VQ cap not exactly 0.55"
+
+    expected_each = (1.0 - 0.55) / 3  # 0.45 / 3 = 0.15
+    for c in ("momentum_z", "lowvol_z", "strength_z"):
+        assert abs(w[c] - expected_each) < 1e-9, (
+            f"{c}: got {w[c]:.6f}, expected {expected_each:.6f}"
+        )
+
+
 def test_ic_weighting_shifts_conviction_toward_high_ic_cluster():
     """A momentum-favoring IC vector flips the value-name / momentum-name ranking."""
     df = _base(["MOM_STAR", "VAL_STAR", "MID1", "MID2"])

@@ -85,7 +85,8 @@ def _empty_result(cvar_budget: float) -> dict:
         "sector_exposures": {},
         "selected": [],
         "diagnostics": {
-            "cvar_95": 0.0,
+            "cvar_95_risk_book": 0.0,
+            "cvar_95_deployed": 0.0,
             "cvar_budget": cvar_budget,
             "net_beta": 0.0,
             "net_beta_band": _BETA_BAND,
@@ -130,13 +131,23 @@ def build_portfolio(
 
     Returns:
         ``{weights, gross, cash, usd_bloc, sector_exposures, selected,
-        diagnostics}``. ``diagnostics`` holds ``cvar_95`` (annual fraction),
+        diagnostics}``. ``diagnostics`` holds:
+
+        *Risk-book metrics* (fully-invested pre-Kelly sleeve):
+        ``cvar_95_risk_book`` (annual parametric-normal CVaR),
         ``net_beta``, ``effective_bets`` (= 1/Σwᵢ² on invested proportions),
-        ``port_vol``, ``gross_risk`` (pre-Kelly), and per-metric ``binding``
-        flags. CVaR / net-beta / effective-bets are reported for oversight; only
-        CVaR acts (soft shrink). The shape metrics (net beta, effective bets)
-        are computed on invested proportions so they stay meaningful regardless
-        of the Kelly / regime gross dials.
+        ``port_vol``, ``gross_risk``.
+
+        *Deployed-capital metric*: ``cvar_95_deployed = kelly_fraction *
+        cvar_95_risk_book`` — CVaR of the actually deployed position.
+
+        ``gross`` likewise reflects Kelly-deployed capital.  Comparing
+        ``cvar_95_risk_book`` to ``gross`` would conflate the two bases; use
+        ``cvar_95_deployed`` when you want a deployed-capital view of tail risk.
+
+        CVaR / net-beta / effective-bets are reported for oversight; only CVaR
+        acts (soft shrink on the risk book, before Kelly).  Shape metrics are
+        computed on invested proportions so they stay meaningful across dials.
     """
     if "eligible" in scored.columns:
         elig = scored[scored["eligible"].astype(bool)].copy()
@@ -146,14 +157,13 @@ def build_portfolio(
         return _empty_result(cvar_budget)
 
     # Attach the columns the engine reads: uppercased SECTOR (activates the
-    # sector cap) and CAP (carried through for downstream reporting).
+    # sector cap).
     sub = elig.copy()
     sub["SECTOR"] = sub["sector"].astype("string").str.upper()
-    sub["CAP"] = sub["cap"] if "cap" in sub.columns else np.nan
     sector_labels = sub["SECTOR"].astype(str).to_dict()
 
     # Conviction is the sole selection/sizing factor (a pass-through).
-    factor_fns = [lambda df: df["conviction"].reindex(df.index)]
+    factor_fns = [lambda df: df["conviction"]]
 
     res = select_and_construct(
         sub,
@@ -196,11 +206,18 @@ def build_portfolio(
     else:
         prop = w_sel
         effective_bets = 0.0
-    betas_sel = pd.to_numeric(scored.reindex(selected)["beta"], errors="coerce").to_numpy()
-    net_beta = float(np.nansum(prop * betas_sel))
+    betas_sel = (
+        pd.to_numeric(scored.reindex(selected)["beta"], errors="coerce")
+        .fillna(1.0)  # consistent with cov_fn's fillna(1.0) for missing betas
+        .to_numpy()
+    )
+    net_beta = float(np.dot(prop, betas_sel))
 
     diagnostics = {
-        "cvar_95": cvar_95,
+        # Risk-book metrics: fully-invested pre-Kelly sleeve.
+        "cvar_95_risk_book": cvar_95,
+        # Deployed-capital metric: CVaR of the actually deployed position.
+        "cvar_95_deployed": kelly_fraction * cvar_95,
         "cvar_budget": cvar_budget,
         "net_beta": net_beta,
         "net_beta_band": _BETA_BAND,

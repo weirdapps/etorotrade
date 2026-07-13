@@ -167,7 +167,7 @@ def test_risk_gate_diagnostics_present_and_in_band():
         scored, prices, top_n=12, target_vol=0.12, kelly_fraction=1.0, cvar_budget=10.0
     )
     d = res["diagnostics"]
-    assert d["cvar_95"] > 0.0
+    assert d["cvar_95_risk_book"] > 0.0
     assert d["effective_bets"] > 1.0
     assert 0.3 <= d["net_beta"] <= 1.1  # betas ~1.0
     assert d["binding"]["net_beta"] is False
@@ -182,8 +182,8 @@ def test_cvar_matches_parametric_formula():
         scored, prices, top_n=12, target_vol=0.12, kelly_fraction=1.0, cvar_budget=10.0
     )
     d = res["diagnostics"]
-    # cvar_95 == 2.063 * annualized portfolio vol (parametric-normal ES).
-    assert abs(d["cvar_95"] - 2.063 * d["port_vol"]) < 1e-9
+    # cvar_95_risk_book == 2.063 * annualized portfolio vol (parametric-normal ES).
+    assert abs(d["cvar_95_risk_book"] - 2.063 * d["port_vol"]) < 1e-9
 
 
 def test_net_beta_flag_trips_when_out_of_band():
@@ -229,7 +229,7 @@ def test_cvar_budget_shrinks_gross_when_breached():
     assert lo["diagnostics"]["binding"]["cvar"] is True
     assert lo["gross"] < hi["gross"]
     # after the soft-shrink the reported CVaR sits at (≈) the budget
-    assert abs(lo["diagnostics"]["cvar_95"] - 0.02) < 1e-6
+    assert abs(lo["diagnostics"]["cvar_95_risk_book"] - 0.02) < 1e-6
 
 
 # --------------------------------------------------------------------------- #
@@ -337,6 +337,84 @@ def test_falls_back_to_single_factor_cov_when_prices_missing():
     # Equal betas -> single-factor cov is (near) equal-variance -> ~equal ERC weights.
     sel_w = w[w > 1e-9]
     assert sel_w.std() / sel_w.mean() < 0.05
+
+
+# --------------------------------------------------------------------------- #
+# Degenerate path (Fix 2a): all-ineligible / empty scored
+# --------------------------------------------------------------------------- #
+
+
+def test_all_ineligible_returns_all_cash_with_full_diagnostics():
+    """build_portfolio with all-ineligible scored must return a well-formed all-cash result."""
+    scored = _make_scored(eligible=[False] * len(_ALL))
+    prices = _make_prices(_ALL, seed=99)
+    res = build_portfolio(scored, prices, cvar_budget=0.25)
+
+    assert isinstance(res["weights"], pd.Series)
+    assert len(res["weights"]) == 0
+    assert res["gross"] == 0.0
+    assert res["cash"] == 1.0
+    assert res["selected"] == []
+
+    d = res["diagnostics"]
+    required_keys = (
+        "cvar_95_risk_book",
+        "cvar_95_deployed",
+        "cvar_budget",
+        "net_beta",
+        "net_beta_band",
+        "effective_bets",
+        "port_vol",
+        "gross_risk",
+        "binding",
+    )
+    for key in required_keys:
+        assert key in d, f"missing diagnostics key: {key!r}"
+    for flag in ("cvar", "net_beta", "effective_bets"):
+        assert flag in d["binding"], f"missing binding flag: {flag!r}"
+
+
+# --------------------------------------------------------------------------- #
+# net_beta NaN coercion (Fix 3)
+# --------------------------------------------------------------------------- #
+
+
+def test_net_beta_nan_beta_coerced_to_one():
+    """A NaN beta must be treated as 1.0 (consistent with cov_fn's fillna(1.0)).
+
+    Setup: 3 names with betas [1.5, NaN, 0.5]. With NaN→1.0 the equal-weight
+    average is (1.5 + 1.0 + 0.5) / 3 = 1.0. Without coercion np.nansum would
+    exclude the NaN term, yielding a lower result since not all proportions
+    contribute.
+    """
+    tickers = ["A", "B", "C"]
+    df = pd.DataFrame(index=pd.Index(tickers, name="ticker"))
+    df["conviction"] = [2.0, 1.0, 0.0]
+    df["eligible"] = True
+    df["sector"] = ["Tech", "Tech", "Health"]
+    df["price"] = 100.0
+    df["beta"] = [1.5, np.nan, 0.5]  # B has NaN beta
+
+    # Single-factor fallback (no price history): equal-beta cov -> equal ERC weights.
+    # After NaN→1.0 coercion betas become [1.5, 1.0, 0.5]; equal ERC weights give
+    # net_beta ≈ (1.5 + 1.0 + 0.5) / 3 = 1.0.
+    res = build_portfolio(
+        df,
+        pd.DataFrame(),  # force single-factor fallback
+        top_n=3,
+        name_cap=1.0,
+        sector_cap=1.0,
+        usd_bloc_cap=1.0,
+        target_vol=0.50,
+        kelly_fraction=1.0,
+        cvar_budget=10.0,
+    )
+    d = res["diagnostics"]
+    # With NaN coerced to 1.0 net_beta ≈ 1.0 (avg of 1.5, 1.0, 0.5 with ~equal weights).
+    # Without coercion nansum would skip the NaN term → net_beta ≈ (1.5+0.5)/3 = 0.67.
+    assert d["net_beta"] > 0.8, (
+        f"net_beta={d['net_beta']:.4f} too low; NaN beta may not be coerced to 1.0"
+    )
 
 
 def test_fallback_when_one_selected_name_lacks_history():
