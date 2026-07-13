@@ -256,6 +256,17 @@ def test_compute_regime_uptrend_low_vol_is_risk_on():
     assert "200dma" in detail
 
 
+def test_overview_heatmap_mobile_hides_sector_not_ticker():
+    """On narrow phones (<640px) the sector column hides; ticker always shows."""
+    html = render_report(_scores(), _meta())
+    # A narrow breakpoint that suppresses sector must exist
+    assert "max-width:639px" in html
+    # Sector hidden in that breakpoint
+    assert ".hm-sector{display:none;" in html
+    # Ticker element is never globally suppressed
+    assert ".hm-tkr{display:none" not in html
+
+
 def test_compute_regime_short_series_neutral():
     series = pd.Series([100.0, 101.0, 102.0])
     label, detail = compute_regime(series)

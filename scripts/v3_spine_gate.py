@@ -10,14 +10,17 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+from trade_modules.v3.fetch import robust_fetch_prices
 from trade_modules.v3.labels import forward_returns
 from trade_modules.v3.prices import load_eur_close
 from trade_modules.v3.spine import spine_scores
 from trade_modules.v3.universe import load_universe
-from trade_modules.v3.validate_spine import run_gate
+from trade_modules.v3.validate_spine import classify_regimes, run_gate
 
 ETORO_CSV = "yahoofinance/output/etoro.csv"
 HORIZONS = [5, 21, 63]
@@ -42,7 +45,36 @@ def main() -> None:
 
     scores = spine_scores(eur, rebal)
     fwd = forward_returns(eur, rebal, HORIZONS)
-    verdict = run_gate(scores, fwd, HORIZONS, n_trials=2, min_obs=10)
+
+    # Fetch benchmark regime labels so the DSR harness can stratify across
+    # RISK_ON / NEUTRAL / RISK_OFF (spanning the 2022 bear → ≥2 regimes over 5y).
+    regime: dict = {}
+    try:
+        spx = robust_fetch_prices(["^GSPC"], period="5y")
+        if spx is not None and not spx.empty:
+            spx_series = spx.iloc[:, 0].dropna()
+            all_regimes = classify_regimes(spx_series)
+            regime_ts = pd.Series(all_regimes).sort_index()
+            for d in rebal:
+                r = regime_ts.asof(pd.Timestamp(d))
+                if isinstance(r, str):
+                    regime[d] = r
+            n_labels = len(set(regime.values()))
+            print(f"regime labels wired: {len(regime)} dates, {n_labels} distinct regimes")
+    except Exception as exc:  # noqa: BLE001
+        print(
+            f"warn: regime fetch failed ({exc}); running gate without regime labels",
+            file=sys.stderr,
+        )
+
+    verdict = run_gate(
+        scores,
+        fwd,
+        HORIZONS,
+        n_trials=2,
+        min_obs=10,
+        regime=regime if regime else None,
+    )
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
     out = os.path.expanduser(f"~/Downloads/{stamp}_v3_spine_gate.json")

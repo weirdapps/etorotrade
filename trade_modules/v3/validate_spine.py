@@ -3,6 +3,9 @@ trade_modules/v3/validate_spine.py — Gate runner (cross-sectional IC + harness
 
 Public API
 ----------
+classify_regimes(index_close) -> dict[date, str]
+    Map each trading date to RISK_ON / NEUTRAL / RISK_OFF (point-in-time).
+
 build_rows(scores, fwd, horizons, top_q=0.2, regime=None) -> list[dict]
     Top-quantile long book → harness rows with net_alpha.
 
@@ -19,6 +22,46 @@ import pandas as pd
 from trade_modules.v3.labels import cross_sectional_ic, demean_by_date, ic_summary
 from trade_modules.validation.harness import evaluate
 from trade_modules.validation.ic_decay import compute_ic_decay
+
+
+def classify_regimes(index_close: pd.Series) -> dict:
+    """Map each trading date to RISK_ON / NEUTRAL / RISK_OFF (point-in-time).
+
+    Logic (mirrors compute_regime in report.py, applied across the full series):
+      RISK_ON  = index above its 200-day MA AND expanding vol-percentile < 60
+      RISK_OFF = index below its 200-day MA AND expanding vol-percentile > 60
+      else NEUTRAL
+
+    Uses expanding-window vol-percentile rank so the classification is purely
+    PIT (no look-ahead). Dates with < 200 bars of history are excluded.
+
+    Args:
+        index_close: Daily close prices for a broad market index (e.g. S&P 500).
+
+    Returns:
+        Dict mapping each eligible date to its regime label string.
+    """
+    s = pd.to_numeric(pd.Series(index_close), errors="coerce").dropna()
+    ma200 = s.rolling(200).mean()
+    rv = s.pct_change(fill_method=None).rolling(21).std()
+    # Expanding-window percentile rank: fraction of past vol readings ≤ current.
+    rv_pctile = rv.expanding().rank(pct=True) * 100
+
+    result: dict = {}
+    for date in s.index:
+        ma = ma200.get(date)
+        pct = rv_pctile.get(date)
+        if pd.isna(ma) or pd.isna(pct):
+            continue
+        above = float(s[date]) > float(ma)
+        if above and float(pct) < 60:
+            label = "RISK_ON"
+        elif not above and float(pct) > 60:
+            label = "RISK_OFF"
+        else:
+            label = "NEUTRAL"
+        result[date] = label
+    return result
 
 
 def build_rows(

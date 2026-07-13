@@ -64,7 +64,11 @@ def main() -> None:
     n_cand = len(set(buy) - port_set)
     print(f"universe: {len(universe)} tickers ({n_port} portfolio + {n_cand} candidates)")
 
-    feats = enrich_features(universe, ETORO_CSV, price_period="2y")
+    # Accruals skipped in the daily report: slow per-ticker fetches rate-limit
+    # and add minutes of latency. The column stays NaN (pipeline / backtest use it).
+    feats = enrich_features(
+        universe, ETORO_CSV, price_period="2y", accruals_fetch=lambda _tickers: {}
+    )
     priced = int(feats["mom_12_1"].notna().sum())
     enriched = int(feats["pb"].notna().sum())
 

@@ -45,7 +45,7 @@ def low_vol(
     i = idx.get_loc(asof)
     if i - lookback < 0:
         return pd.Series(dtype=float)
-    rets = eur_close.iloc[i - lookback : i + 1].pct_change().iloc[1:]
+    rets = eur_close.iloc[i - lookback : i + 1].pct_change(fill_method=None).iloc[1:]
     vol = rets.std(ddof=0)
     return _z(-vol.dropna())
 
