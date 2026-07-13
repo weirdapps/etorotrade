@@ -245,7 +245,7 @@ def compute_regime(index_close: pd.Series) -> tuple[str, str]:
     last = float(s.iloc[-1])
     ma200 = float(s.rolling(200).mean().iloc[-1])
     above = last > ma200
-    rv = s.pct_change().rolling(21).std().dropna()
+    rv = s.pct_change(fill_method=None).rolling(21).std().dropna()
     if len(rv) >= 2:
         pctile = float((rv <= rv.iloc[-1]).mean() * 100.0)
     else:
@@ -718,6 +718,11 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 @media (max-width:820px){
   .hm-head,.hm-row{grid-template-columns:12px 26px 62px minmax(60px,1fr) 46px 200px;}
   .hm-barcell{display:none;}
+}
+@media (max-width:639px){
+  /* Phone: ticker always visible; hide sector column to reclaim width. */
+  .hm-head,.hm-row{grid-template-columns:12px 24px 60px 44px 1fr;}
+  .hm-sector{display:none;}
 }
 @media (max-width:680px){
   .wrap{padding:0 18px 60px;}

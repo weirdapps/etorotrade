@@ -244,7 +244,7 @@ def _price_factors(prices: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
         if len(s) < _MOM_LOOKBACK + 1:
             continue
         mom = s.iloc[-1 - _MOM_SKIP] / s.iloc[-1 - _MOM_LOOKBACK] - 1.0
-        rets = s.iloc[-_MOM_LOOKBACK:].pct_change().dropna()
+        rets = s.iloc[-_MOM_LOOKBACK:].pct_change(fill_method=None).dropna()
         vol = rets.std(ddof=0) * (252**0.5) if len(rets) > 1 else float("nan")
         out.loc[tkr, "mom_12_1"] = float(mom)
         out.loc[tkr, "realized_vol"] = float(vol)
