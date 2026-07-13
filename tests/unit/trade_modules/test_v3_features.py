@@ -153,6 +153,13 @@ def _write_csv(tmp_path):
     return str(p)
 
 
+_AAPL_SUMMARY = (
+    "Apple Inc. designs, manufactures, and markets smartphones, personal computers, "
+    "tablets, wearables, and accessories worldwide. The company operates through "
+    "several product and service segments including iPhone, Mac, iPad, and Services."
+)
+
+
 def _fake_info(tickers):
     data = {
         "AAPL": {
@@ -168,6 +175,7 @@ def _fake_info(tickers):
             "sector": "Technology",
             "industry": "Consumer Electronics",
             "quoteType": "EQUITY",
+            "longBusinessSummary": _AAPL_SUMMARY,
         },
         "MSFT": {
             "priceToBook": 12.0,
@@ -182,6 +190,7 @@ def _fake_info(tickers):
             "sector": "Technology",
             "industry": "Software",
             "quoteType": "EQUITY",
+            "longBusinessSummary": "Microsoft develops software and cloud services.",
         },
     }
     return {t: data[t] for t in tickers if t in data}
@@ -417,3 +426,72 @@ def test_accruals_partial_coverage(tmp_path):
     assert np.isfinite(feats.loc["AAPL", "accruals"])
     assert pd.isna(feats.loc["MSFT", "accruals"])
     assert pd.isna(feats.loc["ZZZ", "accruals"])
+
+
+# ---------------------------------------------------------------------------
+# Business description (longBusinessSummary → description)
+# ---------------------------------------------------------------------------
+
+
+def test_description_column_present(tmp_path):
+    """enrich_features always produces a 'description' column."""
+    feats = _run(tmp_path)
+    assert "description" in feats.columns
+
+
+def test_description_extracted_from_info(tmp_path):
+    """Tickers with longBusinessSummary get a non-empty description ≤ 220 chars."""
+    feats = _run(tmp_path)
+    assert feats.loc["AAPL", "description"] != ""
+    assert len(feats.loc["AAPL", "description"]) <= 220
+    assert feats.loc["MSFT", "description"] != ""
+
+
+def test_description_empty_when_info_missing(tmp_path):
+    """Tickers absent from .info (ZZZ) get an empty-string description, not NaN."""
+    feats = _run(tmp_path)
+    assert feats.loc["ZZZ", "description"] == ""
+    assert not pd.isna(feats.loc["ZZZ", "description"])
+
+
+def test_description_truncation_at_sentence_boundary(tmp_path):
+    """A long summary is cut at the last sentence boundary within 220 chars."""
+    first_sentence = "X" * 98 + "."  # 99 chars, ends with period at index 98
+    rest = " " + "Y" * 200 + "."  # pushes total well past 220
+    long_summary = first_sentence + rest  # ~300 chars total
+
+    def _info_long(tickers):
+        return {"AAPL": {"longBusinessSummary": long_summary}}
+
+    feats = enrich_features(
+        ["AAPL"],
+        _write_csv(tmp_path),
+        info_fetch=_info_long,
+        price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {},
+    )
+    desc = feats.loc["AAPL", "description"]
+    assert desc.endswith(".")
+    assert len(desc) <= 220
+    # The cut should happen at the first-sentence boundary (~99 chars), not in the middle
+    assert len(desc) < 150
+
+
+def test_description_word_boundary_fallback(tmp_path):
+    """When no sentence boundary within 220 chars, cut at a word boundary."""
+    no_period = "word " * 60  # 300 chars, no period
+
+    def _info_no_period(tickers):
+        return {"AAPL": {"longBusinessSummary": no_period}}
+
+    feats = enrich_features(
+        ["AAPL"],
+        _write_csv(tmp_path),
+        info_fetch=_info_no_period,
+        price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {},
+    )
+    desc = feats.loc["AAPL", "description"]
+    assert len(desc) <= 222  # 220 chars + possible "…" (1 char)
+    # Must not end with a raw space (no trailing whitespace after trim)
+    assert not desc.rstrip("…").endswith(" ")

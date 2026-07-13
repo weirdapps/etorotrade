@@ -13,6 +13,11 @@ def _scores():
     cols = {
         "name": ["APPLE INC", "MICROSOFT", "ZED CORP"],
         "sector": ["Technology", "Technology", "Energy"],
+        "description": [
+            "Apple Inc. designs and markets smartphones and personal computers.",
+            "Microsoft develops software and cloud services.",
+            "",
+        ],
         "price": [200.0, 400.0, 10.0],
         "pe_trailing": [28.5, 35.0, 8.0],
         "pe_forward": [25.0, 30.0, np.nan],  # a NaN metric on purpose
@@ -271,3 +276,14 @@ def test_compute_regime_short_series_neutral():
     series = pd.Series([100.0, 101.0, 102.0])
     label, detail = compute_regime(series)
     assert label == "NEUTRAL"
+
+
+def test_render_card_shows_description():
+    """Cards include the business description as a muted line when present."""
+    html = render_report(_scores(), _meta())
+    # AAPL has a description → should appear in the rendered HTML
+    assert "designs and markets smartphones" in html
+    # MSFT description also present
+    assert "Microsoft develops software" in html
+    # ZZZ has empty description → no empty desc div should pollute the card
+    assert 'class="desc">' not in html.split("ZED CORP")[1].split("Energy")[0]

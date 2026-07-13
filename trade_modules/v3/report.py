@@ -416,6 +416,13 @@ def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> st
     is_port = bool(row.get("is_portfolio", False))
     name = _esc(row.get("name", "")) or "&nbsp;"
     sector = _esc(row.get("sector", "")) or "n/a"
+    desc_raw = row.get("description", "")
+    desc_text = (
+        ""
+        if (desc_raw is None or (isinstance(desc_raw, float) and pd.isna(desc_raw)))
+        else str(desc_raw).strip()
+    )
+    desc_html = f'<div class="desc">{_esc(desc_text)}</div>' if desc_text else ""
     price = _fmt("price", row.get("price", np.nan))
     conv_txt = "·" if _isnan(conv) else f"{conv:+.2f}"
     rank_txt = "n/a" if _isnan(rank) else f"#{int(rank)}"
@@ -430,6 +437,7 @@ def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> st
         f'<div class="id">'
         f'<div class="tkr">{_esc(tkr)}{pf_tag}</div>'
         f'<div class="name">{name}</div>'
+        f"{desc_html}"
         f'<div class="id-meta"><span class="chip">{sector}</span></div>'
         f"</div>"
         f'<div class="verdict-top">'
@@ -615,6 +623,8 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
   background:var(--warm);border:1px solid var(--line);border-radius:100px;padding:2px 7px;}
 .name{font-size:13.5px;color:var(--ink2);margin-top:8px;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;}
+.desc{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.45;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:480px;}
 .id-meta{display:flex;align-items:center;gap:10px;margin-top:12px;}
 .chip{font-size:9.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--ink2);
   background:var(--warm);border:1px solid var(--line);border-radius:100px;padding:3px 10px;
