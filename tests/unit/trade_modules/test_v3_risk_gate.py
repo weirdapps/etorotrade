@@ -239,7 +239,7 @@ def test_respects_max_iter_no_hang():
 def test_net_beta_reported_and_flagged():
     cov = _cov(np.full(6, 0.12), corr=0.1)
     w = _series(np.full(6, 0.90 / 6))
-    betas = [1.8] * 6  # high-beta book (net beta ~ 0.9*1.8 = 1.62 > band hi)
+    betas = [1.8] * 6  # high-beta book (net beta on proportions = 1.8 > band hi)
     gated, diag = apply_risk_gate(
         w,
         cov,

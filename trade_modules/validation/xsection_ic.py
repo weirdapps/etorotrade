@@ -17,9 +17,11 @@ producer:
                       the forward return is taken.  Answers "does this signal add
                       rank-ordering power the incumbents don't already have?".
 
-Both reuse ``_spearman_rho`` from the harness (NaN-safe, len<3 / constant-guarded)
-and pairwise-drop NaNs before calling it (``_spearman_rho`` returns None if ANY
-NaN is present, so cleaning first is what makes these NaN-safe).
+Both reuse ``_spearman_rho`` from the harness (len<3 / constant-guarded) and
+pairwise-drop NaNs before calling it.  ``_spearman_rho`` returns None when the
+cleaned input has fewer than 3 observations or when the signal/return is constant;
+the pairwise-drop here is what makes these functions NaN-safe (consistent pair
+counts across the two series, not a NaN-rejection guard inside _spearman_rho).
 
 No I/O.  Never raises on thin or degenerate data — returns explicit None fields.
 """

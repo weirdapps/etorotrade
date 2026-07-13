@@ -39,7 +39,7 @@ from trade_modules.riskfirst.construct import apply_name_cap, cap_groups, erc_we
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import USD_BLOC, cap_bloc, currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
-from trade_modules.v3.risk_gate import apply_risk_gate
+from trade_modules.v3.risk_gate import _Z_ES_95, apply_risk_gate
 
 # Exchange-suffix -> company domicile country, for dual-listing (mother-market)
 # dedup. A bare ticker (no suffix) or an unmapped suffix is treated as US.
@@ -61,8 +61,7 @@ _SUFFIX_COUNTRY = {
 }
 _HOME_COUNTRY = "United States"  # bare / unmapped suffix
 
-# Parametric-normal 95% Expected Shortfall multiplier: E[Z | Z > z_.95] = φ(1.645)/0.05.
-_Z_ES_95 = 2.063
+# _Z_ES_95 imported from risk_gate (single definition shared across both modules).
 # Report-only risk-gate thresholds.
 _BETA_BAND = (0.3, 1.1)
 _MIN_EFFECTIVE_BETS = 12
