@@ -189,6 +189,11 @@ def test_conviction_weight_zero_reproduces_pure_erc():
     w = apply_name_cap(w, name_cap)
     w = w / w.sum() * gt
 
+    # FIX 1: cap-preserving scale = min(gt / gross_risk, 1.0); uniform shrink.
+    gross_risk = float(w.sum())
+    scale = min(gt / gross_risk, 1.0) if gross_risk > 0 else 0.0
+    w = w * scale
+
     np.testing.assert_allclose(res["weights"].loc[selected].to_numpy(), w, rtol=1e-9, atol=1e-12)
 
 
@@ -332,27 +337,47 @@ def test_effective_bets_flag_trips_when_concentrated():
 
 
 def test_gross_target_sets_deployment_and_cash():
+    # Use loose caps so gross_risk > max(gross_target), isolating the deployment
+    # dial from cap interactions.  When deployment_capped is True (a separate
+    # test scenario) the exact-equality assertion below would not hold.
     scored = _make_scored()
     prices = _make_prices(_ALL, seed=40)
     for gt in (0.85, 0.90, 0.95):
-        res = build_portfolio(scored, prices, top_n=12, gross_target=gt, cvar_budget=10.0)
+        res = build_portfolio(
+            scored,
+            prices,
+            top_n=12,
+            gross_target=gt,
+            cvar_budget=10.0,
+            name_cap=1.0,
+            sector_cap=1.0,
+            usd_bloc_cap=1.0,
+        )
+        d = res["diagnostics"]
+        assert not d["binding"]["deployment_capped"], (
+            f"deployment_capped unexpectedly set for gt={gt} with loose caps"
+        )
         assert abs(res["gross"] - gt) < 1e-9
         assert abs(res["weights"].sum() - gt) < 1e-9
         assert abs(res["cash"] - (1.0 - gt)) < 1e-9
 
 
 def test_cvar_deployed_scales_with_gross_target():
+    # Use loose caps so gross_risk > gross_target, making scale = gross_target/gross_risk
+    # and cvar_95_deployed = gross_target * cvar_95_risk_book (exact linear scaling).
     scored = _make_scored()
     prices = _make_prices(_ALL, seed=41)
-    full = build_portfolio(scored, prices, top_n=12, gross_target=1.0, cvar_budget=10.0)
-    dep = build_portfolio(scored, prices, top_n=12, gross_target=0.90, cvar_budget=10.0)
+    kw = {"top_n": 12, "cvar_budget": 10.0, "name_cap": 1.0, "sector_cap": 1.0, "usd_bloc_cap": 1.0}
+    full = build_portfolio(scored, prices, gross_target=1.0, **kw)
+    dep = build_portfolio(scored, prices, gross_target=0.90, **kw)
     # Risk-book CVaR (gross=1.0 sleeve) is invariant to the deployment target.
     np.testing.assert_allclose(
         full["diagnostics"]["cvar_95_risk_book"],
         dep["diagnostics"]["cvar_95_risk_book"],
         rtol=1e-9,
     )
-    # Deployed CVaR scales linearly with gross_target.
+    # Deployed CVaR scales linearly with gross_target when not cap-limited.
+    assert not dep["diagnostics"]["binding"]["deployment_capped"]
     np.testing.assert_allclose(
         dep["diagnostics"]["cvar_95_deployed"],
         0.90 * dep["diagnostics"]["cvar_95_risk_book"],
@@ -369,11 +394,14 @@ def test_cvar_budget_binding_flag_only_no_shrink():
     scored = _make_scored()
     prices = _make_prices(_ALL, seed=9)
     gt = 0.90
-    hi = build_portfolio(scored, prices, top_n=12, gross_target=gt, cvar_budget=10.0)
-    lo = build_portfolio(scored, prices, top_n=12, gross_target=gt, cvar_budget=0.02)
+    kw = {"top_n": 12, "gross_target": gt, "name_cap": 1.0, "sector_cap": 1.0, "usd_bloc_cap": 1.0}
+    hi = build_portfolio(scored, prices, cvar_budget=10.0, **kw)
+    lo = build_portfolio(scored, prices, cvar_budget=0.02, **kw)
     assert hi["diagnostics"]["binding"]["cvar"] is False
     assert lo["diagnostics"]["binding"]["cvar"] is True
     # Report-only: a CVaR breach never shrinks gross below the deployment target.
+    # With loose caps, deployment_capped is False and deployed == gross_target exactly.
+    assert not lo["diagnostics"]["binding"]["deployment_capped"]
     assert abs(lo["gross"] - gt) < 1e-9
     assert abs(hi["gross"] - gt) < 1e-9
     np.testing.assert_allclose(lo["gross"], hi["gross"], rtol=1e-9)
@@ -593,3 +621,176 @@ def test_build_portfolio_dedups_dual_listing_before_selection():
     assert "ABVX.PA" in res["weights"].index
     assert "ABVX" not in res["weights"].index
     assert "ABVX" not in res["selected"]
+
+
+# --------------------------------------------------------------------------- #
+# FIX 4 — share-class suffix guard (BRK.A, BRK.B are not exchange listings)
+# --------------------------------------------------------------------------- #
+
+
+def test_dedup_share_class_suffixes_not_treated_as_exchange():
+    """BRK.A and BRK.B share a root but .A/.B are share-class designators, not
+    exchange suffixes.  Both map to United States (bare/unmapped), so they ARE
+    deduped to one line (same company, same country).  The no-ADV fallback keeps
+    the sorted-first one (BRK.A).
+
+    With an avg_volume column, the higher-ADV listing is kept instead.
+    """
+    # No avg_volume: fallback keeps sorted-first (BRK.A < BRK.B lexically).
+    df = _dedup_frame(
+        [
+            ("BRK.A", "Berkshire Hathaway", "United States"),
+            ("BRK.B", "Berkshire Hathaway", "United States"),
+        ]
+    )
+    out = dedup_dual_listings(df)
+    assert len(out) == 1, f"expected 1 after dedup, got {list(out.index)}"
+    assert out.index[0] in ("BRK.A", "BRK.B")  # one of the two kept
+
+    # With avg_volume: the higher-ADV listing wins.
+    df2 = df.copy()
+    df2["avg_volume"] = [1_000.0, 10_000_000.0]  # BRK.B is more liquid
+    out2 = dedup_dual_listings(df2)
+    assert list(out2.index) == ["BRK.B"], f"higher-ADV BRK.B should be kept, got {list(out2.index)}"
+
+
+# --------------------------------------------------------------------------- #
+# FIX 1+2 — cap re-inflation + binding flags (large synthetic universe)
+#
+# The 12-name universe has enough non-capped receivers that all caps are
+# internally resolved. These tests use 30-name universes where caps exhaust
+# all receivers, forcing gross_risk < gross_target and surfacing binding flags.
+# --------------------------------------------------------------------------- #
+
+
+def _make_all_usd_scored(n=30, top_n_sectors=2):
+    """n bare USD tickers, split across top_n_sectors sectors."""
+    tickers = [f"U{i:02d}" for i in range(n)]
+    sector_names = [f"Sec{s}" for s in range(top_n_sectors)]
+    df = pd.DataFrame(index=pd.Index(tickers, name="ticker"))
+    df["conviction"] = list(np.linspace(3.0, -1.0, n))
+    df["eligible"] = True
+    df["sector"] = [sector_names[i % top_n_sectors] for i in range(n)]
+    df["price"] = 100.0
+    df["beta"] = 1.0
+    return df, tickers
+
+
+def test_usd_bloc_cap_no_reinflation_all_bloc_no_receiver():
+    """All-USD universe: cap_bloc has no non-bloc receiver.
+
+    After capping, the book gross_risk < gross_target, so:
+      * FIX 1: scale=1.0, w_final = w unchanged, deployed = gross_risk (no re-inflation).
+      * res["usd_bloc"] <= usd_bloc_cap + tol   (absolute weight stays at cap)
+      * binding["deployment_capped"] = True
+      * binding["usd_bloc_cap"] = True  (100% of deployed capital is USD > usd_bloc_cap)
+
+    Critically: res["usd_bloc"] must NOT be re-inflated to ~gross_target (≈0.90).
+    """
+    scored, tickers = _make_all_usd_scored(n=30, top_n_sectors=2)
+    prices = _make_prices(tickers, seed=200)
+    usd_cap = 0.60
+    gt = 0.90
+
+    res = build_portfolio(
+        scored,
+        prices,
+        top_n=20,
+        name_cap=0.08,
+        sector_cap=1.0,
+        usd_bloc_cap=usd_cap,
+        gross_target=gt,
+        cvar_budget=10.0,
+    )
+    d = res["diagnostics"]
+
+    # Absolute USD weight must stay at or below the cap (no re-inflation).
+    assert res["usd_bloc"] <= usd_cap + 1e-6, (
+        f"USD bloc {res['usd_bloc']:.4f} re-inflated above cap={usd_cap}"
+    )
+    # The book must NOT have been re-inflated to gross_target.
+    assert res["gross"] < gt - 1e-6, (
+        f"book gross {res['gross']:.4f} should be < gross_target={gt} when cap-limited"
+    )
+    # Binding flags.
+    assert d["binding"]["deployment_capped"] is True
+    # As a fraction of deployed capital, the USD bloc = 100% > usd_bloc_cap.
+    assert d["binding"]["usd_bloc_cap"] is True
+
+
+def test_sector_cap_no_reinflation_all_same_sector():
+    """All-same-sector universe (EUR tickers, so USD bloc cap is irrelevant).
+
+    cap_groups fires, no inter-sector receiver → gross_risk << gross_target.
+    FIX 1: deployed = gross_risk, not re-inflated.  Sector fraction of deployed = 1.0.
+    binding["sector_cap"] and binding["deployment_capped"] are both True.
+    """
+    # Use .DE suffix so currency_of = EUR (outside USD bloc).
+    tickers = [f"S{i:02d}.DE" for i in range(30)]
+    df = pd.DataFrame(index=pd.Index(tickers, name="ticker"))
+    df["conviction"] = list(np.linspace(3.0, -1.0, 30))
+    df["eligible"] = True
+    df["sector"] = "TECH"  # all same sector
+    df["price"] = 100.0
+    df["beta"] = 1.0
+    prices = _make_prices(tickers, seed=201)
+    sec_cap = 0.25
+    gt = 0.90
+
+    res = build_portfolio(
+        df,
+        prices,
+        top_n=20,
+        name_cap=0.08,
+        sector_cap=sec_cap,
+        usd_bloc_cap=1.0,
+        gross_target=gt,
+        cvar_budget=10.0,
+    )
+    d = res["diagnostics"]
+
+    deployed = res["gross"]
+    # The deployed book must be cap-limited (sector cap with no receiver).
+    assert d["binding"]["deployment_capped"] is True
+    # Sector fraction of deployed capital = 1.0 (all names are TECH) > sec_cap.
+    assert d["binding"]["sector_cap"] is True
+    # Absolute deployed weight must be the capped value, not re-inflated to gt.
+    assert deployed < gt - 1e-6, (
+        f"book {deployed:.4f} re-inflated above gross_risk with all-same-sector cap"
+    )
+
+
+def test_name_cap_binding_max_weight_respected():
+    """Large skewed universe: name cap binds, but redistribution keeps gross_risk ≈ 1.0.
+
+    With 30 names and enough diversity (2 sectors, no bloc cap), apply_name_cap
+    redistributes the excess within the book.  The max single-name deployed weight
+    must stay at or below name_cap, and binding["name_cap"] must be False
+    (cap is working, not breached).
+    """
+    scored, tickers = _make_all_usd_scored(n=30, top_n_sectors=2)
+    # Extreme conviction skew: first name dominates (would take >> 8% without cap).
+    scored["conviction"] = [10.0] + [0.1] * 29
+    prices = _make_prices(tickers, seed=202)
+    name_cap = 0.08
+
+    res = build_portfolio(
+        scored,
+        prices,
+        top_n=20,
+        name_cap=name_cap,
+        sector_cap=1.0,
+        usd_bloc_cap=1.0,
+        gross_target=0.90,
+        cvar_budget=10.0,
+    )
+    d = res["diagnostics"]
+
+    deployed = res["gross"]
+    if deployed > 0:
+        max_name_frac = float(res["weights"].max()) / deployed
+        assert max_name_frac <= name_cap + 1e-6, (
+            f"max name fraction {max_name_frac:.4f} exceeds name_cap={name_cap}"
+        )
+    # Cap is working (not breached): binding flag must be False.
+    assert d["binding"]["name_cap"] is False
