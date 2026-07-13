@@ -205,3 +205,66 @@ def test_no_core_retention_key_without_core_list():
     _tks, _convs, sc = _universe20()
     res = build_overlay(sc, pd.Series({"U10": 0.5}), pd.DataFrame())
     assert "core_retention" not in res["diagnostics"]
+
+
+# --------------------------------------------------------------------------- #
+# FIX A — never buy the same company twice / a dual listing of a held name
+# --------------------------------------------------------------------------- #
+
+
+def test_buy_dedups_cross_root_dual_listing():
+    """Two listings of one company (cross-root AMC.AX / AMCR) -> only one bought.
+
+    The suffix-stripped roots differ (AMC vs AMCR), so the mother-market util
+    cannot merge them; the shared company name ("Amcor plc") must. Only one of
+    the two may be bought.
+    """
+    tks = ["AMC.AX", "AMCR"] + [f"U{i:02d}" for i in range(18)]
+    convs = [2.0, 1.95] + list(np.linspace(1.0, -2.0, 18))
+    sc = _scored(tks, convs)
+    sc.loc["AMC.AX", "name"] = "Amcor plc"
+    sc.loc["AMCR", "name"] = "Amcor plc"
+    current = pd.Series({"U05": 0.3})  # a middling holding so there is a book
+
+    d = build_overlay(sc, current, pd.DataFrame(), max_new=8)["diagnostics"]
+    amcor = [t for t in d["bought"] if t in ("AMC.AX", "AMCR")]
+    assert len(amcor) == 1, f"bought both Amcor listings: {d['bought']}"
+
+
+def test_buy_dedups_same_root_dual_listing_keeps_mother():
+    """Same-root dual listing among candidates collapses to the mother market.
+
+    ABVX (bare ADR) has the higher conviction, but the shared util keeps the
+    Paris (home) listing ABVX.PA — mother-market preference overrides conviction.
+    """
+    tks = ["ABVX", "ABVX.PA"] + [f"U{i:02d}" for i in range(18)]
+    convs = [2.0, 1.95] + list(np.linspace(1.0, -2.0, 18))
+    sc = _scored(tks, convs)
+    sc.loc["ABVX", "name"] = "Abivax SA"
+    sc.loc["ABVX.PA", "name"] = "Abivax SA"
+    sc["country"] = "France"  # domicile -> mother market is the Paris listing
+    current = pd.Series({"U05": 0.3})
+
+    d = build_overlay(sc, current, pd.DataFrame(), max_new=8)["diagnostics"]
+    dup = [t for t in d["bought"] if t in ("ABVX", "ABVX.PA")]
+    assert dup == ["ABVX.PA"], f"expected only the Paris mother listing, got {dup}"
+
+
+def test_buy_skips_candidate_already_held_as_dual_listing():
+    """A strong buy candidate that is a dual listing of a HELD name is skipped.
+
+    We already hold AMCR (the US line of Amcor); the ASX line AMC.AX must not be
+    bought (would double the company), while an unrelated strong name still is.
+    """
+    tks = ["AMC.AX", "AMCR", "BUYME"] + [f"U{i:02d}" for i in range(17)]
+    convs = [2.0, 1.9, 1.8] + list(np.linspace(0.5, -2.0, 17))
+    sc = _scored(tks, convs)
+    sc.loc["AMC.AX", "name"] = "Amcor plc"
+    sc.loc["AMCR", "name"] = "Amcor plc"
+    sc.loc["BUYME", "name"] = "Buy Me Inc"
+    current = pd.Series({"AMCR": 0.3})  # already hold Amcor via the US listing
+
+    d = build_overlay(sc, current, pd.DataFrame(), max_new=8)["diagnostics"]
+    assert "AMC.AX" not in d["bought"]  # same company as a held name -> skipped
+    assert "BUYME" in d["bought"]  # the unrelated strong name is still bought
+    assert "AMCR" in d["kept"]

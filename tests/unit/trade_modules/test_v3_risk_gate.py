@@ -296,3 +296,98 @@ def test_empty_book_is_safe():
     assert len(gated) == 0
     assert diag["levers_fired"] == []
     assert diag["gross_cut"] is False
+
+
+# --------------------------------------------------------------------------- #
+# FIX B — conviction-aware tail-deweight redistribution
+#
+# Lever 1 redistributes freed weight to the lowest-vol in-book names. Passing a
+# ``conviction`` series restricts the RECEIVERS to names the model likes
+# (conviction > 0): a name with conviction <= 0 must NEVER be increased by the
+# gate. When the only low-vol receivers are disliked, lever 1 has no eligible
+# receiver and the gate falls through to the lever-2 gross cut instead of piling
+# weight into names the model rates negatively.
+# --------------------------------------------------------------------------- #
+
+
+def test_conviction_blocks_adds_to_negative_lowvol_names():
+    """The only low-vol names are negative-conviction: the gate must NOT feed them.
+
+    Three hot names (positive conviction) + three calm names (negative
+    conviction). Without conviction, lever 1 would shovel the freed weight into
+    the calm (disliked) names; with conviction the receiver set is empty, so the
+    gate falls through to a gross cut and the disliked names are never increased.
+    """
+    vols = [0.60, 0.60, 0.60, 0.10, 0.10, 0.10]
+    cov = _cov(vols, corr=0.1)
+    idx = [f"T{i}" for i in range(6)]
+    w = pd.Series([0.20, 0.20, 0.20, 0.10, 0.10, 0.10], index=idx)
+    conviction = pd.Series([2.0, 1.5, 1.0, -1.0, -1.5, -2.0], index=idx)
+    kw = {
+        "sectors": ["S"] * 6,
+        "currencies": ["EUR"] * 6,
+        "vol_ceiling": 0.18,
+        "name_cap": 1.0,
+        "sector_cap": 1.0,
+        "usd_bloc_cap": 1.0,
+    }
+
+    gated, diag = apply_risk_gate(w, cov, conviction=conviction, **kw)
+    # Disliked (conviction <= 0) low-vol names are NEVER increased.
+    for t in ("T3", "T4", "T5"):
+        assert gated[t] <= w[t] + _TOL
+    # Ceiling still enforced, via the gross-cut fallback (no eligible receiver).
+    assert portfolio_vol(gated.to_numpy(), cov) <= 0.18 + _TOL
+    assert diag["gross_cut"] is True
+
+    # Contrast: WITHOUT conviction the legacy lever 1 DOES feed the calm names.
+    gated_old, diag_old = apply_risk_gate(w, cov, **kw)
+    assert any(gated_old[t] > w[t] + _TOL for t in ("T3", "T4", "T5"))
+    assert "tail_deweight" in diag_old["levers_fired"]
+
+
+def test_conviction_feeds_positive_lowvol_receivers():
+    """Low-vol names are positive-conviction: they DO receive the freed weight."""
+    vols = [0.60, 0.60, 0.60, 0.10, 0.10, 0.10]
+    cov = _cov(vols, corr=0.1)
+    idx = [f"T{i}" for i in range(6)]
+    w = pd.Series([0.20, 0.20, 0.20, 0.10, 0.10, 0.10], index=idx)
+    # Liked names are the calm ones; the hot names are disliked.
+    conviction = pd.Series([-1.0, -1.5, -2.0, 2.0, 1.5, 1.0], index=idx)
+    kw = {
+        "sectors": ["S"] * 6,
+        "currencies": ["EUR"] * 6,
+        "vol_ceiling": 0.18,
+        "name_cap": 1.0,
+        "sector_cap": 1.0,
+        "usd_bloc_cap": 1.0,
+    }
+
+    gated, diag = apply_risk_gate(w, cov, conviction=conviction, **kw)
+    # The liked low-vol names received weight ...
+    assert sum(gated[t] for t in ("T3", "T4", "T5")) > sum(w[t] for t in ("T3", "T4", "T5")) + _TOL
+    # ... and the disliked hot names were only ever de-weighted.
+    for t in ("T0", "T1", "T2"):
+        assert gated[t] <= w[t] + _TOL
+    assert "tail_deweight" in diag["levers_fired"]
+    assert portfolio_vol(gated.to_numpy(), cov) <= 0.18 + _TOL
+
+
+def test_conviction_none_reproduces_current_behavior():
+    """conviction=None (and omitting it) must reproduce the legacy gate exactly."""
+    vols = np.array([0.70, 0.70, 0.70] + [0.12] * 9)
+    cov = _cov(vols, corr=0.1)
+    w = pd.Series([0.18, 0.18, 0.18] + [0.04] * 9, index=[f"T{i}" for i in range(12)])
+    kw = {
+        "sectors": ["A"] * 4 + ["B"] * 4 + ["C"] * 4,
+        "currencies": ["EUR"] * 12,
+        "vol_ceiling": 0.18,
+        "name_cap": 1.0,
+        "sector_cap": 1.0,
+        "usd_bloc_cap": 1.0,
+    }
+    g_omitted, d_omitted = apply_risk_gate(w, cov, **kw)
+    g_none, d_none = apply_risk_gate(w, cov, conviction=None, **kw)
+    np.testing.assert_allclose(g_omitted.to_numpy(), g_none.to_numpy(), rtol=1e-12, atol=1e-15)
+    assert d_omitted["levers_fired"] == d_none["levers_fired"]
+    assert "tail_deweight" in d_none["levers_fired"]  # the setup does fire lever 1

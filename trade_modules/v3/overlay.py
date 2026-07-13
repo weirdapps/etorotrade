@@ -31,6 +31,7 @@ import pandas as pd
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
+from trade_modules.v3.construct import _norm_name, _root_of, dedup_dual_listings
 from trade_modules.v3.risk_gate import apply_risk_gate
 
 # A holding/target weight at or below this is treated as flat (not held).
@@ -93,6 +94,50 @@ def _cov_matrix(prices: pd.DataFrame, names: list[str], betas_arr: np.ndarray) -
         if len(rets) >= _MIN_COV_OBS:
             return np.asarray(shrunk_cov(rets), dtype=float)
     return np.asarray(single_factor_cov(betas_arr, _MARKET_VOL, _IDIO_VOL), dtype=float)
+
+
+def _company_key(scored: pd.DataFrame, ticker: str) -> str:
+    """Company identity for buy-side dedup: normalized ``name`` else the root.
+
+    The normalized name collapses cross-root dual listings (e.g. ``AMC.AX`` /
+    ``AMCR``, the ASX + NYSE listings of Amcor) that :func:`dedup_dual_listings`
+    — which groups by the suffix-stripped root — cannot merge on its own. Falls
+    back to the suffix-stripped root when no usable name is present.
+    """
+    if scored is not None and "name" in scored.columns and ticker in scored.index:
+        nm = _norm_name(scored.loc[ticker, "name"])
+        if nm:
+            return nm
+    return _root_of(ticker)
+
+
+def _dedup_buy_candidates(cand_list: list[str], held: list[str], scored: pd.DataFrame) -> list[str]:
+    """Filter buy candidates so we never buy a company twice or a held dual line.
+
+    Order-preserving (candidates arrive conviction-descending):
+
+      1. collapse same-root dual listings among the candidates via the shared
+         :func:`dedup_dual_listings` util (keeps the mother-market listing);
+      2. drop any candidate whose company is ALREADY HELD (a current holding);
+      3. collapse any remaining cross-root same-company candidates, keeping the
+         first (highest-conviction) listing per company.
+    """
+    if scored is not None:
+        present = [t for t in cand_list if t in scored.index]
+        if present:
+            survivors = set(dedup_dual_listings(scored.loc[present]).index)
+            cand_list = [t for t in cand_list if t not in scored.index or t in survivors]
+
+    held_keys = {_company_key(scored, t) for t in held}
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in cand_list:
+        key = _company_key(scored, t)
+        if key in held_keys or key in seen:
+            continue
+        seen.add(key)
+        out.append(t)
+    return out
 
 
 def _sector_labels(names: list[str], scored: pd.DataFrame) -> list[str]:
@@ -205,7 +250,10 @@ def build_overlay(
     if not np.isnan(buy_threshold) and max_new > 0:
         cand = elig_conv[[t for t in elig_conv.index if t not in held_set]]
         cand = cand[cand >= buy_threshold].sort_values(ascending=False)
-        bought = list(cand.index[: int(max_new)])
+        # FIX A: never buy the same company twice, nor a dual listing of a name
+        # already in the book (dedup the candidate pool + drop held companies).
+        cand_list = _dedup_buy_candidates(list(cand.index), held, scored)
+        bought = cand_list[: int(max_new)]
 
     # Pre-gate target: keeps anchored at current weight; buys funded from the freed
     # weight + cash toward gross_target (conviction-proportional across buys).
@@ -231,6 +279,7 @@ def build_overlay(
             sectors=_sector_labels(target_names, scored),
             currencies=[currency_of(t) for t in target_names],
             betas=betas_arr,
+            conviction=conv_all.reindex(target_names),
             vol_ceiling=vol_ceiling,
             name_cap=name_cap,
             sector_cap=sector_cap,

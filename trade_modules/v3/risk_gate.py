@@ -122,6 +122,7 @@ def apply_risk_gate(
     sectors,
     currencies,
     betas=None,
+    conviction=None,
     vol_ceiling: float = 0.18,
     name_cap: float = 0.08,
     sector_cap: float = 0.25,
@@ -142,6 +143,16 @@ def apply_risk_gate(
             USD-bloc when its currency is in :data:`USD_BLOC`).
         betas: Per-name betas aligned to ``weights`` (NaN -> 1.0); ``None`` -> all
             ones.
+        conviction: Optional per-name conviction (a ``pd.Series`` aligned by index
+            to ``weights``, or an array-like aligned positionally). When supplied,
+            the lever-1 tail-deweight redistribution only ADDS freed weight to
+            names the model likes (``conviction > 0``); a name with
+            ``conviction <= 0`` (or NaN / missing) is NEVER increased by the gate.
+            If no positive-conviction receiver can pull vol under the ceiling, the
+            gate falls through to the lever-2 gross cut rather than piling weight
+            into disliked names. ``None`` (the default) restores the legacy
+            behavior (redistribute to the lowest-vol names regardless of
+            conviction), so every prior call is unchanged.
         vol_ceiling: Hard annualised vol ceiling enforced by levers 1 and 2.
         name_cap / sector_cap / usd_bloc_cap: Concentration caps (fraction of the
             invested book).
@@ -170,6 +181,20 @@ def apply_risk_gate(
         b = np.ones(n, dtype=float)
     else:
         b = pd.to_numeric(pd.Series(list(betas)), errors="coerce").fillna(1.0).to_numpy()
+
+    # Conviction-aware redistribution (optional). ``pos_mask`` flags the names
+    # lever 1 is allowed to ADD weight to (conviction > 0); NaN / missing ->
+    # False (never increased). ``None`` -> no restriction (legacy behavior).
+    if conviction is None:
+        pos_mask = None
+    else:
+        conv_ser = (
+            conviction
+            if isinstance(conviction, pd.Series)
+            else pd.Series(list(conviction), index=index)
+        )
+        conv_arr = pd.to_numeric(conv_ser.reindex(index), errors="coerce").to_numpy()
+        pos_mask = np.isfinite(conv_arr) & (conv_arr > 0.0)
 
     gross_before = float(w.sum())
     vol_before = portfolio_vol(w, cov) if n else 0.0
@@ -266,8 +291,10 @@ def apply_risk_gate(
             hi = int(np.argmax(np.where(in_book, rc, -np.inf)))
             recv = in_book.copy()
             recv[hi] = False
+            if pos_mask is not None:
+                recv &= pos_mask  # only ADD to names the model likes (conviction>0)
             if not recv.any():
-                break
+                break  # no eligible receiver -> fall through to the gross cut
             iv_recv = np.where(recv, inv_vol, 0.0)
             iv_sum = float(iv_recv.sum())
             if iv_sum <= 0:
@@ -289,7 +316,14 @@ def apply_risk_gate(
             )
             caps_iter_total += ci
             new_vol = portfolio_vol(trial, cov)
-            if new_vol < cur_vol - _VOL_TOL:  # accept only a strict improvement
+            accept = new_vol < cur_vol - _VOL_TOL  # accept only a strict improvement
+            if accept and pos_mask is not None:
+                # Guard: never let a disliked (conviction<=0) name grow, even
+                # indirectly via the cap redistribution inside this step.
+                disliked = ~pos_mask
+                if np.any(trial[disliked] > w[disliked] + _STABLE_TOL):
+                    accept = False
+            if accept:
                 w, cur_vol = trial, new_vol
                 l1_iter += 1
             else:  # de-weighting can no longer help — lever 1 exhausted
