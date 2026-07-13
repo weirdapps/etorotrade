@@ -163,6 +163,8 @@ def build_overlay(
     vol_ceiling: float = 0.18,
     betas=None,
     core_list=None,
+    cap_mode: str | None = None,
+    managed_vol_ceiling: float = 0.18,
 ) -> dict:
     """Build a minimal keep/sell/buy overlay on the live book, then risk-gate it.
 
@@ -189,6 +191,15 @@ def build_overlay(
             beta) and used for the single-factor covariance fallback.
         core_list: Optional list of "core" tickers to report kept/sold status for
             (e.g. the mega-cap anchors), surfaced under ``core_retention``.
+        cap_mode: Optional cap-scaling vol mode passed to the risk gate.
+            ``None`` / ``'uniform'`` → standard behavior (unchanged). Options:
+            ``'cap_budget'`` (RC allowance ∝ log-cap, no hard vol ceiling),
+            ``'cap_exempt'`` (sigmoid-exempt split, mega-caps ~fully held),
+            ``'cap_ordered'`` (lever-1 trims smallest-cap first). Market caps
+            are read from ``scored["cap"]``; names with missing cap default to
+            1.0 (treated as the smallest cap in the allowance calculation).
+        managed_vol_ceiling: Vol ceiling for the MANAGED sleeve in
+            ``cap_exempt`` mode (default 0.18). Ignored for other modes.
 
     Returns:
         ``{"weights", "diagnostics"}``:
@@ -273,6 +284,16 @@ def build_overlay(
         betas_arr = _beta_array(target_names, scored, betas)
         cov = _cov_matrix(prices, target_names, betas_arr)
         tw = pd.Series([target[t] for t in target_names], index=target_names, dtype=float)
+        # Extract market caps from scored["cap"] for cap-scaling modes.
+        if cap_mode is not None and cap_mode != "uniform" and scored is not None:
+            _cap_col = (
+                pd.to_numeric(scored["cap"], errors="coerce")
+                if "cap" in scored.columns
+                else pd.Series(dtype=float)
+            )
+            caps_ser: pd.Series | None = _cap_col.reindex(target_names)
+        else:
+            caps_ser = None
         final, gate_diag = apply_risk_gate(
             tw,
             cov,
@@ -284,6 +305,9 @@ def build_overlay(
             name_cap=name_cap,
             sector_cap=sector_cap,
             usd_bloc_cap=usd_bloc_cap,
+            cap_mode=cap_mode,
+            caps=caps_ser,
+            managed_vol_ceiling=managed_vol_ceiling,
         )
     else:  # everything sold / nothing to hold -> all cash
         final = pd.Series(dtype=float)
