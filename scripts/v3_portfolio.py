@@ -35,6 +35,10 @@ PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
 BUY_CSV = "yahoofinance/output/buy.csv"
 ETORO_CSV = "yahoofinance/output/etoro.csv"
 
+# Regime -> fraction of capital deployed (Change 2). Averages ~90%, band 85-95%.
+# The regime now sets gross_target directly (replaces the old Kelly / gross dial).
+DEPLOYMENT_BY_REGIME = {"risk_off": 0.85, "neutral": 0.90, "risk_on": 0.95}
+
 
 # ---------------------------------------------------------------------------
 # Pure helpers (unit-tested with synthetic data)
@@ -188,7 +192,8 @@ def main() -> None:
         print(f"warn: ^GSPC fetch failed ({exc}); defaulting to neutral", file=sys.stderr)
 
     regime, mult = trend_regime(spx_close)
-    print(f"regime: {regime}  multiplier: {mult:.2f}")
+    gross_target = DEPLOYMENT_BY_REGIME[regime]
+    print(f"regime: {regime}  multiplier: {mult:.2f}  deployment: {gross_target:.0%}")
 
     # --- Portfolio construction ---
     result = build_portfolio(
@@ -199,8 +204,7 @@ def main() -> None:
         name_cap=0.08,
         sector_cap=0.25,
         usd_bloc_cap=0.60,
-        regime_multiplier=mult,
-        kelly_fraction=0.25,
+        gross_target=gross_target,
     )
 
     gross = result["gross"]
@@ -273,6 +277,7 @@ def main() -> None:
         "eligible": n_eligible,
         "regime": regime,
         "multiplier": mult,
+        "gross_target": gross_target,
         "diagnostics": {k: (_serial(v) if not isinstance(v, dict) else v) for k, v in diag.items()},
         "gross": gross,
         "cash": cash,

@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from scripts.v3_portfolio import build_target_rows, trend_regime
+from scripts.v3_portfolio import DEPLOYMENT_BY_REGIME, build_target_rows, trend_regime
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -117,6 +117,35 @@ class TestTrendRegime:
         regime, mult = trend_regime(_uptrend())
         assert isinstance(regime, str)
         assert isinstance(mult, float)
+
+
+# ---------------------------------------------------------------------------
+# DEPLOYMENT_BY_REGIME tests (Change 2 — regime deployment 85-95%)
+# ---------------------------------------------------------------------------
+
+
+class TestDeploymentByRegime:
+    def test_mapping_values(self):
+        assert DEPLOYMENT_BY_REGIME["risk_off"] == pytest.approx(0.85)
+        assert DEPLOYMENT_BY_REGIME["neutral"] == pytest.approx(0.90)
+        assert DEPLOYMENT_BY_REGIME["risk_on"] == pytest.approx(0.95)
+
+    def test_averages_about_ninety(self):
+        vals = [DEPLOYMENT_BY_REGIME[r] for r in ("risk_off", "neutral", "risk_on")]
+        assert sum(vals) / len(vals) == pytest.approx(0.90)
+
+    def test_ordered_by_risk_appetite(self):
+        assert (
+            DEPLOYMENT_BY_REGIME["risk_off"]
+            < DEPLOYMENT_BY_REGIME["neutral"]
+            < DEPLOYMENT_BY_REGIME["risk_on"]
+        )
+
+    def test_covers_every_trend_regime_label(self):
+        # Every regime trend_regime can emit must have a deployment target.
+        for series in (_uptrend(), _downtrend(), _neutral_series()):
+            regime, _ = trend_regime(series)
+            assert regime in DEPLOYMENT_BY_REGIME
 
 
 # ---------------------------------------------------------------------------

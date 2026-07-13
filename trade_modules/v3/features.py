@@ -58,6 +58,7 @@ _INFO_NUM = {
 _INFO_STR = {
     "sector": "sector",
     "industry": "industry",
+    "country": "country",  # domicile — drives dual-listing (mother-market) dedup
     "quoteType": "quote_type",
     "longBusinessSummary": "description",
 }
