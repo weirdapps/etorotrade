@@ -60,8 +60,12 @@ BALANCED_WEIGHTS: dict[str, float] = {
 
 MEGA_CORE: list[str] = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "AVGO", "TSM", "META"]
 
-# Ceilings to sweep (ordered low -> high).
-CEILINGS: list[float] = [0.18, 0.25, 0.35, 0.50]
+# Ceilings to sweep (ordered low -> high). Override: V3_CEILINGS="0.25,0.35,0.5,0.7".
+CEILINGS: list[float] = [
+    float(x) for x in os.environ.get("V3_CEILINGS", "0.18,0.25,0.35,0.50").split(",")
+]
+# Optional cap-scaling mode applied at every ceiling (e.g. V3_CAP_MODE=cap_ordered).
+CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
 # Risk-gate parameters shared across all ceiling runs (mirrors overlay_report.py).
 _NAME_CAP = 0.08
@@ -92,6 +96,7 @@ def _sweep_one(
         usd_bloc_cap=_USD_BLOC_CAP,
         vol_ceiling=ceiling,
         core_list=MEGA_CORE,
+        cap_mode=CAP_MODE,
     )
     weights = overlay["weights"]
     diag = overlay["diagnostics"]
