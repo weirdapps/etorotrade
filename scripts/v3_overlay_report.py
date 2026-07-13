@@ -89,6 +89,7 @@ def _envflag(name: str, default: str = "1") -> bool:
 
 
 _SELL_NEG = _envflag("V3_SELL_NEGATIVE_NONCORE")
+_NONCORE_SELL_FLOOR = float(os.environ.get("V3_NONCORE_SELL_FLOOR", "0.0"))  # sell deadband
 _PROTECT_CORE = _envflag("V3_PROTECT_CORE")
 _FLOOR_CORE = _envflag("V3_FLOOR_CORE", "0")  # floor AI core at current (thesis overlay)
 _MANAGED_SLEEVES = [
@@ -371,6 +372,7 @@ def main() -> None:
         core_list=MEGA_CORE,
         cap_mode=_CAP_MODE,
         sell_negative_noncore=_SELL_NEG,
+        noncore_sell_floor=_NONCORE_SELL_FLOOR,
         protect_core=_PROTECT_CORE,
         core_floor=core_floor,
     )

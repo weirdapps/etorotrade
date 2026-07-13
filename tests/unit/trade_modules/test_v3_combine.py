@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from trade_modules.v3.combine import CLUSTERS, compute_scores
 
@@ -469,6 +470,26 @@ def test_backward_compat_none_equals_explicit_default_weights():
         explicit["conviction"].to_numpy(dtype=float),
         equal_nan=True,
     )
+
+
+def test_rank_normalization_bounds_outlier_magnitude():
+    """A fat-tailed outlier must not dominate: growth_z depends on RANK, not size.
+
+    Two identical universes except the top name's earnings growth is 5 vs 5000.
+    Under rank-normalization the top name's growth_z is IDENTICAL in both (still
+    just "rank 1 of 5") and bounded. The old winsor-z transform failed this: the
+    5000x value survived the loose 1/99 clip and blew the z up, which is exactly
+    what let small-base biotech growth artifacts dominate the book.
+    """
+    idx = ["A", "B", "C", "D", "E"]
+    moderate = _base(idx)
+    moderate["earn_growth"] = [1.0, 2.0, 3.0, 4.0, 5.0]
+    extreme = _base(idx)
+    extreme["earn_growth"] = [1.0, 2.0, 3.0, 4.0, 5000.0]
+    zm = compute_scores(moderate, sector_neutral=False).loc["E", "growth_z"]
+    ze = compute_scores(extreme, sector_neutral=False).loc["E", "growth_z"]
+    assert zm == pytest.approx(ze)  # rank-invariant to the outlier's magnitude
+    assert abs(ze) < 2.0  # bounded by rank, not blown up by the 5000x value
 
 
 def test_backward_compat_default_ignores_growth_data():
