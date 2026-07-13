@@ -3,7 +3,7 @@
 Turns the enriched feature frame into cluster z-scores and a single
 conviction score:
 
-  raw metric -> winsorized (1/99) cross-sectional z
+  raw metric -> rank-normal (van der Waerden) cross-sectional score
              -> directional sign (low-is-good metrics negated)
              -> optional sector-neutral demeaning
              -> cluster z (mean of member metric-z, skipping NaN)
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
 # Metric direction: +1 = high is good (keep), -1 = low is good (negate).
 DIRECTION = {
@@ -190,20 +191,22 @@ _ELIG_CLUSTERS = ["value_z", "quality_z", "momentum_z", "growth_z", "lowvol_z", 
 _MIN_CLUSTERS = 3
 
 
-def _winsor_z(s: pd.Series) -> pd.Series:
-    """Winsorize to the 1st/99th pct, then cross-sectional z (ddof=0)."""
+def _rank_z(s: pd.Series) -> pd.Series:
+    """Rank-normal (van der Waerden) cross-sectional score.
+
+    Ranks the non-NaN values (average ranks for ties), maps ranks to (0, 1) via
+    k/(n+1), then applies the inverse normal CDF. A name's contribution is bounded
+    by its RANK, not its raw magnitude, so a single fat-tailed outlier — a
+    small-base +900% earnings-growth artifact or a one-off momentum spike — cannot
+    dominate the composite. NaNs are preserved; fewer than two valid points -> NaN.
+    """
     x = pd.to_numeric(s, errors="coerce").astype(float)
     valid = x.dropna()
     if len(valid) < 2:
         return pd.Series(np.nan, index=s.index)
-    lo, hi = valid.quantile(0.01), valid.quantile(0.99)
-    clipped = x.clip(lo, hi)
-    mu = clipped.mean()
-    sd = clipped.std(ddof=0)
-    if not sd or sd == 0 or np.isnan(sd):
-        # No spread: everyone is average (0) where present, NaN where absent.
-        return pd.Series(0.0, index=s.index).where(x.notna())
-    return (clipped - mu) / sd
+    u = valid.rank(method="average") / (len(valid) + 1.0)
+    z = pd.Series(norm.ppf(u.to_numpy()), index=valid.index, dtype=float)
+    return z.reindex(s.index)
 
 
 def _z_plain(s: pd.Series) -> pd.Series:
@@ -293,7 +296,7 @@ def compute_scores(
         for m in members:
             if m not in out.columns:
                 continue
-            z = _winsor_z(out[m]) * DIRECTION[m]
+            z = _rank_z(out[m]) * DIRECTION[m]
             if sector_neutral:
                 z = _sector_demean(z, sector)
             zcol = f"{m}_z"

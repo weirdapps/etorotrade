@@ -167,6 +167,7 @@ def build_overlay(
     cap_mode: str | None = None,
     managed_vol_ceiling: float = 0.18,
     sell_negative_noncore: bool = False,
+    noncore_sell_floor: float = 0.0,
     protect_core: bool = False,
     core_floor: pd.Series | None = None,
 ) -> dict:
@@ -254,8 +255,8 @@ def build_overlay(
             return True
         if t in elig_mask.index and not bool(elig_mask.loc[t]):
             return True
-        if sell_negative_noncore and float(c) < 0.0:
-            return True  # owner rule: drop negative-conviction non-core names
+        if sell_negative_noncore and float(c) < noncore_sell_floor:
+            return True  # owner rule: drop clearly-weak non-core names (deadband)
         if not np.isnan(sell_threshold) and float(c) <= sell_threshold:
             return True  # genuinely weak by percentile
         return False

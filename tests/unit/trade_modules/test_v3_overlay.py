@@ -112,6 +112,32 @@ def test_sell_negative_noncore_drops_negatives_but_protects_core():
     assert "U12" in res2["diagnostics"]["sold"]
 
 
+def test_noncore_sell_floor_deadband_keeps_near_neutral():
+    """Deadband: sell_negative_noncore only sells non-core names BELOW the floor.
+
+    U11 (~-0.32) is near-neutral and above a -0.5 floor -> KEEP; U14 (~-0.95) is
+    clearly weak and below it -> SELL. The default floor 0.0 sells both.
+    """
+    _tks, _convs, sc = _universe20()
+    current = pd.Series({"U00": 0.25, "U11": 0.20, "U14": 0.20, "U19": 0.35})
+    band = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,
+        sell_negative_noncore=True,
+        noncore_sell_floor=-0.5,
+    )["diagnostics"]
+    assert "U11" not in band["sold"]  # near-neutral kept (inside the deadband)
+    assert "U14" in band["sold"]  # clearly weak sold
+    assert "U19" in band["sold"]  # bottom-percentile sold regardless
+    # Without the deadband (floor 0.0) the near-neutral name is also sold.
+    nofloor = build_overlay(sc, current, pd.DataFrame(), max_new=0, sell_negative_noncore=True)[
+        "diagnostics"
+    ]
+    assert "U11" in nofloor["sold"]
+
+
 def test_core_floor_raises_gated_core_preserving_gross():
     """core_floor lifts a gate-trimmed core name to its floor, rescaling non-core.
 
