@@ -73,6 +73,45 @@ def test_classification_bottom_dataless_ineligible_sold_middling_kept():
     assert d["buy_threshold"] == pytest.approx(float(elig_conv.quantile(0.85)))
 
 
+def test_sell_negative_noncore_drops_negatives_but_protects_core():
+    """Owner rule: sell every negative-conviction NON-core name; keep core negatives.
+
+    U11 (~-0.32) and U12 (~-0.53) are negative but ABOVE the ~-1.40 percentile
+    sell threshold, so the default overlay would keep both. With
+    ``sell_negative_noncore`` the ordinary holding U11 is dropped, while the
+    core-listed U12 survives only because ``protect_core`` exempts it.
+    """
+    _tks, _convs, sc = _universe20()
+    current = pd.Series({"U00": 0.2, "U05": 0.2, "U11": 0.2, "U12": 0.2, "U19": 0.2})
+
+    res = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,  # isolate the SELL side
+        sell_negative_noncore=True,
+        protect_core=True,
+        core_list=["U12"],
+    )
+    d = res["diagnostics"]
+    assert "U11" in d["sold"]  # negative non-core -> owner rule
+    assert "U19" in d["sold"]  # still weak by percentile
+    assert "U12" not in d["sold"] and "U12" in d["kept"]  # core negative protected
+    assert set(d["kept"]) >= {"U00", "U05", "U12"}
+
+    # Without protection, the same core negative is dropped by the owner rule.
+    res2 = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,
+        sell_negative_noncore=True,
+        protect_core=False,
+        core_list=["U12"],
+    )
+    assert "U12" in res2["diagnostics"]["sold"]
+
+
 def test_already_strong_book_has_no_sells():
     held = [f"H{i:02d}" for i in range(6)]
     fill = [f"L{i:02d}" for i in range(14)]
