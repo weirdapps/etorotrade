@@ -406,3 +406,56 @@ def test_render_actions_only_partial_provision():
     assert "act-grp act-grp--buy" in html
     assert '<div class="exec-panel">' not in html
     assert html.startswith("<!DOCTYPE")
+
+
+def test_exec_panel_deployed_cvar_uses_post_gate_value():
+    """CVaR-95 deployed tile shows post-gate cvar_after, not pre-gate cvar_95_deployed.
+
+    When a vol lever fires, gate["cvar_after"] reflects the gated portfolio vol and
+    is the only internally consistent companion to the "Portfolio vol" tile (which also
+    uses gate["vol_after"]).  The pre-gate diag["cvar_95_deployed"] overstates the
+    actually-gated book and must be suppressed.
+    """
+    from trade_modules.v3.report import _exec_panel
+
+    # Pre-gate: 15 % → would display "15.0%".  Post-gate: 10 % → should display "10.0%".
+    # Risk-book CVaR (gross = 1.0): 20 % → must remain unchanged at "20.0%".
+    portfolio = {
+        "gross": 0.85,
+        "cash": 0.15,
+        "usd_bloc": 0.85,
+        "sector_exposures": {"Technology": 0.85},
+        "diagnostics": {
+            "cvar_95_risk_book": 0.20,
+            "cvar_95_deployed": 0.15,  # pre-gate — must NOT appear in the deployed tile
+            "net_beta": 0.70,
+            "net_beta_band": (0.3, 1.1),
+            "binding": {},
+            "gate": {
+                "vol_after": 0.08,
+                "vol_ceiling": 0.18,
+                "net_beta": 0.70,
+                "net_beta_band": (0.3, 1.1),
+                "net_beta_out": False,
+                "effective_bets": 8.0,
+                "min_effective_bets": 3.0,
+                "caps_ok": True,
+                "max_name": 0.15,
+                "max_sector": 0.25,
+                "usd_bloc": 0.50,
+                "cvar_after": 0.10,  # post-gate — must appear in the deployed tile
+                "levers_fired": ["tail_deweight"],
+                "gross_cut": False,
+            },
+        },
+    }
+
+    html = _exec_panel(portfolio, None, {"regime": "NEUTRAL"})
+
+    # Post-gate value must appear (displayed via _pct1: 0.10 → "10.0%").
+    assert "10.0%" in html, "post-gate cvar_after not rendered in deployed-CVaR tile"
+    # Pre-gate value must NOT appear in the deployed tile (risk-book uses 20.0%,
+    # so 15.0% uniquely identifies the pre-gate deployed figure — it must be gone).
+    assert "15.0%" not in html, "pre-gate cvar_95_deployed leaked into deployed-CVaR tile"
+    # Risk-book tile must be unchanged (20.0% still present).
+    assert "20.0%" in html, "risk-book CVaR tile was incorrectly modified"

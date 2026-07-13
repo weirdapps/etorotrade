@@ -615,7 +615,15 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
     min_eff = gate.get("min_effective_bets")
     caps_ok = gate.get("caps_ok")
     cvar_rb = diag.get("cvar_95_risk_book")
-    cvar_dep = diag.get("cvar_95_deployed")
+    # Prefer the post-gate value when a lever fired (gate["cvar_after"] reflects the
+    # gated vol, keeping this tile consistent with the "Portfolio vol" tile which also
+    # reads the post-gate gate["vol_after"]). Falls back to the pre-gate
+    # diag["cvar_95_deployed"] when no gate dict is present.
+    cvar_dep = (
+        gate.get("cvar_after")
+        if gate.get("cvar_after") is not None
+        else diag.get("cvar_95_deployed")
+    )
 
     lo, hi = float(band[0]), float(band[1])
     vol_tone = (
