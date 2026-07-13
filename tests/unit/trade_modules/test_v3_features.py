@@ -174,6 +174,7 @@ def _fake_info(tickers):
             "averageVolume": 1_000_000,
             "sector": "Technology",
             "industry": "Consumer Electronics",
+            "country": "United States",
             "quoteType": "EQUITY",
             "longBusinessSummary": _AAPL_SUMMARY,
         },
@@ -189,6 +190,7 @@ def _fake_info(tickers):
             "averageVolume": 800_000,
             "sector": "Technology",
             "industry": "Software",
+            "country": "United States",
             "quoteType": "EQUITY",
             "longBusinessSummary": "Microsoft develops software and cloud services.",
         },
@@ -261,6 +263,7 @@ def test_expected_columns_present(tmp_path):
         "avg_volume",
         "sector",
         "industry",
+        "country",
         # derived
         "target_dispersion",
         "adv_usd",
@@ -326,6 +329,15 @@ def test_price_factors_last_bar(tmp_path):
     # MSFT/ZZZ have only 100 bars -> too short -> NaN.
     assert pd.isna(feats.loc["MSFT", "mom_12_1"])
     assert pd.isna(feats.loc["ZZZ", "realized_vol"])
+
+
+def test_country_from_info(tmp_path):
+    feats = _run(tmp_path)
+    # country is enriched from yfinance .info "country" (needed for dual-listing dedup).
+    assert feats.loc["AAPL", "country"] == "United States"
+    assert feats.loc["MSFT", "country"] == "United States"
+    # ZZZ is absent from the fake .info -> country NaN.
+    assert pd.isna(feats.loc["ZZZ", "country"])
 
 
 def test_quote_type_from_info(tmp_path):
