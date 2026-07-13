@@ -287,3 +287,122 @@ def test_render_card_shows_description():
     assert "Microsoft develops software" in html
     # ZZZ has empty description → no empty desc div should pollute the card
     assert 'class="desc">' not in html.split("ZED CORP")[1].split("Energy")[0]
+
+
+# ---------------------------------------------------------------------------
+# Phase 5D — fully-wired report (exec/risk panel + suggested actions)
+# ---------------------------------------------------------------------------
+
+
+def _pac():
+    """A real portfolio + actions + conditioning triple, network-free.
+
+    Uses the actual construct/actions/conditioning pipeline (empty prices →
+    single-factor beta covariance) so the report renders the genuine payload
+    schema.  Current weights are crafted to force ALL FIVE action groups.
+    """
+    from trade_modules.v3.actions import build_actions
+    from trade_modules.v3.conditioning import resolve_deployment
+    from trade_modules.v3.construct import build_portfolio
+
+    scores = _many_scores(n=24, n_port=6)
+    price = scores["price"].to_numpy()
+    scores["entry"] = price
+    scores["stop_loss"] = price * 0.90
+    scores["take_profit"] = price * 1.15
+    scores["rr"] = 1.5
+
+    result = build_portfolio(scores, pd.DataFrame(), top_n=12)
+    target = result["weights"]
+    invested = list(target[target > 1e-6].index)
+    assert len(invested) >= 4, "need enough invested names to exercise all groups"
+
+    cur: dict[str, float] = {}
+    cur[invested[0]] = max(float(target[invested[0]]) - 0.03, 0.001)  # ADD (target >> current)
+    cur[invested[1]] = float(target[invested[1]]) + 0.05  # TRIM (current > target)
+    cur[invested[2]] = float(target[invested[2]])  # HOLD (equal)
+    # invested[3:] absent from current → BUY
+    cur["GHOSTX"] = 0.04  # SELL (held, not in target, not in scores → enriched None)
+    current = pd.Series(cur, dtype=float)
+
+    actions = build_actions(target, current, scores, nav=250_000.0)
+    _, cond = resolve_deployment("neutral")
+    return scores, result, actions, cond
+
+
+def test_render_with_portfolio_actions_is_well_formed():
+    scores, result, actions, cond = _pac()
+    html = render_report(scores, _meta(), portfolio=result, actions=actions, conditioning=cond)
+    assert html.startswith("<!DOCTYPE") and "</html>" in html
+    assert html.count("<html") == 1
+
+
+def test_render_shows_exec_panel_and_summary():
+    scores, result, actions, cond = _pac()
+    html = render_report(scores, _meta(), portfolio=result, actions=actions, conditioning=cond)
+    assert 'class="exec-panel"' in html  # (a) executive / risk panel
+    assert 'class="exec-summary"' in html  # top one-line executive summary
+    assert "Positioning and Risk" in html  # panel section title
+    # risk stat labels present
+    assert "Deployment" in html
+    assert "CVaR" in html
+
+
+def test_render_shows_all_action_groups_and_note():
+    scores, result, actions, cond = _pac()
+    html = render_report(scores, _meta(), portfolio=result, actions=actions, conditioning=cond)
+    for cls in ("buy", "add", "trim", "sell", "hold"):
+        assert f"act-grp act-grp--{cls}" in html, f"missing action group: {cls}"
+    assert "Suggested Actions" in html
+    # decision-support disclaimer (no em-dash)
+    assert "Decision-support" in html
+    assert "not auto-executed" in html
+
+
+def test_render_factor_cards_still_present_below():
+    scores, result, actions, cond = _pac()
+    html = render_report(scores, _meta(), portfolio=result, actions=actions, conditioning=cond)
+    # existing factor cards + overview still rendered
+    assert '<article class="card"' in html
+    assert "Overview" in html
+    # exec/actions come ABOVE the overview heatmap
+    assert html.index("Suggested Actions") < html.index(">Overview<")
+
+
+def test_render_with_data_has_no_literal_none_or_emdash():
+    scores, result, actions, cond = _pac()
+    html = render_report(scores, _meta(), portfolio=result, actions=actions, conditioning=cond)
+    assert "None" not in html  # None-valued fields (e.g. SELL ghost name) never leak
+    assert "—" not in html  # zero em-dashes
+
+
+def test_render_backward_compatible_when_new_params_none():
+    """Passing the new params as None must reproduce the current output byte-for-byte."""
+    scores = _scores()
+    base = render_report(scores, _meta())
+    with_none = render_report(scores, _meta(), portfolio=None, actions=None, conditioning=None)
+    assert base == with_none
+    # and none of the new SECTIONS render in the legacy output (CSS class names
+    # always live in the stylesheet, so assert on rendered elements/titles)
+    assert '<div class="exec-panel">' not in base
+    assert "act-grp act-grp--buy" not in base
+    assert '<div class="exec-summary">' not in base
+    assert "Positioning and Risk" not in base
+    assert "Suggested Actions" not in base
+
+
+def test_render_approx_current_weights_note():
+    scores, result, actions, cond = _pac()
+    meta = dict(_meta())
+    meta["current_weights_approx"] = True
+    html = render_report(scores, meta, portfolio=result, actions=actions, conditioning=cond)
+    assert "approximate" in html.lower()
+
+
+def test_render_actions_only_partial_provision():
+    """Actions provided but portfolio None: actions section renders, exec panel does not."""
+    scores, _result, actions, _cond = _pac()
+    html = render_report(scores, _meta(), actions=actions)
+    assert "act-grp act-grp--buy" in html
+    assert '<div class="exec-panel">' not in html
+    assert html.startswith("<!DOCTYPE")

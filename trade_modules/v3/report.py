@@ -231,6 +231,78 @@ def _bar(z, zmax: float, cls: str) -> str:
     return f'<span class="{cls}"><span class="{cls}-fill {cls}-{side}" style="width:{w:.1f}%;"></span></span>'
 
 
+# --- Phase 5D formatters (never emit the literal "None") --------------------
+_AMBER = "#96601a"  # warm ochre for TRIM / soft-warn (stays within the light palette)
+
+
+def _pct1(v) -> str:
+    """A fraction as a 1-decimal percent (0.182 -> "18.2%"); NaN/None -> "n/a"."""
+    return "n/a" if _isnan(v) else f"{float(v) * 100:.1f}%"
+
+
+def _pct0(v) -> str:
+    """A fraction as a whole percent (0.9 -> "90%"); NaN/None -> "n/a"."""
+    return "n/a" if _isnan(v) else f"{float(v) * 100:.0f}%"
+
+
+def _pp(v) -> str:
+    """A fractional delta as signed percentage points (0.023 -> "+2.3 pp")."""
+    return "n/a" if _isnan(v) else f"{float(v) * 100:+.1f} pp"
+
+
+def _num1(v) -> str:
+    return "n/a" if _isnan(v) else f"{float(v):.1f}"
+
+
+def _num2(v) -> str:
+    return "n/a" if _isnan(v) else f"{float(v):.2f}"
+
+
+def _money(v) -> str:
+    return "n/a" if _isnan(v) else f"${float(v):,.2f}"
+
+
+def _usd_signed(v) -> str:
+    """Signed whole-dollar delta ("+$1,234" / "-$980"); NaN/None -> "" (omitted)."""
+    if _isnan(v):
+        return ""
+    v = float(v)
+    return f"{'+' if v >= 0 else '-'}${abs(v):,.0f}"
+
+
+# Suggested-action groups: (ACTION, css-suffix, one-line hint). Rendered in this
+# order; BUY/ADD carry entry/SL/TP tiles.
+_ACTION_GROUPS = [
+    ("BUY", "buy", "Open new position"),
+    ("ADD", "add", "Increase weight"),
+    ("TRIM", "trim", "Reduce weight"),
+    ("SELL", "sell", "Close position"),
+    ("HOLD", "hold", "No change"),
+]
+_LEVEL_ACTIONS = {"BUY", "ADD"}
+
+# Binding-flag / gate-lever -> short human chip label.
+_FLAG_LABELS = {
+    "cvar": "CVaR over budget",
+    "net_beta": "net-beta out of band",
+    "effective_bets": "low breadth",
+    "deployment_capped": "deployment cap-limited",
+    "name_cap": "name cap",
+    "sector_cap": "sector cap",
+    "usd_bloc_cap": "USD-bloc cap",
+    "vol_over_target": "vol over target",
+}
+_LEVER_LABELS = {
+    "caps": "gate: caps",
+    "tail_deweight": "gate: tail de-weight",
+    "gross_cut": "gate: gross cut",
+}
+
+# Section numerals; render_report assigns them left-to-right so the legacy
+# Overview / Portfolio / Candidates stay I / II / III when no new sections lead.
+_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"]
+
+
 # --- regime (pure; script supplies the fetched index series) ----------------
 def compute_regime(index_close: pd.Series) -> tuple[str, str]:
     """Classify the market regime from an index close series.
@@ -470,6 +542,232 @@ def _section_head(numeral: str, label: str, sub: str) -> str:
     )
 
 
+# --- Phase 5D: executive summary line + exec/risk panel + suggested actions --
+def _exec_summary_line(meta: dict, portfolio, actions, conditioning) -> str:
+    """A single scannable line at the very top: regime, deployment, BUY/SELL, vol.
+
+    Renders whatever is available; omits any item whose source (portfolio /
+    actions / conditioning) was not supplied.
+    """
+    cond = conditioning or {}
+    items: list[str] = []
+    regime = str(meta.get("regime") or cond.get("regime") or "").strip()
+    if regime:
+        items.append(f"{_esc(regime.upper())} regime")
+    if portfolio is not None:
+        items.append(
+            f"{_pct0(portfolio.get('gross'))} deployed / {_pct0(portfolio.get('cash'))} cash"
+        )
+    elif cond.get("final_deployment") is not None:
+        items.append(f"{_pct0(cond.get('final_deployment'))} deployment")
+    if actions is not None:
+        n_buy = sum(1 for a in actions if a.get("action") == "BUY")
+        n_sell = sum(1 for a in actions if a.get("action") == "SELL")
+        items.append(f"{n_buy} BUY / {n_sell} SELL")
+    if portfolio is not None:
+        gate = (portfolio.get("diagnostics") or {}).get("gate") or {}
+        vol, ceil = gate.get("vol_after"), gate.get("vol_ceiling")
+        if not _isnan(vol):
+            tail = f" (ceiling {_pct0(ceil)})" if not _isnan(ceil) else ""
+            items.append(f"vol {_pct1(vol)}{tail}")
+    if not items:
+        return ""
+    inner = '<span class="es-sep">·</span>'.join(f'<span class="es-item">{i}</span>' for i in items)
+    return f'<div class="exec-summary">{inner}</div>'
+
+
+def _stat(label: str, value: str, sub: str = "", tone: str = "") -> str:
+    """One executive stat tile: label over a big value with an optional sub-note.
+
+    ``tone`` in {"", "bull", "bear", "warn"} colors the value within the palette.
+    """
+    tone_cls = f" stat--{tone}" if tone else ""
+    sub_html = f'<div class="stat-sub">{_esc(sub)}</div>' if sub else ""
+    return (
+        f'<div class="stat{tone_cls}">'
+        f'<div class="stat-l">{_esc(label)}</div>'
+        f'<div class="stat-v">{_esc(value)}</div>{sub_html}</div>'
+    )
+
+
+def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
+    """The executive / risk panel: deployment + risk stat tiles, sector exposures
+    and any binding cap / gate flags. Reads the build_portfolio result dict
+    (``diagnostics`` incl. ``diagnostics['gate']``) and the resolve_deployment
+    dial diagnostics. Degenerate inputs (missing gate) render "n/a" gracefully.
+    """
+    cond = conditioning or {}
+    diag = portfolio.get("diagnostics") or {}
+    gate = diag.get("gate") or {}
+    binding = diag.get("binding") or {}
+
+    gross = portfolio.get("gross")
+    cash = portfolio.get("cash")
+    usd_bloc = portfolio.get("usd_bloc")
+    sector_exp = portfolio.get("sector_exposures") or {}
+
+    regime = str(meta.get("regime") or cond.get("regime") or "").strip().upper() or "n/a"
+    final_dep = cond.get("final_deployment")
+    base_dep = cond.get("base_deployment")
+
+    vol_after = gate.get("vol_after")
+    vol_ceiling = gate.get("vol_ceiling")
+    net_beta = gate.get("net_beta", diag.get("net_beta"))
+    band = gate.get("net_beta_band") or diag.get("net_beta_band") or (0.3, 1.1)
+    net_beta_out = gate.get("net_beta_out")
+    eff = gate.get("effective_bets", diag.get("effective_bets"))
+    min_eff = gate.get("min_effective_bets")
+    caps_ok = gate.get("caps_ok")
+    cvar_rb = diag.get("cvar_95_risk_book")
+    cvar_dep = diag.get("cvar_95_deployed")
+
+    lo, hi = float(band[0]), float(band[1])
+    vol_tone = (
+        ""
+        if (_isnan(vol_after) or _isnan(vol_ceiling))
+        else ("bull" if float(vol_after) <= float(vol_ceiling) + 1e-9 else "bear")
+    )
+    if _isnan(net_beta):
+        beta_tone = ""
+    elif net_beta_out is True or not (lo <= float(net_beta) <= hi):
+        beta_tone = "warn"
+    else:
+        beta_tone = "bull"
+    eff_tone = (
+        ""
+        if _isnan(eff)
+        else ("warn" if (not _isnan(min_eff) and float(eff) < float(min_eff)) else "bull")
+    )
+    caps_tone = "" if caps_ok is None else ("bull" if caps_ok else "bear")
+    caps_val = "n/a" if caps_ok is None else ("OK" if caps_ok else "BREACH")
+
+    regime_sub = ""
+    if not _isnan(final_dep):
+        regime_sub = f"target {_pct0(final_dep)}"
+        if not _isnan(base_dep) and abs(float(base_dep) - float(final_dep)) > 1e-9:
+            regime_sub = f"base {_pct0(base_dep)} to {_pct0(final_dep)}"
+
+    tiles = [
+        _stat("Regime", regime, regime_sub),
+        _stat("Deployment", _pct0(gross), f"{_pct0(cash)} cash"),
+        _stat("Portfolio vol", _pct1(vol_after), f"ceiling {_pct0(vol_ceiling)}", vol_tone),
+        _stat("Net beta", _num2(net_beta), f"band {lo:.1f} to {hi:.1f}", beta_tone),
+        _stat("CVaR-95 risk book", _pct1(cvar_rb), "fully invested"),
+        _stat("CVaR-95 deployed", _pct1(cvar_dep), "at deployment"),
+        _stat(
+            "Effective bets",
+            _num1(eff),
+            ("min " + _num1(min_eff)) if not _isnan(min_eff) else "diversification",
+            eff_tone,
+        ),
+        _stat("Concentration caps", caps_val, f"USD-bloc {_pct0(usd_bloc)}", caps_tone),
+    ]
+    grid = f'<div class="stat-grid">{"".join(tiles)}</div>'
+
+    sec_items = sorted(
+        ((str(k), float(v)) for k, v in sector_exp.items() if float(v) > 1e-6),
+        key=lambda kv: -kv[1],
+    )[:5]
+    sec_html = ""
+    if sec_items:
+        chips = "".join(
+            f'<span class="sec-chip"><b>{_esc(k.title())}</b> {_pct1(v)}</span>'
+            for k, v in sec_items
+        )
+        sec_html = f'<div class="exec-sub"><span class="exec-sub-l">Top sectors</span>{chips}</div>'
+
+    flags = [_FLAG_LABELS[k] for k, on in binding.items() if on and k in _FLAG_LABELS]
+    for lev in gate.get("levers_fired") or []:
+        if lev in _LEVER_LABELS:
+            flags.append(_LEVER_LABELS[lev])
+    if gate.get("gross_cut") and _LEVER_LABELS["gross_cut"] not in flags:
+        flags.append(_LEVER_LABELS["gross_cut"])
+    seen: set = set()
+    flags = [f for f in flags if not (f in seen or seen.add(f))]
+    if flags:
+        chips = "".join(
+            f'<span class="flag-chip{" lever" if str(f).startswith("gate:") else ""}">'
+            f"{_esc(f)}</span>"
+            for f in flags
+        )
+        flag_html = f'<div class="exec-flags"><span class="exec-sub-l">Flags</span>{chips}</div>'
+    else:
+        flag_html = (
+            '<div class="exec-flags"><span class="exec-sub-l">Flags</span>'
+            '<span class="flag-none">none binding</span></div>'
+        )
+
+    return f'<div class="exec-panel">{grid}{sec_html}{flag_html}</div>'
+
+
+def _action_row(a: dict) -> str:
+    """One suggested-action row: id + conviction + current→target(+delta,$) + levels."""
+    tkr = _esc(a.get("ticker") or "")
+    name = _esc(a.get("name") or "")
+    conv = a.get("conviction")
+    conv_s = "·" if _isnan(conv) else f"{conv:+.2f}"
+    cur, tgt, delta = a.get("current_pct"), a.get("target_pct"), a.get("delta_pct")
+    usd = _usd_signed(a.get("delta_usd"))
+    usd_html = f'<span class="act-usd">{usd}</span>' if usd else ""
+    name_html = f'<div class="act-name">{name}</div>' if name else ""
+    move = (
+        f'<span class="from">{_pct1(cur)}</span> '
+        f'<span class="to">→ {_pct1(tgt)}</span> '
+        f'<span class="act-dpp">({_pp(delta)})</span>{usd_html}'
+    )
+    levels_html = ""
+    if a.get("action") in _LEVEL_ACTIONS:
+        levels_html = (
+            f'<span class="act-lvl">E {_money(a.get("price"))}</span>'
+            f'<span class="act-lvl sl">SL {_money(a.get("stop_loss"))}</span>'
+            f'<span class="act-lvl tp">TP {_money(a.get("take_profit"))}</span>'
+        )
+    return (
+        f'<div class="act-row">'
+        f'<div class="act-id"><div class="act-tkr">{tkr}</div>{name_html}</div>'
+        f'<div class="act-conv" style="color:{_z_color(conv)};">{conv_s}</div>'
+        f'<div class="act-move">{move}</div>'
+        f'<div class="act-levels">{levels_html}</div>'
+        f"</div>"
+    )
+
+
+def _action_group(action: str, cls: str, hint: str, rows: list) -> str:
+    if not rows:
+        return ""
+    body = "".join(_action_row(a) for a in rows)
+    n = len(rows)
+    count = f"{n} name" + ("" if n == 1 else "s")
+    return (
+        f'<div class="act-grp act-grp--{cls}">'
+        f'<div class="act-grp-head"><span class="act-tag">{action}</span>'
+        f'<span class="act-hint">{_esc(hint)}</span>'
+        f'<span class="act-count">{count}</span></div>'
+        f'<div class="act-rows">{body}</div>'
+        f"</div>"
+    )
+
+
+def _actions_block(actions: list, approx_current: bool = False) -> str:
+    """Decision-support action groups (BUY / ADD / TRIM / SELL / HOLD).
+
+    Empty groups are omitted. When ``approx_current`` is set (no live account),
+    a clear note flags that current weights are an equal-split approximation.
+    """
+    note = '<div class="act-note">Decision-support: you decide, not auto-executed.'
+    if approx_current:
+        note += (
+            ' <span class="act-note-warn">Current weights are approximate '
+            "(equal-split; no live account file supplied).</span>"
+        )
+    note += "</div>"
+    groups = "".join(
+        _action_group(act, cls, hint, [a for a in actions if a.get("action") == act])
+        for act, cls, hint in _ACTION_GROUPS
+    )
+    return f'<div class="actions-block">{note}{groups}</div>'
+
+
 def _card_grid(frame: pd.DataFrame, cols, conv_scale: float) -> str:
     cards = [
         _card(t, r, cols, conv_scale, min(i * 0.04, 0.36))
@@ -478,19 +776,19 @@ def _card_grid(frame: pd.DataFrame, cols, conv_scale: float) -> str:
     return f'<div class="cards">{"".join(cards)}</div>'
 
 
-def _portfolio_section(scores: pd.DataFrame, conv_scale: float) -> str:
+def _portfolio_section(scores: pd.DataFrame, conv_scale: float, numeral: str = "II") -> str:
     cols = scores.columns
     mask = scores.get("is_portfolio", pd.Series(False, index=scores.index)) == True  # noqa: E712
     port = scores[mask].sort_values("conviction", ascending=False, na_position="last")
     sub = f"Current holdings · {len(port)} name(s) · tilt = ADD / HOLD / TRIM"
-    head = _section_head("II", "Portfolio", sub)
+    head = _section_head(numeral, "Portfolio", sub)
     if port.empty:
         return head + '<div class="empty">No portfolio holdings in this run.</div>'
     return head + _card_grid(port, cols, conv_scale)
 
 
 def _candidates_section(
-    scores: pd.DataFrame, conv_scale: float, max_long: int, max_avoid: int
+    scores: pd.DataFrame, conv_scale: float, max_long: int, max_avoid: int, numeral: str = "III"
 ) -> str:
     cols = scores.columns
     mask = scores.get("is_portfolio", pd.Series(False, index=scores.index)) == False  # noqa: E712
@@ -498,7 +796,7 @@ def _candidates_section(
     total = len(cand)
     if cand.empty:
         return (
-            _section_head("III", "Candidates", "Buy-signal watchlist")
+            _section_head(numeral, "Candidates", "Buy-signal watchlist")
             + '<div class="empty">No candidates in this run.</div>'
         )
 
@@ -513,7 +811,7 @@ def _candidates_section(
         + (f" and bottom {len(avoids)}" if len(avoids) else "")
         + " · tilt = BUY-WATCH / WATCH / PASS"
     )
-    head = _section_head("III", "Candidates", sub)
+    head = _section_head(numeral, "Candidates", sub)
     body = _card_grid(longs, cols, conv_scale)
     if len(avoids):
         body += '<div class="cards-divider"><span>Lowest conviction · potential avoids</span></div>'
@@ -702,6 +1000,82 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 
 .empty{color:var(--muted);font-size:13px;padding:14px 0;}
 
+/* Phase 5D: executive summary strip */
+.exec-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:30px 0 4px;
+  padding:14px 20px;border:1px solid var(--line);border-radius:11px;background:var(--warm);
+  font-family:var(--mono);font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums;}
+.es-item{font-weight:500;color:var(--ink);}
+.es-sep{color:var(--muted);margin:0 2px;}
+
+/* Phase 5D: exec / risk panel */
+.exec-panel{margin-top:4px;}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.stat{border:1px solid var(--line);border-radius:12px;padding:15px 16px;background:var(--canvas);
+  box-shadow:0 1px 2px rgba(22,24,29,.04);}
+.stat-l{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.stat-v{font-family:var(--mono);font-size:23px;font-weight:500;color:var(--ink);margin-top:9px;
+  line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.5px;}
+.stat-sub{font-size:10.5px;color:var(--muted);margin-top:7px;}
+.stat--bull .stat-v{color:var(--bull);}
+.stat--bear .stat-v{color:var(--bear);}
+.stat--warn .stat-v{color:#96601a;}
+.exec-sub{margin-top:18px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.exec-flags{margin-top:12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.exec-sub-l{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);margin-right:4px;}
+.sec-chip{font-family:var(--mono);font-size:11px;color:var(--ink2);background:var(--warm);
+  border:1px solid var(--line);border-radius:100px;padding:4px 11px;font-variant-numeric:tabular-nums;}
+.sec-chip b{color:var(--ink);font-weight:600;}
+.flag-chip{font-size:10px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:100px;
+  border:1px solid var(--bear-bar);background:var(--bear-fill);color:var(--bear);}
+.flag-chip.lever{border-color:var(--line);background:var(--warm);color:var(--ink2);}
+.flag-none{font-size:11px;color:var(--muted);}
+
+/* Phase 5D: suggested actions */
+.act-note{font-size:11.5px;font-style:italic;color:var(--muted);margin:0 0 20px;letter-spacing:.2px;}
+.act-note-warn{color:var(--bear);font-style:normal;font-weight:500;}
+.act-grp{border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:11px;
+  padding:15px 18px 7px;margin-bottom:16px;background:var(--canvas);
+  box-shadow:0 1px 2px rgba(22,24,29,.04);}
+.act-grp-head{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;}
+.act-tag{font-size:11px;font-weight:700;letter-spacing:1.2px;}
+.act-hint{font-size:11px;color:var(--muted);}
+.act-count{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums;}
+.act-grp--buy{border-left-color:var(--bull);}
+.act-grp--buy .act-tag{color:var(--bull);}
+.act-grp--add{border-left-color:var(--bull-bar);}
+.act-grp--add .act-tag{color:var(--bull);}
+.act-grp--trim{border-left-color:#e6c88f;}
+.act-grp--trim .act-tag{color:#96601a;}
+.act-grp--sell{border-left-color:var(--bear);}
+.act-grp--sell .act-tag{color:var(--bear);}
+.act-grp--hold{border-left-color:var(--line);}
+.act-grp--hold .act-tag{color:var(--ink2);}
+.act-rows{display:flex;flex-direction:column;}
+.act-row{display:grid;grid-template-columns:minmax(150px,1.5fr) 56px minmax(150px,1.4fr) auto;
+  align-items:center;gap:8px 16px;padding:10px 0;border-top:1px dotted var(--line);}
+.act-row:first-child{border-top:none;}
+.act-id{min-width:0;}
+.act-tkr{font-family:var(--serif);font-weight:600;font-size:16px;color:var(--ink);letter-spacing:-.2px;}
+.act-name{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.act-conv{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:right;}
+.act-move{font-family:var(--mono);font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums;}
+.act-move .to{color:var(--ink);font-weight:600;}
+.act-move .act-dpp{color:var(--muted);}
+.act-usd{color:var(--muted);margin-left:8px;}
+.act-levels{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+.act-lvl{font-family:var(--mono);font-size:10.5px;color:var(--ink2);background:var(--warm);
+  border:1px solid var(--line);border-radius:7px;padding:3px 8px;font-variant-numeric:tabular-nums;}
+.act-lvl.sl{color:var(--bear);}
+.act-lvl.tp{color:var(--bull);}
+@media (max-width:900px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:560px){
+  .act-row{grid-template-columns:1fr auto;}
+  .act-move,.act-levels{grid-column:1 / -1;justify-content:flex-start;}
+}
+@media (max-width:420px){.stat-grid{grid-template-columns:1fr 1fr;}}
+
 /* footer */
 .footer{margin-top:72px;padding-top:26px;border-top:2px solid var(--ink);}
 .footer .eyebrow{margin-bottom:12px;}
@@ -754,15 +1128,32 @@ def render_report(
     *,
     max_long_cards: int = _MAX_LONG_CARDS,
     max_avoid_cards: int = _MAX_AVOID_CARDS,
+    portfolio: dict | None = None,
+    actions: list | None = None,
+    conditioning: dict | None = None,
 ) -> str:
     """Render the full standalone HTML factor report.
 
     Args:
         scores: Scored frame (from ``compute_scores``) indexed by ticker,
             with cluster z's, ``conviction``, ``rank`` and ``is_portfolio``.
-        meta: Header metadata (date, regime, counts, system_read, ...).
+        meta: Header metadata (date, regime, counts, system_read, ...). When
+            ``actions`` is supplied, ``meta["current_weights_approx"]`` (bool)
+            drives a note that current weights are an equal-split approximation.
         max_long_cards: Max highest-conviction candidate cards to detail.
         max_avoid_cards: Max lowest-conviction candidate cards to detail.
+        portfolio: Optional ``build_portfolio`` result dict. When given, an
+            executive / risk panel (deployment, vol vs ceiling, CVaR, net beta,
+            effective bets, caps, sector + USD-bloc exposure, binding/gate flags)
+            renders ABOVE the factor cards.
+        actions: Optional ``build_actions`` list. When given, a decision-support
+            Suggested Actions section (grouped BUY / ADD / TRIM / SELL / HOLD)
+            renders ABOVE the factor cards.
+        conditioning: Optional ``resolve_deployment`` dial-diagnostics dict, used
+            by the exec panel + summary line for regime / deployment context.
+
+    ``portfolio`` / ``actions`` / ``conditioning`` are fully optional: when all
+    three are ``None`` the output is byte-for-byte identical to the legacy report.
 
     Returns:
         A complete HTML document string.
@@ -808,8 +1199,28 @@ def render_report(
         f"</div></header>"
     )
 
+    # Phase 5D: exec / risk panel + suggested actions render ABOVE the factor
+    # cards. Section numerals are assigned left-to-right so that when no new
+    # section leads, Overview / Portfolio / Candidates keep I / II / III.
+    sec_idx = 0
+    new_top = ""
+    if portfolio is not None:
+        new_top += _section_head(
+            _ROMAN[sec_idx],
+            "Positioning and Risk",
+            "Deployment, portfolio risk and exposure limits after the risk gate",
+        ) + _exec_panel(portfolio, conditioning, meta)
+        sec_idx += 1
+    if actions is not None:
+        new_top += _section_head(
+            _ROMAN[sec_idx],
+            "Suggested Actions",
+            "Risk-gated target book vs current holdings · grouped by action",
+        ) + _actions_block(actions, bool(meta.get("current_weights_approx")))
+        sec_idx += 1
+
     overview = _section_head(
-        "I",
+        _ROMAN[sec_idx],
         "Overview",
         f"Conviction heatmap · all {n_universe} scored names ranked · "
         "cluster factor tilt by cell color",
@@ -820,8 +1231,18 @@ def render_report(
             f'<div class="excluded-note">{n_excluded} name{plural} excluded '
             f"(non-equity or insufficient data).</div>"
         )
-    port_sec = _portfolio_section(scored, conv_scale)
-    cand_sec = _candidates_section(scored, conv_scale, max_long_cards, max_avoid_cards)
+    sec_idx += 1
+    port_sec = _portfolio_section(scored, conv_scale, _ROMAN[sec_idx])
+    sec_idx += 1
+    cand_sec = _candidates_section(
+        scored, conv_scale, max_long_cards, max_avoid_cards, _ROMAN[sec_idx]
+    )
+
+    summary_line = (
+        _exec_summary_line(meta, portfolio, actions, conditioning)
+        if (portfolio is not None or actions is not None)
+        else ""
+    )
 
     footer = (
         f'<footer class="footer">'
@@ -851,7 +1272,10 @@ def render_report(
         f"</footer>"
     )
 
-    body = f'<div class="wrap">{masthead}{overview}{port_sec}{cand_sec}{footer}</div>'
+    body = (
+        f'<div class="wrap">{masthead}{summary_line}{new_top}'
+        f"{overview}{port_sec}{cand_sec}{footer}</div>"
+    )
 
     return (
         "<!DOCTYPE html>\n"
