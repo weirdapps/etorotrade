@@ -24,9 +24,11 @@ the book is still over budget after de-weighting:
      still over the ceiling, uniformly scale the whole book so ``vol == ceiling``.
      Uniform scaling preserves every cap fraction; only deployment drops.
 
-Net beta is reported (a breach only sets a flag). Final diagnostics are computed
-on the GATED book. Pure numpy/pandas + the riskfirst primitives; no
-``yahoofinance.core.config`` import (module-level or otherwise).
+Net beta is computed on INVESTED PROPORTIONS (scale-invariant; comparable to the
+pre-gate value in construct.py) and is report-only (a breach only sets a flag).
+Final diagnostics are computed on the GATED book. Pure numpy/pandas + the
+riskfirst primitives; no ``yahoofinance.core.config`` import (module-level or
+otherwise).
 """
 
 from __future__ import annotations
@@ -303,8 +305,10 @@ def apply_risk_gate(
         gross_cut = True
         levers_fired.append("gross_cut")
 
-    # --- 4. net beta (report; NaN beta -> 1.0) ----------------------------- #
-    net_beta = float(np.dot(w, b))
+    # --- 4. net beta on invested PROPORTIONS (scale-invariant; matches pre-gate) #
+    _gross_for_beta = float(w.sum())
+    _p_beta = w / _gross_for_beta if _gross_for_beta > 0 else w
+    net_beta = float(np.dot(_p_beta, b))
     net_beta_out = not (lo_band <= net_beta <= hi_band)
 
     # --- 5. final diagnostics on the GATED book ---------------------------- #

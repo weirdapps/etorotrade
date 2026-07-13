@@ -17,18 +17,14 @@ import html as _html
 import numpy as np
 import pandas as pd
 
-# --- editorial palette (light; the user's) ---------------------------------
-INK = "#16181d"  # primary ink
-INK2 = "#4a4e57"  # secondary ink
+# --- editorial palette (Python-side colors used in helper functions) --------
+# INK, INK2, LINE, WARM, ACCENT, BULL_BAR, BEAR_BAR, TRACK appear only as
+# CSS custom-property literals inside _stylesheet(); they are not referenced
+# from Python code and are not defined here.  MUTED / BULL / BEAR are used
+# in the Python helpers below (_z_color, _heat_bg, _heat_cell).
 MUTED = "#9aa0a8"  # muted labels
-LINE = "#e7e6e2"  # hairline
-WARM = "#faf9f7"  # whisper-warm section tone
-ACCENT = "#123b3a"  # deep ink-teal structural accent
 BULL = "#2d6a4f"
-BULL_BAR = "#bfe3cd"
 BEAR = "#b3402f"
-BEAR_BAR = "#f2c4bb"
-TRACK = "#efeeea"  # neutral z-bar track
 
 # Bar scaling: metric z clamps at ±2.5; conviction meter uses a robust
 # per-frame scale (90th pct of |conviction|) so typical names read strongly

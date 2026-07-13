@@ -96,7 +96,9 @@ def append_snapshot(
         return 0
 
     new_df = pd.DataFrame(rows, columns=LOG_COLUMNS)
-    combined = pd.concat([existing, new_df], ignore_index=True)
+    # Skip concat when existing is empty to avoid a pandas FutureWarning about
+    # concatenating DataFrames with all-NA (or no) entries on first write.
+    combined = new_df if existing.empty else pd.concat([existing, new_df], ignore_index=True)
     combined.to_csv(log_path, index=False)
     return len(rows)
 

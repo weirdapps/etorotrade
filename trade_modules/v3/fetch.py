@@ -96,7 +96,6 @@ def robust_fetch_prices(
 
     chunks = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]
     frames: list[pd.DataFrame] = []
-    skipped = 0
 
     for chunk_idx, batch in enumerate(chunks):
         success = False
@@ -114,15 +113,9 @@ def robust_fetch_prices(
                     time.sleep(backoff)
                 # On final attempt: fall through; success stays False
 
-        if not success:
-            skipped += len(batch)
-
         # Throttle between batches; skip sleep after the last chunk.
         if chunk_idx < len(chunks) - 1:
             time.sleep(pause)
-
-    if skipped:
-        pass  # caller can count via the absence of tickers in the result
 
     if not frames:
         return pd.DataFrame()
