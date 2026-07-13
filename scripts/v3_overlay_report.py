@@ -73,10 +73,12 @@ BALANCED_WEIGHTS: dict[str, float] = {
 # Mega-cap "core" whose kept-vs-sold status is always reported.
 MEGA_CORE: list[str] = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "AVGO", "TSM", "META"]
 
-_VOL_CEILING = 0.18
-_NAME_CAP = 0.08
-_SECTOR_CAP = 0.25
-_USD_BLOC_CAP = 0.60
+# Overridable via env so the same runner produces any confirmed config.
+_VOL_CEILING = float(os.environ.get("V3_VOL_CEILING", "0.18"))
+_NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.08"))
+_SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.25"))
+_USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
+_CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +312,7 @@ def main() -> None:
         usd_bloc_cap=_USD_BLOC_CAP,
         vol_ceiling=_VOL_CEILING,
         core_list=MEGA_CORE,
+        cap_mode=_CAP_MODE,
     )
     view = overlay_portfolio_view(overlay, scores)
     actions = build_actions(overlay["weights"], current_weights, scores, nav=nav)
