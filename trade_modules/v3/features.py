@@ -55,7 +55,41 @@ _INFO_NUM = {
     "targetLowPrice": "target_low",
     "averageVolume": "avg_volume",
 }
-_INFO_STR = {"sector": "sector", "industry": "industry", "quoteType": "quote_type"}
+_INFO_STR = {
+    "sector": "sector",
+    "industry": "industry",
+    "quoteType": "quote_type",
+    "longBusinessSummary": "description",
+}
+
+# Maximum chars for the business description shown on report cards.
+_DESC_MAX = 220
+
+
+def _truncate_description(text) -> str:
+    """Truncate a business summary to ~220 chars ending at a clean boundary.
+
+    Tries to end at the last sentence boundary (``. ! ?``) within the limit;
+    falls back to the last word boundary; appends ``…`` only for word cuts.
+    Returns ``""`` for missing / empty / non-string input (NaN-tolerant).
+    """
+    if not isinstance(text, str) or not text.strip():
+        return ""
+    text = text.strip()
+    if len(text) <= _DESC_MAX:
+        return text
+    # Last sentence-end punctuation within the window.
+    window = text[: _DESC_MAX + 1]
+    for ch in ".!?":
+        pos = window.rfind(ch)
+        if pos > 0:
+            return text[: pos + 1].strip()
+    # Word-boundary fallback.
+    pos = window.rfind(" ")
+    if pos > 0:
+        return text[:pos].rstrip(",.;:") + "…"
+    return text[:_DESC_MAX] + "…"
+
 
 # Price-spine windows (mirror trade_modules.v3.spine).
 _MOM_SKIP = 21
@@ -306,6 +340,8 @@ def enrich_features(
         added[feat] = pd.to_numeric(vals, errors="coerce")
     for key, feat in _INFO_STR.items():
         added[feat] = [info.get(t, {}).get(key) for t in tickers]
+    # Truncate description to ~220 chars at a clean boundary; NaN/None → "".
+    added["description"] = added["description"].apply(_truncate_description)
 
     feats = native.join(added)
 
