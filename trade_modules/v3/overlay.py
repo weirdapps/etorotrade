@@ -165,6 +165,8 @@ def build_overlay(
     core_list=None,
     cap_mode: str | None = None,
     managed_vol_ceiling: float = 0.18,
+    sell_negative_noncore: bool = False,
+    protect_core: bool = False,
 ) -> dict:
     """Build a minimal keep/sell/buy overlay on the live book, then risk-gate it.
 
@@ -238,7 +240,11 @@ def build_overlay(
         sell_threshold = float("nan")
         buy_threshold = float("nan")
 
+    core_set = set(core_list or [])
+
     def _is_weak(t: str) -> bool:
+        if protect_core and t in core_set:
+            return False  # AI core is the thesis sleeve; never sold when protected
         if t not in conv_all.index:  # dataless (absent from scored)
             return True
         c = conv_all.loc[t]
@@ -246,6 +252,8 @@ def build_overlay(
             return True
         if t in elig_mask.index and not bool(elig_mask.loc[t]):
             return True
+        if sell_negative_noncore and float(c) < 0.0:
+            return True  # owner rule: drop negative-conviction non-core names
         if not np.isnan(sell_threshold) and float(c) <= sell_threshold:
             return True  # genuinely weak by percentile
         return False

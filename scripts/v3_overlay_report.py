@@ -81,6 +81,22 @@ _USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
 _CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
 
+# Owner rule (2026-07-13): sell negative-conviction NON-core names, protect the AI
+# core from factor sells, and hold OUT the sleeves the owner manages himself
+# (gold / vol / Greece) so the model neither sells nor re-deploys their capital.
+def _envflag(name: str, default: str = "1") -> bool:
+    return os.environ.get(name, default).strip().lower() not in ("0", "", "false", "no")
+
+
+_SELL_NEG = _envflag("V3_SELL_NEGATIVE_NONCORE")
+_PROTECT_CORE = _envflag("V3_PROTECT_CORE")
+_MANAGED_SLEEVES = [
+    s.strip()
+    for s in os.environ.get("V3_MANAGED_SLEEVES", "GLD,UVXY,LYXGRE.DE").split(",")
+    if s.strip()
+]
+
+
 # ---------------------------------------------------------------------------
 # Render-view adapter (pure) — overlay result -> exec-panel-compatible dict
 # ---------------------------------------------------------------------------
@@ -301,6 +317,19 @@ def main() -> None:
     else:
         print(f"current book: equal-split fallback ({len(current_weights)} names)")
 
+    # --- Hold OUT owner-managed sleeves (gold / vol / Greece): the model neither
+    #     sells nor re-deploys their capital; deployment shrinks by their weight. ---
+    managed_upper = {s.upper() for s in _MANAGED_SLEEVES}
+    held_managed = [t for t in current_weights.index if str(t).upper() in managed_upper]
+    if held_managed:
+        managed_weight = float(sum(float(current_weights[t]) for t in held_managed))
+        current_weights = current_weights.drop(index=held_managed)
+        gross_target = max(0.0, gross_target - managed_weight)
+        print(
+            f"managed sleeves held out: {', '.join(held_managed)} "
+            f"({managed_weight:.1%}); model deployment -> {gross_target:.0%}"
+        )
+
     # --- Overlay construction (keep book, sell weak, add strongest) ---
     overlay = build_overlay(
         scores,
@@ -313,6 +342,8 @@ def main() -> None:
         vol_ceiling=_VOL_CEILING,
         core_list=MEGA_CORE,
         cap_mode=_CAP_MODE,
+        sell_negative_noncore=_SELL_NEG,
+        protect_core=_PROTECT_CORE,
     )
     view = overlay_portfolio_view(overlay, scores)
     actions = build_actions(overlay["weights"], current_weights, scores, nav=nav)
