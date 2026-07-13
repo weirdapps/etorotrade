@@ -125,6 +125,7 @@ def test_conviction_tilt_higher_conviction_gets_more_weight_equal_vol():
         usd_bloc_cap=1.0,
         gross_target=1.0,
         cvar_budget=10.0,
+        vol_ceiling=10.0,  # neutralize the Phase 5A vol lever; this test is about the tilt
     )
     w = res["weights"]
     assert w["A"] > w["B"]  # higher conviction -> larger weight
@@ -142,6 +143,7 @@ def test_high_conviction_high_vol_name_is_not_the_smallest():
         "usd_bloc_cap": 1.0,
         "gross_target": 1.0,
         "cvar_budget": 10.0,
+        "vol_ceiling": 10.0,  # neutralize the Phase 5A vol lever; this test is about the tilt
     }
     erc_only = build_portfolio(scored, pd.DataFrame(), conviction_weight=0.0, **kw)
     tilted = build_portfolio(scored, pd.DataFrame(), conviction_weight=0.5, **kw)
@@ -154,10 +156,16 @@ def test_high_conviction_high_vol_name_is_not_the_smallest():
 
 
 def test_conviction_weight_zero_reproduces_pure_erc():
-    """conviction_weight=0 must reproduce the pure ERC -> caps -> deploy path."""
+    """conviction_weight=0 must reproduce the pure ERC -> caps -> deploy -> GATE path.
+
+    Phase 5A: build_portfolio now returns the risk-GATED book, so the manual
+    reconstruction feeds its ERC->caps->deploy result through the same
+    apply_risk_gate to match. This keeps the binding caps AND the λ=0 ERC intent.
+    """
     from trade_modules.riskfirst.construct import apply_name_cap, cap_groups, erc_weights
     from trade_modules.riskfirst.fx import USD_BLOC, cap_bloc, currency_of
     from trade_modules.v3.construct import _make_cov_fn
+    from trade_modules.v3.risk_gate import apply_risk_gate
 
     scored = _make_scored()
     prices = _make_prices(_ALL, seed=21)
@@ -194,7 +202,23 @@ def test_conviction_weight_zero_reproduces_pure_erc():
     scale = min(gt / gross_risk, 1.0) if gross_risk > 0 else 0.0
     w = w * scale
 
-    np.testing.assert_allclose(res["weights"].loc[selected].to_numpy(), w, rtol=1e-9, atol=1e-12)
+    # Phase 5A: build_portfolio returns the GATED book — apply the same gate here.
+    betas_sel = pd.to_numeric(sub["beta"], errors="coerce").fillna(1.0).to_numpy()
+    gated, _ = apply_risk_gate(
+        pd.Series(w, index=selected),
+        np.asarray(cov, dtype=float),
+        sectors=sub["SECTOR"].astype(str).to_numpy(),
+        currencies=[currency_of(t) for t in selected],
+        betas=betas_sel,
+        vol_ceiling=0.18,
+        name_cap=name_cap,
+        sector_cap=sector_cap,
+        usd_bloc_cap=usd_cap,
+    )
+
+    np.testing.assert_allclose(
+        res["weights"].loc[selected].to_numpy(), gated.to_numpy(), rtol=1e-9, atol=1e-12
+    )
 
 
 def test_all_nonpositive_conviction_falls_back_to_uniform():
