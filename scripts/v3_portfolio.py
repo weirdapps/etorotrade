@@ -26,7 +26,10 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from trade_modules.riskfirst.regime_overlay import REGIME_EXPOSURE  # noqa: E402
+from trade_modules.riskfirst.shadow_run import load_current_weights  # noqa: E402
+from trade_modules.v3.actions import build_actions  # noqa: E402
 from trade_modules.v3.combine import compute_scores  # noqa: E402
+from trade_modules.v3.conditioning import resolve_deployment  # noqa: E402
 from trade_modules.v3.construct import build_portfolio  # noqa: E402
 from trade_modules.v3.features import enrich_features  # noqa: E402
 from trade_modules.v3.fetch import robust_fetch_prices  # noqa: E402
@@ -35,9 +38,8 @@ PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
 BUY_CSV = "yahoofinance/output/buy.csv"
 ETORO_CSV = "yahoofinance/output/etoro.csv"
 
-# Regime -> fraction of capital deployed (Change 2). Averages ~90%, band 85-95%.
-# The regime now sets gross_target directly (replaces the old Kelly / gross dial).
-DEPLOYMENT_BY_REGIME = {"risk_off": 0.85, "neutral": 0.90, "risk_on": 0.95}
+# DEPLOYMENT_BY_REGIME is now the single source of truth in
+# trade_modules.v3.conditioning — imported above.
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +154,34 @@ def _read_tickers(path: str) -> list[str]:
         return []
 
 
+def _load_portfolio_weights(path: str) -> tuple[pd.Series, float | None]:
+    """Load current portfolio weights and NAV from portfolio.csv.
+
+    Strategy:
+    1. Try load_current_weights (shadow_run) — handles weight/totalInvestmentPct/etc.
+    2. If it returns empty (portfolio.csv has no weight column, as is the case for
+       the standard etorotrade schema), fall back to equal weights across listed
+       tickers — a best-effort approximation for action classification.
+    3. NAV: portfolio.csv carries no per-position USD value column → always None
+       (delta_usd is omitted; actions are decision-support in % only).
+
+    Returns:
+        (current_weights, nav) where nav is always None for this schema.
+    """
+    weights = load_current_weights(path)
+    if weights.empty:
+        # Fallback: assign equal weights across all listed portfolio tickers.
+        try:
+            df = pd.read_csv(path, na_values=["--"])
+            tickers = df["TKR"].dropna().astype(str).tolist()
+            if tickers:
+                eq = 1.0 / len(tickers)
+                weights = pd.Series(eq, index=tickers)
+        except Exception as exc:  # noqa: BLE001
+            print(f"warn: portfolio weight fallback failed ({exc})", file=sys.stderr)
+    return weights, None  # NAV always None: no USD value column in schema
+
+
 def main() -> None:
     # --- Universe assembly (mirrors v3_report.py exactly) ---
     port = _read_tickers(PORTFOLIO_CSV)
@@ -192,7 +222,10 @@ def main() -> None:
         print(f"warn: ^GSPC fetch failed ({exc}); defaulting to neutral", file=sys.stderr)
 
     regime, mult = trend_regime(spx_close)
-    gross_target = DEPLOYMENT_BY_REGIME[regime]
+    # Polymarket is a shadow/zero-conviction cross-repo signal (lives in trading-hub).
+    # The seam is inert until wired and validated; max_pm_tilt=0 (default) guarantees
+    # zero effect on deployment regardless of what polymarket_signal contains.
+    gross_target, dial_diag = resolve_deployment(regime, polymarket_signal=None)
     print(f"regime: {regime}  multiplier: {mult:.2f}  deployment: {gross_target:.0%}")
 
     # --- Portfolio construction ---
@@ -233,6 +266,20 @@ def main() -> None:
     for sec, w in sorted(sector_exp.items(), key=lambda x: -x[1]):
         print(f"    {sec:<22} {w:.1%}")
 
+    # --- Current portfolio weights + NAV (for action diff) ---
+    current_weights, nav = _load_portfolio_weights(PORTFOLIO_CSV)
+    print(
+        f"current portfolio: {len(current_weights)} names"
+        + (
+            " (equal-weight fallback)"
+            if current_weights.empty or current_weights.nunique() <= 1
+            else ""
+        )
+    )
+
+    # --- PM construction: target vs current → action list ---
+    actions = build_actions(result["weights"], current_weights, scores, nav=nav)
+
     holdings = build_target_rows(scores, result)
     print()
     print(f"{'─' * 60}")
@@ -252,6 +299,35 @@ def main() -> None:
         print(
             f"{h['ticker']:<10} {h['target_pct']:>6.1%}  {conv:>6}  {rank:>5}  {sector:<18}  {sl:>8}  {tp:>8}"
         )
+
+    # --- Actions summary console print ---
+    from collections import Counter
+
+    action_counts = Counter(a["action"] for a in actions)
+    buys = [a for a in actions if a["action"] in ("BUY", "ADD")]
+    sells = [a for a in actions if a["action"] in ("SELL", "TRIM")]
+    print()
+    print(f"{'─' * 60}")
+    print("SUGGESTED ACTIONS  (decision-support — review before executing)")
+    print(f"{'─' * 60}")
+    for act in ("BUY", "ADD", "TRIM", "SELL", "HOLD"):
+        n = action_counts.get(act, 0)
+        if n:
+            print(f"  {act:<5}  {n}")
+    if buys:
+        print()
+        print(f"  Top {min(5, len(buys))} BUY/ADD:")
+        for a in buys[:5]:
+            pct = f"{a['target_pct']:.1%}"
+            delta = f"{a['delta_pct']:+.1%}"
+            print(f"    {a['ticker']:<10} target {pct}  delta {delta}  ({a['action']})")
+    if sells:
+        print()
+        print(f"  Top {min(5, len(sells))} SELL/TRIM:")
+        for a in sells[:5]:
+            pct = f"{a['current_pct']:.1%}"
+            delta = f"{a['delta_pct']:+.1%}"
+            print(f"    {a['ticker']:<10} current {pct}  delta {delta}  ({a['action']})")
 
     # --- JSON output ---
     now = datetime.now(timezone.utc)
@@ -278,10 +354,12 @@ def main() -> None:
         "regime": regime,
         "multiplier": mult,
         "gross_target": gross_target,
+        "conditioning": dial_diag,
         "diagnostics": {k: (_serial(v) if not isinstance(v, dict) else v) for k, v in diag.items()},
         "gross": gross,
         "cash": cash,
         "holdings": [{k: _serial(v) for k, v in h.items()} for h in holdings],
+        "actions": [{k: _serial(v) for k, v in a.items()} for a in actions],
     }
 
     out = os.path.expanduser(f"~/Downloads/{stamp}_v3_portfolio.json")
