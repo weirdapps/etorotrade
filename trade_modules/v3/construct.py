@@ -17,10 +17,14 @@ PRIMITIVES directly, so that conviction participates in sizing:
     (Change 2);
   * an empirical shrunk-covariance estimate from the supplied price history,
     falling back to a single-factor beta covariance whenever a selected name
-    lacks usable price history; and
-  * a report-only risk gate — parametric-normal CVaR(95%), net beta, and the
-    effective number of bets. It only sets flags; it never shrinks the book
-    (hard vol/CVaR enforcement is deferred to Phase 5).
+    lacks usable price history;
+  * a pre-gate report-only assessment — parametric-normal CVaR(95%), net beta,
+    and the effective number of bets — kept for oversight (it only sets flags);
+    and
+  * a Phase 5A HARD risk gate (:mod:`trade_modules.v3.risk_gate`) that ENFORCES
+    the vol ceiling and concentration caps on the deployed book (caps to
+    convergence -> tail de-weight to the ceiling -> gross-cut fallback). The
+    returned book is the gated book; ``diagnostics["gate"]`` holds its report.
 
 Pure orchestration: no network access and no ``yahoofinance.core.config``
 import (module-level or otherwise).
@@ -35,6 +39,7 @@ from trade_modules.riskfirst.construct import apply_name_cap, cap_groups, erc_we
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import USD_BLOC, cap_bloc, currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
+from trade_modules.v3.risk_gate import _Z_ES_95, apply_risk_gate
 
 # Exchange-suffix -> company domicile country, for dual-listing (mother-market)
 # dedup. A bare ticker (no suffix) or an unmapped suffix is treated as US.
@@ -56,8 +61,7 @@ _SUFFIX_COUNTRY = {
 }
 _HOME_COUNTRY = "United States"  # bare / unmapped suffix
 
-# Parametric-normal 95% Expected Shortfall multiplier: E[Z | Z > z_.95] = φ(1.645)/0.05.
-_Z_ES_95 = 2.063
+# _Z_ES_95 imported from risk_gate (single definition shared across both modules).
 # Report-only risk-gate thresholds.
 _BETA_BAND = (0.3, 1.1)
 _MIN_EFFECTIVE_BETS = 12
@@ -302,6 +306,7 @@ def build_portfolio(
     usd_bloc_cap: float = 0.60,
     gross_target: float = 0.90,
     cvar_budget: float = 0.25,
+    vol_ceiling: float = 0.18,
 ) -> dict:
     """Construct a risk-first book from a v3 scored frame + price history.
 
@@ -333,7 +338,17 @@ def build_portfolio(
             (85% risk_off / 90% neutral / 95% risk_on).
         cvar_budget: Annual parametric-normal CVaR(95%) ceiling for the risk
             book. A breach only sets ``binding["cvar"]`` — it NEVER shrinks the
-            book (hard vol/CVaR enforcement is deferred to Phase 5).
+            book (the CVaR flag stays report-only; hard VOL enforcement is done by
+            the Phase 5A gate below).
+        vol_ceiling: HARD annualised vol ceiling enforced by the Phase 5A risk
+            gate (:func:`trade_modules.v3.risk_gate.apply_risk_gate`). After the
+            conviction-tilt + caps + ``gross_target`` deployment, the book is run
+            through the gate, which (1) drives all caps to convergence, (2)
+            de-weights the worst tail-risk names until vol ≤ ceiling, and (3) as a
+            fallback cuts gross below ``gross_target`` if de-weighting is
+            exhausted. The RETURNED book is the GATED book; ``diagnostics["gate"]``
+            carries the gate report and ``diagnostics`` still keeps the pre-gate
+            assessment (``binding`` / ``port_vol`` / ``cvar_95_*``).
 
     Returns:
         ``{weights, gross, cash, usd_bloc, sector_exposures, selected,
@@ -485,8 +500,25 @@ def build_portfolio(
         },
     }
 
+    # --- Phase 5A: HARD risk gate (blocking enforcement) on the deployed book ---
+    # The diagnostics above are the PRE-gate assessment (report-only). The gate
+    # now ENFORCES the vol ceiling + caps: caps-to-convergence -> tail de-weight
+    # to the vol ceiling -> gross-cut fallback. The RETURNED book is the gated one.
+    gated_series, gate_diag = apply_risk_gate(
+        pd.Series(w_final, index=selected),
+        cov,
+        sectors=sub.reindex(selected)["SECTOR"].astype(str).to_numpy(),
+        currencies=[currency_of(t) for t in selected],
+        betas=betas_sel,
+        vol_ceiling=vol_ceiling,
+        name_cap=name_cap,
+        sector_cap=sector_cap,
+        usd_bloc_cap=usd_bloc_cap,
+    )
+    diagnostics["gate"] = gate_diag
+
     full = pd.Series(0.0, index=sub.index)
-    full.loc[selected] = w_final
+    full.loc[selected] = gated_series.to_numpy()
     gross = float(full.sum())
 
     usd_bloc = float(sum(v for t, v in full.items() if currency_of(t) in USD_BLOC))

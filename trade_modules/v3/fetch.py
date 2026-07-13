@@ -96,33 +96,23 @@ def robust_fetch_prices(
 
     chunks = [tickers[i : i + batch_size] for i in range(0, len(tickers), batch_size)]
     frames: list[pd.DataFrame] = []
-    skipped = 0
 
     for chunk_idx, batch in enumerate(chunks):
-        success = False
         for attempt in range(retries + 1):  # initial try + up to `retries` retries
             try:
                 df = downloader(batch, period)
                 if isinstance(df, pd.Series):
                     df = df.to_frame(name=batch[0])
                 frames.append(df)
-                success = True
                 break
             except Exception:  # noqa: BLE001
                 if attempt < retries:
                     backoff = pause * (2**attempt)
                     time.sleep(backoff)
-                # On final attempt: fall through; success stays False
-
-        if not success:
-            skipped += len(batch)
 
         # Throttle between batches; skip sleep after the last chunk.
         if chunk_idx < len(chunks) - 1:
             time.sleep(pause)
-
-    if skipped:
-        pass  # caller can count via the absence of tickers in the result
 
     if not frames:
         return pd.DataFrame()

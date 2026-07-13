@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily v3 forward-IC logger timer
+
+[Timer]
+# 23:47 UTC — off-peak, after signals pipeline (~22:00 UTC) and VPS brief runs.
+# Persistent=true catches up on missed runs after a reboot.
+# Install: cp scripts/vps/v3-ic-logger.{service,timer} ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now v3-ic-logger.timer
+OnCalendar=*-*-* 23:47:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
