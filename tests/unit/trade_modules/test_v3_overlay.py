@@ -112,6 +112,38 @@ def test_sell_negative_noncore_drops_negatives_but_protects_core():
     assert "U12" in res2["diagnostics"]["sold"]
 
 
+def test_core_floor_raises_gated_core_preserving_gross():
+    """core_floor lifts a gate-trimmed core name to its floor, rescaling non-core.
+
+    The conviction gate sizes mid-conviction U07 well below 35%; the floor lifts it
+    back to 35% and scales the non-core names down so gross is unchanged.
+    """
+    _tks, _convs, sc = _universe20()
+    current = pd.Series({"U00": 0.25, "U03": 0.25, "U07": 0.25, "U10": 0.20})
+    kw = {
+        "max_new": 0,
+        "gross_target": 0.95,
+        "name_cap": 1.0,
+        "sector_cap": 1.0,
+        "usd_bloc_cap": 1.0,
+        "vol_ceiling": 5.0,
+    }
+    base = build_overlay(sc, current, pd.DataFrame(), **kw)
+    floored = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        core_list=["U07"],
+        core_floor=pd.Series({"U07": 0.35}),
+        **kw,
+    )
+    wb, wf = base["weights"], floored["weights"]
+    assert float(wf["U07"]) == pytest.approx(0.35, abs=1e-6)  # lifted to floor
+    assert float(wf["U07"]) > float(wb.get("U07", 0.0))  # above the un-floored size
+    assert floored["diagnostics"]["core_floor_applied"].get("U07", 0.0) > 0.0
+    assert float(wf.sum()) == pytest.approx(float(wb.sum()), abs=1e-3)  # gross preserved
+
+
 def test_already_strong_book_has_no_sells():
     held = [f"H{i:02d}" for i in range(6)]
     fill = [f"L{i:02d}" for i in range(14)]

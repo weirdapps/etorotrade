@@ -28,6 +28,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
@@ -167,6 +168,7 @@ def build_overlay(
     managed_vol_ceiling: float = 0.18,
     sell_negative_noncore: bool = False,
     protect_core: bool = False,
+    core_floor: pd.Series | None = None,
 ) -> dict:
     """Build a minimal keep/sell/buy overlay on the live book, then risk-gate it.
 
@@ -286,6 +288,7 @@ def build_overlay(
             target[t] = buy_budget * float(f)
 
     target_names = list(target.keys())
+    core_floor_applied: dict[str, float] = {}
 
     # Phase 5A hard risk gate on the combined book (keeps + buys).
     if target_names:
@@ -317,6 +320,44 @@ def build_overlay(
             caps=caps_ser,
             managed_vol_ceiling=managed_vol_ceiling,
         )
+
+        # Deliberate thesis overlay: FLOOR core names at a chosen minimum (their
+        # current weights, pre-capped by name_cap), scaling non-core proportionally
+        # so gross holds. The conviction gate trims middling-conviction core; this
+        # re-expresses the owner's high-conviction AI view as a VISIBLE post-gate floor.
+        if core_floor is not None and len(final):
+            floors = pd.to_numeric(core_floor, errors="coerce").dropna()
+            floors = floors[floors > 0.0]
+            raised = 0.0
+            for t in [t for t in final.index if t in floors.index]:
+                fv = float(floors[t])
+                if float(final[t]) < fv:
+                    core_floor_applied[t] = fv - float(final[t])
+                    raised += fv - float(final[t])
+                    final[t] = fv
+            if raised > 1e-9:
+                noncore = [t for t in final.index if t not in floors.index]
+                nc_sum = float(final.reindex(noncore).sum())
+                if nc_sum > raised:  # scale non-core down to fund the floor
+                    scale = (nc_sum - raised) / nc_sum
+                    for t in noncore:
+                        final[t] = float(final[t]) * scale
+                else:  # non-core cannot fund the floor -> drop it (gross dips)
+                    for t in noncore:
+                        final[t] = 0.0
+                final = final[final > 1e-12]
+                pos = {t: i for i, t in enumerate(target_names)}
+                names_f = [t for t in final.index if t in pos]
+                if names_f:
+                    ix = [pos[t] for t in names_f]
+                    vol_f = float(
+                        portfolio_vol(final.reindex(names_f).to_numpy(), cov[np.ix_(ix, ix)])
+                    )
+                    gate_diag = {
+                        **gate_diag,
+                        "vol_after_prefloor": gate_diag.get("vol_after"),
+                        "vol_after": vol_f,
+                    }
     else:  # everything sold / nothing to hold -> all cash
         final = pd.Series(dtype=float)
         gate_diag = {}
@@ -342,6 +383,7 @@ def build_overlay(
         "kept": kept,
         "bought": bought,
         "gate": gate_diag,
+        "core_floor_applied": core_floor_applied,
     }
 
     if core_list is not None:
