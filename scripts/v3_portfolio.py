@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from trade_modules.riskfirst.regime_overlay import REGIME_EXPOSURE  # noqa: E402
 from trade_modules.v3.combine import compute_scores  # noqa: E402
+from trade_modules.v3.conditioning import resolve_deployment  # noqa: E402
 from trade_modules.v3.construct import build_portfolio  # noqa: E402
 from trade_modules.v3.features import enrich_features  # noqa: E402
 from trade_modules.v3.fetch import robust_fetch_prices  # noqa: E402
@@ -35,9 +36,8 @@ PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
 BUY_CSV = "yahoofinance/output/buy.csv"
 ETORO_CSV = "yahoofinance/output/etoro.csv"
 
-# Regime -> fraction of capital deployed (Change 2). Averages ~90%, band 85-95%.
-# The regime now sets gross_target directly (replaces the old Kelly / gross dial).
-DEPLOYMENT_BY_REGIME = {"risk_off": 0.85, "neutral": 0.90, "risk_on": 0.95}
+# DEPLOYMENT_BY_REGIME is now the single source of truth in
+# trade_modules.v3.conditioning — imported above.
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +192,10 @@ def main() -> None:
         print(f"warn: ^GSPC fetch failed ({exc}); defaulting to neutral", file=sys.stderr)
 
     regime, mult = trend_regime(spx_close)
-    gross_target = DEPLOYMENT_BY_REGIME[regime]
+    # Polymarket is a shadow/zero-conviction cross-repo signal (lives in trading-hub).
+    # The seam is inert until wired and validated; max_pm_tilt=0 (default) guarantees
+    # zero effect on deployment regardless of what polymarket_signal contains.
+    gross_target, dial_diag = resolve_deployment(regime, polymarket_signal=None)
     print(f"regime: {regime}  multiplier: {mult:.2f}  deployment: {gross_target:.0%}")
 
     # --- Portfolio construction ---
@@ -278,6 +281,7 @@ def main() -> None:
         "regime": regime,
         "multiplier": mult,
         "gross_target": gross_target,
+        "conditioning": dial_diag,
         "diagnostics": {k: (_serial(v) if not isinstance(v, dict) else v) for k, v in diag.items()},
         "gross": gross,
         "cash": cash,
