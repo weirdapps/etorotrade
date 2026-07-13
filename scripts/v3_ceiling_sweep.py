@@ -68,9 +68,10 @@ CEILINGS: list[float] = [
 CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
 # Risk-gate parameters shared across all ceiling runs (mirrors overlay_report.py).
-_NAME_CAP = 0.08
-_SECTOR_CAP = 0.25
-_USD_BLOC_CAP = 0.60
+# Concentration caps are tunable via env (relaxing them lets the core run higher).
+_NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.08"))
+_SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.25"))
+_USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
 
 
 # ---------------------------------------------------------------------------
