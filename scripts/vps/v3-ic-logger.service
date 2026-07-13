@@ -1,0 +1,11 @@
+[Unit]
+Description=v3 forward-IC logger — daily eligible-name snapshot to ~/.weirdapps-trading/v3_ic_log.csv
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/SourceCode/etorotrade
+ExecStart=%h/SourceCode/etorotrade/.venv/bin/python scripts/v3_ic_logger.py
+StandardOutput=append:%h/logs/v3-ic-logger/service.log
+StandardError=append:%h/logs/v3-ic-logger/service.err
+TimeoutStartSec=600
