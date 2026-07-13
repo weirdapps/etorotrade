@@ -160,3 +160,118 @@ def test_eligibility_excludes_non_equity_and_dataless():
     assert pd.isna(scores.loc["DATALESS", "rank"])
     # Ranking is dense over the two eligible names only.
     assert sorted(int(r) for r in scores["rank"].dropna()) == [1, 2]
+
+
+# --------------------------------------------------------------------------- #
+# PEG removal (honor the user's EXCLUDE decision)
+# --------------------------------------------------------------------------- #
+
+
+def test_peg_removed_from_direction_and_value_cluster():
+    """PEG must not participate in scoring: gone from DIRECTION and value_z."""
+    from trade_modules.v3.combine import CLUSTERS, DIRECTION
+
+    assert "peg" not in DIRECTION
+    assert "peg" not in CLUSTERS["value_z"]
+    # No cluster references peg any more.
+    for members in CLUSTERS.values():
+        assert "peg" not in members
+
+
+# --------------------------------------------------------------------------- #
+# IC-weighting
+# --------------------------------------------------------------------------- #
+
+
+def test_derive_cluster_weights_none_uses_fixed_weights():
+    from trade_modules.v3.combine import CLUSTER_WEIGHTS, derive_cluster_weights
+
+    assert derive_cluster_weights(None) == CLUSTER_WEIGHTS
+
+
+def test_derive_cluster_weights_proportional_to_positive_ic():
+    """With no cap binding, cluster weights are ∝ max(IC, 0), renormalized."""
+    from trade_modules.v3.combine import derive_cluster_weights
+
+    ic = {
+        "value_z": 0.1,
+        "quality_z": 0.1,
+        "momentum_z": 0.2,
+        "lowvol_z": 0.3,
+        "strength_z": 0.3,
+    }
+    w = derive_cluster_weights(ic)
+    assert abs(sum(w.values()) - 1.0) < 1e-9
+    # ordering follows IC, and Value+Quality (0.2) is below the 0.55 cap so it is
+    # left untouched (weights equal the normalized IC).
+    assert w["strength_z"] > w["momentum_z"] > w["value_z"]
+    assert abs(w["momentum_z"] - 0.2) < 1e-9
+    assert abs((w["value_z"] + w["quality_z"]) - 0.2) < 1e-9
+
+
+def test_derive_cluster_weights_preserves_value_quality_cap():
+    """IC that would over-weight Value+Quality is capped at 0.55, excess to the rest."""
+    from trade_modules.v3.combine import derive_cluster_weights
+
+    ic = {
+        "value_z": 0.5,
+        "quality_z": 0.5,
+        "momentum_z": 0.05,
+        "lowvol_z": 0.05,
+        "strength_z": 0.05,
+    }
+    w = derive_cluster_weights(ic)
+    assert abs(sum(w.values()) - 1.0) < 1e-9
+    vq = w["value_z"] + w["quality_z"]
+    assert abs(vq - 0.55) < 1e-9  # capped exactly at the joint cap
+    # equal IC -> equal split inside the VQ bucket
+    assert abs(w["value_z"] - w["quality_z"]) < 1e-9
+    # the freed 0.45 is spread over the other three (equal IC -> equal split)
+    assert abs(w["momentum_z"] - 0.15) < 1e-9
+
+
+def test_derive_cluster_weights_clamps_negative_ic():
+    from trade_modules.v3.combine import derive_cluster_weights
+
+    ic = {
+        "value_z": -0.5,  # negative IC -> zero weight
+        "quality_z": 0.3,
+        "momentum_z": 0.3,
+        "lowvol_z": 0.2,
+        "strength_z": 0.2,
+    }
+    w = derive_cluster_weights(ic)
+    assert w["value_z"] == 0.0
+    assert abs(sum(w.values()) - 1.0) < 1e-9
+
+
+def test_derive_cluster_weights_all_nonpositive_falls_back_to_fixed():
+    from trade_modules.v3.combine import CLUSTER_WEIGHTS, derive_cluster_weights
+
+    ic = dict.fromkeys(CLUSTER_WEIGHTS, -1.0)
+    assert derive_cluster_weights(ic) == CLUSTER_WEIGHTS
+
+
+def test_ic_weighting_shifts_conviction_toward_high_ic_cluster():
+    """A momentum-favoring IC vector flips the value-name / momentum-name ranking."""
+    df = _base(["MOM_STAR", "VAL_STAR", "MID1", "MID2"])
+    df["pe_trailing"] = [50.0, 5.0, 20.0, 25.0]  # VAL_STAR cheapest -> best value
+    df["mom_12_1"] = [0.50, -0.20, 0.10, 0.05]  # MOM_STAR strongest momentum
+
+    default = compute_scores(df, sector_neutral=False)
+    # Fixed weights lean on Value (Value+Quality ~55%) -> the value name wins.
+    assert default.loc["VAL_STAR", "rank"] < default.loc["MOM_STAR", "rank"]
+
+    ic = compute_scores(
+        df,
+        sector_neutral=False,
+        ic_weights={
+            "momentum_z": 1.0,
+            "value_z": 0.05,
+            "quality_z": 0.05,
+            "lowvol_z": 0.05,
+            "strength_z": 0.05,
+        },
+    )
+    # Momentum-heavy IC -> the momentum name now out-ranks the value name.
+    assert ic.loc["MOM_STAR", "rank"] < ic.loc["VAL_STAR", "rank"]
