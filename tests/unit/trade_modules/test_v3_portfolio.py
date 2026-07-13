@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from scripts.v3_portfolio import DEPLOYMENT_BY_REGIME, build_target_rows, trend_regime
+from scripts.v3_portfolio import build_target_rows, trend_regime
+from trade_modules.v3.conditioning import DEPLOYMENT_BY_REGIME
 
 # ---------------------------------------------------------------------------
 # Helpers
