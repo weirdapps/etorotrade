@@ -385,6 +385,60 @@ def _estimate_var_sr(per_period_sharpes: list[float]) -> tuple[float, str]:
     return DEFAULT_VAR_SR, f"default (only {len(finite)} family Sharpe available)"
 
 
+def _cross_sectional_ic_block(
+    results_rows: list[dict], signal_score_col: str, *, primary_horizon: int
+) -> dict:
+    """True cross-sectional rank IC of a pre-trade signal score vs realized alpha.
+
+    Reuses the pure ``cross_sectional_ic`` primitive.  Filters to the primary
+    horizon (nearest present) so the IC is a clean single-horizon cross section,
+    and prefers net_alpha (via ``_alpha_value``) as the forward outcome.
+
+    Skips gracefully (``computed=False``) when the score column is absent.  The
+    ``xsection_ic`` import is deferred to avoid an import cycle (that module
+    imports ``_spearman_rho`` from here).
+    """
+    has_score = any(_safe_float(r.get(signal_score_col)) is not None for r in results_rows)
+    if not has_score:
+        return {"computed": False, "reason": f"no numeric '{signal_score_col}' column in rows"}
+
+    hs = _horizons_present(results_rows)
+    if not hs:
+        return {"computed": False, "reason": "no horizon column in rows"}
+    target_h = (
+        primary_horizon
+        if primary_horizon in hs
+        else min(hs, key=lambda h: abs(h - primary_horizon))
+    )
+
+    records: list[dict] = []
+    for r in results_rows:
+        if _safe_float(r.get("horizon")) != target_h:
+            continue
+        score = _safe_float(r.get(signal_score_col))
+        fwd = _alpha_value(r)
+        if score is None or fwd is None:
+            continue
+        records.append({"signal_date": str(r.get("signal_date")), "score": score, "forward": fwd})
+
+    if not records:
+        return {
+            "computed": False,
+            "reason": "no rows with both score and forward at primary horizon",
+        }
+
+    import pandas as pd
+
+    from trade_modules.validation.xsection_ic import cross_sectional_ic
+
+    df = pd.DataFrame(records)
+    block = cross_sectional_ic(df, "score", "forward", date_col="signal_date")
+    block["computed"] = True
+    block["signal_score_col"] = signal_score_col
+    block["horizon"] = target_h
+    return block
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -400,6 +454,7 @@ def evaluate(
     family_key: str = "signal",
     min_obs: int = 30,
     config_perf: np.ndarray | None = None,
+    signal_score_col: str = "conviction",
 ) -> dict:
     """Pure orchestrator — the validation referee.
 
@@ -419,6 +474,13 @@ def evaluate(
             candidate CONFIGURATIONS (rulesets/parameter sets).  When supplied,
             a real PBO is computed on it (C2/C3).  When None (S0, single ruleset)
             PBO is reported as None with an explicit reason.
+        signal_score_col: OPTIONAL row key holding a numeric pre-trade signal /
+            conviction score.  When present, a true cross-sectional rank IC of
+            that score vs the realized forward alpha is added under the
+            ``cross_sectional_ic`` report key.  When absent, that block records
+            ``computed=False`` and the rest of the report is unaffected.  NOTE:
+            the row PRODUCER must emit this column for the block to populate —
+            producer wiring is out of scope for Phase 2B.
 
     action_records schema note: the live action_log.jsonl uses ``committee_date``
     (not ``date``) and ``size`` (not ``weight_change``); ``size`` is null in all
@@ -563,6 +625,15 @@ def evaluate(
     turnover_result = _turnover(action_records)
 
     # -----------------------------------------------------------------------
+    # Cross-sectional rank IC of the pre-trade signal score (optional).
+    # Populates only when the row PRODUCER emits ``signal_score_col`` — that
+    # producer wiring is out of scope for Phase 2B (see param docstring).
+    # -----------------------------------------------------------------------
+    xsec_ic = _cross_sectional_ic_block(
+        results_rows, signal_score_col, primary_horizon=primary_horizon
+    )
+
+    # -----------------------------------------------------------------------
     # Assemble report
     # -----------------------------------------------------------------------
     return {
@@ -570,6 +641,7 @@ def evaluate(
         "families": families,
         "regime_stratified": regime_out,
         "turnover": turnover_result,
+        "cross_sectional_ic": xsec_ic,
         "survivorship": survivorship,
         "n_trials": n_trials,
         "var_sr": var_sr_used,
