@@ -90,6 +90,7 @@ def _envflag(name: str, default: str = "1") -> bool:
 
 _SELL_NEG = _envflag("V3_SELL_NEGATIVE_NONCORE")
 _PROTECT_CORE = _envflag("V3_PROTECT_CORE")
+_FLOOR_CORE = _envflag("V3_FLOOR_CORE", "0")  # floor AI core at current (thesis overlay)
 _MANAGED_SLEEVES = [
     s.strip()
     for s in os.environ.get("V3_MANAGED_SLEEVES", "GLD,UVXY,LYXGRE.DE").split(",")
@@ -167,6 +168,16 @@ def _print_console_summary(diag: dict, actions: list, gross_target: float) -> No
         if diag["sell_threshold"] == diag["sell_threshold"]  # not NaN
         else "thresholds: n/a (no eligible universe)"
     )
+    cfa = diag.get("core_floor_applied") or {}
+    if cfa:
+        pre = gate.get("vol_after_prefloor")
+        raised = sum(cfa.values())
+        vtxt = (
+            f"  (vol {pre:.1%} -> {vol_after:.1%})"
+            if pre is not None and vol_after is not None
+            else ""
+        )
+        print(f"AI-core floor: +{raised:.1%} across {len(cfa)} names{vtxt}")
     cr = diag.get("core_retention")
     if cr:
         kept = [t for t, s in cr["per_name"].items() if s == "kept"]
@@ -330,6 +341,23 @@ def main() -> None:
             f"({managed_weight:.1%}); model deployment -> {gross_target:.0%}"
         )
 
+    # --- Owner thesis overlay: floor the AI core at its current weight (capped by the
+    #     single-name limit) so the conviction gate can't trim the sleeve below where
+    #     the owner holds it. Off by default; V3_FLOOR_CORE=1 for the owner config. ---
+    core_floor = None
+    if _FLOOR_CORE:
+        cf = {
+            t: min(float(current_weights[t]), _NAME_CAP)
+            for t in MEGA_CORE
+            if t in current_weights.index
+        }
+        core_floor = pd.Series(cf, dtype=float) if cf else None
+        if core_floor is not None:
+            print(
+                f"AI-core floor ON: {len(core_floor)} names floored at current "
+                f"(<= {_NAME_CAP:.0%}/name), sleeve target {core_floor.sum():.1%}"
+            )
+
     # --- Overlay construction (keep book, sell weak, add strongest) ---
     overlay = build_overlay(
         scores,
@@ -344,6 +372,7 @@ def main() -> None:
         cap_mode=_CAP_MODE,
         sell_negative_noncore=_SELL_NEG,
         protect_core=_PROTECT_CORE,
+        core_floor=core_floor,
     )
     view = overlay_portfolio_view(overlay, scores)
     actions = build_actions(overlay["weights"], current_weights, scores, nav=nav)
