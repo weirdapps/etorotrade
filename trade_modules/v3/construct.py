@@ -121,7 +121,16 @@ def _empty_result(cvar_budget: float) -> dict:
             "effective_bets": 0.0,
             "port_vol": 0.0,
             "gross_risk": 0.0,
-            "binding": {"cvar": False, "net_beta": False, "effective_bets": False},
+            "binding": {
+                "cvar": False,
+                "net_beta": False,
+                "effective_bets": False,
+                "deployment_capped": False,
+                "name_cap": False,
+                "sector_cap": False,
+                "usd_bloc_cap": False,
+                "vol_over_target": False,
+            },
         },
     }
 
@@ -135,9 +144,22 @@ def _root_of(ticker: str) -> str:
 
 
 def _suffix_of(ticker: str) -> str:
-    """Uppercased exchange suffix (``.PA``), or ``""`` for a bare ticker."""
+    """Uppercased exchange suffix (``.PA``), or ``""`` for a bare ticker.
+
+    Single-letter suffixes (``.A``, ``.B``, ``.C``) are share-class designators,
+    NOT exchange suffixes — they are excluded from the country map so that
+    ``BRK.A`` and ``BRK.B`` are both classified as United States (bare/unmapped)
+    rather than treated as foreign-exchange listings.
+    """
     t = str(ticker)
-    return ("." + t.rsplit(".", 1)[-1]).upper() if "." in t else ""
+    if "." not in t:
+        return ""
+    suffix = "." + t.rsplit(".", 1)[-1]
+    upper = suffix.upper()
+    # Single-letter suffix: share-class designator, not an exchange suffix.
+    if len(upper) == 2:  # "." + exactly one char
+        return ""
+    return upper
 
 
 def _listing_country(ticker: str) -> str:
@@ -298,8 +320,10 @@ def build_portfolio(
             ``λ=0`` reproduces pure ERC; ``λ=1`` is conviction-proportional.
             ``w_conv[i] = max(conviction_i, 0) / Σ max(conviction_j, 0)`` over
             the selected names (uniform when all convictions are ≤ 0).
-        target_vol: Retained as a REPORTED diagnostic only — the book is no
-            longer scaled to hit it (see ``port_vol`` in the diagnostics).
+        target_vol: Annualised volatility budget used as a report-only flag.
+            Sets ``binding["vol_over_target"]`` when the risk-book vol exceeds
+            this threshold. The book is NEVER shrunk to meet it (vol/CVaR
+            enforcement is deferred to Phase 5).
         name_cap / sector_cap / usd_bloc_cap: Binding concentration caps applied
             (on the gross=1.0 risk book) in the same order the riskfirst engine
             uses; the sector cap uses an uppercased ``SECTOR``.
@@ -398,14 +422,47 @@ def build_portfolio(
     net_beta = float(np.dot(w_shape, betas_sel))
 
     # --- Change 2: deploy the risk book to gross_target (replaces Kelly) ---
+    # FIX 1: use a scale factor that NEVER re-inflates a cap-limited book.
+    # When caps forced gross_risk < gross_target (e.g. all-USD bloc with no
+    # non-bloc receiver), the capped weights stay as-is (scale=1) and the
+    # book stays at gross_risk < gross_target (deployment_capped flag set).
+    # When caps did not limit deployment (gross_risk >= gross_target), we
+    # scale uniformly DOWN to gross_target — uniform scaling preserves all
+    # cap fractions unchanged.
     gross_target = min(1.0, max(0.0, float(gross_target)))
-    w_deployed = w_shape * gross_target  # sum == gross_target
-    cvar_95_deployed = _Z_ES_95 * float(np.sqrt(max(float(w_deployed @ cov @ w_deployed), 0.0)))
+    scale = min(gross_target / gross_risk, 1.0) if gross_risk > 0 else 0.0
+    w_final = w * scale  # sum = gross_risk * scale <= gross_target
+    deployed = float(w_final.sum())
+    cvar_95_deployed = _Z_ES_95 * float(np.sqrt(max(float(w_final @ cov @ w_final), 0.0)))
+
+    # FIX 2: verify cap exposures on the deployed book (fractions of deployed).
+    # w_shape = w / gross_risk = w_final / deployed (scale factor cancels), so
+    # it is the shape of the deployed book regardless of the deployment target.
+    _TOL = 1e-6
+    if deployed > 0:
+        _max_name = float(w_shape.max())
+        sec_arr = sub.reindex(selected)["SECTOR"].astype(str).to_numpy()
+        _sector_totals: dict[str, float] = {}
+        for _wt, _sec in zip(w_shape, sec_arr, strict=True):
+            _sector_totals[_sec] = _sector_totals.get(_sec, 0.0) + float(_wt)
+        _max_sector = max(_sector_totals.values(), default=0.0)
+        _usd_frac = float(
+            sum(
+                float(_wt)
+                for _wt, _t in zip(w_shape, selected, strict=True)
+                if currency_of(_t) in USD_BLOC
+            )
+        )
+        _name_cap_breach = bool(_max_name > name_cap + _TOL)
+        _sector_cap_breach = bool(_max_sector > sector_cap + _TOL)
+        _usd_bloc_breach = bool(_usd_frac > usd_bloc_cap + _TOL)
+    else:
+        _name_cap_breach = _sector_cap_breach = _usd_bloc_breach = False
 
     diagnostics = {
         # Risk-book metrics: the fully-invested, gross=1.0 sleeve.
         "cvar_95_risk_book": cvar_95_risk_book,
-        # Deployed-capital metric: CVaR at the actual gross_target.
+        # Deployed-capital metric: CVaR at the actual deployment fraction.
         "cvar_95_deployed": cvar_95_deployed,
         "cvar_budget": cvar_budget,
         "net_beta": net_beta,
@@ -417,11 +474,19 @@ def build_portfolio(
             "cvar": cvar_binding,
             "net_beta": not (_BETA_BAND[0] <= net_beta <= _BETA_BAND[1]),
             "effective_bets": effective_bets < _MIN_EFFECTIVE_BETS,
+            # FIX 1: deployment was cap-limited below gross_target.
+            "deployment_capped": bool(gross_risk < gross_target - _TOL),
+            # FIX 2: residual cap breaches on the deployed book (surfaced, never silent).
+            "name_cap": _name_cap_breach,
+            "sector_cap": _sector_cap_breach,
+            "usd_bloc_cap": _usd_bloc_breach,
+            # FIX 3: vol budget flag (report-only; never shrinks the book).
+            "vol_over_target": bool(port_vol > target_vol),
         },
     }
 
     full = pd.Series(0.0, index=sub.index)
-    full.loc[selected] = w_deployed
+    full.loc[selected] = w_final
     gross = float(full.sum())
 
     usd_bloc = float(sum(v for t, v in full.items() if currency_of(t) in USD_BLOC))
