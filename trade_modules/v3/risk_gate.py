@@ -173,6 +173,7 @@ def _rc_budget_gate(
             if cap_sum > 0:
                 w += freed * (cap_recv / cap_sum)
         # else: freed weight becomes cash (deployment drops).
+        w_pre = w.copy()
         w, _ = _caps_to_convergence(
             w,
             sec_arr,
@@ -182,6 +183,11 @@ def _rc_budget_gate(
             sector_thr=sector_thr,
             max_iter=max_iter,
         )
+        if pos_mask is not None:
+            # Cap-excess convergence is conviction-blind; never let it GROW a
+            # disliked (conviction<=0) name. Undo any such growth -> becomes cash.
+            grew = (~np.asarray(pos_mask, dtype=bool)) & (w > w_pre + _STABLE_TOL)
+            w[grew] = w_pre[grew]
         iters += 1
     return w, iters
 
@@ -348,6 +354,7 @@ def apply_risk_gate(
     """
     index = weights.index
     w = np.asarray(weights.to_numpy(), dtype=float).copy()
+    w_input = w.copy()  # gate is veto/shrink-only: no name may end above its input
     cov = np.asarray(cov, dtype=float)
     sec_arr = np.asarray(list(sectors), dtype=object)
     ccy = list(currencies)
@@ -579,6 +586,13 @@ def apply_risk_gate(
             levers_fired.append("gross_cut")
     else:
         raise ValueError(f"Unknown cap_mode: {cap_mode!r}")
+
+    # Invariant: the gate only vetoes/shrinks. Cap-excess redistribution (incl. the
+    # initial concentration-caps pass) is conviction-blind and can nudge a disliked
+    # name up; clamp any conviction<=0 name back to at most its input weight -> cash.
+    if pos_mask is not None:
+        disliked = ~np.asarray(pos_mask, dtype=bool)
+        w[disliked] = np.minimum(w[disliked], w_input[disliked])
 
     # --- 4. net beta on invested PROPORTIONS (scale-invariant; matches pre-gate) #
     _gross_for_beta = float(w.sum())

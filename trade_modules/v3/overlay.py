@@ -255,7 +255,7 @@ def build_overlay(
             return True
         if t in elig_mask.index and not bool(elig_mask.loc[t]):
             return True
-        if sell_negative_noncore and float(c) < noncore_sell_floor:
+        if sell_negative_noncore and t not in core_set and float(c) < noncore_sell_floor:
             return True  # owner rule: drop clearly-weak non-core names (deadband)
         if not np.isnan(sell_threshold) and float(c) <= sell_threshold:
             return True  # genuinely weak by percentile
@@ -343,7 +343,13 @@ def build_overlay(
                     scale = (nc_sum - raised) / nc_sum
                     for t in noncore:
                         final[t] = float(final[t]) * scale
-                else:  # non-core cannot fund the floor -> drop it (gross dips)
+                else:  # non-core cannot fully fund the floor -> haircut the lifts to
+                    # what it frees, then zero it, so gross is PRESERVED (never inflated).
+                    haircut = nc_sum / raised  # raised > 1e-9 above, so safe
+                    for t in list(core_floor_applied):
+                        applied = core_floor_applied[t] * haircut
+                        final[t] = float(final[t]) - core_floor_applied[t] + applied
+                        core_floor_applied[t] = applied
                     for t in noncore:
                         final[t] = 0.0
                 final = final[final > 1e-12]
