@@ -47,6 +47,17 @@ CLUSTER_CELLS = [
     ("strength_z", "Strength"),
 ]
 
+# Six cluster z-scores used in the collapsed card summary strip (all six clusters
+# including Growth, which the combiner computes even when its weight is 0).
+_CARD_CLUSTERS = [
+    ("value_z", "Value"),
+    ("quality_z", "Quality"),
+    ("momentum_z", "Momentum"),
+    ("growth_z", "Growth"),
+    ("lowvol_z", "Low-vol"),
+    ("strength_z", "Strength"),
+]
+
 # Display grouping of metrics: (group label, [(feature_key, metric label), ...]).
 # A z-score column ``{key}_z`` is shown when present; else the raw value only.
 DISPLAY_GROUPS = [
@@ -437,6 +448,41 @@ def _group(row: pd.Series, cols, label: str, metrics) -> str:
         f'<div class="units">{units}</div>'
         f"</div>"
     )
+
+
+def _cluster_strip(row) -> str:
+    """Compact six-cluster z-score row for the always-visible card header.
+
+    Each chip: label + a small magnitude bar (width proportional to |z|, capped
+    at 2.5) + the signed z value.  Green for positive z, red for negative.
+    ``row`` may be None (ghost rows not in the scores frame); every chip then
+    renders as the neutral "·" placeholder.
+    """
+    chips = []
+    for key, label in _CARD_CLUSTERS:
+        z = row.get(key, np.nan) if row is not None else np.nan
+        if _isnan(z):
+            chips.append(
+                f'<span class="cz-chip cz-nan">'
+                f'<span class="cz-label">{label}</span>'
+                f'<span class="cz-bar"></span>'
+                f'<span class="cz-val">&#xB7;</span>'
+                f"</span>"
+            )
+        else:
+            z = float(z)
+            pct = min(abs(z) / 2.5, 1.0) * 100.0
+            col = BULL if z > 0 else BEAR
+            chips.append(
+                f'<span class="cz-chip">'
+                f'<span class="cz-label">{label}</span>'
+                f'<span class="cz-bar">'
+                f'<span class="cz-fill" style="width:{pct:.0f}%;background:{col};"></span>'
+                f"</span>"
+                f'<span class="cz-val" style="color:{col};">{z:+.1f}</span>'
+                f"</span>"
+            )
+    return f'<div class="cluster-strip">{"".join(chips)}</div>'
 
 
 def _levels_block(row: pd.Series) -> str:
@@ -858,7 +904,17 @@ def _action_card(a: dict, row, cols, conv_scale: float, delay: float) -> str:
     )
     levels_html = _levels_block(row) if (action in _LEVEL_ACTIONS and row is not None) else ""
     strip_html = f'<div class="ac-strip">{levels_html}</div>' if levels_html else ""
-    groups_html = f'<div class="groups">{groups}</div>' if groups else ""
+    cluster_strip_html = _cluster_strip(row)
+    inner_groups = f'<div class="groups">{groups}</div>' if groups else ""
+    groups_html = (
+        f'<details class="card-more">'
+        f'<summary class="card-more-h">All factors'
+        f' <span class="chev">&#9662;</span></summary>'
+        f"{inner_groups}"
+        f"</details>"
+        if inner_groups
+        else ""
+    )
     return (
         f'<article class="card card--action" style="animation-delay:{delay:.2f}s;">'
         f'<div class="ac-head">'
@@ -875,6 +931,7 @@ def _action_card(a: dict, row, cols, conv_scale: float, delay: float) -> str:
         f"</div>"
         f"</div>"
         f"{strip_html}"
+        f"{cluster_strip_html}"
         f"{groups_html}"
         f"</article>"
     )
@@ -1256,6 +1313,33 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 .ac-move{font-family:var(--mono);font-size:12px;color:var(--ink2);
   font-variant-numeric:tabular-nums;text-align:right;}
 .ac-strip{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+
+/* cluster summary strip: always visible in the collapsed card header */
+.cluster-strip{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
+.cz-chip{display:inline-flex;align-items:center;gap:5px;background:var(--warm);
+  border:1px solid var(--line);border-radius:7px;padding:4px 8px;white-space:nowrap;}
+.cz-chip.cz-nan{opacity:.55;}
+.cz-label{font-size:8.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--muted);}
+.cz-bar{width:32px;height:4px;background:var(--track);border-radius:100px;
+  overflow:hidden;flex-shrink:0;}
+.cz-fill{height:100%;border-radius:100px;}
+.cz-val{font-family:var(--mono);font-size:9.5px;font-weight:500;
+  font-variant-numeric:tabular-nums;min-width:26px;text-align:right;}
+.cz-nan .cz-val{color:var(--muted);}
+
+/* collapsible factor-groups disclosure */
+details.card-more{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+summary.card-more-h{display:flex;align-items:center;justify-content:space-between;
+  padding:4px 0;cursor:pointer;list-style:none;-webkit-list-style:none;
+  font-size:9px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--muted);user-select:none;}
+summary.card-more-h::-webkit-details-marker{display:none;}
+summary.card-more-h::marker{display:none;}
+.chev{display:inline-block;transition:transform .2s ease;font-size:11px;line-height:1;}
+details[open].card-more .chev{transform:rotate(180deg);}
+details[open].card-more>summary{margin-bottom:12px;}
+
 .acct-grid{margin-bottom:14px;}
 .card--action{padding:20px 24px 22px;}
 .card--action .groups{margin-top:16px;padding-top:14px;gap:14px 20px;}
