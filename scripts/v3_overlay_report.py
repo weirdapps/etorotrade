@@ -83,6 +83,29 @@ _SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.35"))
 _USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
 _REGION_CAP = float(os.environ.get("V3_REGION_CAP", "0.65"))
 _ADV_MIN = float(os.environ.get("V3_ADV_MIN", "1e6"))  # min avg dollar-volume/day (USD)
+# Polymarket deployment dial. The signal is a shadow / ZERO-conviction cross-repo
+# input, so the book-moving tilt is OFF by default (V3_PM_MAX_TILT=0 -> advisory
+# only: the signal is fetched + shown in the report but does not move deployment).
+# Set V3_PM_MAX_TILT (e.g. 0.03 = +-3pp) to go live once the signal is validated.
+_PM_MAX_TILT = float(os.environ.get("V3_PM_MAX_TILT", "0.0"))
+
+
+def _polymarket_signal() -> float | None:
+    """Latest normalised Polymarket signal in [-1, 1], or None.
+
+    Read from V3_POLYMARKET_SIGNAL (a float the VPS cron exports from the
+    trading-hub Polymarket tool). Absent / blank / unparseable -> None, so the
+    dial degrades gracefully where Gamma is unreachable (e.g. the NBG Mac).
+    """
+    raw = os.environ.get("V3_POLYMARKET_SIGNAL")
+    if not raw or not raw.strip():
+        return None
+    try:
+        return max(-1.0, min(1.0, float(raw)))
+    except ValueError:
+        return None
+
+
 _CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
 
@@ -510,7 +533,9 @@ def main() -> None:
 
     regime, _mult = trend_regime(spx_close)
     regime_label, regime_detail = compute_regime(spx_close)
-    gross_target, cond = resolve_deployment(regime, polymarket_signal=None)
+    gross_target, cond = resolve_deployment(
+        regime, polymarket_signal=_polymarket_signal(), max_pm_tilt=_PM_MAX_TILT
+    )
     print(f"regime: {regime}  deployment: {gross_target:.0%}")
 
     # --- Current book (live account anchors the overlay; else equal-split) ---
