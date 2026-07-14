@@ -54,7 +54,11 @@ DIRECTION = {
 
 # Scoring clusters -> member metrics.
 CLUSTERS = {
-    "value_z": ["pe_trailing", "pe_forward", "ps_sector", "pb", "ev_ebitda"],
+    # pe_forward + ps_sector pruned 2026-07-14: near-duplicates of pe_trailing
+    # (rho 0.75/0.77) and of each other (pe_forward~ps_sector 0.98) -> double-counted
+    # valuation. Kept a diverse trio: earnings (pe_trailing), book (pb), enterprise
+    # (ev_ebitda). Pruned metrics still SHOWN as raw context in the card, not scored.
+    "value_z": ["pe_trailing", "pb", "ev_ebitda"],
     "quality_z": [
         "roe",
         "roa",
@@ -65,7 +69,9 @@ CLUSTERS = {
         "de",
         "accruals",
     ],
-    "momentum_z": ["mom_12_1", "price_perf", "pct_52w_high"],
+    # price_perf pruned 2026-07-14: rho 0.95 with mom_12_1 (same price move counted
+    # twice). Kept the academic 12-1 skip-month + 52w-high proximity (distinct).
+    "momentum_z": ["mom_12_1", "pct_52w_high"],
     "growth_z": ["earn_growth", "rev_growth"],
     "lowvol_z": ["beta", "realized_vol"],
     "strength_z": ["analyst_mom", "upside", "buy_pct", "short_interest", "target_dispersion"],
