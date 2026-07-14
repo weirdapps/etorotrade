@@ -755,8 +755,15 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
         _axes.append(("name", float(gate["max_name"]), float(_caps_cfg["name"])))
     if not _isnan(gate.get("max_sector")) and _caps_cfg.get("sector"):
         _axes.append(("sector", float(gate["max_sector"]), float(_caps_cfg["sector"])))
-    if not _isnan(usd_bloc) and _caps_cfg.get("usd_bloc"):
-        _axes.append(("USD-bloc", float(usd_bloc), float(_caps_cfg["usd_bloc"])))
+    # usd_bloc is NAV-basis (absolute); convert to book-basis (/gross) so it ranks on
+    # the same basis as name/sector (gate, of book) and region (/gross) — I2 fix.
+    _usd_book = (
+        float(usd_bloc) / float(gross)
+        if (not _isnan(usd_bloc) and not _isnan(gross) and float(gross) > 0)
+        else usd_bloc
+    )
+    if not _isnan(_usd_book) and _caps_cfg.get("usd_bloc"):
+        _axes.append(("USD-bloc", float(_usd_book), float(_caps_cfg["usd_bloc"])))
     if not _isnan(max_region) and _caps_cfg.get("region"):
         _axes.append(("region", float(max_region), float(_caps_cfg["region"])))
     if _axes:

@@ -170,13 +170,13 @@ def _compute_allocations(positions: dict, scores: pd.DataFrame) -> dict:
         geo[region] = geo.get(region, 0.0) + cv
 
         # Asset type: crypto > commodity > volatility > ETF > equity
-        if "-" in t:
+        if t.endswith("-USD") or t.endswith("-EUR"):  # crypto (BTC-USD); not BRK-B
             at = "Crypto"
         elif t == "GLD":
             at = "Commodity"
         elif t in {"UVXY", "VXX"}:
             at = "Volatility"
-        elif ticker in _ETFS:
+        elif t in _ETFS:  # uppercased, consistent with the checks above
             at = "ETF"
         else:
             at = "Equity"
@@ -228,6 +228,8 @@ def overlay_portfolio_view(overlay: dict, scored: pd.DataFrame) -> dict:
     weights = overlay["weights"]
     gate = overlay["diagnostics"].get("gate") or {}
     gross = float(weights.sum()) if len(weights) else 0.0
+    # NAV-basis absolute USD weight; the caps tile converts to book-basis (/gross) to
+    # rank it alongside name/sector/region (I2 is fixed at the tile, one place).
     usd_bloc = float(sum(float(w) for t, w in weights.items() if currency_of(t) in USD_BLOC))
 
     sector_exp: dict[str, float] = {}
