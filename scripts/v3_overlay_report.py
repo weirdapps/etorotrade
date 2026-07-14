@@ -75,8 +75,8 @@ MEGA_CORE: list[str] = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "AVGO", "TSM", "
 
 # Overridable via env so the same runner produces any confirmed config.
 _VOL_CEILING = float(os.environ.get("V3_VOL_CEILING", "0.18"))
-_NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.08"))
-_SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.25"))
+_NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.10"))
+_SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.35"))
 _USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
 _CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
