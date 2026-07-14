@@ -745,8 +745,30 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
         if _isnan(eff)
         else ("warn" if (not _isnan(min_eff) and float(eff) < float(min_eff)) else "bull")
     )
-    caps_tone = "" if caps_ok is None else ("bull" if caps_ok else "bear")
-    caps_val = "n/a" if caps_ok is None else ("OK" if caps_ok else "BREACH")
+    # Concentration caps: OK/BREACH + the BINDING axis (highest utilization vs its
+    # own cap), NOT always USD-bloc. Previously the sub always showed USD-bloc, so a
+    # name/sector breach read as "22% breached". Limits come from meta["caps"].
+    _caps_cfg = meta.get("caps") or {}
+    max_region = diag.get("max_region")
+    _axes: list = []  # (label, value, cap_limit)
+    if not _isnan(gate.get("max_name")) and _caps_cfg.get("name"):
+        _axes.append(("name", float(gate["max_name"]), float(_caps_cfg["name"])))
+    if not _isnan(gate.get("max_sector")) and _caps_cfg.get("sector"):
+        _axes.append(("sector", float(gate["max_sector"]), float(_caps_cfg["sector"])))
+    if not _isnan(usd_bloc) and _caps_cfg.get("usd_bloc"):
+        _axes.append(("USD-bloc", float(usd_bloc), float(_caps_cfg["usd_bloc"])))
+    if not _isnan(max_region) and _caps_cfg.get("region"):
+        _axes.append(("region", float(max_region), float(_caps_cfg["region"])))
+    if _axes:
+        _breach = any(v > c + 1e-6 for _, v, c in _axes)
+        _bind = max(_axes, key=lambda a: (a[1] / a[2]) if a[2] > 0 else 0.0)
+        caps_val = "BREACH" if _breach else "OK"
+        caps_tone = "bear" if _breach else "bull"
+        caps_sub = f"{_bind[0]} {_pct0(_bind[1])} of {_pct0(_bind[2])}"
+    else:  # no cap config -> fall back to the gate boolean + USD-bloc
+        caps_val = "n/a" if caps_ok is None else ("OK" if caps_ok else "BREACH")
+        caps_tone = "" if caps_ok is None else ("bull" if caps_ok else "bear")
+        caps_sub = f"USD-bloc {_pct0(usd_bloc)}"
 
     regime_sub = ""
     if not _isnan(final_dep):
@@ -767,7 +789,7 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
             ("min " + _num1(min_eff)) if not _isnan(min_eff) else "diversification",
             eff_tone,
         ),
-        _stat("Concentration caps", caps_val, f"USD-bloc {_pct0(usd_bloc)}", caps_tone),
+        _stat("Concentration caps", caps_val, caps_sub, caps_tone),
     ]
     grid = f'<div class="stat-grid">{"".join(tiles)}</div>'
 

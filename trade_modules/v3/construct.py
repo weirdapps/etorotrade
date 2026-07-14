@@ -54,12 +54,88 @@ _SUFFIX_COUNTRY = {
     ".OL": "Norway",
     ".ST": "Sweden",
     ".CO": "Denmark",
+    ".HE": "Finland",
+    ".IR": "Ireland",
+    ".BR": "Belgium",
+    ".LS": "Portugal",
+    ".VI": "Austria",
+    ".WA": "Poland",
+    ".AT": "Greece",
     ".HK": "Hong Kong",
     ".T": "Japan",
+    ".KS": "South Korea",
+    ".KQ": "South Korea",
+    ".TW": "Taiwan",
+    ".SS": "China",
+    ".SZ": "China",
+    ".SI": "Singapore",
+    ".NS": "India",
+    ".BO": "India",
     ".AX": "Australia",
     ".TO": "Canada",
+    ".V": "Canada",
+    ".SA": "Brazil",
+    ".MX": "Mexico",
 }
 _HOME_COUNTRY = "United States"  # bare / unmapped suffix
+
+# Company/listing country -> economic region, for the geographic concentration cap.
+# Kept consistent with the report's allocation bars (both driven by ``region_of``).
+_COUNTRY_REGION = {
+    "United States": "North America",
+    "Canada": "North America",
+    "France": "Europe",
+    "Germany": "Europe",
+    "United Kingdom": "Europe",
+    "Netherlands": "Europe",
+    "Switzerland": "Europe",
+    "Italy": "Europe",
+    "Spain": "Europe",
+    "Norway": "Europe",
+    "Sweden": "Europe",
+    "Denmark": "Europe",
+    "Finland": "Europe",
+    "Ireland": "Europe",
+    "Belgium": "Europe",
+    "Portugal": "Europe",
+    "Austria": "Europe",
+    "Poland": "Europe",
+    "Greece": "Europe",
+    "Hong Kong": "Asia-Pacific",
+    "Japan": "Asia-Pacific",
+    "South Korea": "Asia-Pacific",
+    "Taiwan": "Asia-Pacific",
+    "China": "Asia-Pacific",
+    "Singapore": "Asia-Pacific",
+    "India": "Asia-Pacific",
+    "Australia": "Asia-Pacific",
+    "Brazil": "Latin America",
+    "Mexico": "Latin America",
+}
+_DEFAULT_REGION = "North America"  # bare/unmapped US listing
+
+
+def region_of(ticker: str) -> str:
+    """Economic region for a ticker, from its LISTING venue (exchange suffix).
+
+    Domicile drives dual-listing dedup elsewhere; the geographic cap and the
+    report's allocation bars both use the trading venue via this one function,
+    so the two never diverge. Crypto (``-USD`` / hyphen) -> "Crypto/Global".
+    Bare or unmapped US-style tickers -> North America.
+    """
+    t = str(ticker or "").upper()
+    if t.endswith("-USD") or t.endswith("-EUR"):  # crypto (BTC-USD); not BRK-B
+        return "Crypto/Global"
+    # Own suffix lookup (not _suffix_of, which drops single-letter suffixes as share
+    # classes): a mapped single-letter exchange suffix like .T (Tokyo) / .L (London)
+    # / .V (Canada) IS a real venue. Unmapped suffixes (.B share class) fall to US.
+    country = (
+        _SUFFIX_COUNTRY.get("." + t.rsplit(".", 1)[-1], _HOME_COUNTRY)
+        if "." in t
+        else _HOME_COUNTRY
+    )
+    return _COUNTRY_REGION.get(country, _DEFAULT_REGION)
+
 
 # _Z_ES_95 imported from risk_gate (single definition shared across both modules).
 # Report-only risk-gate thresholds.
@@ -304,6 +380,7 @@ def build_portfolio(
     name_cap: float = 0.08,
     sector_cap: float = 0.25,
     usd_bloc_cap: float = 0.60,
+    region_cap: float = 0.65,
     gross_target: float = 0.90,
     cvar_budget: float = 0.25,
     vol_ceiling: float = 0.18,
@@ -408,12 +485,16 @@ def build_portfolio(
     if w_sum > 0:
         w = w / w_sum  # renormalize to sum = 1
 
-    # --- caps: same order select_and_construct uses ---
-    w = apply_name_cap(w, name_cap)
+    # --- caps: name -> USD-bloc -> sector -> region (single-name reasserted between) ---
     is_bloc = np.array([currency_of(t) in USD_BLOC for t in selected])
+    sec_arr = sub.reindex(selected)["SECTOR"].astype(str).to_numpy()
+    region_arr = np.array([region_of(t) for t in selected])
+    w = apply_name_cap(w, name_cap)
     w = cap_bloc(w, is_bloc, usd_bloc_cap)
     w = apply_name_cap(w, name_cap)  # keep single-name cap after bloc redistribution
-    w = cap_groups(w, sub.reindex(selected)["SECTOR"].astype(str).to_numpy(), sector_cap)
+    w = cap_groups(w, sec_arr, sector_cap)
+    w = apply_name_cap(w, name_cap)
+    w = cap_groups(w, region_arr, region_cap)
     w = apply_name_cap(w, name_cap)
 
     gross_risk = float(w.sum())  # capped risk-book gross (≈ 1.0)
@@ -468,11 +549,19 @@ def build_portfolio(
                 if currency_of(_t) in USD_BLOC
             )
         )
+        _region_totals: dict[str, float] = {}
+        for _wt, _t in zip(w_shape, selected, strict=True):
+            _rg = region_of(_t)
+            _region_totals[_rg] = _region_totals.get(_rg, 0.0) + float(_wt)
+        _max_region = max(_region_totals.values(), default=0.0)
         _name_cap_breach = bool(_max_name > name_cap + _TOL)
         _sector_cap_breach = bool(_max_sector > sector_cap + _TOL)
         _usd_bloc_breach = bool(_usd_frac > usd_bloc_cap + _TOL)
+        _region_cap_breach = bool(_max_region > region_cap + _TOL)
     else:
         _name_cap_breach = _sector_cap_breach = _usd_bloc_breach = False
+        _region_cap_breach = False
+        _max_region = 0.0
 
     diagnostics = {
         # Risk-book metrics: the fully-invested, gross=1.0 sleeve.
@@ -485,6 +574,7 @@ def build_portfolio(
         "effective_bets": effective_bets,
         "port_vol": port_vol,
         "gross_risk": gross_risk,
+        "max_region": _max_region,
         "binding": {
             "cvar": cvar_binding,
             "net_beta": not (_BETA_BAND[0] <= net_beta <= _BETA_BAND[1]),
@@ -495,6 +585,7 @@ def build_portfolio(
             "name_cap": _name_cap_breach,
             "sector_cap": _sector_cap_breach,
             "usd_bloc_cap": _usd_bloc_breach,
+            "region_cap": _region_cap_breach,
             # FIX 3: vol budget flag (report-only; never shrinks the book).
             "vol_over_target": bool(port_vol > target_vol),
         },
@@ -518,17 +609,49 @@ def build_portfolio(
     )
     diagnostics["gate"] = gate_diag
 
+    # Post-gate region clamp: the risk gate is region-blind and its tail-deweight /
+    # redistribution can re-concentrate a region above the cap. Only when a region
+    # genuinely exceeds the cap do we re-assert it on the gated book (gross-preserving;
+    # excess redistributes to under-cap names) + re-assert the name cap. In production
+    # the book sits under the 65% region cap, so this is skipped and the gated book is
+    # returned untouched (no perturbation of the gate's vol/name enforcement).
+    gated_arr = gated_series.to_numpy()
+    _gsum = float(gated_arr.sum())
+    if _gsum > 0:
+        _reg_tot: dict[str, float] = {}
+        for _wt, _t in zip(gated_arr, selected, strict=True):
+            _reg_tot[region_of(_t)] = _reg_tot.get(region_of(_t), 0.0) + float(_wt)
+        if max(_reg_tot.values(), default=0.0) > region_cap * _gsum + 1e-9:
+            gated_arr = cap_groups(gated_arr, region_arr, region_cap * _gsum)
+            gated_arr = apply_name_cap(gated_arr, name_cap * _gsum)
+            gated_series = pd.Series(gated_arr, index=selected)
+
     full = pd.Series(0.0, index=sub.index)
     full.loc[selected] = gated_series.to_numpy()
     gross = float(full.sum())
 
     usd_bloc = float(sum(v for t, v in full.items() if currency_of(t) in USD_BLOC))
+    # Region exposures + breach on the FINAL gated book. The region cap is enforced
+    # pre-gate (cap_groups in the cap sequence); the gate only reduces concentration
+    # (tail de-weight + uniform gross-cut), so region stays within cap. We recompute
+    # the breach flag on the gated book so the report reflects the truth, not the
+    # pre-gate assessment.
+    region_exposures: dict[str, float] = {}
+    for t, v in full.items():
+        if v > 1e-12:
+            rg = region_of(t)
+            region_exposures[rg] = region_exposures.get(rg, 0.0) + float(v)
+    if gross > 0:
+        _max_region_final = max(region_exposures.values(), default=0.0) / gross
+        diagnostics["max_region"] = _max_region_final
+        diagnostics["binding"]["region_cap"] = bool(_max_region_final > region_cap + _TOL)
     return {
         "weights": full,
         "gross": gross,
         "cash": max(0.0, 1.0 - gross),
         "usd_bloc": usd_bloc,
         "sector_exposures": _sector_exposures(full, sector_labels),
+        "region_exposures": region_exposures,
         "selected": selected,
         "diagnostics": diagnostics,
     }

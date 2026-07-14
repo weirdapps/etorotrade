@@ -81,6 +81,7 @@ _VOL_CEILING = float(os.environ.get("V3_VOL_CEILING", "0.18"))
 _NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.10"))
 _SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.35"))
 _USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
+_REGION_CAP = float(os.environ.get("V3_REGION_CAP", "0.65"))
 _CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
 
@@ -247,17 +248,22 @@ def overlay_portfolio_view(overlay: dict, scored: pd.DataFrame) -> dict:
 
     cvar_dep = gate.get("cvar_after")
     cvar_rb = float(cvar_dep) / gross if (cvar_dep is not None and gross > 0) else None
+    odiag = overlay["diagnostics"]
+    region_exp = odiag.get("region_exposures") or {}
+    max_region = odiag.get("max_region")
     return {
         "weights": weights,
         "gross": gross,
         "cash": max(0.0, 1.0 - gross),
         "usd_bloc": usd_bloc,
         "sector_exposures": sector_exp,
+        "region_exposures": region_exp,
         "selected": [t for t in weights.index if float(weights[t]) > 1e-9],
         "diagnostics": {
             "gate": gate,
             "cvar_95_deployed": cvar_dep,
             "cvar_95_risk_book": cvar_rb,
+            "max_region": max_region,
             "binding": {},
         },
     }
@@ -401,6 +407,7 @@ def build_overlay_preview_html() -> str:
                 "Other": 0.10,
             },
         },
+        "caps": {"name": 0.10, "sector": 0.35, "usd_bloc": 0.60, "region": 0.65},
     }
     return render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
@@ -567,6 +574,12 @@ def main() -> None:
         "account": account_block,
         "social": social_block,
         "allocations": _compute_allocations(_positions, scores),
+        "caps": {
+            "name": _NAME_CAP,
+            "sector": _SECTOR_CAP,
+            "usd_bloc": _USD_BLOC_CAP,
+            "region": _REGION_CAP,
+        },
     }
     html = render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
