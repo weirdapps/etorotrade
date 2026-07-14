@@ -52,6 +52,7 @@ from trade_modules.riskfirst.fx import USD_BLOC, currency_of  # noqa: E402
 from trade_modules.v3.actions import build_actions  # noqa: E402
 from trade_modules.v3.combine import compute_scores  # noqa: E402
 from trade_modules.v3.conditioning import resolve_deployment  # noqa: E402
+from trade_modules.v3.construct import region_of  # noqa: E402
 from trade_modules.v3.features import enrich_features  # noqa: E402
 from trade_modules.v3.fetch import robust_fetch_prices  # noqa: E402
 from trade_modules.v3.overlay import build_overlay  # noqa: E402
@@ -138,42 +139,15 @@ def _compute_allocations(positions: dict, scores: pd.DataFrame) -> dict:
     an "Other" entry appended last. Returns empty inner dicts when positions is empty.
     """
 
+    # Single source of truth for geography: the same region_of the region cap uses,
+    # so the allocation bars and the cap never disagree (and BRK-B is not miscounted
+    # as crypto). ".US" is stripped to bare-US first (region_of treats it as North
+    # America via the unmapped-suffix default).
     def _region_for(ticker: str) -> str:
         t = str(ticker).upper()
-        if "-" in t:
-            return "Crypto/Global"
-        if "." not in t:
-            return "North America"
-        sfx = "." + t.rsplit(".", 1)[-1]
-        if sfx in {".US"}:
-            return "North America"
-        if sfx in {".TO", ".V"}:
-            return "North America"
-        if sfx in {
-            ".DE",
-            ".PA",
-            ".AS",
-            ".MI",
-            ".MC",
-            ".L",
-            ".SW",
-            ".BR",
-            ".LS",
-            ".HE",
-            ".ST",
-            ".CO",
-            ".OL",
-            ".VI",
-            ".IR",
-            ".WA",
-            ".AT",
-        }:
-            return "Europe"
-        if sfx in {".HK", ".T", ".KS", ".KQ", ".TW", ".SI", ".AX", ".NS", ".BO", ".SS", ".SZ"}:
-            return "Asia-Pacific"
-        if sfx in {".SA", ".MX", ".BA", ".SN"}:
-            return "Latin America"
-        return "Other"
+        if t.endswith(".US"):
+            t = t[:-3]
+        return region_of(t)
 
     if not positions:
         return {"geography": {}, "asset_type": {}, "sector": {}}
