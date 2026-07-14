@@ -1039,6 +1039,55 @@ def _candidates_section(
     return head + body
 
 
+# --- portfolio allocation bars ----------------------------------------------
+def _allocation_bars(allocations: dict | None) -> str:
+    """Portfolio allocation breakdown: Geography / Asset Type / Sector.
+
+    Renders a responsive 3-column grid of horizontal thick bars (one group per
+    column). Returns empty string when allocations is falsy or all three groups
+    are empty after filtering.
+    """
+    if not allocations:
+        return ""
+
+    def _group(title: str, data: dict) -> str:
+        if not data:
+            return ""
+        rows = []
+        for label, v in data.items():
+            pct = float(v)
+            w = round(pct * 100)
+            rows.append(
+                f'<div class="alloc-row">'
+                f'<div class="alloc-lbl">{_esc(label)}</div>'
+                f'<div class="alloc-track">'
+                f'<div class="alloc-fill" style="width:{w}%;"></div>'
+                f"</div>"
+                f'<div class="alloc-pct">{w}%</div>'
+                f"</div>"
+            )
+        return (
+            f'<div class="alloc-grp">'
+            f'<div class="alloc-grp-title">{_esc(title)}</div>'
+            f"{''.join(rows)}"
+            f"</div>"
+        )
+
+    geo = _group("Geography", allocations.get("geography") or {})
+    at = _group("Asset Type", allocations.get("asset_type") or {})
+    sec = _group("Sector", allocations.get("sector") or {})
+
+    if not (geo or at or sec):
+        return ""
+
+    return (
+        f'<div class="alloc-section">'
+        f'<div class="alloc-heading">Portfolio Allocation</div>'
+        f'<div class="alloc-grid">{geo}{at}{sec}</div>'
+        f"</div>"
+    )
+
+
 # --- stylesheet -------------------------------------------------------------
 def _stylesheet() -> str:
     return """
@@ -1392,6 +1441,22 @@ details[open].card-more>summary{margin-bottom:12px;}
   .mast-stats{margin-left:0;width:100%;}
   .card{padding:22px 20px 26px;}
 }
+/* portfolio allocation bars */
+.alloc-section{margin-top:28px;padding-top:22px;border-top:1px solid var(--line);}
+.alloc-heading{font-size:10px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:16px;}
+.alloc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+.alloc-grp-title{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+  color:var(--ink);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line);}
+.alloc-row{display:grid;grid-template-columns:110px 1fr 34px;align-items:center;gap:8px;
+  margin-bottom:7px;}
+.alloc-lbl{font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;}
+.alloc-track{height:26px;background:var(--track);border-radius:6px;overflow:hidden;}
+.alloc-fill{height:100%;background:var(--accent);border-radius:6px;opacity:.65;}
+.alloc-pct{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;
+  font-variant-numeric:tabular-nums;}
+@media (max-width:720px){.alloc-grid{grid-template-columns:1fr;}}
 @media (prefers-reduced-motion:reduce){
   .card{animation:none;}
   .card:hover{transform:none;}
@@ -1483,11 +1548,15 @@ def render_report(
     sec_idx = 0
     new_top = ""
     if portfolio is not None:
-        new_top += _section_head(
-            _ROMAN[sec_idx],
-            "Positioning and Risk",
-            "Deployment, portfolio risk and exposure limits after the risk gate",
-        ) + _exec_panel(portfolio, conditioning, meta)
+        new_top += (
+            _section_head(
+                _ROMAN[sec_idx],
+                "Positioning and Risk",
+                "Deployment, portfolio risk and exposure limits after the risk gate",
+            )
+            + _exec_panel(portfolio, conditioning, meta)
+            + _allocation_bars(meta.get("allocations"))
+        )
         sec_idx += 1
     if actions is not None:
         new_top += _section_head(

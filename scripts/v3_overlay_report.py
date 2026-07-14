@@ -100,6 +100,117 @@ _MANAGED_SLEEVES = [
     if s.strip()
 ]
 
+# Known ETF tickers for asset-type classification.
+_ETFS: set[str] = {"LYXGRE.DE", "SPY", "QQQ", "IWM", "DIA", "VTI", "VOO", "EEM", "EFA", "TLT"}
+
+
+def _compute_allocations(positions: dict, scores: pd.DataFrame) -> dict:
+    """Compute portfolio allocation fractions for Geography, Asset Type, and Sector.
+
+    Returns {"geography": {label: frac}, "asset_type": {label: frac}, "sector": {label: frac}}
+    where each inner dict is sorted descending by fraction, with buckets below 3% merged into
+    an "Other" entry appended last. Returns empty inner dicts when positions is empty.
+    """
+
+    def _region_for(ticker: str) -> str:
+        t = str(ticker).upper()
+        if "-" in t:
+            return "Crypto/Global"
+        if "." not in t:
+            return "North America"
+        sfx = "." + t.rsplit(".", 1)[-1]
+        if sfx in {".US"}:
+            return "North America"
+        if sfx in {".TO", ".V"}:
+            return "North America"
+        if sfx in {
+            ".DE",
+            ".PA",
+            ".AS",
+            ".MI",
+            ".MC",
+            ".L",
+            ".SW",
+            ".BR",
+            ".LS",
+            ".HE",
+            ".ST",
+            ".CO",
+            ".OL",
+            ".VI",
+            ".IR",
+            ".WA",
+            ".AT",
+        }:
+            return "Europe"
+        if sfx in {".HK", ".T", ".KS", ".KQ", ".TW", ".SI", ".AX", ".NS", ".BO", ".SS", ".SZ"}:
+            return "Asia-Pacific"
+        if sfx in {".SA", ".MX", ".BA", ".SN"}:
+            return "Latin America"
+        return "Other"
+
+    if not positions:
+        return {"geography": {}, "asset_type": {}, "sector": {}}
+
+    total = sum(float(p.get("current_value", 0.0)) for p in positions.values())
+    if total <= 0:
+        return {"geography": {}, "asset_type": {}, "sector": {}}
+
+    geo: dict[str, float] = {}
+    atype: dict[str, float] = {}
+    sec: dict[str, float] = {}
+
+    for ticker, pos in positions.items():
+        cv = float(pos.get("current_value", 0.0))
+        if cv <= 0:
+            continue
+        t = str(ticker).upper()
+
+        region = _region_for(ticker)
+        geo[region] = geo.get(region, 0.0) + cv
+
+        # Asset type: crypto > commodity > volatility > ETF > equity
+        if "-" in t:
+            at = "Crypto"
+        elif t == "GLD":
+            at = "Commodity"
+        elif t in {"UVXY", "VXX"}:
+            at = "Volatility"
+        elif ticker in _ETFS:
+            at = "ETF"
+        else:
+            at = "Equity"
+        atype[at] = atype.get(at, 0.0) + cv
+
+        # Sector from scores frame; fall back to "Other" for missing/NaN.
+        sector_label = "Other"
+        if scores is not None and hasattr(scores, "index") and ticker in scores.index:
+            try:
+                s = scores.loc[ticker, "sector"]
+                if s and not pd.isna(s) and str(s).strip():
+                    sector_label = str(s).strip()
+            except Exception:  # noqa: BLE001
+                pass
+        sec[sector_label] = sec.get(sector_label, 0.0) + cv
+
+    def _bucket(raw: dict) -> dict:
+        """Convert raw dollar totals to fractions; merge <3% into Other; sort desc."""
+        frac = {k: v / total for k, v in raw.items() if v > 0}
+        other = frac.pop("Other", 0.0)
+        small = [k for k, v in frac.items() if v < 0.03]
+        for k in small:
+            other += frac.pop(k)
+        out = dict(sorted(frac.items(), key=lambda kv: -kv[1]))
+        if other > 0:
+            out["Other"] = other
+        return out
+
+    return {
+        "geography": _bucket(geo),
+        "asset_type": _bucket(atype),
+        "sector": _bucket(sec),
+    }
+
 
 # ---------------------------------------------------------------------------
 # Render-view adapter (pure) — overlay result -> exec-panel-compatible dict
@@ -247,6 +358,29 @@ def build_overlay_preview_html() -> str:
             "profit_pct": 5.0,
             "available": 25_000.0,
             "invested_cost": 212_500.0,
+        },
+        "allocations": {
+            "geography": {
+                "North America": 0.62,
+                "Europe": 0.24,
+                "Asia-Pacific": 0.09,
+                "Other": 0.05,
+            },
+            "asset_type": {
+                "Equity": 0.82,
+                "ETF": 0.10,
+                "Commodity": 0.05,
+                "Volatility": 0.03,
+            },
+            "sector": {
+                "Technology": 0.34,
+                "Financials": 0.16,
+                "Health Care": 0.14,
+                "Industrials": 0.10,
+                "Consumer": 0.09,
+                "Energy": 0.07,
+                "Other": 0.10,
+            },
         },
     }
     return render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
@@ -411,6 +545,7 @@ def main() -> None:
         "generated_utc": now.strftime("%Y-%m-%d %H:%M UTC"),
         "current_weights_approx": approx,
         "account": account_block,
+        "allocations": _compute_allocations(_positions, scores),
     }
     html = render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
