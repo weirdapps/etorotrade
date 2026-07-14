@@ -115,6 +115,186 @@ def _caps_to_convergence(
     return w, iters
 
 
+def _rc_budget_gate(
+    w: np.ndarray,
+    cov: np.ndarray,
+    sec_arr: np.ndarray,
+    is_bloc: np.ndarray,
+    *,
+    caps_arr: np.ndarray,
+    pos_mask,
+    name_thr: float,
+    bloc_thr: float,
+    sector_thr: float,
+    max_iter: int,
+) -> tuple[np.ndarray, int]:
+    """RC-budget gate: trim names whose RC share exceeds their log-cap allowance.
+
+    Each name's allowance ∝ log(market-cap), normalized over in-book names so
+    large caps are granted a bigger share of the variance budget. The name with
+    the largest (rc_share − allowance) is shrunk by ``_SHRINK`` each step;
+    freed weight flows to under-allowance positive-conviction names, preferring
+    larger cap. No hard vol ceiling — vol floats and is reported by the caller.
+    """
+    w = np.asarray(w, dtype=float).copy()
+    log_caps = np.log(np.maximum(caps_arr, 1.0))
+    iters = 0
+    for _ in range(max_iter):
+        in_book = w > 1e-12
+        if not in_book.any() or int(in_book.sum()) <= 1:
+            break
+        # Allowance ∝ log(cap) shifted to be strictly positive, then normalized.
+        lc = log_caps - float(log_caps[in_book].min()) + 1.0
+        lc_sum = float(lc[in_book].sum())
+        if lc_sum <= 0:
+            break
+        allowance = np.where(in_book, lc / lc_sum, 0.0)
+        # Realized risk-contribution shares (w_i * (Σw)_i / w'Σw).
+        port_var = float(w @ cov @ w)
+        if port_var <= _VOL_TOL:
+            break
+        rc_share = np.where(in_book, w * (cov @ w) / port_var, 0.0)
+        # Largest-overage name.
+        over = in_book & (rc_share > allowance + _STABLE_TOL)
+        if not over.any():
+            break
+        hi = int(np.argmax(np.where(over, rc_share - allowance, -np.inf)))
+        freed = w[hi] * (1.0 - _SHRINK)
+        w[hi] *= _SHRINK
+        # Redistribute to under-allowance positive-conviction names weighted by cap.
+        recv = in_book.copy()
+        recv[hi] = False
+        recv &= rc_share <= allowance + _STABLE_TOL
+        if pos_mask is not None:
+            recv &= pos_mask
+        if recv.any():
+            cap_recv = np.where(recv, caps_arr, 0.0)
+            cap_sum = float(cap_recv.sum())
+            if cap_sum > 0:
+                w += freed * (cap_recv / cap_sum)
+        # else: freed weight becomes cash (deployment drops).
+        w_pre = w.copy()
+        w, _ = _caps_to_convergence(
+            w,
+            sec_arr,
+            is_bloc,
+            name_thr=name_thr,
+            bloc_thr=bloc_thr,
+            sector_thr=sector_thr,
+            max_iter=max_iter,
+        )
+        if pos_mask is not None:
+            # Cap-excess convergence is conviction-blind; never let it GROW a
+            # disliked (conviction<=0) name. Undo any such growth -> becomes cash.
+            grew = (~np.asarray(pos_mask, dtype=bool)) & (w > w_pre + _STABLE_TOL)
+            w[grew] = w_pre[grew]
+        iters += 1
+    return w, iters
+
+
+def _cap_exempt_gate(
+    w: np.ndarray,
+    cov: np.ndarray,
+    sec_arr: np.ndarray,
+    is_bloc: np.ndarray,
+    *,
+    caps_arr: np.ndarray,
+    managed_vol_ceiling: float,
+    name_thr: float,
+    bloc_thr: float,
+    sector_thr: float,
+    max_iter: int,
+) -> tuple[np.ndarray, int]:
+    """Cap-exempt gate: sigmoid-graded vol management; mega caps are ~uncapped.
+
+    ``exempt_frac_i = sigmoid(z_i)`` where ``z_i`` is the cross-sectionally
+    z-scored log(cap) over in-book names (mega → z >> 0 → frac ≈ 1; small →
+    z << 0 → frac ≈ 0).  Each name is split into an EXEMPT sleeve
+    (``exempt_frac_i × w_i``, uncapped) and a MANAGED sleeve (remainder); the
+    MANAGED sleeve is scaled so its standalone vol ≤ ``managed_vol_ceiling``;
+    the sleeves are recombined and concentration caps are re-enforced.
+    """
+    w = np.asarray(w, dtype=float).copy()
+    in_book = w > 1e-12
+    log_caps = np.log(np.maximum(caps_arr, 1.0))
+    lc_in = log_caps[in_book]
+    std_lc = float(lc_in.std()) if len(lc_in) > 1 else 0.0
+    z_in = (lc_in - float(lc_in.mean())) / std_lc if std_lc > 1e-9 else np.zeros(len(lc_in))
+    z_full = np.zeros(len(w))
+    z_full[in_book] = z_in
+    exempt_frac = np.where(in_book, 1.0 / (1.0 + np.exp(-z_full)), 0.0)
+    w_managed = (1.0 - exempt_frac) * w
+    mv = portfolio_vol(w_managed, cov)
+    if mv > managed_vol_ceiling + _VOL_TOL:
+        w_managed = w_managed * (managed_vol_ceiling / mv)
+    w_final, ci = _caps_to_convergence(
+        exempt_frac * w + w_managed,
+        sec_arr,
+        is_bloc,
+        name_thr=name_thr,
+        bloc_thr=bloc_thr,
+        sector_thr=sector_thr,
+        max_iter=max_iter,
+    )
+    return w_final, ci
+
+
+def _cap_ordered_lever(
+    w: np.ndarray,
+    cov: np.ndarray,
+    sec_arr: np.ndarray,
+    is_bloc: np.ndarray,
+    *,
+    caps_arr: np.ndarray,
+    vol_ceiling: float,
+    pos_mask,
+    name_thr: float,
+    bloc_thr: float,
+    sector_thr: float,
+    max_iter: int,
+) -> tuple[np.ndarray, int, int]:
+    """Lever-1 de-weighting in ascending cap order (smallest cap trimmed first).
+
+    Identical to the standard lever-1 except the trim target each step is the
+    SMALLEST-CAP in-book name rather than the highest-RC name — mega-caps are
+    thus protected until last. The caller applies lever-2 gross cut afterward
+    if vol remains above the ceiling.
+
+    Returns ``(gated_weights, l1_iters, caps_iters)``.
+    """
+    w = np.asarray(w, dtype=float).copy()
+    cur_vol = portfolio_vol(w, cov)
+    l1_iter = 0
+    caps_iter_total = 0
+    while cur_vol > vol_ceiling + _VOL_TOL and l1_iter < max_iter:
+        in_book = w > 1e-12
+        if int(in_book.sum()) <= 1:
+            break
+        # Trim the SMALLEST-CAP in-book name toward CASH (mega-caps shielded
+        # until last). Freeing gross is what lowers vol; redistributing into the
+        # equally/more volatile larger names would not reduce it, so we do not.
+        hi = int(np.argmin(np.where(in_book, caps_arr, np.inf)))
+        trial = w.copy()
+        trial[hi] *= _SHRINK  # freed weight (1 - _SHRINK) * w[hi] becomes cash
+        trial, ci = _caps_to_convergence(
+            trial,
+            sec_arr,
+            is_bloc,
+            name_thr=name_thr,
+            bloc_thr=bloc_thr,
+            sector_thr=sector_thr,
+            max_iter=max_iter,
+        )
+        caps_iter_total += ci
+        new_vol = portfolio_vol(trial, cov)
+        if new_vol < cur_vol - _VOL_TOL:
+            w, cur_vol = trial, new_vol
+            l1_iter += 1
+        else:
+            break
+    return w, l1_iter, caps_iter_total
+
+
 def apply_risk_gate(
     weights: pd.Series,
     cov: np.ndarray,
@@ -122,6 +302,7 @@ def apply_risk_gate(
     sectors,
     currencies,
     betas=None,
+    conviction=None,
     vol_ceiling: float = 0.18,
     name_cap: float = 0.08,
     sector_cap: float = 0.25,
@@ -129,6 +310,9 @@ def apply_risk_gate(
     net_beta_band: tuple[float, float] = (0.3, 1.1),
     min_effective_bets: float = 10.0,
     max_iter: int = 100,
+    cap_mode: str | None = None,
+    caps: pd.Series | None = None,
+    managed_vol_ceiling: float = 0.18,
 ) -> tuple[pd.Series, dict]:
     """Enforce the vol ceiling + concentration caps on a constructed book.
 
@@ -142,6 +326,16 @@ def apply_risk_gate(
             USD-bloc when its currency is in :data:`USD_BLOC`).
         betas: Per-name betas aligned to ``weights`` (NaN -> 1.0); ``None`` -> all
             ones.
+        conviction: Optional per-name conviction (a ``pd.Series`` aligned by index
+            to ``weights``, or an array-like aligned positionally). When supplied,
+            the lever-1 tail-deweight redistribution only ADDS freed weight to
+            names the model likes (``conviction > 0``); a name with
+            ``conviction <= 0`` (or NaN / missing) is NEVER increased by the gate.
+            If no positive-conviction receiver can pull vol under the ceiling, the
+            gate falls through to the lever-2 gross cut rather than piling weight
+            into disliked names. ``None`` (the default) restores the legacy
+            behavior (redistribute to the lowest-vol names regardless of
+            conviction), so every prior call is unchanged.
         vol_ceiling: Hard annualised vol ceiling enforced by levers 1 and 2.
         name_cap / sector_cap / usd_bloc_cap: Concentration caps (fraction of the
             invested book).
@@ -160,6 +354,7 @@ def apply_risk_gate(
     """
     index = weights.index
     w = np.asarray(weights.to_numpy(), dtype=float).copy()
+    w_input = w.copy()  # gate is veto/shrink-only: no name may end above its input
     cov = np.asarray(cov, dtype=float)
     sec_arr = np.asarray(list(sectors), dtype=object)
     ccy = list(currencies)
@@ -170,6 +365,27 @@ def apply_risk_gate(
         b = np.ones(n, dtype=float)
     else:
         b = pd.to_numeric(pd.Series(list(betas)), errors="coerce").fillna(1.0).to_numpy()
+
+    # Conviction-aware redistribution (optional). ``pos_mask`` flags the names
+    # lever 1 is allowed to ADD weight to (conviction > 0); NaN / missing ->
+    # False (never increased). ``None`` -> no restriction (legacy behavior).
+    if conviction is None:
+        pos_mask = None
+    else:
+        conv_ser = (
+            conviction
+            if isinstance(conviction, pd.Series)
+            else pd.Series(list(conviction), index=index)
+        )
+        conv_arr = pd.to_numeric(conv_ser.reindex(index), errors="coerce").to_numpy()
+        pos_mask = np.isfinite(conv_arr) & (conv_arr > 0.0)
+
+    # Caps array for cap-scaling modes (aligned to weights index).
+    if caps is None:
+        caps_arr = np.ones(n, dtype=float)
+    else:
+        _caps_ser = caps if isinstance(caps, pd.Series) else pd.Series(list(caps), index=index)
+        caps_arr = pd.to_numeric(_caps_ser.reindex(index), errors="coerce").fillna(1.0).to_numpy()
 
     gross_before = float(w.sum())
     vol_before = portfolio_vol(w, cov) if n else 0.0
@@ -253,57 +469,130 @@ def apply_risk_gate(
     if np.max(np.abs(w - w_pre)) > _STABLE_TOL:
         levers_fired.append("caps")
 
-    # --- 2. vol ceiling via tail de-weighting (lever 1) -------------------- #
+    # --- 2-3. vol-ceiling enforcement (cap-mode dispatched) ----------------- #
     l1_iter = 0
-    if n > 1:
-        inv_vol = 1.0 / np.sqrt(np.clip(np.diag(cov), 1e-18, None))
-        cur_vol = portfolio_vol(w, cov)
-        while cur_vol > vol_ceiling + _VOL_TOL and l1_iter < max_iter:
-            in_book = w > 1e-12
-            if int(in_book.sum()) <= 1:
-                break
-            rc = w * (cov @ w)  # per-name risk contribution
-            hi = int(np.argmax(np.where(in_book, rc, -np.inf)))
-            recv = in_book.copy()
-            recv[hi] = False
-            if not recv.any():
-                break
-            iv_recv = np.where(recv, inv_vol, 0.0)
-            iv_sum = float(iv_recv.sum())
-            if iv_sum <= 0:
-                break
-            # Shrink the worst tail-risk name; redistribute freed weight to the
-            # lowest-risk in-book names (inverse-vol) so the invested sum holds.
-            trial = w.copy()
-            freed = trial[hi] * (1.0 - _SHRINK)
-            trial[hi] *= _SHRINK
-            trial += freed * (iv_recv / iv_sum)
-            trial, ci = _caps_to_convergence(
-                trial,
-                sec_arr,
-                is_bloc,
-                name_thr=name_thr,
-                bloc_thr=bloc_thr,
-                sector_thr=sector_thr,
-                max_iter=max_iter,
-            )
-            caps_iter_total += ci
-            new_vol = portfolio_vol(trial, cov)
-            if new_vol < cur_vol - _VOL_TOL:  # accept only a strict improvement
-                w, cur_vol = trial, new_vol
-                l1_iter += 1
-            else:  # de-weighting can no longer help — lever 1 exhausted
-                break
-        if l1_iter > 0:
-            levers_fired.append("tail_deweight")
-
-    # --- 3. gross cut (lever 2, fallback) ---------------------------------- #
     gross_cut = False
-    pv = portfolio_vol(w, cov)
-    if pv > vol_ceiling + _VOL_TOL:
-        w = w * (vol_ceiling / pv)  # uniform -> vol == ceiling, caps preserved
-        gross_cut = True
-        levers_fired.append("gross_cut")
+    if cap_mode in (None, "uniform"):
+        # Standard path: lever-1 (RC-based tail de-weight) then lever-2 (gross cut).
+        if n > 1:
+            inv_vol = 1.0 / np.sqrt(np.clip(np.diag(cov), 1e-18, None))
+            cur_vol = portfolio_vol(w, cov)
+            while cur_vol > vol_ceiling + _VOL_TOL and l1_iter < max_iter:
+                in_book = w > 1e-12
+                if int(in_book.sum()) <= 1:
+                    break
+                rc = w * (cov @ w)  # per-name risk contribution
+                hi = int(np.argmax(np.where(in_book, rc, -np.inf)))
+                recv = in_book.copy()
+                recv[hi] = False
+                if pos_mask is not None:
+                    recv &= pos_mask  # only ADD to names the model likes (conviction>0)
+                if not recv.any():
+                    break  # no eligible receiver -> fall through to the gross cut
+                iv_recv = np.where(recv, inv_vol, 0.0)
+                iv_sum = float(iv_recv.sum())
+                if iv_sum <= 0:
+                    break
+                # Shrink the worst tail-risk name; redistribute freed weight to the
+                # lowest-risk in-book names (inverse-vol) so the invested sum holds.
+                trial = w.copy()
+                freed = trial[hi] * (1.0 - _SHRINK)
+                trial[hi] *= _SHRINK
+                trial += freed * (iv_recv / iv_sum)
+                trial, ci = _caps_to_convergence(
+                    trial,
+                    sec_arr,
+                    is_bloc,
+                    name_thr=name_thr,
+                    bloc_thr=bloc_thr,
+                    sector_thr=sector_thr,
+                    max_iter=max_iter,
+                )
+                caps_iter_total += ci
+                new_vol = portfolio_vol(trial, cov)
+                accept = new_vol < cur_vol - _VOL_TOL  # accept only a strict improvement
+                if accept and pos_mask is not None:
+                    # Guard: never let a disliked (conviction<=0) name grow, even
+                    # indirectly via the cap redistribution inside this step.
+                    disliked = ~pos_mask
+                    if np.any(trial[disliked] > w[disliked] + _STABLE_TOL):
+                        accept = False
+                if accept:
+                    w, cur_vol = trial, new_vol
+                    l1_iter += 1
+                else:  # de-weighting can no longer help — lever 1 exhausted
+                    break
+            if l1_iter > 0:
+                levers_fired.append("tail_deweight")
+        pv = portfolio_vol(w, cov)
+        if pv > vol_ceiling + _VOL_TOL:
+            w = w * (vol_ceiling / pv)  # uniform -> vol == ceiling, caps preserved
+            gross_cut = True
+            levers_fired.append("gross_cut")
+    elif cap_mode == "cap_budget":
+        # RC-budget gate: per-name allowance ∝ log(cap); no hard vol ceiling.
+        w, l1_iter = _rc_budget_gate(
+            w,
+            cov,
+            sec_arr,
+            is_bloc,
+            caps_arr=caps_arr,
+            pos_mask=pos_mask,
+            name_thr=name_thr,
+            bloc_thr=bloc_thr,
+            sector_thr=sector_thr,
+            max_iter=max_iter,
+        )
+        if l1_iter > 0:
+            levers_fired.append("rc_budget")
+    elif cap_mode == "cap_exempt":
+        # Sigmoid-exempt split: mega caps ~fully held; small caps vol-managed.
+        w, ci = _cap_exempt_gate(
+            w,
+            cov,
+            sec_arr,
+            is_bloc,
+            caps_arr=caps_arr,
+            managed_vol_ceiling=managed_vol_ceiling,
+            name_thr=name_thr,
+            bloc_thr=bloc_thr,
+            sector_thr=sector_thr,
+            max_iter=max_iter,
+        )
+        caps_iter_total += ci
+        levers_fired.append("cap_exempt")
+    elif cap_mode == "cap_ordered":
+        # Lever-1 in ascending cap order; lever-2 gross cut if still over ceiling.
+        w, l1_iter, ci = _cap_ordered_lever(
+            w,
+            cov,
+            sec_arr,
+            is_bloc,
+            caps_arr=caps_arr,
+            vol_ceiling=vol_ceiling,
+            pos_mask=pos_mask,
+            name_thr=name_thr,
+            bloc_thr=bloc_thr,
+            sector_thr=sector_thr,
+            max_iter=max_iter,
+        )
+        caps_iter_total += ci
+        if l1_iter > 0:
+            levers_fired.append("tail_deweight_cap_ordered")
+        pv = portfolio_vol(w, cov)
+        if pv > vol_ceiling + _VOL_TOL:
+            w = w * (vol_ceiling / pv)
+            gross_cut = True
+            levers_fired.append("gross_cut")
+    else:
+        raise ValueError(f"Unknown cap_mode: {cap_mode!r}")
+
+    # Invariant: the gate only vetoes/shrinks. Cap-excess redistribution (incl. the
+    # initial concentration-caps pass) is conviction-blind and can nudge a disliked
+    # name up; clamp any conviction<=0 name back to at most its input weight -> cash.
+    if pos_mask is not None:
+        disliked = ~np.asarray(pos_mask, dtype=bool)
+        w[disliked] = np.minimum(w[disliked], w_input[disliked])
 
     # --- 4. net beta on invested PROPORTIONS (scale-invariant; matches pre-gate) #
     _gross_for_beta = float(w.sum())

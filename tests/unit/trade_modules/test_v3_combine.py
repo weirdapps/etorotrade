@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from trade_modules.v3.combine import CLUSTERS, compute_scores
 
@@ -305,3 +306,210 @@ def test_ic_weighting_shifts_conviction_toward_high_ic_cluster():
     )
     # Momentum-heavy IC -> the momentum name now out-ranks the value name.
     assert ic.loc["MOM_STAR", "rank"] < ic.loc["VAL_STAR", "rank"]
+
+
+# --------------------------------------------------------------------------- #
+# Growth cluster (6th cluster; off by default, weight 0.0)
+# --------------------------------------------------------------------------- #
+
+# The three factor-weight sensitivity configs (short cluster names), mirrored in
+# scripts/v3_sensitivity.py.  Kept inline so these tests do not import the runner.
+_VALUE_HEAVY = {
+    "value": 0.275,
+    "quality": 0.275,
+    "momentum": 0.20,
+    "growth": 0.0,
+    "lowvol": 0.15,
+    "strength": 0.10,
+}
+_GROWTH_FORWARD = {
+    "value": 0.10,
+    "quality": 0.22,
+    "momentum": 0.30,
+    "growth": 0.20,
+    "lowvol": 0.10,
+    "strength": 0.08,
+}
+
+
+def test_growth_cluster_registered_direction_positive():
+    """Growth is the 6th cluster: earnings + revenue growth, DIRECTION +1."""
+    from trade_modules.v3.combine import CLUSTERS, DIRECTION
+
+    assert "growth_z" in CLUSTERS
+    assert set(CLUSTERS["growth_z"]) == {"earn_growth", "rev_growth"}
+    assert DIRECTION["earn_growth"] == +1
+    assert DIRECTION["rev_growth"] == +1
+    assert list(CLUSTERS.keys()) == [
+        "value_z",
+        "quality_z",
+        "momentum_z",
+        "growth_z",
+        "lowvol_z",
+        "strength_z",
+    ]
+
+
+def test_growth_z_high_growth_ranks_above_low_growth():
+    """A high-growth name gets a HIGHER growth_z than a low-growth peer (kept, +1)."""
+    df = _base(["FAST", "MID", "SLOW"])
+    df["earn_growth"] = [40.0, 12.0, 1.0]
+    df["rev_growth"] = [0.35, 0.10, 0.01]
+    scores = compute_scores(df, sector_neutral=False)
+    assert scores.loc["FAST", "growth_z"] > scores.loc["MID", "growth_z"]
+    assert scores.loc["MID", "growth_z"] > scores.loc["SLOW", "growth_z"]
+    assert scores.loc["FAST", "growth_z"] > 0 > scores.loc["SLOW", "growth_z"]
+
+
+def test_growth_z_nan_safe_single_metric():
+    """growth_z tolerates a missing revenue-growth column (earnings only)."""
+    df = _base(["A", "B"])
+    df["earn_growth"] = [30.0, 5.0]  # rev_growth stays NaN in _base
+    scores = compute_scores(df, sector_neutral=False)
+    assert scores.loc["A", "growth_z"] > scores.loc["B", "growth_z"]
+
+
+def test_default_growth_weight_is_zero():
+    """Backward-compat contract: growth carries ZERO weight in the default model."""
+    from trade_modules.v3.combine import CLUSTER_WEIGHTS
+
+    assert CLUSTER_WEIGHTS["growth_z"] == 0.0
+    # The five evidence clusters still sum to 1.0 (growth adds nothing by default).
+    assert abs(sum(CLUSTER_WEIGHTS.values()) - 1.0) < 1e-12
+
+
+# --------------------------------------------------------------------------- #
+# explicit cluster_weights override
+# --------------------------------------------------------------------------- #
+
+
+def test_resolve_cluster_weights_normalizes_to_sum_one():
+    from trade_modules.v3.combine import CLUSTERS, resolve_cluster_weights
+
+    names = list(CLUSTERS.keys())
+    # Unnormalized (sums to 2.0) -> normalized to sum 1, ratios preserved.
+    w = resolve_cluster_weights({"value": 1.0, "quality": 1.0}, None, names)
+    assert abs(sum(w.values()) - 1.0) < 1e-12
+    assert abs(w["value_z"] - 0.5) < 1e-12
+    assert abs(w["quality_z"] - 0.5) < 1e-12
+
+
+def test_resolve_cluster_weights_missing_cluster_is_zero():
+    from trade_modules.v3.combine import CLUSTERS, resolve_cluster_weights
+
+    names = list(CLUSTERS.keys())
+    w = resolve_cluster_weights({"momentum": 1.0}, None, names)
+    assert abs(w["momentum_z"] - 1.0) < 1e-12
+    for c in ("value_z", "quality_z", "growth_z", "lowvol_z", "strength_z"):
+        assert w[c] == 0.0
+
+
+def test_resolve_cluster_weights_accepts_long_and_short_names():
+    from trade_modules.v3.combine import CLUSTERS, resolve_cluster_weights
+
+    names = list(CLUSTERS.keys())
+    short = resolve_cluster_weights({"value": 1.0, "growth": 1.0}, None, names)
+    longn = resolve_cluster_weights({"value_z": 1.0, "growth_z": 1.0}, None, names)
+    assert short == longn
+
+
+def test_cluster_weights_precedence_over_ic_and_default():
+    """Explicit cluster_weights override BOTH ic_weights and the default."""
+    df = _base(["MOM_STAR", "VAL_STAR", "MID"])
+    df["pe_trailing"] = [50.0, 5.0, 20.0]
+    df["mom_12_1"] = [0.50, -0.20, 0.10]
+    # cluster_weights momentum-only should beat an ic_weights that favors value.
+    out = compute_scores(
+        df,
+        sector_neutral=False,
+        ic_weights={"value_z": 1.0},
+        cluster_weights={"momentum": 1.0},
+    )
+    assert out.loc["MOM_STAR", "rank"] < out.loc["VAL_STAR", "rank"]
+
+
+def test_cluster_weights_growth_forward_shifts_ranking():
+    """Growth-forward ranks a high-growth expensive name ABOVE a cheap no-growth name."""
+    df = _base(["GROWTH_EXP", "VALUE_CHEAP", "MID"])
+    df["pe_trailing"] = [60.0, 6.0, 20.0]  # GROWTH_EXP expensive, VALUE_CHEAP cheap
+    df["earn_growth"] = [40.0, 1.0, 15.0]  # GROWTH_EXP fast grower, VALUE_CHEAP flat
+    df["rev_growth"] = [0.35, 0.01, 0.12]
+    df["mom_12_1"] = [0.40, -0.10, 0.10]  # momentum reinforces the growth name
+
+    vh = compute_scores(df, sector_neutral=False, cluster_weights=_VALUE_HEAVY)
+    gf = compute_scores(df, sector_neutral=False, cluster_weights=_GROWTH_FORWARD)
+
+    # Value-heavy: the cheap no-growth name wins (value dominates, growth off).
+    assert vh.loc["VALUE_CHEAP", "rank"] < vh.loc["GROWTH_EXP", "rank"]
+    # Growth-forward: the expensive fast-grower overtakes the cheap flat name.
+    assert gf.loc["GROWTH_EXP", "rank"] < gf.loc["VALUE_CHEAP", "rank"]
+
+
+def test_backward_compat_none_equals_explicit_default_weights():
+    """cluster_weights=None reproduces the default model EXACTLY (allclose)."""
+    df = _base(["A", "B", "C", "D"])
+    df["pe_trailing"] = [5.0, 12.0, 25.0, 60.0]
+    df["roe"] = [40.0, 25.0, 15.0, 5.0]
+    df["mom_12_1"] = [0.30, 0.10, -0.05, -0.20]
+
+    default = compute_scores(df, sector_neutral=False)
+    explicit = compute_scores(
+        df,
+        sector_neutral=False,
+        cluster_weights={
+            "value": 0.275,
+            "quality": 0.275,
+            "momentum": 0.20,
+            "growth": 0.0,
+            "lowvol": 0.15,
+            "strength": 0.10,
+        },
+    )
+    assert np.allclose(
+        default["conviction"].to_numpy(dtype=float),
+        explicit["conviction"].to_numpy(dtype=float),
+        equal_nan=True,
+    )
+
+
+def test_rank_normalization_bounds_outlier_magnitude():
+    """A fat-tailed outlier must not dominate: growth_z depends on RANK, not size.
+
+    Two identical universes except the top name's earnings growth is 5 vs 5000.
+    Under rank-normalization the top name's growth_z is IDENTICAL in both (still
+    just "rank 1 of 5") and bounded. The old winsor-z transform failed this: the
+    5000x value survived the loose 1/99 clip and blew the z up, which is exactly
+    what let small-base biotech growth artifacts dominate the book.
+    """
+    idx = ["A", "B", "C", "D", "E"]
+    moderate = _base(idx)
+    moderate["earn_growth"] = [1.0, 2.0, 3.0, 4.0, 5.0]
+    extreme = _base(idx)
+    extreme["earn_growth"] = [1.0, 2.0, 3.0, 4.0, 5000.0]
+    zm = compute_scores(moderate, sector_neutral=False).loc["E", "growth_z"]
+    ze = compute_scores(extreme, sector_neutral=False).loc["E", "growth_z"]
+    assert zm == pytest.approx(ze)  # rank-invariant to the outlier's magnitude
+    assert abs(ze) < 2.0  # bounded by rank, not blown up by the 5000x value
+
+
+def test_backward_compat_default_ignores_growth_data():
+    """With the default weights, adding growth data does NOT change conviction/rank."""
+    df = _base(["A", "B", "C", "D"])
+    df["pe_trailing"] = [5.0, 12.0, 25.0, 60.0]
+    df["roe"] = [40.0, 25.0, 15.0, 5.0]
+    df["mom_12_1"] = [0.30, 0.10, -0.05, -0.20]
+
+    without = compute_scores(df, sector_neutral=False)
+    withg = df.copy()
+    withg["earn_growth"] = [2.0, 50.0, 5.0, 40.0]  # would reorder if growth were weighted
+    withg["rev_growth"] = [0.01, 0.40, 0.03, 0.30]
+    withg = compute_scores(withg, sector_neutral=False)
+
+    # growth_z is computed, but weight 0 -> conviction identical to the no-growth run.
+    assert withg["growth_z"].notna().all()
+    assert np.allclose(
+        without["conviction"].to_numpy(dtype=float),
+        withg["conviction"].to_numpy(dtype=float),
+        equal_nan=True,
+    )
+    assert list(without["rank"].astype("float")) == list(withg["rank"].astype("float"))

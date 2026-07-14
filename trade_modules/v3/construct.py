@@ -510,6 +510,7 @@ def build_portfolio(
         sectors=sub.reindex(selected)["SECTOR"].astype(str).to_numpy(),
         currencies=[currency_of(t) for t in selected],
         betas=betas_sel,
+        conviction=pd.to_numeric(sub.reindex(selected)["conviction"], errors="coerce"),
         vol_ceiling=vol_ceiling,
         name_cap=name_cap,
         sector_cap=sector_cap,
