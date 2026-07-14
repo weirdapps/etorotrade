@@ -525,3 +525,39 @@ def test_exec_panel_deployed_cvar_uses_post_gate_value():
     assert "15.0%" not in html, "pre-gate cvar_95_deployed leaked into deployed-CVaR tile"
     # Risk-book tile must be unchanged (20.0% still present).
     assert "20.0%" in html, "risk-book CVaR tile was incorrectly modified"
+
+
+def test_allocation_bars_renders_heading_and_widths_and_is_absent_when_empty():
+    """_allocation_bars renders section heading + bar widths; empty inputs are crash-free."""
+    from trade_modules.v3.report import _allocation_bars
+
+    alloc = {
+        "geography": {"North America": 0.62, "Europe": 0.24, "Other": 0.14},
+        "asset_type": {"Equity": 0.82, "ETF": 0.10, "Other": 0.08},
+        "sector": {"Technology": 0.34, "Financials": 0.30, "Other": 0.36},
+    }
+
+    # Direct renderer: heading and at least one bar width present.
+    html = _allocation_bars(alloc)
+    assert "Portfolio Allocation" in html
+    assert "width:62%" in html  # North America 62 %
+
+    # Falsy inputs produce no output and do not raise.
+    assert _allocation_bars({}) == ""
+    assert _allocation_bars(None) == ""
+
+    # Via render_report: allocation section appears inside Section I when portfolio provided.
+    scores, result, actions, cond = _pac()
+    meta = dict(_meta())
+    meta["allocations"] = alloc
+    html_report = render_report(scores, meta, portfolio=result, actions=actions, conditioning=cond)
+    assert "Portfolio Allocation" in html_report
+    assert "width:62%" in html_report
+
+    # Empty allocations: section absent, no crash.
+    meta_empty = dict(_meta())
+    meta_empty["allocations"] = {}
+    html_empty = render_report(
+        scores, meta_empty, portfolio=result, actions=actions, conditioning=cond
+    )
+    assert "Portfolio Allocation" not in html_empty
