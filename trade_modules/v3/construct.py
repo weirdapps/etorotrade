@@ -76,6 +76,8 @@ _SUFFIX_COUNTRY = {
     ".V": "Canada",
     ".SA": "Brazil",
     ".MX": "Mexico",
+    ".BA": "Argentina",
+    ".SN": "Chile",
 }
 _HOME_COUNTRY = "United States"  # bare / unmapped suffix
 
@@ -111,6 +113,8 @@ _COUNTRY_REGION = {
     "Australia": "Asia-Pacific",
     "Brazil": "Latin America",
     "Mexico": "Latin America",
+    "Argentina": "Latin America",
+    "Chile": "Latin America",
 }
 _DEFAULT_REGION = "North America"  # bare/unmapped US listing
 
