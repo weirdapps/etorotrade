@@ -1598,6 +1598,12 @@ def render_report(
     priced = _esc(meta.get("priced", ""))
     enriched = _esc(meta.get("enriched", ""))
     generated = _esc(meta.get("generated_utc", ""))
+    _cov = meta.get("coverage") or {}
+    cov_str = ""
+    if _cov.get("n_scored"):
+        cov_str = f" · Coverage {_cov.get('pct', 0) * 100:.0f}% ({_cov.get('n_eligible', 0)}/{_cov['n_scored']} eligible)"
+        if _cov.get("adv_dropped"):
+            cov_str += f", ADV-dropped {_cov['adv_dropped']}"
 
     regime_cls = {"RISK_ON": "regime-on", "RISK_OFF": "regime-off"}.get(
         str(meta.get("regime")), "regime-neutral"
@@ -1615,7 +1621,7 @@ def render_report(
         f'<span class="regime {regime_cls}"><span class="dot"></span>{regime}</span>'
         f'<span class="mast-detail">{regime_detail}</span>'
         f'<span class="mast-stats">{date} · Portfolio {n_port} · Candidates {n_cand} · '
-        f"Priced {priced} / Enriched {enriched}</span>"
+        f"Priced {priced} / Enriched {enriched}{cov_str}</span>"
         f"</div></header>"
     )
 
