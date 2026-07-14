@@ -302,9 +302,19 @@ def test_target_dispersion_math(tmp_path):
 
 def test_adv_usd_math(tmp_path):
     feats = _run(tmp_path)
-    # 1_000_000 * 200 = 2e8
+    # 1_000_000 * 200 = 2e8 (AAPL is a US listing -> FX rate 1.0, no conversion)
     assert feats.loc["AAPL", "adv_usd"] == 2e8
     assert feats.loc["MSFT", "adv_usd"] == 800_000 * 400.0
+
+
+def test_usd_rate_normalizes_local_currency_cap_and_adv():
+    """cap + adv_usd must convert local currency to USD via _usd_rate_for."""
+    from trade_modules.v3.features import _usd_rate_for
+
+    assert _usd_rate_for("AAPL") == 1.0  # US listing -> no conversion
+    assert _usd_rate_for("UNKNOWN.ZZ") == 1.0  # unmapped suffix -> USD (no-op)
+    assert _usd_rate_for("7203.T") < 0.02  # yen cap must shrink hard to USD
+    assert _usd_rate_for("SAP.DE") > 1.0  # euro is worth more than a dollar
 
 
 def test_ticker_missing_from_info_still_appears(tmp_path):

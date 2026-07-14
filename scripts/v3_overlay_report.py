@@ -82,6 +82,7 @@ _NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.10"))
 _SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.35"))
 _USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
 _REGION_CAP = float(os.environ.get("V3_REGION_CAP", "0.65"))
+_ADV_MIN = float(os.environ.get("V3_ADV_MIN", "1e6"))  # min avg dollar-volume/day (USD)
 _CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
 
@@ -408,6 +409,7 @@ def build_overlay_preview_html() -> str:
             },
         },
         "caps": {"name": 0.10, "sector": 0.35, "usd_bloc": 0.60, "region": 0.65},
+        "coverage": {"n_scored": 22, "n_eligible": 20, "pct": 0.91, "adv_dropped": 3},
     }
     return render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
@@ -467,9 +469,30 @@ def main() -> None:
     scores = compute_scores(feats, sector_neutral=True, cluster_weights=BALANCED_WEIGHTS)
     scores["is_portfolio"] = scores.index.isin(port_set)
 
+    # ADV liquidity gate: drop BUY CANDIDATES (not held) with a KNOWN ADV below the
+    # floor. Held names are exempt (never force-sold for liquidity); names with no
+    # volume data are kept (not penalized for a data gap). Positions run $5-10k, so a
+    # $1M/day floor clears cheaply. adv_usd is FX-normalized to USD in features.
+    _cov_scored_before = len(scores)
+    if "adv_usd" in scores.columns and _ADV_MIN > 0:
+        _adv = pd.to_numeric(scores["adv_usd"], errors="coerce")
+        _illiquid = (~scores["is_portfolio"]) & _adv.notna() & (_adv < _ADV_MIN)
+        _n_illiquid = int(_illiquid.sum())
+        if _n_illiquid:
+            scores = scores[~_illiquid].copy()
+            print(f"ADV gate: dropped {_n_illiquid} candidates below ${_ADV_MIN:,.0f}/day ADV")
+
     elig = scores.get("eligible", pd.Series(True, index=scores.index)).fillna(False).astype(bool)
     n_port = int((scores["is_portfolio"] & elig).sum())
     n_cand = int((~scores["is_portfolio"] & elig).sum())
+    # Coverage: how much of the scored universe clears the eligibility bar (equity +
+    # priced + >=3 of 6 clusters). A data-quality readout for the report.
+    coverage = {
+        "n_scored": len(scores),
+        "n_eligible": int(elig.sum()),
+        "pct": (int(elig.sum()) / len(scores)) if len(scores) else 0.0,
+        "adv_dropped": _cov_scored_before - len(scores),
+    }
 
     # --- Prices + market regime ---
     prices: pd.DataFrame = pd.DataFrame()
@@ -580,6 +603,7 @@ def main() -> None:
             "usd_bloc": _USD_BLOC_CAP,
             "region": _REGION_CAP,
         },
+        "coverage": coverage,
     }
     html = render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
