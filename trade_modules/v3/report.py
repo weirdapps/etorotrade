@@ -811,6 +811,15 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
             flags.append(_LEVER_LABELS[lev])
     if gate.get("gross_cut") and _LEVER_LABELS["gross_cut"] not in flags:
         flags.append(_LEVER_LABELS["gross_cut"])
+    # Polymarket dial: surface the signal when present. Advisory (no book effect)
+    # while the tilt is 0 (shadow phase); shows the applied pp when live.
+    pm_sig = cond.get("polymarket_signal")
+    if pm_sig is not None:
+        pm_tilt = float(cond.get("polymarket_tilt") or 0.0)
+        if cond.get("polymarket_active") and abs(pm_tilt) > 1e-9:
+            flags.append(f"PM {float(pm_sig):+.2f} to {pm_tilt * 100:+.0f}pp")
+        else:
+            flags.append(f"PM {float(pm_sig):+.2f} advisory")
     seen: set = set()
     flags = [f for f in flags if not (f in seen or seen.add(f))]
     if flags:
