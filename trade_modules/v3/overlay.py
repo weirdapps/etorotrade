@@ -32,7 +32,7 @@ from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
-from trade_modules.v3.construct import _norm_name, _root_of, dedup_dual_listings
+from trade_modules.v3.construct import _norm_name, _root_of, dedup_dual_listings, region_of
 from trade_modules.v3.risk_gate import apply_risk_gate
 
 # A holding/target weight at or below this is treated as flat (not held).
@@ -375,11 +375,26 @@ def build_overlay(
         (final.reindex(idx).fillna(0.0) - cur.reindex(idx).fillna(0.0)).abs().sum()
     )
 
+    # Region exposure monitor (informational). The from-scratch constructor
+    # (build_portfolio) HARD-caps region; the overlay only REPORTS it, so a region
+    # breach never force-sells a held/core name against the owner rules.
+    region_exposures: dict[str, float] = {}
+    _final_gross = float(final.sum()) if len(final) else 0.0
+    for _t, _v in final.items():
+        if float(_v) > 1e-12:
+            _rg = region_of(_t)
+            region_exposures[_rg] = region_exposures.get(_rg, 0.0) + float(_v)
+    max_region = (
+        max(region_exposures.values(), default=0.0) / _final_gross if _final_gross > 0 else 0.0
+    )
+
     diagnostics: dict = {
         "n_sell": len(sold),
         "n_buy": len(bought),
         "n_keep": len(kept),
         "turnover": turnover,
+        "region_exposures": region_exposures,
+        "max_region": max_region,
         "freed_weight": freed_weight,
         "keep_weight": keep_sum,
         "buy_weight": float(sum(target[t] for t in bought)) if bought else 0.0,

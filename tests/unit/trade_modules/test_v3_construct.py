@@ -16,7 +16,7 @@ mother market (Change 3).
 import numpy as np
 import pandas as pd
 
-from trade_modules.v3.construct import build_portfolio, dedup_dual_listings
+from trade_modules.v3.construct import build_portfolio, dedup_dual_listings, region_of
 
 # A rich synthetic universe: 9 USD-bloc + 3 EUR names; 6 Tech (sector-cap bait).
 _USD = ["AA1", "AA2", "AA3", "AA4", "AA5", "AA6", "AA7", "AA8", "AA9"]
@@ -178,6 +178,7 @@ def test_conviction_weight_zero_reproduces_pure_erc():
         name_cap=name_cap,
         sector_cap=sector_cap,
         usd_bloc_cap=usd_cap,
+        region_cap=1.0,  # disable region cap: the manual mirror below has no region step
         gross_target=gt,
         cvar_budget=10.0,
     )
@@ -466,6 +467,7 @@ def test_falls_back_to_single_factor_cov_when_prices_missing():
         name_cap=1.0,
         sector_cap=1.0,
         usd_bloc_cap=1.0,
+        region_cap=1.0,  # disable the region cap too, to isolate the cov fallback
         gross_target=1.0,
         cvar_budget=10.0,
     )
@@ -475,6 +477,43 @@ def test_falls_back_to_single_factor_cov_when_prices_missing():
     # Equal betas -> single-factor cov is (near) equal-variance -> ~equal ERC weights.
     sel_w = w[w > 1e-9]
     assert sel_w.std() / sel_w.mean() < 0.05
+
+
+def test_region_of_from_listing_suffix():
+    assert region_of("AAPL") == "North America"
+    assert region_of("SHOP.TO") == "North America"
+    assert region_of("SAP.DE") == "Europe"
+    assert region_of("ASML.AS") == "Europe"
+    assert region_of("8035.T") == "Asia-Pacific"
+    assert region_of("0700.HK") == "Asia-Pacific"
+    assert region_of("VALE.SA") == "Latin America"
+    assert region_of("BTC-USD") == "Crypto/Global"
+    assert region_of("BRK-B") == "North America"  # hyphen, but not crypto
+
+
+def test_region_cap_binds_on_us_heavy_book():
+    # _ALL is 9 US (bare) + 3 European (.DE/.PA) -> 75% North America at equal weight.
+    # The 65% region cap must trim North America to <= 65% of the deployed book.
+    scored = _make_scored(betas=1.0)
+    res = build_portfolio(
+        scored,
+        pd.DataFrame(),  # single-factor cov fallback -> ~equal risk
+        top_n=12,
+        conviction_weight=0.0,
+        name_cap=1.0,
+        sector_cap=1.0,
+        usd_bloc_cap=1.0,
+        region_cap=0.65,
+        gross_target=1.0,
+        cvar_budget=10.0,
+    )
+    w = res["weights"]
+    gross = float(w.sum())
+    na = sum(float(v) for t, v in w.items() if region_of(t) == "North America")
+    assert gross > 0.0
+    assert na / gross <= 0.65 + 1e-6  # region cap enforced
+    assert res["diagnostics"]["binding"]["region_cap"] is False  # holds on final book
+    assert "North America" in res["region_exposures"]
 
 
 # --------------------------------------------------------------------------- #
