@@ -354,6 +354,7 @@ def _overview(scores: pd.DataFrame, conv_scale: float) -> str:
         '<span class="hm-h right">#</span>'
         '<span class="hm-h">Ticker</span>'
         '<span class="hm-h">Sector</span>'
+        '<span class="hm-h hm-name">Name</span>'
         '<span class="hm-h right">Conv</span>'
         '<span class="hm-barcell"></span>'
         '<div class="hm-cells">'
@@ -373,6 +374,7 @@ def _overview(scores: pd.DataFrame, conv_scale: float) -> str:
         )
         rank_s = "–" if _isnan(rank) else str(int(rank))
         sector_s = _esc(r.get("sector", "")) or "–"
+        name_s = _esc(r.get("name", ""))
         conv_s = "·" if _isnan(conv) else f"{conv:+.2f}"
         cells = "".join(_heat_cell(lbl, r.get(k, np.nan)) for k, lbl in CLUSTER_CELLS)
         rows.append(
@@ -381,6 +383,7 @@ def _overview(scores: pd.DataFrame, conv_scale: float) -> str:
             f'<span class="hm-rank">{rank_s}</span>'
             f'<span class="hm-tkr">{_esc(tkr)}</span>'
             f'<span class="hm-sector">{sector_s}</span>'
+            f'<span class="hm-name">{name_s}</span>'
             f'<span class="hm-conv" style="color:{_z_color(conv)};">{conv_s}</span>'
             f'<span class="hm-barcell">{_bar(conv, conv_scale, "meter")}</span>'
             f'<div class="hm-cells">{cells}</div>'
@@ -701,7 +704,23 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
             '<span class="flag-none">none binding</span></div>'
         )
 
-    return f'<div class="exec-panel">{grid}{sec_html}{flag_html}</div>'
+    acct = meta.get("account") or {}
+    account_html = ""
+    if acct:
+        pnl_usd = acct.get("unrealized_pnl")
+        pnl_pct = acct.get("profit_pct")
+        pnl_s = _usd_signed(pnl_usd) or "n/a"
+        pnl_sub = f"{float(pnl_pct):+.1f}%" if not _isnan(pnl_pct) else ""
+        pnl_tone = ("bull" if float(pnl_usd) >= 0 else "bear") if not _isnan(pnl_usd) else ""
+        account_html = (
+            '<div class="stat-grid acct-grid">'
+            + _stat("Total Value", _money(acct.get("total_equity")), "portfolio NAV")
+            + _stat("Unrealized P&L", pnl_s, pnl_sub, pnl_tone)
+            + _stat("Cash", _money(acct.get("available")), "available")
+            + _stat("Invested", _money(acct.get("invested_cost")), "at cost")
+            + "</div>"
+        )
+    return f'<div class="exec-panel">{account_html}{grid}{sec_html}{flag_html}</div>'
 
 
 def _action_row(a: dict) -> str:
@@ -791,6 +810,135 @@ def _card_grid(frame: pd.DataFrame, cols, conv_scale: float) -> str:
     return f'<div class="cards">{"".join(cards)}</div>'
 
 
+# --- action deep-dive cards -------------------------------------------------
+
+
+def _action_card(a: dict, row, cols, conv_scale: float, delay: float) -> str:
+    """Full deep-dive card for one suggested action (replaces compact _action_row)."""
+    tkr = _esc(a.get("ticker") or "")
+    action = a.get("action") or ""
+    act_cls = {"BUY": "buy", "ADD": "add", "TRIM": "trim", "SELL": "sell"}.get(action, "hold")
+    conv = a.get("conviction")
+    conv_s = "·" if _isnan(conv) else f"{conv:+.2f}"
+    cur, tgt, delta = a.get("current_pct"), a.get("target_pct"), a.get("delta_pct")
+    usd = _usd_signed(a.get("delta_usd"))
+    if row is not None:
+        name = _esc(row.get("name", "")) or "&nbsp;"
+        sector = _esc(row.get("sector", "")) or "n/a"
+        desc_raw = row.get("description", "")
+        desc_text = (
+            ""
+            if (desc_raw is None or (isinstance(desc_raw, float) and pd.isna(desc_raw)))
+            else str(desc_raw).strip()
+        )
+        desc_html = f'<div class="desc">{_esc(desc_text)}</div>' if desc_text else ""
+        groups = "".join(_group(row, cols, gl, ms) for gl, ms in DISPLAY_GROUPS)
+    else:
+        name = "&nbsp;"
+        sector = "n/a"
+        desc_html = ""
+        groups = ""
+    pnl = a.get("pnl")
+    pnl_html = ""
+    if pnl is not None:
+        pct, cv = a.get("pnl_pct"), a.get("current_value")
+        pcol = "#2d6a4f" if float(pnl) >= 0 else "#b3402f"
+        pct_s = f" ({pct:+.1f}%)" if pct is not None else ""
+        val_s = f" · {_money(cv)}" if cv is not None else ""
+        pnl_html = (
+            f'<span class="act-pnl" style="color:{pcol};">'
+            f"P/L {_usd_signed(pnl)}{pct_s}{val_s}</span>"
+        )
+    move = (
+        f'<span class="from">{_pct1(cur)}</span>'
+        f' <span class="to">&#8594; {_pct1(tgt)}</span>'
+        f' <span class="act-dpp">({_pp(delta)})</span>'
+        + (f'<span class="act-usd"> {usd}</span>' if usd else "")
+        + pnl_html
+    )
+    levels_html = _levels_block(row) if (action in _LEVEL_ACTIONS and row is not None) else ""
+    strip_html = f'<div class="ac-strip">{levels_html}</div>' if levels_html else ""
+    groups_html = f'<div class="groups">{groups}</div>' if groups else ""
+    return (
+        f'<article class="card card--action" style="animation-delay:{delay:.2f}s;">'
+        f'<div class="ac-head">'
+        f'<div class="ac-id">'
+        f'<div class="ac-tkr">{tkr}</div>'
+        f'<div class="ac-name">{name}</div>'
+        f"{desc_html}"
+        f'<div class="id-meta"><span class="chip">{sector}</span></div>'
+        f"</div>"
+        f'<div class="ac-verdict">'
+        f'<span class="act-tag act-tag--{act_cls}">{_esc(action)}</span>'
+        f'<div class="ac-conv" style="color:{_z_color(conv)};">{conv_s}</div>'
+        f'<div class="ac-move">{move}</div>'
+        f"</div>"
+        f"</div>"
+        f"{strip_html}"
+        f"{groups_html}"
+        f"</article>"
+    )
+
+
+def _action_group_cards(action, cls, hint, rows, scores, cols, conv_scale):
+    """Render one action bucket (BUY / ADD / TRIM / SELL / HOLD) as deep-dive cards."""
+    if not rows:
+        return ""
+    idx = scores.index if scores is not None else pd.Index([])
+    cards_html = "".join(
+        _action_card(
+            a,
+            scores.loc[a["ticker"]] if (a.get("ticker") and a["ticker"] in idx) else None,
+            cols,
+            conv_scale,
+            i * 0.03,
+        )
+        for i, a in enumerate(rows)
+    )
+    n = len(rows)
+    count = f"{n} name" + ("" if n == 1 else "s")
+    return (
+        f'<div class="act-grp act-grp--{cls}">'
+        f'<div class="act-grp-head">'
+        f'<span class="act-tag act-tag--{cls}">{action}</span>'
+        f'<span class="act-hint">{_esc(hint)}</span>'
+        f'<span class="act-count">{count}</span>'
+        f"</div>"
+        f'<div class="act-cards">{cards_html}</div>'
+        f"</div>"
+    )
+
+
+def _actions_block_cards(actions, scores, conv_scale: float, approx_current: bool = False) -> str:
+    """Render all action buckets as deep-dive cards with a one-line summary header."""
+    cols = scores.columns if scores is not None else []
+    counts = {
+        act: sum(1 for a in actions if a.get("action") == act) for act, _, _ in _ACTION_GROUPS
+    }
+    parts = [f"{counts[act]} {act}" for act, _, _ in _ACTION_GROUPS if counts[act] > 0]
+    summary_html = f'<div class="act-summary">{" · ".join(parts)}</div>' if parts else ""
+    note = '<div class="act-note">Decision-support: you decide, not auto-executed.'
+    if approx_current:
+        note += (
+            ' <span class="act-note-warn">Current weights are approximate '
+            "(equal-split; no live account file supplied).</span>"
+        )
+    note += "</div>"
+    groups = "".join(
+        _action_group_cards(
+            act,
+            cls,
+            hint,
+            [a for a in actions if a.get("action") == act],
+            scores,
+            cols,
+            conv_scale,
+        )
+        for act, cls, hint in _ACTION_GROUPS
+    )
+    return f'<div class="actions-block">{summary_html}{note}{groups}</div>'
+
+
 def _portfolio_section(scores: pd.DataFrame, conv_scale: float, numeral: str = "II") -> str:
     cols = scores.columns
     mask = scores.get("is_portfolio", pd.Series(False, index=scores.index)) == True  # noqa: E712
@@ -842,8 +990,8 @@ def _stylesheet() -> str:
   --line:#e7e6e2;--accent:#123b3a;--track:#ecebe4;--hover:#f4f2ee;
   --bull:#2d6a4f;--bull-bar:#bfe3cd;--bull-fill:#e9f5ee;
   --bear:#b3402f;--bear-bar:#f2c4bb;--bear-fill:#fbeeec;
-  --serif:'Fraunces',Georgia,'Times New Roman',serif;
-  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Hanken Grotesk',system-ui,sans-serif;
+  --sans:'Hanken Grotesk',system-ui,sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',monospace;
 }
 *{box-sizing:border-box;}
@@ -863,8 +1011,8 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 .mast-title{font-family:var(--serif);font-optical-sizing:auto;font-weight:400;
   font-size:64px;line-height:1;letter-spacing:-1px;color:var(--ink);margin:14px 0 0;}
 .mast-rule{width:80px;height:3px;background:var(--accent);margin:26px 0 22px;}
-.standfirst{font-family:var(--serif);font-optical-sizing:auto;font-style:italic;font-weight:400;
-  font-size:20px;line-height:1.5;color:var(--ink2);margin:0;max-width:780px;}
+.standfirst{font-family:var(--serif);font-optical-sizing:auto;font-weight:400;
+  font-size:20px;line-height:1.5;color:var(--ink2);margin:0;}
 .mast-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-top:28px;
   padding-top:22px;border-top:1px solid var(--line);}
 .regime{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);font-size:11px;
@@ -892,7 +1040,7 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 .hm{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--canvas);
   box-shadow:0 1px 2px rgba(22,24,29,.04);}
 .hm-head,.hm-row{display:grid;
-  grid-template-columns:14px 30px 74px minmax(90px,1fr) 52px 96px 250px;
+  grid-template-columns:14px 30px 74px minmax(100px,1.5fr) minmax(80px,1fr) 52px 96px 250px;
   align-items:center;gap:14px;padding:0 20px;}
 .hm-head{height:40px;background:var(--warm);border-bottom:1px solid var(--line);}
 .hm-row{min-height:34px;border-top:1px solid var(--line);}
@@ -908,6 +1056,7 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
   font-variant-numeric:tabular-nums;}
 .hm-tkr{font-family:var(--serif);font-weight:600;font-size:15.5px;color:var(--ink);letter-spacing:-.2px;}
 .hm-sector{font-size:11.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hm-name{font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hm-conv{font-family:var(--mono);font-size:12.5px;font-weight:500;text-align:right;
   font-variant-numeric:tabular-nums;}
 .hm-cells{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;align-items:center;}
@@ -1085,6 +1234,31 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
   border:1px solid var(--line);border-radius:7px;padding:3px 8px;font-variant-numeric:tabular-nums;}
 .act-lvl.sl{color:var(--bear);}
 .act-lvl.tp{color:var(--bull);}
+/* action cards (deep-dive) */
+.act-summary{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--ink2);
+  margin-bottom:16px;letter-spacing:.3px;font-variant-numeric:tabular-nums;}
+.act-tag--buy{color:var(--bull);}
+.act-tag--add{color:var(--bull);}
+.act-tag--trim{color:#96601a;}
+.act-tag--sell{color:var(--bear);}
+.act-tag--hold{color:var(--ink2);}
+.act-cards{display:flex;flex-direction:column;gap:16px;padding-top:10px;}
+.ac-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px 30px;
+  flex-wrap:wrap;}
+.ac-id{min-width:0;flex:1;}
+.ac-tkr{font-family:var(--serif);font-optical-sizing:auto;font-weight:700;font-size:26px;
+  line-height:1;letter-spacing:-.4px;color:var(--ink);}
+.ac-name{font-size:13px;color:var(--ink2);margin-top:6px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;}
+.ac-verdict{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+.ac-conv{font-family:var(--mono);font-weight:500;font-size:22px;line-height:.9;
+  letter-spacing:-.8px;font-variant-numeric:tabular-nums;}
+.ac-move{font-family:var(--mono);font-size:12px;color:var(--ink2);
+  font-variant-numeric:tabular-nums;text-align:right;}
+.ac-strip{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+.acct-grid{margin-bottom:14px;}
+.card--action{padding:20px 24px 22px;}
+.card--action .groups{margin-top:16px;padding-top:14px;gap:14px 20px;}
 @media (max-width:900px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
 @media (max-width:560px){
   .act-row{grid-template-columns:1fr auto;}
@@ -1095,7 +1269,7 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 /* footer */
 .footer{margin-top:72px;padding-top:26px;border-top:2px solid var(--ink);}
 .footer .eyebrow{margin-bottom:12px;}
-.method{font-size:11.5px;color:var(--muted);line-height:1.75;max-width:840px;}
+.method{font-size:11.5px;color:var(--muted);line-height:1.75;}
 .method b{color:var(--ink2);font-weight:600;}
 .foot-stamp{margin-top:18px;font-family:var(--mono);font-size:11px;color:var(--muted);
   font-variant-numeric:tabular-nums;}
@@ -1115,9 +1289,13 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 @container (min-width:1000px){
   .groups{grid-template-columns:repeat(4,1fr);}
 }
+@container (min-width:820px){
+  .card--action .groups{grid-template-columns:repeat(4,1fr);}
+}
 @media (max-width:820px){
   .hm-head,.hm-row{grid-template-columns:12px 26px 62px minmax(60px,1fr) 46px 200px;}
   .hm-barcell{display:none;}
+  .hm-name{display:none;}
 }
 @media (max-width:639px){
   /* Phone: ticker always visible; hide sector column to reclaim width. */
@@ -1232,7 +1410,9 @@ def render_report(
             _ROMAN[sec_idx],
             "Suggested Actions",
             "Risk-gated target book vs current holdings · grouped by action",
-        ) + _actions_block(actions, bool(meta.get("current_weights_approx")))
+        ) + _actions_block_cards(
+            actions, scored, conv_scale, bool(meta.get("current_weights_approx"))
+        )
         sec_idx += 1
 
     overview = _section_head(
@@ -1248,12 +1428,6 @@ def render_report(
             f"(non-equity or insufficient data).</div>"
         )
     sec_idx += 1
-    port_sec = _portfolio_section(scored, conv_scale, _ROMAN[sec_idx])
-    sec_idx += 1
-    cand_sec = _candidates_section(
-        scored, conv_scale, max_long_cards, max_avoid_cards, _ROMAN[sec_idx]
-    )
-
     summary_line = (
         _exec_summary_line(meta, portfolio, actions, conditioning)
         if (portfolio is not None or actions is not None)
@@ -1288,10 +1462,7 @@ def render_report(
         f"</footer>"
     )
 
-    body = (
-        f'<div class="wrap">{masthead}{summary_line}{new_top}'
-        f"{overview}{port_sec}{cand_sec}{footer}</div>"
-    )
+    body = f'<div class="wrap">{masthead}{summary_line}{new_top}{overview}{footer}</div>'
 
     return (
         "<!DOCTYPE html>\n"
@@ -1301,9 +1472,8 @@ def render_report(
         '<link rel="preconnect" href="https://fonts.googleapis.com">'
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
         '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
-        "family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;"
-        "1,9..144,400&family=IBM+Plex+Mono:wght@400;500;600&"
-        'family=IBM+Plex+Sans:wght@400;500;600&display=swap">'
+        "family=Hanken+Grotesk:wght@400;500;600;700;800&"
+        'family=IBM+Plex+Mono:wght@400;500;600&display=swap">'
         f"<style>{_stylesheet()}</style>"
         "</head>"
         f"<body>{body}</body></html>"
