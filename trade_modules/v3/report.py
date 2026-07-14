@@ -760,7 +760,10 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
     if not _isnan(max_region) and _caps_cfg.get("region"):
         _axes.append(("region", float(max_region), float(_caps_cfg["region"])))
     if _axes:
-        _breach = any(v > c + 1e-6 for _, v, c in _axes)
+        # 0.5pp tolerance = half a display unit (whole-percent rounding). A name at
+        # 10.03% vs a 10% cap displays as "10% of 10%" and must NOT read as BREACH;
+        # only a visible overage (e.g. 11% of 10%) flags. Absorbs gate slack + noise.
+        _breach = any(v > c + 0.005 for _, v, c in _axes)
         _bind = max(_axes, key=lambda a: (a[1] / a[2]) if a[2] > 0 else 0.0)
         caps_val = "BREACH" if _breach else "OK"
         caps_tone = "bear" if _breach else "bull"
