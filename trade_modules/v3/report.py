@@ -769,11 +769,17 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
     if _axes:
         # 0.5pp tolerance = half a display unit (whole-percent rounding). A name at
         # 10.03% vs a 10% cap displays as "10% of 10%" and must NOT read as BREACH;
-        # only a visible overage (e.g. 11% of 10%) flags. Absorbs gate slack + noise.
-        _breach = any(v > c + 0.005 for _, v, c in _axes)
-        _bind = max(_axes, key=lambda a: (a[1] / a[2]) if a[2] > 0 else 0.0)
-        caps_val = "BREACH" if _breach else "OK"
-        caps_tone = "bear" if _breach else "bull"
+        # only a visible overage flags. Absorbs gate slack + float noise.
+        _breachers = [(lab, v, c) for lab, v, c in _axes if v > c + 0.005]
+        if _breachers:
+            # Show the WORST BREACHER (not merely the highest-utilization axis), so a
+            # BREACH names the axis actually over its cap (e.g. USD-bloc), never an
+            # at-cap axis like "name 10% of 10%".
+            _bind = max(_breachers, key=lambda a: (a[1] / a[2]) if a[2] > 0 else 0.0)
+            caps_val, caps_tone = "BREACH", "bear"
+        else:
+            _bind = max(_axes, key=lambda a: (a[1] / a[2]) if a[2] > 0 else 0.0)
+            caps_val, caps_tone = "OK", "bull"
         caps_sub = f"{_bind[0]} {_pct0(_bind[1])} of {_pct0(_bind[2])}"
     else:  # no cap config -> fall back to the gate boolean + USD-bloc
         caps_val = "n/a" if caps_ok is None else ("OK" if caps_ok else "BREACH")
