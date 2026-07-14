@@ -500,10 +500,11 @@ def test_region_cap_binds_on_us_heavy_book():
         pd.DataFrame(),  # single-factor cov fallback -> ~equal risk
         top_n=12,
         conviction_weight=0.0,
-        name_cap=1.0,
+        name_cap=0.10,  # PRODUCTION name cap: exercises the name-cap/region interaction
         sector_cap=1.0,
         usd_bloc_cap=1.0,
         region_cap=0.65,
+        region_hard=True,  # opt-in HARD enforcement (gate trims excess to cash)
         gross_target=1.0,
         cvar_budget=10.0,
     )
@@ -511,8 +512,40 @@ def test_region_cap_binds_on_us_heavy_book():
     gross = float(w.sum())
     na = sum(float(v) for t, v in w.items() if region_of(t) == "North America")
     assert gross > 0.0
-    assert na / gross <= 0.65 + 1e-6  # region cap enforced
-    assert res["diagnostics"]["binding"]["region_cap"] is False  # holds on final book
+    # Hard enforcement holds North America to <= 65% of the INTENDED capital
+    # (gross_target=1.0), even with the name cap active — the gate's joint name+region
+    # convergence + clamp must not let the name-cap re-assert flow weight back into NA
+    # above the absolute region threshold. (Region as a fraction of the FINAL book can
+    # read marginally higher if the vol gross-cut later shrinks the denominator.)
+    assert na <= 0.65 * 1.0 + 5e-3
+    # And hard enforcement holds NA well below the un-enforced ~75% it would otherwise be.
+    assert na / gross < 0.75
+    assert "North America" in res["region_exposures"]
+
+
+def test_region_cap_monitors_by_default_no_forced_cash():
+    """Default (region_hard=False): region is reported + flagged, never forces cash."""
+    scored = _make_scored(betas=1.0)
+    res = build_portfolio(
+        scored,
+        pd.DataFrame(),
+        top_n=12,
+        conviction_weight=0.0,
+        name_cap=1.0,
+        sector_cap=1.0,
+        usd_bloc_cap=1.0,
+        region_cap=0.65,  # US-heavy book breaches this, but default = monitor
+        gross_target=1.0,
+        cvar_budget=10.0,
+    )
+    w = res["weights"]
+    gross = float(w.sum())
+    na = sum(float(v) for t, v in w.items() if region_of(t) == "North America")
+    assert gross > 0.0
+    # Monitor does NOT trim region: North America stays OVER the 65% cap (the US-heavy
+    # book is left as-is by the region axis) but is honestly flagged as a breach.
+    assert na / gross > 0.65
+    assert res["diagnostics"]["binding"]["region_cap"] is True
     assert "North America" in res["region_exposures"]
 
 

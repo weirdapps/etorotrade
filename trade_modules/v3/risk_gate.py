@@ -57,6 +57,8 @@ def _clamp_caps(
     name_thr: float,
     bloc_thr: float,
     sector_thr: float,
+    region_arr: np.ndarray | None = None,
+    region_thr: float | None = None,
 ) -> np.ndarray:
     """Force compliance by clamping DOWN (excess -> cash, no redistribution).
 
@@ -64,8 +66,9 @@ def _clamp_caps(
     book the loop has already converged so this is a no-op, but when the caps are
     mutually infeasible at the current gross (e.g. an over-cap sector with too few
     non-zero receivers) the loop can oscillate — this pass guarantees a compliant
-    book by dropping the irreducible excess to cash. Order name -> sector -> bloc,
-    all downward, so every later clamp preserves the earlier ones.
+    book by dropping the irreducible excess to cash. Order name -> sector ->
+    region -> bloc, all downward, so every later clamp preserves the earlier ones.
+    ``region_arr`` / ``region_thr`` are opt-in (None -> region not enforced).
     """
     w = np.minimum(np.asarray(w, dtype=float).copy(), name_thr)  # per-name -> cash
     for lab in dict.fromkeys(sec_arr.tolist()):
@@ -73,6 +76,12 @@ def _clamp_caps(
         s = float(w[mask].sum())
         if s > sector_thr + _STABLE_TOL:
             w[mask] *= sector_thr / s
+    if region_arr is not None and region_thr is not None:
+        for lab in dict.fromkeys(region_arr.tolist()):
+            mask = region_arr == lab
+            s = float(w[mask].sum())
+            if s > region_thr + _STABLE_TOL:
+                w[mask] *= region_thr / s
     s = float(w[is_bloc].sum())
     if s > bloc_thr + _STABLE_TOL:
         w[is_bloc] *= bloc_thr / s
@@ -88,6 +97,8 @@ def _caps_to_convergence(
     bloc_thr: float,
     sector_thr: float,
     max_iter: int,
+    region_arr: np.ndarray | None = None,
+    region_thr: float | None = None,
 ) -> tuple[np.ndarray, int]:
     """Iterate {name -> USD-bloc -> sector} caps until the weights stop moving.
 
@@ -100,6 +111,7 @@ def _caps_to_convergence(
     are infeasible and the loop would otherwise oscillate.
     """
     w = np.asarray(w, dtype=float).copy()
+    _has_region = region_arr is not None and region_thr is not None
     iters = 0
     for _ in range(max_iter):
         iters += 1
@@ -107,10 +119,19 @@ def _caps_to_convergence(
         w = apply_name_cap(w, name_thr)
         w = cap_bloc(w, is_bloc, bloc_thr)
         w = cap_groups(w, sec_arr, sector_thr)
+        if _has_region:
+            w = cap_groups(w, region_arr, region_thr)
         if np.max(np.abs(w - prev)) < _STABLE_TOL:
             break
     w = _clamp_caps(
-        w, sec_arr, is_bloc, name_thr=name_thr, bloc_thr=bloc_thr, sector_thr=sector_thr
+        w,
+        sec_arr,
+        is_bloc,
+        name_thr=name_thr,
+        bloc_thr=bloc_thr,
+        sector_thr=sector_thr,
+        region_arr=region_arr if _has_region else None,
+        region_thr=region_thr if _has_region else None,
     )
     return w, iters
 
@@ -313,6 +334,8 @@ def apply_risk_gate(
     cap_mode: str | None = None,
     caps: pd.Series | None = None,
     managed_vol_ceiling: float = 0.18,
+    regions=None,
+    region_cap: float | None = None,
 ) -> tuple[pd.Series, dict]:
     """Enforce the vol ceiling + concentration caps on a constructed book.
 
@@ -450,6 +473,13 @@ def apply_risk_gate(
     name_thr = name_cap * g_target
     bloc_thr = usd_bloc_cap * g_target
     sector_thr = sector_cap * g_target
+    # Region cap (opt-in): threaded through the convergence + clamp so it holds on the
+    # final book (infeasible excess drops to cash). None -> region not enforced (the
+    # overlay path passes nothing, keeping region a monitor under the owner rules).
+    region_arr = np.asarray(list(regions), dtype=object) if regions is not None else None
+    region_thr = (
+        region_cap * g_target if (region_arr is not None and region_cap is not None) else None
+    )
 
     levers_fired: list[str] = []
     caps_iter_total = 0
@@ -464,6 +494,8 @@ def apply_risk_gate(
         bloc_thr=bloc_thr,
         sector_thr=sector_thr,
         max_iter=max_iter,
+        region_arr=region_arr,
+        region_thr=region_thr,
     )
     caps_iter_total += ci
     if np.max(np.abs(w - w_pre)) > _STABLE_TOL:
@@ -507,6 +539,8 @@ def apply_risk_gate(
                     bloc_thr=bloc_thr,
                     sector_thr=sector_thr,
                     max_iter=max_iter,
+                    region_arr=region_arr,
+                    region_thr=region_thr,
                 )
                 caps_iter_total += ci
                 new_vol = portfolio_vol(trial, cov)

@@ -385,6 +385,7 @@ def build_portfolio(
     sector_cap: float = 0.25,
     usd_bloc_cap: float = 0.60,
     region_cap: float = 0.65,
+    region_hard: bool = False,
     gross_target: float = 0.90,
     cvar_budget: float = 0.25,
     vol_ceiling: float = 0.18,
@@ -489,7 +490,9 @@ def build_portfolio(
     if w_sum > 0:
         w = w / w_sum  # renormalize to sum = 1
 
-    # --- caps: name -> USD-bloc -> sector -> region (single-name reasserted between) ---
+    # --- caps: name -> USD-bloc -> sector (single-name reasserted between) ---
+    # Region is enforced by the risk gate below (which converges + clamps to cash on
+    # an infeasible book), not here, so a trailing name cap cannot silently undo it.
     is_bloc = np.array([currency_of(t) in USD_BLOC for t in selected])
     sec_arr = sub.reindex(selected)["SECTOR"].astype(str).to_numpy()
     region_arr = np.array([region_of(t) for t in selected])
@@ -497,8 +500,6 @@ def build_portfolio(
     w = cap_bloc(w, is_bloc, usd_bloc_cap)
     w = apply_name_cap(w, name_cap)  # keep single-name cap after bloc redistribution
     w = cap_groups(w, sec_arr, sector_cap)
-    w = apply_name_cap(w, name_cap)
-    w = cap_groups(w, region_arr, region_cap)
     w = apply_name_cap(w, name_cap)
 
     gross_risk = float(w.sum())  # capped risk-book gross (≈ 1.0)
@@ -610,50 +611,59 @@ def build_portfolio(
         name_cap=name_cap,
         sector_cap=sector_cap,
         usd_bloc_cap=usd_bloc_cap,
+        # region_hard=True HARD-enforces the region cap in the gate (infeasible excess
+        # -> cash, so a US-heavy book carries more cash); default False keeps region a
+        # MONITOR (reported + flagged on the final book below, never forcing cash) —
+        # consistent with the overlay's owner-rule behavior. The infrastructure is the
+        # same either way; only whether the excess is trimmed differs.
+        regions=region_arr if region_hard else None,
+        region_cap=region_cap,
     )
     diagnostics["gate"] = gate_diag
-
-    # Post-gate region clamp: the risk gate is region-blind and its tail-deweight /
-    # redistribution can re-concentrate a region above the cap. Only when a region
-    # genuinely exceeds the cap do we re-assert it on the gated book (gross-preserving;
-    # excess redistributes to under-cap names) + re-assert the name cap. In production
-    # the book sits under the 65% region cap, so this is skipped and the gated book is
-    # returned untouched (no perturbation of the gate's vol/name enforcement).
-    gated_arr = gated_series.to_numpy()
-    _gsum = float(gated_arr.sum())
-    if _gsum > 0:
-        _reg_tot: dict[str, float] = {}
-        for _wt, _t in zip(gated_arr, selected, strict=True):
-            _reg_tot[region_of(_t)] = _reg_tot.get(region_of(_t), 0.0) + float(_wt)
-        if max(_reg_tot.values(), default=0.0) > region_cap * _gsum + 1e-9:
-            gated_arr = cap_groups(gated_arr, region_arr, region_cap * _gsum)
-            gated_arr = apply_name_cap(gated_arr, name_cap * _gsum)
-            gated_series = pd.Series(gated_arr, index=selected)
 
     full = pd.Series(0.0, index=sub.index)
     full.loc[selected] = gated_series.to_numpy()
     gross = float(full.sum())
 
-    usd_bloc = float(sum(v for t, v in full.items() if currency_of(t) in USD_BLOC))
-    # Region exposures + breach on the FINAL gated book. The region cap is enforced
-    # pre-gate (cap_groups in the cap sequence); the gate only reduces concentration
-    # (tail de-weight + uniform gross-cut), so region stays within cap. We recompute
-    # the breach flag on the gated book so the report reflects the truth, not the
-    # pre-gate assessment.
-    region_exposures: dict[str, float] = {}
+    # Exposures + breach flags recomputed on the FINAL book. All axes are fraction of
+    # the INVESTED book (/gross) so name / sector / USD-bloc / region are one basis.
+    region_exposures: dict[str, float] = {}  # NAV-basis absolute, matching sector_exposures
+    sector_final: dict[str, float] = {}
+    usd_bloc_nav = 0.0
+    max_name = 0.0
     for t, v in full.items():
-        if v > 1e-12:
-            rg = region_of(t)
-            region_exposures[rg] = region_exposures.get(rg, 0.0) + float(v)
+        fv = float(v)
+        if fv <= 1e-12:
+            continue
+        p = fv / gross if gross > 0 else 0.0
+        max_name = max(max_name, p)
+        region_exposures[region_of(t)] = region_exposures.get(region_of(t), 0.0) + fv
+        sector_final[sector_labels.get(t, "UNKNOWN")] = (
+            sector_final.get(sector_labels.get(t, "UNKNOWN"), 0.0) + p
+        )
+        if currency_of(t) in USD_BLOC:
+            usd_bloc_nav += fv
+    # usd_bloc_book = fraction of the INVESTED book (matches name/sector/region basis)
+    # for the breach flag + the report tile; res["usd_bloc"] stays NAV-basis (absolute)
+    # so the "no re-inflation above cap" contract still holds for all-USD books.
+    usd_bloc_book = usd_bloc_nav / gross if gross > 0 else 0.0
     if gross > 0:
-        _max_region_final = max(region_exposures.values(), default=0.0) / gross
-        diagnostics["max_region"] = _max_region_final
-        diagnostics["binding"]["region_cap"] = bool(_max_region_final > region_cap + _TOL)
+        _max_region = max(region_exposures.values(), default=0.0) / gross
+        _max_sector = max(sector_final.values(), default=0.0)
+        diagnostics["max_region"] = _max_region
+        gate_diag["max_name"] = max_name  # refresh gate metrics after the clamp
+        gate_diag["max_sector"] = _max_sector
+        gate_diag["usd_bloc"] = usd_bloc_book
+        _b = diagnostics["binding"]
+        _b["region_cap"] = bool(_max_region > region_cap + _TOL)
+        _b["name_cap"] = bool(max_name > name_cap + _TOL)
+        _b["sector_cap"] = bool(_max_sector > sector_cap + _TOL)
+        _b["usd_bloc_cap"] = bool(usd_bloc_book > usd_bloc_cap + _TOL)
     return {
         "weights": full,
         "gross": gross,
         "cash": max(0.0, 1.0 - gross),
-        "usd_bloc": usd_bloc,
+        "usd_bloc": usd_bloc_nav,
         "sector_exposures": _sector_exposures(full, sector_labels),
         "region_exposures": region_exposures,
         "selected": selected,

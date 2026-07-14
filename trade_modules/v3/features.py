@@ -26,9 +26,12 @@ from trade_modules.v3.universe import parse_cap
 # Approximate spot FX rates (local currency -> USD), for normalizing eToro's
 # local-currency market cap and dollar-volume to USD. eToro reports CAP in the
 # listing's local currency (yen for .T, EUR for .DE), and price is local too, so
-# without this a $500M / $1M floor + cap tiers mix currencies (a small yen name
-# wrongly clears the floor). Coarse by design: cap tiers and the ADV floor are
-# wide, so FX drift is immaterial; NOT used for P&L. Refresh occasionally.
+# without this the mega/large/mid cap tiers, the cap_ordered vol mode, the report's
+# Mkt-Cap display, and the runner's $1M ADV floor would mix currencies (a small yen
+# name reading as a USD mega-cap). Note: universe.py::load_universe is US-only
+# (^[A-Z]+$), so its $500M floor never sees a non-USD cap — this normalization serves
+# the cross-market scoring/overlay paths, not that floor. Coarse by design (tiers +
+# ADV floor are wide, so FX drift is immaterial); NOT used for P&L. Refresh occasionally.
 _USD_RATE = {
     "USD": 1.0,
     "EUR": 1.08,
