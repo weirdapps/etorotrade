@@ -41,6 +41,7 @@ from scripts.v3_full_report import (  # noqa: E402  (pure helpers, reused)
     _read_tickers,
     _synthetic_scores,
     _system_read,
+    load_account_block,
     load_account_json,
     load_account_positions,
     resolve_current_weights,
@@ -240,6 +241,13 @@ def build_overlay_preview_html() -> str:
         "enriched": int(scores["pb"].notna().sum()),
         "generated_utc": now.strftime("%Y-%m-%d %H:%M UTC"),
         "current_weights_approx": False,
+        "account": {
+            "total_equity": 250_000.0,
+            "unrealized_pnl": 12_500.0,
+            "profit_pct": 5.0,
+            "available": 25_000.0,
+            "invested_cost": 212_500.0,
+        },
     }
     return render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
@@ -253,8 +261,8 @@ def _self_check(html: str) -> None:
     for cls in ("buy", "sell"):  # overlay's signature action groups
         if f"act-grp act-grp--{cls}" not in html:
             problems.append(f"action group {cls} missing")
-    if '<article class="card"' not in html:
-        problems.append("factor cards missing")
+    if '<article class="card card--action"' not in html:
+        problems.append("action cards missing")
     if "None" in html:
         problems.append("literal 'None' present")
     if "—" in html:
@@ -381,6 +389,7 @@ def main() -> None:
     actions = build_actions(overlay["weights"], current_weights, scores, nav=nav)
     # Attach live P/L from the eToro account snapshot to held names (P/L $ / % / value).
     _positions = load_account_positions()
+    account_block = load_account_block()
     for _a in actions:
         _p = _positions.get(_a.get("ticker"))
         if _p:
@@ -401,6 +410,7 @@ def main() -> None:
         "enriched": enriched,
         "generated_utc": now.strftime("%Y-%m-%d %H:%M UTC"),
         "current_weights_approx": approx,
+        "account": account_block,
     }
     html = render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
