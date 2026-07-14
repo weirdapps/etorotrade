@@ -113,6 +113,32 @@ def load_account_json(path: str | None = None) -> tuple[pd.Series, float | None,
     return weights, nav, True
 
 
+def load_account_positions(path: str | None = None) -> dict[str, dict]:
+    """Load per-ticker P/L from the live-account JSON ``positions`` block.
+
+    Mirrors :func:`load_account_json` path resolution. Returns
+    ``{ticker: {"pnl", "pnl_pct", "current_value", ...}}`` — empty when the file
+    is absent or carries no ``positions`` (older snapshots without P/L).
+    """
+    if path is not None:
+        candidates: list[str | None] = [path]
+    else:
+        candidates = [os.environ.get("V3_ACCOUNT_JSON"), DEFAULT_ACCOUNT_JSON]
+    chosen = next(
+        (os.path.expanduser(p) for p in candidates if p and os.path.exists(os.path.expanduser(p))),
+        None,
+    )
+    if not chosen:
+        return {}
+    try:
+        with open(chosen, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    pos = data.get("positions") or {}
+    return {str(k): v for k, v in pos.items() if isinstance(v, dict)}
+
+
 def resolve_current_weights(
     port_tickers: list[str], account_weights: pd.Series, account_present: bool
 ) -> tuple[pd.Series, bool]:
