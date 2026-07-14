@@ -54,6 +54,7 @@ _INFO_NUM = {
     "targetHighPrice": "target_high",
     "targetLowPrice": "target_low",
     "averageVolume": "avg_volume",
+    "revenueGrowth": "rev_growth",  # growth cluster (yoy revenue growth, fraction)
 }
 _INFO_STR = {
     "sector": "sector",
