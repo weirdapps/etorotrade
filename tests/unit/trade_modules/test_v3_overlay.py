@@ -73,18 +73,19 @@ def test_classification_bottom_dataless_ineligible_sold_middling_kept():
     assert d["buy_threshold"] == pytest.approx(float(elig_conv.quantile(0.85)))
 
 
-def test_sell_negative_noncore_drops_negatives_but_protects_core():
-    """Owner rule: sell every negative-conviction NON-core name; keep core negatives.
+def test_sell_negative_noncore_deadband_is_noncore_and_protect_core_spares_percentile():
+    """Two distinct owner rules on the core sleeve.
 
-    U11 (~-0.32) and U12 (~-0.53) are negative but ABOVE the ~-1.40 percentile
-    sell threshold, so the default overlay would keep both. With
-    ``sell_negative_noncore`` the ordinary holding U11 is dropped, while the
-    core-listed U12 survives only because ``protect_core`` exempts it.
+    The ``sell_negative_noncore`` deadband is NON-CORE by definition: it never
+    sells a core-listed name, independent of ``protect_core``. ``protect_core``
+    is what additionally spares the core from the percentile sell.
     """
     _tks, _convs, sc = _universe20()
     current = pd.Series({"U00": 0.2, "U05": 0.2, "U11": 0.2, "U12": 0.2, "U19": 0.2})
 
-    res = build_overlay(
+    # protect_core ON, U12 core: non-core U11 (-0.32) dropped by the deadband,
+    # U19 (-2.0) by the percentile, core U12 (-0.53) spared.
+    d = build_overlay(
         sc,
         current,
         pd.DataFrame(),
@@ -92,24 +93,25 @@ def test_sell_negative_noncore_drops_negatives_but_protects_core():
         sell_negative_noncore=True,
         protect_core=True,
         core_list=["U12"],
-    )
-    d = res["diagnostics"]
-    assert "U11" in d["sold"]  # negative non-core -> owner rule
-    assert "U19" in d["sold"]  # still weak by percentile
-    assert "U12" not in d["sold"] and "U12" in d["kept"]  # core negative protected
+    )["diagnostics"]
+    assert "U11" in d["sold"]  # negative non-core -> deadband
+    assert "U19" in d["sold"]  # bottom-percentile non-core
+    assert "U12" not in d["sold"] and "U12" in d["kept"]  # core spared
     assert set(d["kept"]) >= {"U00", "U05", "U12"}
 
-    # Without protection, the same core negative is dropped by the owner rule.
-    res2 = build_overlay(
+    # protect_core OFF: the deadband STILL never touches core (U12 stays), but the
+    # percentile now sells a bottom-tier core name (U19) that protection would keep.
+    d2 = build_overlay(
         sc,
         current,
         pd.DataFrame(),
         max_new=0,
         sell_negative_noncore=True,
         protect_core=False,
-        core_list=["U12"],
-    )
-    assert "U12" in res2["diagnostics"]["sold"]
+        core_list=["U12", "U19"],
+    )["diagnostics"]
+    assert "U12" not in d2["sold"]  # deadband is non-core -> core spared regardless
+    assert "U19" in d2["sold"]  # unprotected bottom-tier core still sold by percentile
 
 
 def test_noncore_sell_floor_deadband_keeps_near_neutral():
@@ -168,6 +170,37 @@ def test_core_floor_raises_gated_core_preserving_gross():
     assert float(wf["U07"]) > float(wb.get("U07", 0.0))  # above the un-floored size
     assert floored["diagnostics"]["core_floor_applied"].get("U07", 0.0) > 0.0
     assert float(wf.sum()) == pytest.approx(float(wb.sum()), abs=1e-3)  # gross preserved
+
+
+def test_core_floor_underfunded_preserves_gross_via_haircut():
+    """When non-core cannot fund the floor, lifts are haircut so gross is PRESERVED,
+    never inflated. A tiny non-core sleeve cannot fund a large core floor."""
+    _tks, _convs, sc = _universe20()
+    current = pd.Series({"U02": 0.20, "U15": 0.05})  # U02 core, U15 tiny non-core funder
+    kw = {
+        "gross_target": 0.30,
+        "name_cap": 1.0,
+        "sector_cap": 1.0,
+        "usd_bloc_cap": 1.0,
+        "vol_ceiling": 5.0,
+        "max_new": 0,
+    }
+    base = build_overlay(sc, current, pd.DataFrame(), **kw)
+    floored = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        core_list=["U02"],
+        core_floor=pd.Series({"U02": 0.90}),
+        **kw,
+    )
+    gb, gf = float(base["weights"].sum()), float(floored["weights"].sum())
+    assert gf == pytest.approx(gb, abs=1e-3)  # gross preserved, NOT inflated
+    assert gf <= kw["gross_target"] + 1e-3  # never over-invested
+    assert float(floored["weights"].get("U15", 0.0)) == pytest.approx(
+        0.0, abs=1e-6
+    )  # non-core spent
+    assert float(floored["weights"]["U02"]) < 0.90  # lift haircut below the full floor
 
 
 def test_already_strong_book_has_no_sells():

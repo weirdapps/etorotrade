@@ -335,3 +335,32 @@ def test_unknown_cap_mode_raises():
     w = _weights([0.5, 0.5], names)
     with pytest.raises(ValueError, match="cap_mode"):
         _gate(w, cov_mat, cap_mode="nonexistent_mode")
+
+
+def test_cap_budget_never_grows_disliked_name_via_cap_convergence():
+    """cap_budget's cap-excess convergence must never GROW a conviction<=0 name.
+
+    BIG (0.55) is over the 0.30 name cap; capping it frees weight that the
+    conviction-blind convergence step would otherwise spread onto the disliked
+    name BAD. The guard undoes that growth, so BAD never exceeds its start weight.
+    """
+    names = ["BIG", "RECV", "BAD"]
+    cov_mat = _cov([0.30, 0.30, 0.30], corr=0.2)
+    w = _weights([0.55, 0.05, 0.05], names)
+    caps = _caps([1e12, 1e11, 1e11], names)
+    gated, _diag = apply_risk_gate(
+        w,
+        cov_mat,
+        sectors=["Tech"] * 3,
+        currencies=["USD"] * 3,
+        betas=np.ones(3),
+        conviction=pd.Series([2.0, 1.0, -1.0], index=names),  # BAD is disliked
+        vol_ceiling=5.0,  # non-binding: isolate the cap-convergence path
+        name_cap=0.30,
+        sector_cap=1.0,
+        usd_bloc_cap=1.0,
+        cap_mode="cap_budget",
+        caps=caps,
+    )
+    assert float(gated["BIG"]) <= 0.30 + 1e-6  # name cap enforced
+    assert float(gated["BAD"]) <= float(w["BAD"]) + 1e-6  # disliked never grew
