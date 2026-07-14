@@ -44,6 +44,7 @@ from scripts.v3_full_report import (  # noqa: E402  (pure helpers, reused)
     load_account_block,
     load_account_json,
     load_account_positions,
+    load_account_social,
     resolve_current_weights,
 )
 from scripts.v3_portfolio import trend_regime  # noqa: E402  (pure, unit-tested)
@@ -359,6 +360,24 @@ def build_overlay_preview_html() -> str:
             "available": 25_000.0,
             "invested_cost": 212_500.0,
         },
+        "social": {
+            "copiers": 1375,
+            "baseline_copiers": 1390,
+            "copiers_gain_pct": -1.08,
+            "risk_score": 3,
+            "max_daily_risk": 4,
+            "win_ratio": 54.57,
+            "trades_ytd": 361,
+            "gain_ytd": 3.4,
+            "gain_mtd": 2.08,
+            "daily_gain": -0.86,
+            "week_gain": -0.87,
+            "aum_tier_desc": "$1M-$2M",
+            "unique_assets": 48,
+            "open_positions": 175,
+            "shorts": 0,
+            "cash_pct": 11.0,
+        },
         "allocations": {
             "geography": {
                 "North America": 0.62,
@@ -524,6 +543,7 @@ def main() -> None:
     # Attach live P/L from the eToro account snapshot to held names (P/L $ / % / value).
     _positions = load_account_positions()
     account_block = load_account_block()
+    social_block = load_account_social()
     for _a in actions:
         _p = _positions.get(_a.get("ticker"))
         if _p:
@@ -545,6 +565,7 @@ def main() -> None:
         "generated_utc": now.strftime("%Y-%m-%d %H:%M UTC"),
         "current_weights_approx": approx,
         "account": account_block,
+        "social": social_block,
         "allocations": _compute_allocations(_positions, scores),
     }
     html = render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)

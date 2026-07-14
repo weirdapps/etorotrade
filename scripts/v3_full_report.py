@@ -163,6 +163,30 @@ def load_account_block(path: str | None = None) -> dict:
     return data.get("account") or {}
 
 
+def load_account_social(path: str | None = None) -> dict:
+    """Load the PI performance + social block from the live-account JSON.
+
+    Returns the ``social`` dict (copiers, risk_score, win_ratio, gain_ytd/mtd,
+    daily_gain, unique_assets, open_positions, ...) or {} when absent.
+    """
+    if path is not None:
+        candidates: list[str | None] = [path]
+    else:
+        candidates = [os.environ.get("V3_ACCOUNT_JSON"), DEFAULT_ACCOUNT_JSON]
+    chosen = next(
+        (os.path.expanduser(p) for p in candidates if p and os.path.exists(os.path.expanduser(p))),
+        None,
+    )
+    if not chosen:
+        return {}
+    try:
+        with open(chosen, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    return data.get("social") or {}
+
+
 def resolve_current_weights(
     port_tickers: list[str], account_weights: pd.Series, account_present: bool
 ) -> tuple[pd.Series, bool]:
