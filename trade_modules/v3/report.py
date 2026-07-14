@@ -714,10 +714,21 @@ def _action_row(a: dict) -> str:
     usd = _usd_signed(a.get("delta_usd"))
     usd_html = f'<span class="act-usd">{usd}</span>' if usd else ""
     name_html = f'<div class="act-name">{name}</div>' if name else ""
+    pnl = a.get("pnl")
+    pnl_html = ""
+    if pnl is not None:
+        pct, cv = a.get("pnl_pct"), a.get("current_value")
+        pcol = "#2d6a4f" if float(pnl) >= 0 else "#b3402f"
+        pct_s = f" ({pct:+.1f}%)" if pct is not None else ""
+        val_s = f" · {_money(cv)}" if cv is not None else ""
+        pnl_html = (
+            f'<span class="act-pnl" style="color:{pcol};">'
+            f"P/L {_usd_signed(pnl)}{pct_s}{val_s}</span>"
+        )
     move = (
         f'<span class="from">{_pct1(cur)}</span> '
         f'<span class="to">→ {_pct1(tgt)}</span> '
-        f'<span class="act-dpp">({_pp(delta)})</span>{usd_html}'
+        f'<span class="act-dpp">({_pp(delta)})</span>{usd_html}{pnl_html}'
     )
     levels_html = ""
     if a.get("action") in _LEVEL_ACTIONS:
@@ -1062,12 +1073,13 @@ body{margin:0;background:var(--canvas);color:var(--ink2);font-family:var(--sans)
 .act-row:first-child{border-top:none;}
 .act-id{min-width:0;}
 .act-tkr{font-family:var(--serif);font-weight:600;font-size:16px;color:var(--ink);letter-spacing:-.2px;}
-.act-name{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.act-name{font-size:11px;color:var(--muted);line-height:1.3;}
 .act-conv{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:right;}
 .act-move{font-family:var(--mono);font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums;}
 .act-move .to{color:var(--ink);font-weight:600;}
 .act-move .act-dpp{color:var(--muted);}
 .act-usd{color:var(--muted);margin-left:8px;}
+.act-pnl{font-family:var(--mono);font-size:11px;font-weight:600;margin-left:10px;white-space:nowrap;}
 .act-levels{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
 .act-lvl{font-family:var(--mono);font-size:10.5px;color:var(--ink2);background:var(--warm);
   border:1px solid var(--line);border-radius:7px;padding:3px 8px;font-variant-numeric:tabular-nums;}

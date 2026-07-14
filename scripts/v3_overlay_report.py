@@ -42,6 +42,7 @@ from scripts.v3_full_report import (  # noqa: E402  (pure helpers, reused)
     _synthetic_scores,
     _system_read,
     load_account_json,
+    load_account_positions,
     resolve_current_weights,
 )
 from scripts.v3_portfolio import trend_regime  # noqa: E402  (pure, unit-tested)
@@ -378,6 +379,14 @@ def main() -> None:
     )
     view = overlay_portfolio_view(overlay, scores)
     actions = build_actions(overlay["weights"], current_weights, scores, nav=nav)
+    # Attach live P/L from the eToro account snapshot to held names (P/L $ / % / value).
+    _positions = load_account_positions()
+    for _a in actions:
+        _p = _positions.get(_a.get("ticker"))
+        if _p:
+            _a["pnl"] = _p.get("pnl")
+            _a["pnl_pct"] = _p.get("pnl_pct")
+            _a["current_value"] = _p.get("current_value")
 
     # --- Render the FULL report ---
     now = datetime.now(timezone.utc)
