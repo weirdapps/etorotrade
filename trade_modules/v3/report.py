@@ -635,6 +635,60 @@ def _stat(label: str, value: str, sub: str = "", tone: str = "") -> str:
     )
 
 
+def _social_grid(social: dict) -> str:
+    """PI performance + social tiles (the eToro account panel) for Section I.
+
+    Reads the ``social`` block from the live-account snapshot. Gains and win
+    ratio arrive already as percentages (3.4 = 3.4%), so they are formatted
+    directly, not through _pct1 (which assumes fractions). Returns "" when the
+    block is absent so the report degrades gracefully.
+    """
+    if not social:
+        return ""
+
+    def _g(v) -> str:  # signed 1-dp percent for a value already in percent units
+        return "n/a" if _isnan(v) else f"{float(v):+.1f}%"
+
+    def _tone(v) -> str:
+        return "" if _isnan(v) else ("bull" if float(v) >= 0 else "bear")
+
+    copiers, baseline = social.get("copiers"), social.get("baseline_copiers")
+    cop_val = "n/a" if _isnan(copiers) else f"{int(copiers):,}"
+    cop_sub = ""
+    if not _isnan(copiers) and not _isnan(baseline):
+        cop_sub = f"{int(copiers) - int(baseline):+d} vs last wk"
+    risk = social.get("risk_score")
+    risk_val = "n/a" if _isnan(risk) else f"{int(risk)}/10"
+    win = social.get("win_ratio")
+    win_val = "n/a" if _isnan(win) else f"{float(win):.1f}%"
+    trades = social.get("trades_ytd")
+    win_sub = "" if _isnan(trades) else f"{int(trades)} trades"
+    ua, shorts = social.get("unique_assets"), social.get("shorts")
+    ua_val = "n/a" if _isnan(ua) else f"{int(ua)}"
+    ua_sub = "" if _isnan(shorts) else f"{int(shorts)} short"
+    op = social.get("open_positions")
+    op_val = "n/a" if _isnan(op) else f"{int(op)}"
+
+    tiles = [
+        _stat(
+            "Today", _g(social.get("daily_gain")), "eToro daily", _tone(social.get("daily_gain"))
+        ),
+        _stat("Month to date", _g(social.get("gain_mtd")), "MTD", _tone(social.get("gain_mtd"))),
+        _stat(
+            "Year to date",
+            _g(social.get("gain_ytd")),
+            "eToro CurrYear",
+            _tone(social.get("gain_ytd")),
+        ),
+        _stat("Copiers", cop_val, cop_sub),
+        _stat("Risk score", risk_val, "eToro 1-10"),
+        _stat("Win ratio", win_val, win_sub),
+        _stat("Unique assets", ua_val, ua_sub),
+        _stat("Open positions", op_val, "incl. lots"),
+    ]
+    return f'<div class="stat-grid social-grid">{"".join(tiles)}</div>'
+
+
 def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
     """The executive / risk panel: deployment + risk stat tiles, sector exposures
     and any binding cap / gate flags. Reads the build_portfolio result dict
@@ -766,7 +820,8 @@ def _exec_panel(portfolio: dict, conditioning, meta: dict) -> str:
             + _stat("Invested", _money(acct.get("invested_cost")), "at cost")
             + "</div>"
         )
-    return f'<div class="exec-panel">{account_html}{grid}{sec_html}{flag_html}</div>'
+    social_html = _social_grid(meta.get("social") or {})
+    return f'<div class="exec-panel">{account_html}{social_html}{grid}{sec_html}{flag_html}</div>'
 
 
 def _action_row(a: dict) -> str:

@@ -38,6 +38,8 @@ from pathlib import Path
 
 _PORTFOLIO = "https://www.etoro.com/api/public/v1/trading/info/portfolio"
 _PNL = "https://www.etoro.com/api/public/v1/trading/info/real/pnl"
+_TRADEINFO = "https://www.etoro.com/api/public/v1/user-info/people/{u}/tradeinfo?period={p}"
+_USERNAME = os.environ.get("ETORO_USERNAME", "plessas")
 _INPUT_CSV = Path(os.path.expanduser("~/SourceCode/etorotrade/yahoofinance/input/portfolio.csv"))
 _DEFAULT_OUT = "~/Downloads/v3_live_account.json"
 
@@ -187,6 +189,16 @@ def build_snapshot() -> dict:
     weights = {
         t: round(d["current_value"] / total_equity, 6) for t, d in pos.items() if total_equity
     }
+    raw_positions = cp.get("positions", [])
+    social = fetch_social()
+    social.update(
+        {
+            "unique_assets": len(pos),
+            "open_positions": len(raw_positions),  # incl. lots
+            "shorts": sum(1 for p in raw_positions if not p.get("isBuy", True)),
+            "cash_pct": round(available / total_equity * 100, 1) if total_equity else 0.0,
+        }
+    )
     return {
         "nav": round(total_equity, 2),
         "as_of": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
@@ -200,6 +212,7 @@ def build_snapshot() -> dict:
             "total_equity": round(total_equity, 2),
             "available": round(available, 2),
         },
+        "social": social,
     }
 
 
@@ -220,6 +233,36 @@ def fetch_pnl() -> dict[int, dict]:
                 "exposure": float(upnl.get("exposureInAccountCurrency", 0)),
             }
     return out
+
+
+def fetch_social() -> dict:
+    """PI performance + social metrics from the eToro tradeinfo endpoint.
+
+    Two period calls: CurrYear (YTD gain, today, this-week, risk score, copiers,
+    win ratio, trades) and CurrMonth (MTD gain). Gains and winRatio are already
+    percentages (3.4 = 3.4%). Best-effort: returns {} if the endpoint is
+    unavailable so the report degrades gracefully.
+    """
+    try:
+        yr = _api_get(_TRADEINFO.format(u=_USERNAME, p="CurrYear"))
+        mo = _api_get(_TRADEINFO.format(u=_USERNAME, p="CurrMonth"))
+    except Exception:  # noqa: BLE001 (best-effort; report renders without social block)
+        return {}
+    return {
+        "username": _USERNAME,
+        "copiers": yr.get("copiers"),
+        "baseline_copiers": yr.get("baseLineCopiers"),
+        "copiers_gain_pct": yr.get("copiersGain"),
+        "risk_score": yr.get("riskScore"),
+        "max_daily_risk": yr.get("maxDailyRiskScore"),
+        "win_ratio": yr.get("winRatio"),
+        "trades_ytd": yr.get("trades"),
+        "gain_ytd": yr.get("gain"),
+        "gain_mtd": mo.get("gain"),
+        "daily_gain": yr.get("dailyGain"),
+        "week_gain": yr.get("thisWeekGain"),
+        "aum_tier_desc": yr.get("aumTierDesc"),
+    }
 
 
 def main() -> int:
