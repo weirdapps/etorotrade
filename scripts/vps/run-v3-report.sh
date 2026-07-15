@@ -35,7 +35,7 @@ if [ -z "${REPORT:-}" ]; then
   exit 1
 fi
 
-SUBJECT="trading model v3 · factor snapshot $(TZ=Europe/Athens date +%Y-%m-%d)"
+SUBJECT="trading model v3 · factor snapshot $(TZ=Europe/Athens date '+%Y-%m-%d %H:%M')"
 
 ~/scripts/outlook-cli send-mail \
   --to dimitrios.plessas@nbg.gr \
