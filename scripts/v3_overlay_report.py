@@ -57,6 +57,7 @@ from trade_modules.v3.features import enrich_features  # noqa: E402
 from trade_modules.v3.fetch import robust_fetch_prices  # noqa: E402
 from trade_modules.v3.overlay import build_overlay  # noqa: E402
 from trade_modules.v3.report import compute_regime, render_report  # noqa: E402
+from trade_modules.v3.report_email import render_email_report  # noqa: E402
 
 PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
 BUY_CSV = "yahoofinance/output/buy.csv"
@@ -615,6 +616,17 @@ def main() -> None:
 
     _print_console_summary(overlay["diagnostics"], actions, gross_target)
     print(f"overlay report -> {out}")
+
+    # Also emit the Outlook-safe email edition (table-based, inline styles, full
+    # names + descriptions) that the VPS cron mails; the browser HTML above is
+    # for opening locally.
+    email_html = render_email_report(
+        scores, meta, portfolio=view, actions=actions, conditioning=cond
+    )
+    email_out = os.path.expanduser(f"~/Downloads/{stamp}_v3_overlay_email.html")
+    with open(email_out, "w", encoding="utf-8") as fh:
+        fh.write(email_html)
+    print(f"overlay email  -> {email_out}")
 
     # Always emit the offline synthetic preview alongside the live report.
     write_preview()
