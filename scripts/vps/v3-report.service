@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily Trading Model v3 Factor Snapshot — generate + email (replaces v2 committee brief)
+Description=Trading Model v3 Factor Snapshot — generate + email (replaces v2 committee brief)
 After=network-online.target
 
 [Service]
