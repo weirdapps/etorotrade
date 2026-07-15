@@ -27,10 +27,11 @@ V3_FLOOR_CORE=0 V3_NONCORE_SELL_FLOOR=-0.5 V3_CAP_MODE=cap_ordered \
 V3_USD_BLOC_CAP=0.65 V3_VOL_CEILING=0.35 \
   .venv/bin/python scripts/v3_overlay_report.py
 
-# 3) Email the freshest report.
-REPORT="$(ls -t "$HOME/Downloads/"*_v3_overlay_report.html 2>/dev/null | head -1 || true)"
+# 3) Email the freshest report — the Outlook-safe EMAIL edition (table-based,
+#    inline styles), not the browser HTML which the Outlook body sanitizer breaks.
+REPORT="$(ls -t "$HOME/Downloads/"*_v3_overlay_email.html 2>/dev/null | head -1 || true)"
 if [ -z "${REPORT:-}" ]; then
-  echo "ERROR: no v3 overlay report produced" >&2
+  echo "ERROR: no v3 overlay email report produced" >&2
   exit 1
 fi
 
