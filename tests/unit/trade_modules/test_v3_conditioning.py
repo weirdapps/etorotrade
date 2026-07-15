@@ -17,9 +17,9 @@ from trade_modules.v3.conditioning import (
 
 
 def test_deployment_by_regime_values() -> None:
-    assert DEPLOYMENT_BY_REGIME["risk_off"] == 0.85
-    assert DEPLOYMENT_BY_REGIME["neutral"] == 0.90
-    assert DEPLOYMENT_BY_REGIME["risk_on"] == 0.95
+    assert DEPLOYMENT_BY_REGIME["risk_off"] == 0.78
+    assert DEPLOYMENT_BY_REGIME["neutral"] == 0.88
+    assert DEPLOYMENT_BY_REGIME["risk_on"] == 0.98
 
 
 # ---------------------------------------------------------------------------
@@ -29,23 +29,23 @@ def test_deployment_by_regime_values() -> None:
 
 class TestRegimeDeployment:
     def test_risk_off(self) -> None:
-        assert regime_deployment("risk_off") == pytest.approx(0.85)
+        assert regime_deployment("risk_off") == pytest.approx(0.78)
 
     def test_neutral(self) -> None:
-        assert regime_deployment("neutral") == pytest.approx(0.90)
+        assert regime_deployment("neutral") == pytest.approx(0.88)
 
     def test_risk_on(self) -> None:
-        assert regime_deployment("risk_on") == pytest.approx(0.95)
+        assert regime_deployment("risk_on") == pytest.approx(0.98)
 
     def test_unknown_returns_neutral(self) -> None:
-        assert regime_deployment("unknown") == pytest.approx(0.90)
+        assert regime_deployment("unknown") == pytest.approx(0.88)
 
     def test_empty_string_returns_neutral(self) -> None:
-        assert regime_deployment("") == pytest.approx(0.90)
+        assert regime_deployment("") == pytest.approx(0.88)
 
     def test_none_as_string_returns_neutral(self) -> None:
         # None is not in the dict; falls back to neutral.
-        assert regime_deployment("None") == pytest.approx(0.90)
+        assert regime_deployment("None") == pytest.approx(0.88)
 
 
 # ---------------------------------------------------------------------------
@@ -102,27 +102,27 @@ class TestPolymarketAdjustment:
 class TestResolveDeployment:
     def test_known_regime_no_pm(self) -> None:
         dep, diag = resolve_deployment("risk_on")
-        assert dep == pytest.approx(0.95)
-        assert diag["final_deployment"] == pytest.approx(0.95)
+        assert dep == pytest.approx(0.98)
+        assert diag["final_deployment"] == pytest.approx(0.98)
 
     def test_neutral_regime(self) -> None:
         dep, diag = resolve_deployment("neutral")
-        assert dep == pytest.approx(0.90)
+        assert dep == pytest.approx(0.88)
 
     def test_risk_off_regime(self) -> None:
         dep, diag = resolve_deployment("risk_off")
-        assert dep == pytest.approx(0.85)
+        assert dep == pytest.approx(0.78)
 
     def test_unknown_regime_neutral_fallback(self) -> None:
         dep, _ = resolve_deployment("garbage")
-        assert dep == pytest.approx(0.90)
+        assert dep == pytest.approx(0.88)
 
     # Polymarket inert by default
     def test_polymarket_inactive_by_default(self) -> None:
         _, diag = resolve_deployment("neutral", polymarket_signal=0.9)
         assert diag["polymarket_active"] is False
         assert diag["polymarket_tilt"] == pytest.approx(0.0)
-        assert diag["final_deployment"] == pytest.approx(0.90)
+        assert diag["final_deployment"] == pytest.approx(0.88)
 
     def test_polymarket_active_flag(self) -> None:
         _, diag = resolve_deployment("neutral", polymarket_signal=1.0, max_pm_tilt=0.03)
@@ -130,14 +130,14 @@ class TestResolveDeployment:
 
     # Band clamping
     def test_clamped_to_upper_band(self) -> None:
-        # risk_on (0.95) + large positive tilt should not exceed 0.95 (hi of default band)
+        # risk_on (0.98) + large positive tilt should not exceed 0.98 (hi of default band)
         dep, diag = resolve_deployment("risk_on", polymarket_signal=1.0, max_pm_tilt=0.10)
-        assert dep <= 0.95 + 1e-9
+        assert dep <= 0.98 + 1e-9
 
     def test_clamped_to_lower_band(self) -> None:
-        # risk_off (0.85) + large negative tilt should not go below 0.85 (lo of default band)
+        # risk_off (0.78) + large negative tilt should not go below 0.78 (lo of default band)
         dep, diag = resolve_deployment("risk_off", polymarket_signal=-1.0, max_pm_tilt=0.10)
-        assert dep >= 0.85 - 1e-9
+        assert dep >= 0.78 - 1e-9
 
     def test_custom_band(self) -> None:
         dep, _ = resolve_deployment("risk_on", band=(0.70, 0.80))

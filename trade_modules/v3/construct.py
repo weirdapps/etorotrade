@@ -54,12 +54,92 @@ _SUFFIX_COUNTRY = {
     ".OL": "Norway",
     ".ST": "Sweden",
     ".CO": "Denmark",
+    ".HE": "Finland",
+    ".IR": "Ireland",
+    ".BR": "Belgium",
+    ".LS": "Portugal",
+    ".VI": "Austria",
+    ".WA": "Poland",
+    ".AT": "Greece",
     ".HK": "Hong Kong",
     ".T": "Japan",
+    ".KS": "South Korea",
+    ".KQ": "South Korea",
+    ".TW": "Taiwan",
+    ".SS": "China",
+    ".SZ": "China",
+    ".SI": "Singapore",
+    ".NS": "India",
+    ".BO": "India",
     ".AX": "Australia",
     ".TO": "Canada",
+    ".V": "Canada",
+    ".SA": "Brazil",
+    ".MX": "Mexico",
+    ".BA": "Argentina",
+    ".SN": "Chile",
 }
 _HOME_COUNTRY = "United States"  # bare / unmapped suffix
+
+# Company/listing country -> economic region, for the geographic concentration cap.
+# Kept consistent with the report's allocation bars (both driven by ``region_of``).
+_COUNTRY_REGION = {
+    "United States": "North America",
+    "Canada": "North America",
+    "France": "Europe",
+    "Germany": "Europe",
+    "United Kingdom": "Europe",
+    "Netherlands": "Europe",
+    "Switzerland": "Europe",
+    "Italy": "Europe",
+    "Spain": "Europe",
+    "Norway": "Europe",
+    "Sweden": "Europe",
+    "Denmark": "Europe",
+    "Finland": "Europe",
+    "Ireland": "Europe",
+    "Belgium": "Europe",
+    "Portugal": "Europe",
+    "Austria": "Europe",
+    "Poland": "Europe",
+    "Greece": "Europe",
+    "Hong Kong": "Asia-Pacific",
+    "Japan": "Asia-Pacific",
+    "South Korea": "Asia-Pacific",
+    "Taiwan": "Asia-Pacific",
+    "China": "Asia-Pacific",
+    "Singapore": "Asia-Pacific",
+    "India": "Asia-Pacific",
+    "Australia": "Asia-Pacific",
+    "Brazil": "Latin America",
+    "Mexico": "Latin America",
+    "Argentina": "Latin America",
+    "Chile": "Latin America",
+}
+_DEFAULT_REGION = "North America"  # bare/unmapped US listing
+
+
+def region_of(ticker: str) -> str:
+    """Economic region for a ticker, from its LISTING venue (exchange suffix).
+
+    Domicile drives dual-listing dedup elsewhere; the geographic cap and the
+    report's allocation bars both use the trading venue via this one function,
+    so the two never diverge. Crypto (``-USD`` / hyphen) -> "Crypto/Global".
+    Bare or unmapped US-style tickers -> North America.
+    """
+    t = str(ticker or "").upper()
+    if t.endswith("-USD") or t.endswith("-EUR"):  # crypto (BTC-USD); not BRK-B
+        return "Crypto/Global"
+    # Own suffix lookup (not _suffix_of, which drops single-letter suffixes as share
+    # classes): a mapped single-letter exchange suffix like .T (Tokyo) / .L (London)
+    # / .V (Canada) IS a real venue. Unmapped suffixes (.B share class) fall to US.
+    country = (
+        _SUFFIX_COUNTRY.get("." + t.rsplit(".", 1)[-1], _HOME_COUNTRY)
+        if "." in t
+        else _HOME_COUNTRY
+    )
+    return _COUNTRY_REGION.get(country, _DEFAULT_REGION)
+
 
 # _Z_ES_95 imported from risk_gate (single definition shared across both modules).
 # Report-only risk-gate thresholds.
@@ -304,6 +384,8 @@ def build_portfolio(
     name_cap: float = 0.08,
     sector_cap: float = 0.25,
     usd_bloc_cap: float = 0.60,
+    region_cap: float = 0.65,
+    region_hard: bool = False,
     gross_target: float = 0.90,
     cvar_budget: float = 0.25,
     vol_ceiling: float = 0.18,
@@ -408,12 +490,16 @@ def build_portfolio(
     if w_sum > 0:
         w = w / w_sum  # renormalize to sum = 1
 
-    # --- caps: same order select_and_construct uses ---
-    w = apply_name_cap(w, name_cap)
+    # --- caps: name -> USD-bloc -> sector (single-name reasserted between) ---
+    # Region is enforced by the risk gate below (which converges + clamps to cash on
+    # an infeasible book), not here, so a trailing name cap cannot silently undo it.
     is_bloc = np.array([currency_of(t) in USD_BLOC for t in selected])
+    sec_arr = sub.reindex(selected)["SECTOR"].astype(str).to_numpy()
+    region_arr = np.array([region_of(t) for t in selected])
+    w = apply_name_cap(w, name_cap)
     w = cap_bloc(w, is_bloc, usd_bloc_cap)
     w = apply_name_cap(w, name_cap)  # keep single-name cap after bloc redistribution
-    w = cap_groups(w, sub.reindex(selected)["SECTOR"].astype(str).to_numpy(), sector_cap)
+    w = cap_groups(w, sec_arr, sector_cap)
     w = apply_name_cap(w, name_cap)
 
     gross_risk = float(w.sum())  # capped risk-book gross (≈ 1.0)
@@ -468,11 +554,19 @@ def build_portfolio(
                 if currency_of(_t) in USD_BLOC
             )
         )
+        _region_totals: dict[str, float] = {}
+        for _wt, _t in zip(w_shape, selected, strict=True):
+            _rg = region_of(_t)
+            _region_totals[_rg] = _region_totals.get(_rg, 0.0) + float(_wt)
+        _max_region = max(_region_totals.values(), default=0.0)
         _name_cap_breach = bool(_max_name > name_cap + _TOL)
         _sector_cap_breach = bool(_max_sector > sector_cap + _TOL)
         _usd_bloc_breach = bool(_usd_frac > usd_bloc_cap + _TOL)
+        _region_cap_breach = bool(_max_region > region_cap + _TOL)
     else:
         _name_cap_breach = _sector_cap_breach = _usd_bloc_breach = False
+        _region_cap_breach = False
+        _max_region = 0.0
 
     diagnostics = {
         # Risk-book metrics: the fully-invested, gross=1.0 sleeve.
@@ -485,6 +579,7 @@ def build_portfolio(
         "effective_bets": effective_bets,
         "port_vol": port_vol,
         "gross_risk": gross_risk,
+        "max_region": _max_region,
         "binding": {
             "cvar": cvar_binding,
             "net_beta": not (_BETA_BAND[0] <= net_beta <= _BETA_BAND[1]),
@@ -495,6 +590,7 @@ def build_portfolio(
             "name_cap": _name_cap_breach,
             "sector_cap": _sector_cap_breach,
             "usd_bloc_cap": _usd_bloc_breach,
+            "region_cap": _region_cap_breach,
             # FIX 3: vol budget flag (report-only; never shrinks the book).
             "vol_over_target": bool(port_vol > target_vol),
         },
@@ -515,6 +611,13 @@ def build_portfolio(
         name_cap=name_cap,
         sector_cap=sector_cap,
         usd_bloc_cap=usd_bloc_cap,
+        # region_hard=True HARD-enforces the region cap in the gate (infeasible excess
+        # -> cash, so a US-heavy book carries more cash); default False keeps region a
+        # MONITOR (reported + flagged on the final book below, never forcing cash) —
+        # consistent with the overlay's owner-rule behavior. The infrastructure is the
+        # same either way; only whether the excess is trimmed differs.
+        regions=region_arr if region_hard else None,
+        region_cap=region_cap,
     )
     diagnostics["gate"] = gate_diag
 
@@ -522,13 +625,47 @@ def build_portfolio(
     full.loc[selected] = gated_series.to_numpy()
     gross = float(full.sum())
 
-    usd_bloc = float(sum(v for t, v in full.items() if currency_of(t) in USD_BLOC))
+    # Exposures + breach flags recomputed on the FINAL book. All axes are fraction of
+    # the INVESTED book (/gross) so name / sector / USD-bloc / region are one basis.
+    region_exposures: dict[str, float] = {}  # NAV-basis absolute, matching sector_exposures
+    sector_final: dict[str, float] = {}
+    usd_bloc_nav = 0.0
+    max_name = 0.0
+    for t, v in full.items():
+        fv = float(v)
+        if fv <= 1e-12:
+            continue
+        p = fv / gross if gross > 0 else 0.0
+        max_name = max(max_name, p)
+        region_exposures[region_of(t)] = region_exposures.get(region_of(t), 0.0) + fv
+        sector_final[sector_labels.get(t, "UNKNOWN")] = (
+            sector_final.get(sector_labels.get(t, "UNKNOWN"), 0.0) + p
+        )
+        if currency_of(t) in USD_BLOC:
+            usd_bloc_nav += fv
+    # usd_bloc_book = fraction of the INVESTED book (matches name/sector/region basis)
+    # for the breach flag + the report tile; res["usd_bloc"] stays NAV-basis (absolute)
+    # so the "no re-inflation above cap" contract still holds for all-USD books.
+    usd_bloc_book = usd_bloc_nav / gross if gross > 0 else 0.0
+    if gross > 0:
+        _max_region = max(region_exposures.values(), default=0.0) / gross
+        _max_sector = max(sector_final.values(), default=0.0)
+        diagnostics["max_region"] = _max_region
+        gate_diag["max_name"] = max_name  # refresh gate metrics after the clamp
+        gate_diag["max_sector"] = _max_sector
+        gate_diag["usd_bloc"] = usd_bloc_book
+        _b = diagnostics["binding"]
+        _b["region_cap"] = bool(_max_region > region_cap + _TOL)
+        _b["name_cap"] = bool(max_name > name_cap + _TOL)
+        _b["sector_cap"] = bool(_max_sector > sector_cap + _TOL)
+        _b["usd_bloc_cap"] = bool(usd_bloc_book > usd_bloc_cap + _TOL)
     return {
         "weights": full,
         "gross": gross,
         "cash": max(0.0, 1.0 - gross),
-        "usd_bloc": usd_bloc,
+        "usd_bloc": usd_bloc_nav,
         "sector_exposures": _sector_exposures(full, sector_labels),
+        "region_exposures": region_exposures,
         "selected": selected,
         "diagnostics": diagnostics,
     }
