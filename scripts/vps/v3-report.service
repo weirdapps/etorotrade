@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Trading Model v3 Factor Snapshot — generate + email (replaces v2 committee brief)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/SourceCode/etorotrade
+ExecStart=%h/SourceCode/etorotrade/scripts/vps/run-v3-report.sh
+StandardOutput=append:%h/logs/v3-report/service.log
+StandardError=append:%h/logs/v3-report/service.err
+TimeoutStartSec=900
+Environment=HOME=%h

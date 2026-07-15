@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Trading Model v3 Factor Snapshot timer
+
+[Timer]
+# 06:37 Athens local — after the 05:17 signals-refresh, before the workday.
+# Persistent=true catches up a missed run after downtime.
+# Install: cp scripts/vps/v3-report.{service,timer} ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now v3-report.timer
+OnCalendar=*-*-* 06:37:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
