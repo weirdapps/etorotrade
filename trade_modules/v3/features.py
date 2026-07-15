@@ -19,8 +19,46 @@ import math
 
 import pandas as pd
 
+from trade_modules.riskfirst.fx import currency_of
 from trade_modules.v3.fetch import robust_fetch_prices
 from trade_modules.v3.universe import parse_cap
+
+# Approximate spot FX rates (local currency -> USD), for normalizing eToro's
+# local-currency market cap and dollar-volume to USD. eToro reports CAP in the
+# listing's local currency (yen for .T, EUR for .DE), and price is local too, so
+# without this the mega/large/mid cap tiers, the cap_ordered vol mode, the report's
+# Mkt-Cap display, and the runner's $1M ADV floor would mix currencies (a small yen
+# name reading as a USD mega-cap). Note: universe.py::load_universe is US-only
+# (^[A-Z]+$), so its $500M floor never sees a non-USD cap — this normalization serves
+# the cross-market scoring/overlay paths, not that floor. Coarse by design (tiers +
+# ADV floor are wide, so FX drift is immaterial); NOT used for P&L. Refresh occasionally.
+_USD_RATE = {
+    "USD": 1.0,
+    "EUR": 1.08,
+    "GBP": 1.27,
+    "CHF": 1.12,
+    "JPY": 0.0067,
+    "HKD": 0.128,
+    "CAD": 0.73,
+    "AUD": 0.66,
+    "SEK": 0.095,
+    "NOK": 0.094,
+    "DKK": 0.145,
+    "KRW": 0.00073,
+    "TWD": 0.031,
+    "SGD": 0.74,
+    "INR": 0.012,
+    "CNY": 0.138,
+    "BRL": 0.18,
+    "MXN": 0.058,
+    "PLN": 0.25,
+}
+
+
+def _usd_rate_for(ticker: str) -> float:
+    """Approximate local-currency -> USD spot rate for a ticker's listing currency."""
+    return _USD_RATE.get(currency_of(str(ticker)), 1.0)
+
 
 # etoro CSV header -> feature name (NATIVE numeric factors)
 _NATIVE_NUM = {
@@ -330,6 +368,9 @@ def enrich_features(
     native = pd.DataFrame(index=raw.index)
     native["name"] = raw["NAME"].astype("object") if "NAME" in raw.columns else pd.NA
     native["cap"] = raw["CAP"].map(parse_cap) if "CAP" in raw.columns else float("nan")
+    # Normalize local-currency market cap -> USD (see _USD_RATE) so the floor + tiers
+    # are single-currency (Toyota's yen cap no longer reads as a USD mega-cap).
+    native["cap"] = native["cap"] * native.index.to_series().map(_usd_rate_for)
     for col, feat in _NATIVE_NUM.items():
         native[feat] = _num(raw[col]) if col in raw.columns else float("nan")
     native = native.reindex(tickers)
@@ -352,7 +393,8 @@ def enrich_features(
     safe_price = price.where(price > 0)
     disp = (feats["target_high"] - feats["target_low"]) / safe_price
     feats["target_dispersion"] = disp.replace([float("inf"), float("-inf")], float("nan"))
-    feats["adv_usd"] = feats["avg_volume"] * price
+    # adv_usd = shares * local price * FX -> USD dollar-volume (for the ADV floor).
+    feats["adv_usd"] = feats["avg_volume"] * price * feats.index.to_series().map(_usd_rate_for)
 
     prices = price_fetch(list(tickers), period=price_period)
     feats = feats.join(_price_factors(prices, tickers))

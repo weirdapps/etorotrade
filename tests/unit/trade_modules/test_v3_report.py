@@ -110,10 +110,24 @@ def test_render_contains_tickers_and_names():
 
 
 def test_render_contains_cluster_and_group_labels():
+    # Cluster labels appear in the methodology footer.
     html = render_report(_scores(), _meta())
     for label in ["Value", "Quality", "Momentum", "Low-vol", "Strength"]:
         assert label in html
-    # Added metrics surfaced prominently.
+    # Metric group labels (EV/EBITDA, ROA, …) appear inside action deep-dive cards.
+    scores = _scores()
+    actions = [
+        {
+            "ticker": "AAPL",
+            "action": "BUY",
+            "conviction": 1.5,
+            "current_pct": 0.0,
+            "target_pct": 0.05,
+            "delta_pct": 0.05,
+            "delta_usd": 5000.0,
+        },
+    ]
+    html = render_report(scores, _meta(), actions=actions)
     for label in ["EV/EBITDA", "ROA", "Current Ratio", "ADV"]:
         assert label in html
 
@@ -162,16 +176,12 @@ def test_overview_blank_cell_for_nan_cluster():
 
 
 def test_render_curates_candidate_cards_and_notes_count():
-    scores = _many_scores(n=34, n_port=4)  # 30 candidates
+    scores = _many_scores(n=34, n_port=4)
     html = render_report(scores, {"regime": "NEUTRAL"}, max_long_cards=5, max_avoid_cards=3)
     # overview still lists the FULL universe
     assert html.count('class="hm-row"') == 34
-    # detailed cards curated to portfolio(4) + top(5) + bottom(3) = 12
-    assert html.count('<article class="card"') == 12
-    # honest "showing X of Y" note for the curated candidate subset
-    assert "showing 8 of 30" in html
-    # the avoid block is separated by a labeled divider
-    assert "potential avoids" in html.lower()
+    # no action cards without an actions list
+    assert html.count('<article class="card"') == 0
 
 
 def test_render_curation_excludes_midpack_candidate_cards():
@@ -232,12 +242,33 @@ def test_render_shows_trade_levels():
     scores["stop_loss"] = [180.0, 360.0, np.nan]
     scores["take_profit"] = [230.0, 460.0, np.nan]
     scores["rr"] = [1.5, 1.5, np.nan]
-    html = render_report(scores, _meta())
+    # Trade levels only render inside BUY/ADD action cards.
+    actions = [
+        {
+            "ticker": "AAPL",
+            "action": "BUY",
+            "conviction": 1.5,
+            "current_pct": 0.0,
+            "target_pct": 0.05,
+            "delta_pct": 0.05,
+            "delta_usd": 5000.0,
+        },
+        {
+            "ticker": "ZZZ",
+            "action": "ADD",
+            "conviction": 0.5,
+            "current_pct": 0.02,
+            "target_pct": 0.05,
+            "delta_pct": 0.03,
+            "delta_usd": 3000.0,
+        },
+    ]
+    html = render_report(scores, _meta(), actions=actions)
     assert "Trade Levels" in html
     for lbl in ("Entry", "Stop", "Target", "R:R"):
         assert lbl in html
     assert "$180.00" in html  # AAPL stop-loss tile
-    assert "n/a" in html  # ZZZ has no vol -> degenerate levels
+    assert "n/a" in html  # ZZZ has NaN stop/target -> degenerate levels
 
 
 def test_cards_single_column_and_container_grid():
@@ -279,14 +310,49 @@ def test_compute_regime_short_series_neutral():
 
 
 def test_render_card_shows_description():
-    """Cards include the business description as a muted line when present."""
-    html = render_report(_scores(), _meta())
-    # AAPL has a description → should appear in the rendered HTML
+    """Action cards include the business description as a muted line when present."""
+    scores = _scores()
+    scores["entry"] = scores["price"]
+    scores["stop_loss"] = scores["price"] * 0.90
+    scores["take_profit"] = scores["price"] * 1.15
+    actions = [
+        {
+            "ticker": "AAPL",
+            "action": "BUY",
+            "conviction": 1.5,
+            "current_pct": 0.0,
+            "target_pct": 0.05,
+            "delta_pct": 0.05,
+            "delta_usd": 5000.0,
+        },
+        {
+            "ticker": "MSFT",
+            "action": "ADD",
+            "conviction": 1.2,
+            "current_pct": 0.05,
+            "target_pct": 0.08,
+            "delta_pct": 0.03,
+            "delta_usd": 3000.0,
+        },
+        {
+            "ticker": "ZZZ",
+            "action": "SELL",
+            "conviction": -1.0,
+            "current_pct": 0.03,
+            "target_pct": 0.0,
+            "delta_pct": -0.03,
+            "delta_usd": -3000.0,
+        },
+    ]
+    html = render_report(scores, _meta(), actions=actions)
+    # AAPL has a description → appears in its action card
     assert "designs and markets smartphones" in html
     # MSFT description also present
     assert "Microsoft develops software" in html
-    # ZZZ has empty description → no empty desc div should pollute the card
-    assert 'class="desc">' not in html.split("ZED CORP")[1].split("Energy")[0]
+    # ZZZ has empty description → no empty desc div in its card portion
+    # Use [-1] because "ZED CORP" appears first in the heatmap name column,
+    # then again inside the SELL action card; we want the card occurrence.
+    assert 'class="desc">' not in html.split("ZED CORP")[-1].split("Energy")[0]
 
 
 # ---------------------------------------------------------------------------
@@ -362,8 +428,8 @@ def test_render_shows_all_action_groups_and_note():
 def test_render_factor_cards_still_present_below():
     scores, result, actions, cond = _pac()
     html = render_report(scores, _meta(), portfolio=result, actions=actions, conditioning=cond)
-    # existing factor cards + overview still rendered
-    assert '<article class="card"' in html
+    # action deep-dive cards render (Portfolio/Candidates sections removed)
+    assert '<article class="card card--action"' in html
     assert "Overview" in html
     # exec/actions come ABOVE the overview heatmap
     assert html.index("Suggested Actions") < html.index(">Overview<")
@@ -459,3 +525,39 @@ def test_exec_panel_deployed_cvar_uses_post_gate_value():
     assert "15.0%" not in html, "pre-gate cvar_95_deployed leaked into deployed-CVaR tile"
     # Risk-book tile must be unchanged (20.0% still present).
     assert "20.0%" in html, "risk-book CVaR tile was incorrectly modified"
+
+
+def test_allocation_bars_renders_heading_and_widths_and_is_absent_when_empty():
+    """_allocation_bars renders section heading + bar widths; empty inputs are crash-free."""
+    from trade_modules.v3.report import _allocation_bars
+
+    alloc = {
+        "geography": {"North America": 0.62, "Europe": 0.24, "Other": 0.14},
+        "asset_type": {"Equity": 0.82, "ETF": 0.10, "Other": 0.08},
+        "sector": {"Technology": 0.34, "Financials": 0.30, "Other": 0.36},
+    }
+
+    # Direct renderer: heading and at least one bar width present.
+    html = _allocation_bars(alloc)
+    assert "Portfolio Allocation" in html
+    assert "width:62%" in html  # North America 62 %
+
+    # Falsy inputs produce no output and do not raise.
+    assert _allocation_bars({}) == ""
+    assert _allocation_bars(None) == ""
+
+    # Via render_report: allocation section appears inside Section I when portfolio provided.
+    scores, result, actions, cond = _pac()
+    meta = dict(_meta())
+    meta["allocations"] = alloc
+    html_report = render_report(scores, meta, portfolio=result, actions=actions, conditioning=cond)
+    assert "Portfolio Allocation" in html_report
+    assert "width:62%" in html_report
+
+    # Empty allocations: section absent, no crash.
+    meta_empty = dict(_meta())
+    meta_empty["allocations"] = {}
+    html_empty = render_report(
+        scores, meta_empty, portfolio=result, actions=actions, conditioning=cond
+    )
+    assert "Portfolio Allocation" not in html_empty

@@ -104,6 +104,6 @@ def test_build_synthetic_preview_is_complete():
     assert '<div class="exec-panel">' in html
     for cls in ("buy", "add", "trim", "sell", "hold"):
         assert f"act-grp act-grp--{cls}" in html, f"missing action group: {cls}"
-    assert '<article class="card"' in html
+    assert '<article class="card' in html  # matches "card" and "card card--action"
     assert "None" not in html
     assert "—" not in html

@@ -41,7 +41,10 @@ from scripts.v3_full_report import (  # noqa: E402  (pure helpers, reused)
     _read_tickers,
     _synthetic_scores,
     _system_read,
+    load_account_block,
     load_account_json,
+    load_account_positions,
+    load_account_social,
     resolve_current_weights,
 )
 from scripts.v3_portfolio import trend_regime  # noqa: E402  (pure, unit-tested)
@@ -49,6 +52,7 @@ from trade_modules.riskfirst.fx import USD_BLOC, currency_of  # noqa: E402
 from trade_modules.v3.actions import build_actions  # noqa: E402
 from trade_modules.v3.combine import compute_scores  # noqa: E402
 from trade_modules.v3.conditioning import resolve_deployment  # noqa: E402
+from trade_modules.v3.construct import region_of  # noqa: E402
 from trade_modules.v3.features import enrich_features  # noqa: E402
 from trade_modules.v3.fetch import robust_fetch_prices  # noqa: E402
 from trade_modules.v3.overlay import build_overlay  # noqa: E402
@@ -75,9 +79,34 @@ MEGA_CORE: list[str] = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "AVGO", "TSM", "
 
 # Overridable via env so the same runner produces any confirmed config.
 _VOL_CEILING = float(os.environ.get("V3_VOL_CEILING", "0.18"))
-_NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.08"))
-_SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.25"))
+_NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.10"))
+_SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.35"))
 _USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
+_REGION_CAP = float(os.environ.get("V3_REGION_CAP", "0.65"))
+_ADV_MIN = float(os.environ.get("V3_ADV_MIN", "1e6"))  # min avg dollar-volume/day (USD)
+# Polymarket deployment dial. The signal is a shadow / ZERO-conviction cross-repo
+# input, so the book-moving tilt is OFF by default (V3_PM_MAX_TILT=0 -> advisory
+# only: the signal is fetched + shown in the report but does not move deployment).
+# Set V3_PM_MAX_TILT (e.g. 0.03 = +-3pp) to go live once the signal is validated.
+_PM_MAX_TILT = float(os.environ.get("V3_PM_MAX_TILT", "0.0"))
+
+
+def _polymarket_signal() -> float | None:
+    """Latest normalised Polymarket signal in [-1, 1], or None.
+
+    Read from V3_POLYMARKET_SIGNAL (a float the VPS cron exports from the
+    trading-hub Polymarket tool). Absent / blank / unparseable -> None, so the
+    dial degrades gracefully where Gamma is unreachable (e.g. the NBG Mac).
+    """
+    raw = os.environ.get("V3_POLYMARKET_SIGNAL")
+    if not raw or not raw.strip():
+        return None
+    try:
+        return max(-1.0, min(1.0, float(raw)))
+    except ValueError:
+        return None
+
+
 _CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
 
 
@@ -98,6 +127,90 @@ _MANAGED_SLEEVES = [
     if s.strip()
 ]
 
+# Known ETF tickers for asset-type classification.
+_ETFS: set[str] = {"LYXGRE.DE", "SPY", "QQQ", "IWM", "DIA", "VTI", "VOO", "EEM", "EFA", "TLT"}
+
+
+def _compute_allocations(positions: dict, scores: pd.DataFrame) -> dict:
+    """Compute portfolio allocation fractions for Geography, Asset Type, and Sector.
+
+    Returns {"geography": {label: frac}, "asset_type": {label: frac}, "sector": {label: frac}}
+    where each inner dict is sorted descending by fraction, with buckets below 3% merged into
+    an "Other" entry appended last. Returns empty inner dicts when positions is empty.
+    """
+
+    # Single source of truth for geography: the same region_of the region cap uses,
+    # so the allocation bars and the cap never disagree (and BRK-B is not miscounted
+    # as crypto). ".US" is stripped to bare-US first (region_of treats it as North
+    # America via the unmapped-suffix default).
+    def _region_for(ticker: str) -> str:
+        t = str(ticker).upper()
+        if t.endswith(".US"):
+            t = t[:-3]
+        return region_of(t)
+
+    if not positions:
+        return {"geography": {}, "asset_type": {}, "sector": {}}
+
+    total = sum(float(p.get("current_value", 0.0)) for p in positions.values())
+    if total <= 0:
+        return {"geography": {}, "asset_type": {}, "sector": {}}
+
+    geo: dict[str, float] = {}
+    atype: dict[str, float] = {}
+    sec: dict[str, float] = {}
+
+    for ticker, pos in positions.items():
+        cv = float(pos.get("current_value", 0.0))
+        if cv <= 0:
+            continue
+        t = str(ticker).upper()
+
+        region = _region_for(ticker)
+        geo[region] = geo.get(region, 0.0) + cv
+
+        # Asset type: crypto > commodity > volatility > ETF > equity
+        if t.endswith("-USD") or t.endswith("-EUR"):  # crypto (BTC-USD); not BRK-B
+            at = "Crypto"
+        elif t == "GLD":
+            at = "Commodity"
+        elif t in {"UVXY", "VXX"}:
+            at = "Volatility"
+        elif t in _ETFS:  # uppercased, consistent with the checks above
+            at = "ETF"
+        else:
+            at = "Equity"
+        atype[at] = atype.get(at, 0.0) + cv
+
+        # Sector from scores frame; fall back to "Other" for missing/NaN.
+        sector_label = "Other"
+        if scores is not None and hasattr(scores, "index") and ticker in scores.index:
+            try:
+                s = scores.loc[ticker, "sector"]
+                if s and not pd.isna(s) and str(s).strip():
+                    sector_label = str(s).strip()
+            except Exception:  # noqa: BLE001
+                pass
+        sec[sector_label] = sec.get(sector_label, 0.0) + cv
+
+    def _bucket(raw: dict) -> dict:
+        """Convert raw dollar totals to fractions; merge <3% into Other; sort desc."""
+        frac = {k: v / total for k, v in raw.items() if v > 0}
+        other = frac.pop("Other", 0.0)
+        small = [k for k, v in frac.items() if v < 0.03]
+        for k in small:
+            other += frac.pop(k)
+        out = dict(sorted(frac.items(), key=lambda kv: -kv[1]))
+        if other > 0:
+            out["Other"] = other
+        return out
+
+    return {
+        "geography": _bucket(geo),
+        "asset_type": _bucket(atype),
+        "sector": _bucket(sec),
+    }
+
 
 # ---------------------------------------------------------------------------
 # Render-view adapter (pure) — overlay result -> exec-panel-compatible dict
@@ -115,6 +228,8 @@ def overlay_portfolio_view(overlay: dict, scored: pd.DataFrame) -> dict:
     weights = overlay["weights"]
     gate = overlay["diagnostics"].get("gate") or {}
     gross = float(weights.sum()) if len(weights) else 0.0
+    # NAV-basis absolute USD weight; the caps tile converts to book-basis (/gross) to
+    # rank it alongside name/sector/region (I2 is fixed at the tile, one place).
     usd_bloc = float(sum(float(w) for t, w in weights.items() if currency_of(t) in USD_BLOC))
 
     sector_exp: dict[str, float] = {}
@@ -133,17 +248,22 @@ def overlay_portfolio_view(overlay: dict, scored: pd.DataFrame) -> dict:
 
     cvar_dep = gate.get("cvar_after")
     cvar_rb = float(cvar_dep) / gross if (cvar_dep is not None and gross > 0) else None
+    odiag = overlay["diagnostics"]
+    region_exp = odiag.get("region_exposures") or {}
+    max_region = odiag.get("max_region")
     return {
         "weights": weights,
         "gross": gross,
         "cash": max(0.0, 1.0 - gross),
         "usd_bloc": usd_bloc,
         "sector_exposures": sector_exp,
+        "region_exposures": region_exp,
         "selected": [t for t in weights.index if float(weights[t]) > 1e-9],
         "diagnostics": {
             "gate": gate,
             "cvar_95_deployed": cvar_dep,
             "cvar_95_risk_book": cvar_rb,
+            "max_region": max_region,
             "binding": {},
         },
     }
@@ -239,6 +359,56 @@ def build_overlay_preview_html() -> str:
         "enriched": int(scores["pb"].notna().sum()),
         "generated_utc": now.strftime("%Y-%m-%d %H:%M UTC"),
         "current_weights_approx": False,
+        "account": {
+            "total_equity": 250_000.0,
+            "unrealized_pnl": 12_500.0,
+            "profit_pct": 5.0,
+            "available": 25_000.0,
+            "invested_cost": 212_500.0,
+        },
+        "social": {
+            "copiers": 1375,
+            "baseline_copiers": 1390,
+            "copiers_gain_pct": -1.08,
+            "risk_score": 3,
+            "max_daily_risk": 4,
+            "win_ratio": 54.57,
+            "trades_ytd": 361,
+            "gain_ytd": 3.4,
+            "gain_mtd": 2.08,
+            "daily_gain": -0.86,
+            "week_gain": -0.87,
+            "aum_tier_desc": "$1M-$2M",
+            "unique_assets": 48,
+            "open_positions": 175,
+            "shorts": 0,
+            "cash_pct": 11.0,
+        },
+        "allocations": {
+            "geography": {
+                "North America": 0.62,
+                "Europe": 0.24,
+                "Asia-Pacific": 0.09,
+                "Other": 0.05,
+            },
+            "asset_type": {
+                "Equity": 0.82,
+                "ETF": 0.10,
+                "Commodity": 0.05,
+                "Volatility": 0.03,
+            },
+            "sector": {
+                "Technology": 0.34,
+                "Financials": 0.16,
+                "Health Care": 0.14,
+                "Industrials": 0.10,
+                "Consumer": 0.09,
+                "Energy": 0.07,
+                "Other": 0.10,
+            },
+        },
+        "caps": {"name": 0.10, "sector": 0.35, "usd_bloc": 0.60, "region": 0.65},
+        "coverage": {"n_scored": 22, "n_eligible": 20, "pct": 0.91, "adv_dropped": 3},
     }
     return render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
@@ -252,8 +422,8 @@ def _self_check(html: str) -> None:
     for cls in ("buy", "sell"):  # overlay's signature action groups
         if f"act-grp act-grp--{cls}" not in html:
             problems.append(f"action group {cls} missing")
-    if '<article class="card"' not in html:
-        problems.append("factor cards missing")
+    if '<article class="card card--action"' not in html:
+        problems.append("action cards missing")
     if "None" in html:
         problems.append("literal 'None' present")
     if "—" in html:
@@ -298,9 +468,30 @@ def main() -> None:
     scores = compute_scores(feats, sector_neutral=True, cluster_weights=BALANCED_WEIGHTS)
     scores["is_portfolio"] = scores.index.isin(port_set)
 
+    # ADV liquidity gate: drop BUY CANDIDATES (not held) with a KNOWN ADV below the
+    # floor. Held names are exempt (never force-sold for liquidity); names with no
+    # volume data are kept (not penalized for a data gap). Positions run $5-10k, so a
+    # $1M/day floor clears cheaply. adv_usd is FX-normalized to USD in features.
+    _cov_scored_before = len(scores)
+    if "adv_usd" in scores.columns and _ADV_MIN > 0:
+        _adv = pd.to_numeric(scores["adv_usd"], errors="coerce")
+        _illiquid = (~scores["is_portfolio"]) & _adv.notna() & (_adv < _ADV_MIN)
+        _n_illiquid = int(_illiquid.sum())
+        if _n_illiquid:
+            scores = scores[~_illiquid].copy()
+            print(f"ADV gate: dropped {_n_illiquid} candidates below ${_ADV_MIN:,.0f}/day ADV")
+
     elig = scores.get("eligible", pd.Series(True, index=scores.index)).fillna(False).astype(bool)
     n_port = int((scores["is_portfolio"] & elig).sum())
     n_cand = int((~scores["is_portfolio"] & elig).sum())
+    # Coverage: how much of the scored universe clears the eligibility bar (equity +
+    # priced + >=3 of 6 clusters). A data-quality readout for the report.
+    coverage = {
+        "n_scored": len(scores),
+        "n_eligible": int(elig.sum()),
+        "pct": (int(elig.sum()) / len(scores)) if len(scores) else 0.0,
+        "adv_dropped": _cov_scored_before - len(scores),
+    }
 
     # --- Prices + market regime ---
     prices: pd.DataFrame = pd.DataFrame()
@@ -318,7 +509,9 @@ def main() -> None:
 
     regime, _mult = trend_regime(spx_close)
     regime_label, regime_detail = compute_regime(spx_close)
-    gross_target, cond = resolve_deployment(regime, polymarket_signal=None)
+    gross_target, cond = resolve_deployment(
+        regime, polymarket_signal=_polymarket_signal(), max_pm_tilt=_PM_MAX_TILT
+    )
     print(f"regime: {regime}  deployment: {gross_target:.0%}")
 
     # --- Current book (live account anchors the overlay; else equal-split) ---
@@ -378,6 +571,16 @@ def main() -> None:
     )
     view = overlay_portfolio_view(overlay, scores)
     actions = build_actions(overlay["weights"], current_weights, scores, nav=nav)
+    # Attach live P/L from the eToro account snapshot to held names (P/L $ / % / value).
+    _positions = load_account_positions()
+    account_block = load_account_block()
+    social_block = load_account_social()
+    for _a in actions:
+        _p = _positions.get(_a.get("ticker"))
+        if _p:
+            _a["pnl"] = _p.get("pnl")
+            _a["pnl_pct"] = _p.get("pnl_pct")
+            _a["current_value"] = _p.get("current_value")
 
     # --- Render the FULL report ---
     now = datetime.now(timezone.utc)
@@ -392,6 +595,16 @@ def main() -> None:
         "enriched": enriched,
         "generated_utc": now.strftime("%Y-%m-%d %H:%M UTC"),
         "current_weights_approx": approx,
+        "account": account_block,
+        "social": social_block,
+        "allocations": _compute_allocations(_positions, scores),
+        "caps": {
+            "name": _NAME_CAP,
+            "sector": _SECTOR_CAP,
+            "usd_bloc": _USD_BLOC_CAP,
+            "region": _REGION_CAP,
+        },
+        "coverage": coverage,
     }
     html = render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
