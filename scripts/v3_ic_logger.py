@@ -259,6 +259,10 @@ def main() -> None:
     # Lazy imports: avoid module-level yahoofinance.core.config import.
     from trade_modules.v3.combine import compute_scores  # noqa: PLC0415
     from trade_modules.v3.features import enrich_features  # noqa: PLC0415
+    from trade_modules.v3.sectors import (  # noqa: PLC0415
+        load_offline_sector_map,
+        update_sector_cache,
+    )
 
     # --- Universe assembly (mirrors v3_full_report.py exactly) ---
     port = _read_tickers(PORTFOLIO_CSV)
@@ -271,9 +275,15 @@ def main() -> None:
     )
 
     # --- Feature enrichment + scoring ---
+    sector_map = load_offline_sector_map()
     feats = enrich_features(
-        universe, ETORO_CSV, price_period="2y", accruals_fetch=lambda _tickers: {}
+        universe,
+        ETORO_CSV,
+        price_period="2y",
+        accruals_fetch=lambda _tickers: {},
+        sector_map=sector_map,
     )
+    update_sector_cache(feats["sector"].dropna().to_dict())  # grow the cache from live sectors
     scores = compute_scores(feats, sector_neutral=True)
 
     # --- Filter to eligible names only ---

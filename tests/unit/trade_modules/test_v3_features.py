@@ -222,6 +222,46 @@ def _run(tmp_path):
     )
 
 
+def test_enrich_honors_injected_sector_map_for_uncovered_names(tmp_path):
+    """BUILD ③: an injected offline map fills sectors yfinance did not provide."""
+    feats = enrich_features(
+        ["AAPL", "MSFT", "ZZZ"],
+        _write_csv(tmp_path),
+        info_fetch=_fake_info,
+        price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {},
+        sector_map={"ZZZ": "Energy"},  # ZZZ has no live sector
+    )
+    assert feats.loc["ZZZ", "sector"] == "Energy"
+    assert feats.loc["AAPL", "sector"] == "Technology"  # not in map -> live fallback
+
+
+def test_enrich_offline_map_overrides_live_sector(tmp_path):
+    """BUILD ③: static/offline sector outranks live yfinance (higher trust)."""
+    feats = enrich_features(
+        ["AAPL", "MSFT", "ZZZ"],
+        _write_csv(tmp_path),
+        info_fetch=_fake_info,
+        price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {},
+        sector_map={"AAPL": "Consumer Cyclical"},
+    )
+    assert feats.loc["AAPL", "sector"] == "Consumer Cyclical"
+
+
+def test_enrich_without_sector_map_is_unchanged(tmp_path):
+    """BUILD ③ back-compat: no map -> exactly today's live-only behavior."""
+    feats = enrich_features(
+        ["AAPL", "MSFT", "ZZZ"],
+        _write_csv(tmp_path),
+        info_fetch=_fake_info,
+        price_fetch=_fake_prices,
+        accruals_fetch=lambda tickers: {},
+    )
+    assert feats.loc["AAPL", "sector"] == "Technology"
+    assert pd.isna(feats.loc["ZZZ", "sector"])
+
+
 def test_frame_indexed_by_ticker_with_all_tickers(tmp_path):
     feats = _run(tmp_path)
     assert feats.index.name == "ticker"
