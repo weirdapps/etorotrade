@@ -98,3 +98,65 @@ def summarize_ic(ic_by_date: pd.Series) -> dict:
 def is_active(feature_name: str) -> bool:
     """True if the feature is in a live scoring cluster (else it is a discarded factor)."""
     return feature_name in _ACTIVE_FEATURES
+
+
+def beta_neutralize(fwd: pd.Series, beta: pd.Series) -> pd.Series:
+    """Cross-sectional residual of forward returns on beta.
+
+    Removes the market-beta component that dominates a trending regime (in a melt-up,
+    high-beta names win, which makes any low-beta-favouring factor look anti-predictive
+    on RAW returns). Per date: OLS ``r ~ a + b*beta``; return the residual, i.e. the
+    alpha net of a name's beta exposure. NaN-safe; <3 clean points -> all-NaN.
+    """
+    df = pd.DataFrame(
+        {"r": pd.to_numeric(fwd, errors="coerce"), "b": pd.to_numeric(beta, errors="coerce")}
+    ).dropna()
+    if len(df) < 3:
+        return pd.Series(np.nan, index=fwd.index)
+    x = np.column_stack([np.ones(len(df)), df["b"].to_numpy(dtype=float)])
+    coef, *_ = np.linalg.lstsq(x, df["r"].to_numpy(dtype=float), rcond=None)
+    resid = df["r"].to_numpy(dtype=float) - x @ coef
+    return pd.Series(resid, index=df.index).reindex(fwd.index)
+
+
+def sector_neutralize(fwd: pd.Series, sector: pd.Series) -> pd.Series:
+    """Demean forward returns within sector (removes sector-level moves)."""
+    r = pd.to_numeric(fwd, errors="coerce")
+    grp = pd.Series(sector).reindex(r.index).fillna("__NA__").astype(str)
+    return r - r.groupby(grp).transform("mean")
+
+
+def ic_by_sector(
+    df: pd.DataFrame,
+    z_col: str,
+    fwd_col: str,
+    sector_col: str,
+    *,
+    date_col: str = "date",
+    min_names_per_date: int = 8,
+) -> dict[str, dict]:
+    """Forward IC of one factor computed WITHIN each sector separately.
+
+    Answers "is this the right metric for this sector?" — e.g. whether P/E predicts
+    inside Financials as well as it does inside Technology. For each sector we keep
+    only date-slices with at least ``min_names_per_date`` names (a cross-sectional
+    rank needs a populated slice), then compute the per-date Spearman IC and average.
+
+    Returns ``{sector: {mean_ic, t_stat, n_dates, n_obs}}`` (thin sectors dropped).
+    """
+    from trade_modules.validation.xsection_ic import cross_sectional_ic
+
+    out: dict[str, dict] = {}
+    for sec, g in df.groupby(sector_col):
+        counts = g.groupby(date_col)[z_col].transform("size")
+        g2 = g[counts >= min_names_per_date].dropna(subset=[z_col, fwd_col])
+        if g2.empty or g2[date_col].nunique() < 1:
+            continue
+        ic = cross_sectional_ic(g2, z_col, fwd_col, date_col=date_col)
+        out[str(sec)] = {
+            "mean_ic": ic.get("mean_ic"),
+            "t_stat": ic.get("t_stat"),
+            "n_dates": ic.get("n_dates"),
+            "n_obs": int(len(g2)),
+        }
+    return out
