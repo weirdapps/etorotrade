@@ -504,6 +504,13 @@ def main() -> None:
     elig = scores.get("eligible", pd.Series(True, index=scores.index)).fillna(False).astype(bool)
     n_port = int((scores["is_portfolio"] & elig).sum())
     n_cand = int((~scores["is_portfolio"] & elig).sum())
+    # BUILD ⑥c (D25): EUR-denominated S&P 500 benchmark reference for the report.
+    from trade_modules.v3.benchmark import fetch_spy_eur_return_pct
+
+    spy_eur_1y = fetch_spy_eur_return_pct("1y")
+    if spy_eur_1y == spy_eur_1y:  # not NaN
+        print(f"benchmark: S&P 500 (EUR) 1y = {spy_eur_1y:+.1f}%")
+
     # Coverage: how much of the scored universe clears the eligibility bar (equity +
     # priced + >=3 of 6 clusters). A data-quality readout for the report.
     coverage = {
@@ -516,6 +523,7 @@ def main() -> None:
             if "roundtrip_cost_pct" in scores.columns and len(scores)
             else None
         ),
+        "spy_eur_1y_pct": (spy_eur_1y if spy_eur_1y == spy_eur_1y else None),
     }
 
     # --- Prices + market regime ---
