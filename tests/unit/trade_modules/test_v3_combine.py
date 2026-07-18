@@ -534,3 +534,34 @@ def test_fixnow_equal_weight_core_no_vq_floor():
     assert 0.0 < w["strength_z"] < w["growth_z"], "strength is a small cap"
     assert (w["value_z"] + w["quality_z"]) < 0.55, "no Value+Quality cap-as-floor"
     assert abs(sum(w.values()) - 1.0) < 1e-9
+
+
+def test_fixnow_equal_vol_standardize_gives_unit_std_columns():
+    """Equal-VOL: each cluster column is scaled to ~unit cross-sectional std, so equal
+    nominal weights are equal-RISK (a low-dispersion cluster no longer under-contributes).
+    Contemporaneous / per-snapshot -> look-ahead-free (D14 refinement)."""
+    from trade_modules.v3.combine import _equal_vol_standardize
+
+    zmat = pd.DataFrame(
+        {"a": [1.0, 2.0, 3.0, 4.0], "b": [10.0, 20.0, 30.0, 40.0]}  # b has 10x the spread
+    )
+    out = _equal_vol_standardize(zmat)
+    assert abs(float(out["a"].std(ddof=0)) - 1.0) < 1e-9
+    assert abs(float(out["b"].std(ddof=0)) - 1.0) < 1e-9
+
+
+def test_fixnow_equal_vol_standardize_is_nan_and_zero_std_safe():
+    """A NaN-bearing column keeps its NaNs; a constant (zero-std) column is left
+    unchanged (no divide-by-zero)."""
+    from trade_modules.v3.combine import _equal_vol_standardize
+
+    zmat = pd.DataFrame(
+        {
+            "with_nan": [1.0, np.nan, 3.0, 5.0],
+            "constant": [2.0, 2.0, 2.0, 2.0],  # zero std -> unchanged
+        }
+    )
+    out = _equal_vol_standardize(zmat)
+    assert pd.isna(out.loc[1, "with_nan"])
+    assert abs(float(out["with_nan"].std(ddof=0)) - 1.0) < 1e-9
+    assert list(out["constant"]) == [2.0, 2.0, 2.0, 2.0]
