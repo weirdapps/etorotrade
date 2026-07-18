@@ -461,9 +461,17 @@ def main() -> None:
     )
 
     # --- Feature enrichment + scoring with BALANCED cluster weights ---
+    from trade_modules.v3.sectors import load_offline_sector_map, update_sector_cache
+
+    sector_map = load_offline_sector_map()
     feats = enrich_features(
-        universe, ETORO_CSV, price_period="2y", accruals_fetch=lambda _tickers: {}
+        universe,
+        ETORO_CSV,
+        price_period="2y",
+        accruals_fetch=lambda _tickers: {},
+        sector_map=sector_map,
     )
+    update_sector_cache(feats["sector"].dropna().to_dict())  # grow the cache from live sectors
     priced = int(feats["mom_12_1"].notna().sum())
     enriched = int(feats["pb"].notna().sum())
     scores = compute_scores(feats, sector_neutral=True, cluster_weights=BALANCED_WEIGHTS)
