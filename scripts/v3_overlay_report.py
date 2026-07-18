@@ -84,7 +84,9 @@ _NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.10"))
 _SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.35"))
 _USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
 _REGION_CAP = float(os.environ.get("V3_REGION_CAP", "0.65"))
-_ADV_MIN = float(os.environ.get("V3_ADV_MIN", "1e6"))  # min avg dollar-volume/day (USD)
+_COPIER_MULT = float(
+    os.environ.get("V3_COPIER_MULT", "1.0")
+)  # scales the tier ADV floor for a copied book
 # Polymarket deployment dial. The signal is a shadow / ZERO-conviction cross-repo
 # input, so the book-moving tilt is OFF by default (V3_PM_MAX_TILT=0 -> advisory
 # only: the signal is fetched + shown in the report but does not move deployment).
@@ -480,18 +482,16 @@ def main() -> None:
     scores = compute_scores(feats, sector_neutral=True, cluster_weights=BALANCED_WEIGHTS)
     scores["is_portfolio"] = scores.index.isin(port_set)
 
-    # ADV liquidity gate: drop BUY CANDIDATES (not held) with a KNOWN ADV below the
-    # floor. Held names are exempt (never force-sold for liquidity); names with no
-    # volume data are kept (not penalized for a data gap). Positions run $5-10k, so a
-    # $1M/day floor clears cheaply. adv_usd is FX-normalized to USD in features.
+    # BUILD ⑥a: tiered, copier-aware ADV liquidity gate (replaces the flat $1M floor).
+    # Non-held names whose KNOWN adv_usd is below their cap-tier floor (MEGA $50M ..
+    # SMALL $5M, scaled by the copier multiplier) are dropped; held names and
+    # unknown-ADV names are exempt. adv_usd is FX-normalized to USD in features.
+    from trade_modules.v3.liquidity import liquidity_gate
+
     _cov_scored_before = len(scores)
-    if "adv_usd" in scores.columns and _ADV_MIN > 0:
-        _adv = pd.to_numeric(scores["adv_usd"], errors="coerce")
-        _illiquid = (~scores["is_portfolio"]) & _adv.notna() & (_adv < _ADV_MIN)
-        _n_illiquid = int(_illiquid.sum())
-        if _n_illiquid:
-            scores = scores[~_illiquid].copy()
-            print(f"ADV gate: dropped {_n_illiquid} candidates below ${_ADV_MIN:,.0f}/day ADV")
+    scores, _dropped_adv = liquidity_gate(scores, copier_multiplier=_COPIER_MULT)
+    if len(_dropped_adv):
+        print(f"ADV gate: dropped {len(_dropped_adv)} candidates below their cap-tier ADV floor")
 
     elig = scores.get("eligible", pd.Series(True, index=scores.index)).fillna(False).astype(bool)
     n_port = int((scores["is_portfolio"] & elig).sum())
