@@ -141,6 +141,46 @@ def _dedup_buy_candidates(cand_list: list[str], held: list[str], scored: pd.Data
     return out
 
 
+def _screen_buy_candidates(
+    cand_list: list[str],
+    scored: pd.DataFrame,
+    *,
+    max_short_interest: float | None,
+    min_current_ratio: float | None,
+    max_de: float | None,
+) -> tuple[list[str], list[str]]:
+    """FIX-NOW 2026-07-18 (D4/D8): drop squeeze-risky / distressed names from the BUY
+    pool. Applied to buys ONLY — never force-sells a holding.
+
+    A candidate is screened out when ANY active criterion trips:
+      * short_interest (% of float) > ``max_short_interest``  — squeeze/borrow risk;
+      * current_ratio < ``min_current_ratio``                 — distress (illiquid);
+      * de > ``max_de``                                       — distress (over-levered).
+    A criterion whose param is ``None`` is off; an absent column or NaN value never
+    excludes (missing data is not treated as distress). Returns (kept, screened_out).
+    """
+    if scored is None or not cand_list:
+        return cand_list, []
+
+    def _val(t: str, col: str) -> float:
+        if col not in scored.columns or t not in scored.index:
+            return float("nan")
+        try:
+            return float(scored.at[t, col])
+        except (TypeError, ValueError):
+            return float("nan")
+
+    kept: list[str] = []
+    out: list[str] = []
+    for t in cand_list:
+        si, cr, de = _val(t, "short_interest"), _val(t, "current_ratio"), _val(t, "de")
+        squeeze = max_short_interest is not None and pd.notna(si) and si > max_short_interest
+        illiquid = min_current_ratio is not None and pd.notna(cr) and cr < min_current_ratio
+        levered = max_de is not None and pd.notna(de) and de > max_de
+        (out if (squeeze or illiquid or levered) else kept).append(t)
+    return kept, out
+
+
 def _sector_labels(names: list[str], scored: pd.DataFrame) -> list[str]:
     """Uppercased sector label per name ("UNKNOWN" when missing)."""
     if scored is None or "sector" not in scored.columns:
@@ -170,6 +210,9 @@ def build_overlay(
     noncore_sell_floor: float = 0.0,
     protect_core: bool = False,
     core_floor: pd.Series | None = None,
+    max_short_interest: float | None = 20.0,
+    min_current_ratio: float | None = 1.0,
+    max_de: float | None = None,
 ) -> dict:
     """Build a minimal keep/sell/buy overlay on the live book, then risk-gate it.
 
@@ -269,12 +312,21 @@ def build_overlay(
 
     # BUY: strongest non-held eligible names clearing the buy percentile.
     bought: list[str] = []
+    screened_out: list[str] = []
     if not np.isnan(buy_threshold) and max_new > 0:
         cand = elig_conv[[t for t in elig_conv.index if t not in held_set]]
         cand = cand[cand >= buy_threshold].sort_values(ascending=False)
         # FIX A: never buy the same company twice, nor a dual listing of a name
         # already in the book (dedup the candidate pool + drop held companies).
         cand_list = _dedup_buy_candidates(list(cand.index), held, scored)
+        # FIX-NOW (D4/D8): drop squeeze-risky / distressed names from the buy pool.
+        cand_list, screened_out = _screen_buy_candidates(
+            cand_list,
+            scored,
+            max_short_interest=max_short_interest,
+            min_current_ratio=min_current_ratio,
+            max_de=max_de,
+        )
         bought = cand_list[: int(max_new)]
 
     # Pre-gate target: keeps anchored at current weight; buys funded from the freed
@@ -404,6 +456,7 @@ def build_overlay(
         "sold": sold,
         "kept": kept,
         "bought": bought,
+        "screened_out": screened_out,
         "gate": gate_diag,
         "core_floor_applied": core_floor_applied,
     }

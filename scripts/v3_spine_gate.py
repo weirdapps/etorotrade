@@ -15,6 +15,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+from trade_modules.v3.constants import V3_IC_HORIZONS
 from trade_modules.v3.fetch import robust_fetch_prices
 from trade_modules.v3.labels import forward_returns
 from trade_modules.v3.prices import load_eur_close
@@ -23,7 +24,7 @@ from trade_modules.v3.universe import load_universe
 from trade_modules.v3.validate_spine import classify_regimes, run_gate
 
 ETORO_CSV = "yahoofinance/output/etoro.csv"
-HORIZONS = [5, 21, 63]
+HORIZONS = list(V3_IC_HORIZONS)
 
 
 def weekly_rebalances(index) -> list:

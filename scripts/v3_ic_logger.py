@@ -26,6 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from trade_modules.v3.constants import V3_IC_HORIZONS  # noqa: E402
 from trade_modules.validation.xsection_ic import cross_sectional_ic  # noqa: E402
 
 PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
@@ -177,7 +178,7 @@ def forward_return_panel(log_df: pd.DataFrame, horizon: int) -> pd.DataFrame:
 
 def ic_from_log(
     log_df: pd.DataFrame,
-    horizons: tuple[int, ...] = (5, 10, 21, 63),
+    horizons: tuple[int, ...] = V3_IC_HORIZONS,
 ) -> dict:
     """Compute cross-sectional IC for each horizon from the IC log.
 
@@ -258,21 +259,34 @@ def main() -> None:
     # Lazy imports: avoid module-level yahoofinance.core.config import.
     from trade_modules.v3.combine import compute_scores  # noqa: PLC0415
     from trade_modules.v3.features import enrich_features  # noqa: PLC0415
+    from trade_modules.v3.sectors import (  # noqa: PLC0415
+        load_offline_sector_map,
+        update_sector_cache,
+    )
+    from trade_modules.v3.universe import assemble_scored_universe  # noqa: PLC0415
 
     # --- Universe assembly (mirrors v3_full_report.py exactly) ---
     port = _read_tickers(PORTFOLIO_CSV)
     buy = _read_tickers(BUY_CSV)
     port_set = set(port)
-    universe = list(dict.fromkeys(port + buy))
+    # BUILD ④: coverage-gated broad universe ∪ holdings ∪ analyst candidates,
+    # replacing the analyst AND-gate (which scored only ~3% of the universe).
+    universe = assemble_scored_universe(ETORO_CSV, port, buy)
     print(
-        f"universe: {len(universe)} tickers ({len(port_set)} portfolio + "
-        f"{len(set(buy) - port_set)} candidates)"
+        f"universe: {len(universe)} tickers (coverage-gated ∪ {len(port_set)} held "
+        f"∪ {len(set(buy) - port_set)} analyst candidates)"
     )
 
     # --- Feature enrichment + scoring ---
+    sector_map = load_offline_sector_map()
     feats = enrich_features(
-        universe, ETORO_CSV, price_period="2y", accruals_fetch=lambda _tickers: {}
+        universe,
+        ETORO_CSV,
+        price_period="2y",
+        accruals_fetch=lambda _tickers: {},
+        sector_map=sector_map,
     )
+    update_sector_cache(feats["sector"].dropna().to_dict())  # grow the cache from live sectors
     scores = compute_scores(feats, sector_neutral=True)
 
     # --- Filter to eligible names only ---

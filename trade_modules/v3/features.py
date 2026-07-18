@@ -21,6 +21,7 @@ import pandas as pd
 
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.v3.fetch import robust_fetch_prices
+from trade_modules.v3.integrity import validate_panel
 from trade_modules.v3.universe import parse_cap
 
 # Approximate spot FX rates (local currency -> USD), for normalizing eToro's
@@ -332,6 +333,7 @@ def enrich_features(
     info_fetch=None,
     price_fetch=None,
     accruals_fetch=None,
+    sector_map: dict | None = None,
 ) -> pd.DataFrame:
     """Build the merged per-ticker feature frame (indexed by ticker).
 
@@ -348,6 +350,11 @@ def enrich_features(
             :func:`_default_accruals_fetch` (throttled yfinance, skip-not-raise).
             Pass ``lambda tickers: {}`` to skip the network call in report runs
             that supply a pre-cached value or don't need the column.
+        sector_map: optional ``{TICKER_UPPER: sector}`` offline map (static index
+            map + persistent cache, see ``trade_modules.v3.sectors``). When given,
+            ``sector`` is resolved offline-first, falling back to live yfinance for
+            names the map does not cover. When None/empty, behaviour is unchanged
+            (live yfinance only).
 
     Returns:
         pd.DataFrame indexed by ticker with native + added + derived columns.
@@ -364,6 +371,7 @@ def enrich_features(
 
     # --- (1) native factors from the etoro CSV ---
     raw = pd.read_csv(etoro_csv_path, na_values=["--"])
+    raw = validate_panel(raw, source=str(etoro_csv_path))
     raw = raw.drop_duplicates(subset="TKR", keep="first").set_index("TKR")
     native = pd.DataFrame(index=raw.index)
     native["name"] = raw["NAME"].astype("object") if "NAME" in raw.columns else pd.NA
@@ -383,6 +391,12 @@ def enrich_features(
         added[feat] = pd.to_numeric(vals, errors="coerce")
     for key, feat in _INFO_STR.items():
         added[feat] = [info.get(t, {}).get(key) for t in tickers]
+    # BUILD ③: prefer the offline/cached sector map (static index > cache) when
+    # provided; fall back to the live yfinance .info sector for names it misses.
+    if sector_map:
+        added["sector"] = [
+            sector_map.get(str(t).upper()) or info.get(t, {}).get("sector") for t in tickers
+        ]
     # Truncate description to ~220 chars at a clean boundary; NaN/None → "".
     added["description"] = added["description"].apply(_truncate_description)
 

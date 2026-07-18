@@ -58,36 +58,42 @@ CLUSTERS = {
     # (rho 0.75/0.77) and of each other (pe_forward~ps_sector 0.98) -> double-counted
     # valuation. Kept a diverse trio: earnings (pe_trailing), book (pb), enterprise
     # (ev_ebitda). Pruned metrics still SHOWN as raw context in the card, not scored.
-    "value_z": ["pe_trailing", "pb", "ev_ebitda"],
-    "quality_z": [
-        "roe",
-        "roa",
-        "gross_margin",
-        "op_margin",
-        "fcf",
-        "current_ratio",
-        "de",
-        "accruals",
-    ],
+    # FIX-NOW 2026-07-18 (D7): raw P/B dropped (degrades in an intangible-heavy
+    # mega-cap-tech universe — shorts the R&D/brand compounders). Anchor on
+    # EV/EBITDA + trailing earnings yield. Intangibles-adjusted book -> BUILD.
+    "value_z": ["pe_trailing", "ev_ebitda"],
+    # FIX-NOW 2026-07-18 (D8): interim quality = ROE + FCF (panel-available).
+    # GP/assets + operating-profitability/assets are the Novy-Marx anchors but need
+    # Total Assets / Gross Profit -> BUILD. de + current_ratio -> distress filter
+    # (financial strength, not profitability). accruals -> shadow (non-PIT, needs a
+    # point-in-time balance sheet). roa / per-sales margins retired for the interim.
+    "quality_z": ["roe", "fcf"],
     # price_perf pruned 2026-07-14: rho 0.95 with mom_12_1 (same price move counted
     # twice). Kept the academic 12-1 skip-month + 52w-high proximity (distinct).
     "momentum_z": ["mom_12_1", "pct_52w_high"],
     "growth_z": ["earn_growth", "rev_growth"],
     "lowvol_z": ["beta", "realized_vol"],
-    "strength_z": ["analyst_mom", "upside", "buy_pct", "short_interest", "target_dispersion"],
+    # FIX-NOW 2026-07-18 (agreed setup D2-D6): strength collapses to analyst_mom
+    # alone. upside (contaminated/contrarian), buy_pct (zero-IC level),
+    # short_interest (→ squeeze-exclude gate) and target_dispersion (non-PIT,
+    # discarded) are removed from scoring. Raw columns stay in the feature frame.
+    "strength_z": ["analyst_mom"],
 }
 
-# Cluster weights: Value + Quality = 0.55 (the ~55% joint cap), rest sum to 0.45.
-# Growth carries ZERO weight by default — it exists as a 6th cluster but is OFF
-# in the default / IC path (backward-compat: the default model is unchanged).
-# The growth rebalance is exposed only via the explicit ``cluster_weights`` arg.
+# FIX-NOW 2026-07-18 (D14/D6b/D11/D7): equal-risk core, NO discretionary tilt, and
+# NO Value+Quality cap-as-floor. Core (value/quality/momentum/lowvol) equal; growth a
+# reduced satellite; strength (analyst_mom only) a small cap. Sum = 1.0. Weight
+# ESTIMATION is frozen (no MVO/IC-fit on the ~5-mo panel — forecast-combination puzzle);
+# the ic_weights path stays available for the later sizing tier. (True equal-VOL
+# standardization of the cluster z's is a fast-follow refinement; this sets the
+# equal-risk nominal shares and removes the 0.55 VQ floor.)
 CLUSTER_WEIGHTS = {
-    "value_z": 0.275,
-    "quality_z": 0.275,
-    "momentum_z": 0.20,
-    "growth_z": 0.0,
-    "lowvol_z": 0.15,
-    "strength_z": 0.10,
+    "value_z": 0.21,
+    "quality_z": 0.21,
+    "momentum_z": 0.21,
+    "growth_z": 0.11,
+    "lowvol_z": 0.21,
+    "strength_z": 0.05,
 }
 
 # The Value+Quality joint weight is capped here regardless of the weighting scheme.
@@ -225,6 +231,22 @@ def _z_plain(s: pd.Series) -> pd.Series:
     return (x - mu) / sd
 
 
+def _equal_vol_standardize(zmat: pd.DataFrame) -> pd.DataFrame:
+    """Scale each cluster-z column to ~unit cross-sectional std (population, ddof=0).
+
+    FIX-NOW 2026-07-18 (D14): "true equal-vol". Cluster-z's are means of member
+    rank-z's, so a cluster with more (or more-correlated) members has a lower
+    cross-sectional dispersion and would UNDER-contribute under equal nominal
+    weights. Dividing each cluster by its own cross-sectional std makes the
+    equal-risk nominal weights genuinely equal-RISK. A zero-/near-zero-std or
+    all-NaN column is left unchanged (no divide-by-zero); NaNs are preserved.
+    Computed per-snapshot on the current cross-section only -> no look-ahead.
+    """
+    std = zmat.std(axis=0, ddof=0)
+    denom = std.where(std > 1e-12, 1.0)
+    return zmat.divide(denom, axis=1)
+
+
 def _sector_demean(z: pd.Series, sector: pd.Series) -> pd.Series:
     """Subtract the within-sector mean of z. Missing sectors form one fallback
     group (their own subset mean), leaving the global ~0-mean z ~unchanged."""
@@ -316,6 +338,10 @@ def compute_scores(
     # Weighted conviction, renormalized per-row over the clusters actually present.
     cluster_names = list(CLUSTERS.keys())
     zmat = out[cluster_names]
+    # Equal-VOL standardize the cluster-z's so the equal-risk nominal weights are
+    # truly equal-RISK (the stored {cluster}_z columns stay RAW; only conviction
+    # uses the standardized matrix).
+    zmat_ev = _equal_vol_standardize(zmat)
     weights = pd.Series(resolve_cluster_weights(cluster_weights, ic_weights, cluster_names))[
         cluster_names
     ]
@@ -323,9 +349,9 @@ def compute_scores(
         np.tile(weights.to_numpy(), (len(out), 1)),
         index=out.index,
         columns=cluster_names,
-    ).where(zmat.notna())
+    ).where(zmat_ev.notna())
     wsum = wmat.sum(axis=1)
-    conv_raw = (zmat * wmat).sum(axis=1) / wsum.where(wsum > 0)
+    conv_raw = (zmat_ev * wmat).sum(axis=1) / wsum.where(wsum > 0)
 
     # Eligibility gate: ineligible names never enter the ranked cross-section,
     # so their conviction is NaN (which yields a NaN rank) and the re-z baseline

@@ -84,7 +84,9 @@ _NAME_CAP = float(os.environ.get("V3_NAME_CAP", "0.10"))
 _SECTOR_CAP = float(os.environ.get("V3_SECTOR_CAP", "0.35"))
 _USD_BLOC_CAP = float(os.environ.get("V3_USD_BLOC_CAP", "0.60"))
 _REGION_CAP = float(os.environ.get("V3_REGION_CAP", "0.65"))
-_ADV_MIN = float(os.environ.get("V3_ADV_MIN", "1e6"))  # min avg dollar-volume/day (USD)
+_COPIER_MULT = float(
+    os.environ.get("V3_COPIER_MULT", "1.0")
+)  # scales the tier ADV floor for a copied book
 # Polymarket deployment dial. The signal is a shadow / ZERO-conviction cross-repo
 # input, so the book-moving tilt is OFF by default (V3_PM_MAX_TILT=0 -> advisory
 # only: the signal is fetched + shown in the report but does not move deployment).
@@ -450,41 +452,65 @@ def write_preview(out: str = PREVIEW_OUT) -> str:
 
 
 def main() -> None:
-    # --- Universe assembly (mirrors v3_full_report.py) ---
+    # --- Universe assembly: coverage-gated ∪ holdings ∪ analyst candidates (BUILD ④) ---
+    from trade_modules.v3.universe import assemble_scored_universe
+
     port = _read_tickers(PORTFOLIO_CSV)
     buy = _read_tickers(BUY_CSV)
     port_set = set(port)
-    universe = list(dict.fromkeys(port + buy))
+    # Coverage-gated broad universe replaces the analyst AND-gate (which scored ~3%).
+    universe = assemble_scored_universe(ETORO_CSV, port, buy)
     print(
-        f"universe: {len(universe)} tickers ({len(port_set)} portfolio + "
-        f"{len(set(buy) - port_set)} candidates)"
+        f"universe: {len(universe)} tickers (coverage-gated ∪ {len(port_set)} held "
+        f"∪ {len(set(buy) - port_set)} analyst candidates)"
     )
 
     # --- Feature enrichment + scoring with BALANCED cluster weights ---
+    from trade_modules.v3.sectors import load_offline_sector_map, update_sector_cache
+
+    sector_map = load_offline_sector_map()
     feats = enrich_features(
-        universe, ETORO_CSV, price_period="2y", accruals_fetch=lambda _tickers: {}
+        universe,
+        ETORO_CSV,
+        price_period="2y",
+        accruals_fetch=lambda _tickers: {},
+        sector_map=sector_map,
     )
+    update_sector_cache(feats["sector"].dropna().to_dict())  # grow the cache from live sectors
     priced = int(feats["mom_12_1"].notna().sum())
     enriched = int(feats["pb"].notna().sum())
     scores = compute_scores(feats, sector_neutral=True, cluster_weights=BALANCED_WEIGHTS)
     scores["is_portfolio"] = scores.index.isin(port_set)
 
-    # ADV liquidity gate: drop BUY CANDIDATES (not held) with a KNOWN ADV below the
-    # floor. Held names are exempt (never force-sold for liquidity); names with no
-    # volume data are kept (not penalized for a data gap). Positions run $5-10k, so a
-    # $1M/day floor clears cheaply. adv_usd is FX-normalized to USD in features.
+    # BUILD ⑥a: tiered, copier-aware ADV liquidity gate (replaces the flat $1M floor).
+    # Non-held names whose KNOWN adv_usd is below their cap-tier floor (MEGA $50M ..
+    # SMALL $5M, scaled by the copier multiplier) are dropped; held names and
+    # unknown-ADV names are exempt. adv_usd is FX-normalized to USD in features.
+    from trade_modules.v3.liquidity import liquidity_gate
+
     _cov_scored_before = len(scores)
-    if "adv_usd" in scores.columns and _ADV_MIN > 0:
-        _adv = pd.to_numeric(scores["adv_usd"], errors="coerce")
-        _illiquid = (~scores["is_portfolio"]) & _adv.notna() & (_adv < _ADV_MIN)
-        _n_illiquid = int(_illiquid.sum())
-        if _n_illiquid:
-            scores = scores[~_illiquid].copy()
-            print(f"ADV gate: dropped {_n_illiquid} candidates below ${_ADV_MIN:,.0f}/day ADV")
+    scores, _dropped_adv = liquidity_gate(scores, copier_multiplier=_COPIER_MULT)
+    if len(_dropped_adv):
+        print(f"ADV gate: dropped {len(_dropped_adv)} candidates below their cap-tier ADV floor")
+
+    # BUILD ⑥b: attach each name's round-trip cost (spread-by-tier + eToro financing
+    # over the ~30d holding horizon) so the book's trading hurdle is surfaced. The
+    # net-of-cost IR gate + action-level cost suppression are deferred follow-ups.
+    from trade_modules.v3.costs import roundtrip_cost_pct
+
+    if "cap" in scores.columns:
+        scores["roundtrip_cost_pct"] = scores["cap"].map(roundtrip_cost_pct)
 
     elig = scores.get("eligible", pd.Series(True, index=scores.index)).fillna(False).astype(bool)
     n_port = int((scores["is_portfolio"] & elig).sum())
     n_cand = int((~scores["is_portfolio"] & elig).sum())
+    # BUILD ⑥c (D25): EUR-denominated S&P 500 benchmark reference for the report.
+    from trade_modules.v3.benchmark import fetch_spy_eur_return_pct
+
+    spy_eur_1y = fetch_spy_eur_return_pct("1y")
+    if pd.notna(spy_eur_1y):
+        print(f"benchmark: S&P 500 (EUR) 1y = {spy_eur_1y:+.1f}%")
+
     # Coverage: how much of the scored universe clears the eligibility bar (equity +
     # priced + >=3 of 6 clusters). A data-quality readout for the report.
     coverage = {
@@ -492,6 +518,12 @@ def main() -> None:
         "n_eligible": int(elig.sum()),
         "pct": (int(elig.sum()) / len(scores)) if len(scores) else 0.0,
         "adv_dropped": _cov_scored_before - len(scores),
+        "median_roundtrip_cost_pct": (
+            float(scores["roundtrip_cost_pct"].median())
+            if "roundtrip_cost_pct" in scores.columns and len(scores)
+            else None
+        ),
+        "spy_eur_1y_pct": (float(spy_eur_1y) if pd.notna(spy_eur_1y) else None),
     }
 
     # --- Prices + market regime ---
