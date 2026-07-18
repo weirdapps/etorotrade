@@ -23,3 +23,12 @@ V3_SIGNAL_HORIZON = 21
 # Unified IC / gate measurement grid: fast diagnostic (5), primary (21), slow
 # value/quality secondary (63). V3_SIGNAL_HORIZON MUST be a member of this grid.
 V3_IC_HORIZONS = (5, 21, 63)
+
+# BUILD ④ (2026-07-18): coverage-gate universe selector — replaces the analyst
+# AND-gate (which scored only ~3% of the universe and anti-selected momentum:
+# upside<->52wk-high rho = -0.72). A name is scored when >= MIN_FACTOR_COVERAGE of
+# these seven panel-native factor inputs are present. Owner decision: >=6/7 — at
+# most one of the six clusters is degraded per name (52W is always present), 25x
+# today's universe (~2,580 names), and it cuts the data-thin tail (1-2 factors).
+COVERAGE_FACTORS = ("PET", "ROE", "FCF", "52W", "B", "AM", "EG")
+MIN_FACTOR_COVERAGE = 6

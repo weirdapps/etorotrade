@@ -450,14 +450,17 @@ def write_preview(out: str = PREVIEW_OUT) -> str:
 
 
 def main() -> None:
-    # --- Universe assembly (mirrors v3_full_report.py) ---
+    # --- Universe assembly: coverage-gated ∪ holdings ∪ analyst candidates (BUILD ④) ---
+    from trade_modules.v3.universe import assemble_scored_universe
+
     port = _read_tickers(PORTFOLIO_CSV)
     buy = _read_tickers(BUY_CSV)
     port_set = set(port)
-    universe = list(dict.fromkeys(port + buy))
+    # Coverage-gated broad universe replaces the analyst AND-gate (which scored ~3%).
+    universe = assemble_scored_universe(ETORO_CSV, port, buy)
     print(
-        f"universe: {len(universe)} tickers ({len(port_set)} portfolio + "
-        f"{len(set(buy) - port_set)} candidates)"
+        f"universe: {len(universe)} tickers (coverage-gated ∪ {len(port_set)} held "
+        f"∪ {len(set(buy) - port_set)} analyst candidates)"
     )
 
     # --- Feature enrichment + scoring with BALANCED cluster weights ---

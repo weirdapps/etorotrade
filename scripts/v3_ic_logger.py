@@ -263,15 +263,18 @@ def main() -> None:
         load_offline_sector_map,
         update_sector_cache,
     )
+    from trade_modules.v3.universe import assemble_scored_universe  # noqa: PLC0415
 
     # --- Universe assembly (mirrors v3_full_report.py exactly) ---
     port = _read_tickers(PORTFOLIO_CSV)
     buy = _read_tickers(BUY_CSV)
     port_set = set(port)
-    universe = list(dict.fromkeys(port + buy))
+    # BUILD ④: coverage-gated broad universe ∪ holdings ∪ analyst candidates,
+    # replacing the analyst AND-gate (which scored only ~3% of the universe).
+    universe = assemble_scored_universe(ETORO_CSV, port, buy)
     print(
-        f"universe: {len(universe)} tickers ({len(port_set)} portfolio + "
-        f"{len(set(buy) - port_set)} candidates)"
+        f"universe: {len(universe)} tickers (coverage-gated ∪ {len(port_set)} held "
+        f"∪ {len(set(buy) - port_set)} analyst candidates)"
     )
 
     # --- Feature enrichment + scoring ---
