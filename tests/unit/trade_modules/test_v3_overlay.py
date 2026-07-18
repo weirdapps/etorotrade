@@ -398,3 +398,69 @@ def test_buy_skips_candidate_already_held_as_dual_listing():
     assert "AMC.AX" not in d["bought"]  # same company as a held name -> skipped
     assert "BUYME" in d["bought"]  # the unrelated strong name is still bought
     assert "AMCR" in d["kept"]
+
+
+# --------------------------------------------------------------------------- #
+# FIX-NOW (D4/D8): squeeze-exclude gate + de/current_ratio distress filter on BUYS
+# --------------------------------------------------------------------------- #
+
+
+def test_fixnow_squeeze_gate_excludes_high_si_buy_candidate():
+    """A strong non-held candidate with short interest above the squeeze threshold
+    is NOT bought (squeeze/borrow risk); clean candidates are bought instead. The
+    screen applies to BUYS only — it never force-sells a holding."""
+    _tks, _convs, sc = _universe20()
+    sc["short_interest"] = np.nan
+    sc.loc["U00", "short_interest"] = 40.0  # % of float, above the 20% default
+    current = pd.Series({"U10": 0.3})  # a middling holding
+
+    d = build_overlay(sc, current, pd.DataFrame(), max_new=2)["diagnostics"]
+    assert "U00" not in d["bought"], "high-short-interest name must be screened from buys"
+    assert set(d["bought"]) == {"U01", "U02"}
+    assert "U00" in d.get("screened_out", [])
+
+
+def test_fixnow_distress_filter_excludes_low_current_ratio_buy():
+    """A strong non-held candidate with current_ratio below the distress floor
+    (< 1.0 = cannot cover short-term liabilities) is not bought."""
+    _tks, _convs, sc = _universe20()
+    sc["current_ratio"] = np.nan
+    sc.loc["U00", "current_ratio"] = 0.5  # distressed liquidity
+    current = pd.Series({"U10": 0.3})
+
+    d = build_overlay(sc, current, pd.DataFrame(), max_new=2)["diagnostics"]
+    assert "U00" not in d["bought"]
+    assert set(d["bought"]) == {"U01", "U02"}
+
+
+def test_fixnow_de_distress_screen_only_when_threshold_set():
+    """The debt/equity leg is opt-in (max_de): OFF by default (scale unconfirmed),
+    active only when a threshold is passed."""
+    _tks, _convs, sc = _universe20()
+    sc["de"] = np.nan
+    sc.loc["U00", "de"] = 5.0
+    current = pd.Series({"U10": 0.3})
+
+    # default: de screen OFF -> U00 (strongest) is bought.
+    off = build_overlay(sc, current, pd.DataFrame(), max_new=2)["diagnostics"]
+    assert "U00" in off["bought"]
+    # threshold set -> U00 excluded as over-levered.
+    on = build_overlay(sc, current, pd.DataFrame(), max_new=2, max_de=2.0)["diagnostics"]
+    assert "U00" not in on["bought"]
+    assert set(on["bought"]) == {"U01", "U02"}
+
+
+def test_fixnow_screen_tolerates_missing_data_and_spares_holdings():
+    """No screen columns / NaN values -> no exclusion (buys unchanged); a HELD name
+    with high SI is never force-sold by the screen (buys-only)."""
+    _tks, _convs, sc = _universe20()  # no short_interest/current_ratio/de columns
+    current = pd.Series({"U10": 0.3})
+    base = build_overlay(sc, current, pd.DataFrame(), max_new=2)["diagnostics"]
+    assert set(base["bought"]) == {"U00", "U01"}  # unchanged from the no-screen contract
+
+    # A held, squeeze-risky name is NOT sold by the screen (screen only gates buys).
+    sc2 = sc.copy()
+    sc2["short_interest"] = np.nan
+    sc2.loc["U10", "short_interest"] = 90.0  # held + very high SI
+    held = build_overlay(sc2, current, pd.DataFrame(), max_new=2)["diagnostics"]
+    assert "U10" not in held["sold"] and "U10" in held["kept"]
