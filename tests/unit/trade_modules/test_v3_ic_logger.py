@@ -187,11 +187,23 @@ class TestAppendSnapshot:
         assert len(df) == 2 * len(scored)
 
     def test_log_schema_correct(self, tmp_path):
-        """CSV must have exactly the five schema columns."""
+        """CSV must have the base schema + the per-cluster z columns (backtest wiring)."""
         log_path = tmp_path / "log.csv"
         append_snapshot(str(log_path), "2026-07-01", _scored_frame())
         df = pd.read_csv(log_path)
-        assert set(df.columns) == {"date", "ticker", "conviction", "sector", "close"}
+        assert set(df.columns) == {
+            "date",
+            "ticker",
+            "conviction",
+            "sector",
+            "close",
+            "value_z",
+            "quality_z",
+            "momentum_z",
+            "growth_z",
+            "lowvol_z",
+            "strength_z",
+        }
 
     def test_close_sourced_from_price_column(self, tmp_path):
         log_path = tmp_path / "log.csv"
@@ -316,3 +328,61 @@ class TestIcFromLog:
         results = ic_from_log(empty, horizons=(1, 5))
         for h in (1, 5):
             assert results[h].get("insufficient_history") is True
+
+
+# ---------------------------------------------------------------------------
+# Per-cluster logging + signal_col IC (backtest wiring, part B)
+# ---------------------------------------------------------------------------
+
+
+def test_append_snapshot_captures_cluster_z(tmp_path):
+    log_path = tmp_path / "log.csv"
+    scored = pd.DataFrame(
+        {
+            "conviction": [0.5, -0.2],
+            "sector": ["Tech", "Fin"],
+            "price": [100.0, 200.0],
+            "value_z": [1.1, -0.3],
+            "quality_z": [0.4, 0.2],
+            "momentum_z": [0.0, 1.0],
+            "growth_z": [0.1, 0.1],
+            "lowvol_z": [-0.5, 0.5],
+            "strength_z": [0.2, -0.2],
+        },
+        index=["AAA", "BBB"],
+    )
+    append_snapshot(str(log_path), "2026-07-01", scored)
+    df = pd.read_csv(log_path).set_index("ticker")
+    for cz in ("value_z", "quality_z", "momentum_z", "growth_z", "lowvol_z", "strength_z"):
+        assert cz in df.columns
+    assert df.loc["AAA", "value_z"] == 1.1
+    assert df.loc["BBB", "lowvol_z"] == 0.5
+
+
+def test_ic_from_log_measures_per_cluster_signal():
+    # A log where value_z predicts the next-step forward return.
+    rng = np.random.default_rng(3)
+    n_dates, n_t = 24, 30
+    dates = [f"2026-01-{d + 1:02d}" for d in range(n_dates)]
+    tk = [f"T{i:02d}" for i in range(n_t)]
+    vz = rng.standard_normal((n_dates, n_t))
+    prices = np.ones((n_dates, n_t)) * 100.0
+    for d in range(1, n_dates):
+        prices[d] = prices[d - 1] * (1 + vz[d - 1] * 0.05 + rng.standard_normal(n_t) * 0.002)
+    rows = []
+    for di, dt in enumerate(dates):
+        for ti, t in enumerate(tk):
+            rows.append(
+                {
+                    "date": dt,
+                    "ticker": t,
+                    "conviction": 0.0,
+                    "sector": "X",
+                    "close": float(prices[di, ti]),
+                    "value_z": float(vz[di, ti]),
+                }
+            )
+    log = pd.DataFrame(rows)
+    res = ic_from_log(log, horizons=(1,), signal_col="value_z")
+    assert "insufficient_history" not in res[1]
+    assert res[1]["mean_ic"] > 0.1  # value_z predicts -> positive cluster IC

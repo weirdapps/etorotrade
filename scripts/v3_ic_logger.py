@@ -34,7 +34,11 @@ BUY_CSV = "yahoofinance/output/buy.csv"
 ETORO_CSV = "yahoofinance/output/etoro.csv"
 
 DEFAULT_LOG = "~/.weirdapps-trading/v3_ic_log.csv"
-LOG_COLUMNS = ["date", "ticker", "conviction", "sector", "close"]
+# Per-cluster z's are logged alongside the composite conviction so forward IC can be
+# measured PER CLUSTER from the live log, not just for the composite. Older logs that
+# predate this lack the columns -> they read back as NaN (handled downstream).
+_CLUSTER_Z = ("value_z", "quality_z", "momentum_z", "growth_z", "lowvol_z", "strength_z")
+LOG_COLUMNS = ["date", "ticker", "conviction", "sector", "close", *_CLUSTER_Z]
 
 
 # ---------------------------------------------------------------------------
@@ -83,15 +87,17 @@ def append_snapshot(
         conv_val = row.get("conviction", np.nan)
         sect_val = row.get("sector", "")
 
-        rows.append(
-            {
-                "date": date,
-                "ticker": str(ticker),
-                "conviction": float(conv_val) if pd.notna(conv_val) else np.nan,
-                "sector": str(sect_val) if pd.notna(sect_val) else "",
-                "close": float(close_val) if pd.notna(close_val) else np.nan,
-            }
-        )
+        rec = {
+            "date": date,
+            "ticker": str(ticker),
+            "conviction": float(conv_val) if pd.notna(conv_val) else np.nan,
+            "sector": str(sect_val) if pd.notna(sect_val) else "",
+            "close": float(close_val) if pd.notna(close_val) else np.nan,
+        }
+        for cz in _CLUSTER_Z:  # per-cluster z for per-cluster forward IC
+            v = row.get(cz, np.nan)
+            rec[cz] = float(v) if pd.notna(v) else np.nan
+        rows.append(rec)
 
     if not rows:
         return 0
@@ -104,8 +110,13 @@ def append_snapshot(
     return len(rows)
 
 
-def forward_return_panel(log_df: pd.DataFrame, horizon: int) -> pd.DataFrame:
-    """Build (signal_date, ticker, conviction, forward_return) panel.
+def forward_return_panel(
+    log_df: pd.DataFrame, horizon: int, signal_col: str = "conviction"
+) -> pd.DataFrame:
+    """Build (signal_date, ticker, <signal_col>, forward_return) panel.
+
+    ``signal_col`` selects which logged column is the signal (default the composite
+    ``conviction``; pass e.g. ``"value_z"`` to measure a single cluster's IC).
 
     For each unique date at sorted position ``i`` in the log, the forward date
     is the date at position ``i + horizon`` (log-row steps, not calendar days).
@@ -124,7 +135,7 @@ def forward_return_panel(log_df: pd.DataFrame, horizon: int) -> pd.DataFrame:
         ``[signal_date, ticker, conviction, forward_return]``.
         Empty when there are fewer than ``horizon + 1`` distinct dates.
     """
-    empty = pd.DataFrame(columns=["signal_date", "ticker", "conviction", "forward_return"])
+    empty = pd.DataFrame(columns=["signal_date", "ticker", signal_col, "forward_return"])
     if log_df is None or log_df.empty:
         return empty
 
@@ -138,10 +149,8 @@ def forward_return_panel(log_df: pd.DataFrame, horizon: int) -> pd.DataFrame:
     # Build a (date, ticker) -> close pivot for fast lookups.
     pivot = log.pivot_table(index="date", columns="ticker", values="close", aggfunc="first")
 
-    # Build (date, ticker) -> conviction lookup.
-    conv_pivot = log.pivot_table(
-        index="date", columns="ticker", values="conviction", aggfunc="first"
-    )
+    # Build (date, ticker) -> signal lookup (conviction, or a cluster-z).
+    conv_pivot = log.pivot_table(index="date", columns="ticker", values=signal_col, aggfunc="first")
 
     records = []
     for i, signal_date in enumerate(dates):
@@ -166,7 +175,7 @@ def forward_return_panel(log_df: pd.DataFrame, horizon: int) -> pd.DataFrame:
                 {
                     "signal_date": signal_date,
                     "ticker": ticker,
-                    "conviction": conviction,
+                    signal_col: conviction,
                     "forward_return": close_fut / close_sig - 1.0,
                 }
             )
@@ -179,6 +188,7 @@ def forward_return_panel(log_df: pd.DataFrame, horizon: int) -> pd.DataFrame:
 def ic_from_log(
     log_df: pd.DataFrame,
     horizons: tuple[int, ...] = V3_IC_HORIZONS,
+    signal_col: str = "conviction",
 ) -> dict:
     """Compute cross-sectional IC for each horizon from the IC log.
 
@@ -220,7 +230,7 @@ def ic_from_log(
             }
             continue
 
-        panel = forward_return_panel(log_df, h)
+        panel = forward_return_panel(log_df, h, signal_col=signal_col)
         if panel.empty or len(panel) == 0:
             results[h] = {
                 "insufficient_history": True,
@@ -232,7 +242,7 @@ def ic_from_log(
 
         ic = cross_sectional_ic(
             panel,
-            signal_col="conviction",
+            signal_col=signal_col,
             forward_col="forward_return",
             date_col="signal_date",
         )
