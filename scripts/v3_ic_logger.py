@@ -26,6 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from trade_modules.v3.constants import V3_IC_HORIZONS  # noqa: E402
 from trade_modules.validation.xsection_ic import cross_sectional_ic  # noqa: E402
 
 PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
@@ -177,7 +178,7 @@ def forward_return_panel(log_df: pd.DataFrame, horizon: int) -> pd.DataFrame:
 
 def ic_from_log(
     log_df: pd.DataFrame,
-    horizons: tuple[int, ...] = (5, 10, 21, 63),
+    horizons: tuple[int, ...] = V3_IC_HORIZONS,
 ) -> dict:
     """Compute cross-sectional IC for each horizon from the IC log.
 
