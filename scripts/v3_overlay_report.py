@@ -493,6 +493,14 @@ def main() -> None:
     if len(_dropped_adv):
         print(f"ADV gate: dropped {len(_dropped_adv)} candidates below their cap-tier ADV floor")
 
+    # BUILD ⑥b: attach each name's round-trip cost (spread-by-tier + eToro financing
+    # over the ~30d holding horizon) so the book's trading hurdle is surfaced. The
+    # net-of-cost IR gate + action-level cost suppression are deferred follow-ups.
+    from trade_modules.v3.costs import roundtrip_cost_pct
+
+    if "cap" in scores.columns:
+        scores["roundtrip_cost_pct"] = scores["cap"].map(roundtrip_cost_pct)
+
     elig = scores.get("eligible", pd.Series(True, index=scores.index)).fillna(False).astype(bool)
     n_port = int((scores["is_portfolio"] & elig).sum())
     n_cand = int((~scores["is_portfolio"] & elig).sum())
@@ -503,6 +511,11 @@ def main() -> None:
         "n_eligible": int(elig.sum()),
         "pct": (int(elig.sum()) / len(scores)) if len(scores) else 0.0,
         "adv_dropped": _cov_scored_before - len(scores),
+        "median_roundtrip_cost_pct": (
+            float(scores["roundtrip_cost_pct"].median())
+            if "roundtrip_cost_pct" in scores.columns and len(scores)
+            else None
+        ),
     }
 
     # --- Prices + market regime ---
