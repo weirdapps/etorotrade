@@ -21,6 +21,7 @@ import pandas as pd
 
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.v3.fetch import robust_fetch_prices
+from trade_modules.v3.integrity import validate_panel
 from trade_modules.v3.universe import parse_cap
 
 # Approximate spot FX rates (local currency -> USD), for normalizing eToro's
@@ -364,6 +365,7 @@ def enrich_features(
 
     # --- (1) native factors from the etoro CSV ---
     raw = pd.read_csv(etoro_csv_path, na_values=["--"])
+    raw = validate_panel(raw, source=str(etoro_csv_path))
     raw = raw.drop_duplicates(subset="TKR", keep="first").set_index("TKR")
     native = pd.DataFrame(index=raw.index)
     native["name"] = raw["NAME"].astype("object") if "NAME" in raw.columns else pd.NA

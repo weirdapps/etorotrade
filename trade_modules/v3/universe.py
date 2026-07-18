@@ -2,6 +2,8 @@ import re
 
 import pandas as pd
 
+from trade_modules.v3.integrity import validate_panel
+
 US_TICKER = re.compile(r"^[A-Z]+$")  # US/USD listing = no exchange suffix
 _SUFFIX = {"T": 1e12, "B": 1e9, "M": 1e6, "K": 1e3, "k": 1e3}
 
@@ -20,6 +22,12 @@ def load_universe(
     etoro_csv_path: str, min_price: float = 1.0, min_cap_usd: float = 5e8
 ) -> list[str]:
     df = pd.read_csv(etoro_csv_path, na_values=["--"])
+    df = validate_panel(
+        df,
+        source=str(etoro_csv_path),
+        required_columns=("TKR", "PRC", "CAP"),
+        required_numeric=("PRC",),
+    )
     tkr = df["TKR"].astype(str)
     mask_us = tkr.str.match(US_TICKER)
     price = pd.to_numeric(df["PRC"], errors="coerce")
