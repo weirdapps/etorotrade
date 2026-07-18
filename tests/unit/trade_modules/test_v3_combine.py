@@ -114,23 +114,9 @@ def test_no_quote_type_column_means_all_eligible():
     assert scores["rank"].notna().all()
 
 
-def test_accruals_in_quality_negated_low_accruals_scores_higher():
-    """Low (more negative) accruals = higher earnings quality = higher quality_z.
-
-    accruals direction is -1 (negated), consistent with the existing quality
-    metrics that penalise leverage (de: -1).  CLEAN has negative accruals
-    (cash-flow exceeds reported income) which is the gold standard for
-    earnings quality and must rank above DIRTY (high accruals = inflated
-    earnings, lower quality).
-    """
-    df = _base(["CLEAN", "DIRTY"])
-    df["accruals"] = [-0.10, 0.15]  # CLEAN: quality earner; DIRTY: accrual-heavy
-    scores = compute_scores(df, sector_neutral=False)
-    # CLEAN (low/negative accruals) must outscore DIRTY on quality_z.
-    assert scores.loc["CLEAN", "quality_z"] > scores.loc["DIRTY", "quality_z"]
-    # With only one metric, the direction must produce the right sign.
-    assert scores.loc["CLEAN", "quality_z"] > 0
-    assert scores.loc["DIRTY", "quality_z"] < 0
+# (removed 2026-07-18, D8) test_accruals_in_quality_* — accruals is no longer a
+# scored quality metric (moved to shadow; non-PIT, needs a point-in-time balance
+# sheet). Coverage is now via test_fixnow_quality_interim_is_roe_fcf.
 
 
 def test_eligibility_excludes_non_equity_and_dataless():
@@ -513,3 +499,41 @@ def test_backward_compat_default_ignores_growth_data():
         equal_nan=True,
     )
     assert list(without["rank"].astype("float")) == list(withg["rank"].astype("float"))
+
+
+# --------------------------------------------------------------------------- #
+# FIX-NOW (agreed setup 2026-07-18): rebuilt scored factor set
+# --------------------------------------------------------------------------- #
+
+
+def test_fixnow_strength_cluster_is_analyst_mom_only():
+    """strength_z collapses to analyst_mom alone: upside, buy_pct, short_interest
+    and target_dispersion are removed from ALL scored clusters (D2-D6)."""
+    from trade_modules.v3.combine import CLUSTERS
+
+    assert CLUSTERS["strength_z"] == ["analyst_mom"]
+    for dead in ("upside", "buy_pct", "short_interest", "target_dispersion"):
+        for members in CLUSTERS.values():
+            assert dead not in members, f"{dead} must not be scored in any cluster"
+
+
+def test_fixnow_value_drops_raw_pb_anchors_ev_ebitda():
+    """Value = EV/EBITDA (anchor) + trailing P/E; raw P/B is dropped from scoring
+    (intangible-heavy tech universe degrades it) (D7)."""
+    from trade_modules.v3.combine import CLUSTERS
+
+    assert CLUSTERS["value_z"] == ["pe_trailing", "ev_ebitda"]
+    for members in CLUSTERS.values():
+        assert "pb" not in members, "raw P/B must not be scored in any cluster"
+
+
+def test_fixnow_quality_interim_is_roe_fcf():
+    """Interim quality = ROE + FCF (panel-available). Per-sales margins + roa retired
+    (GP/assets is the right anchor but unbuildable now → BUILD); current_ratio + de move
+    to a distress filter; accruals is shadow-only (non-PIT) (D8)."""
+    from trade_modules.v3.combine import CLUSTERS
+
+    assert CLUSTERS["quality_z"] == ["roe", "fcf"]
+    for dead in ("roa", "gross_margin", "op_margin", "current_ratio", "de", "accruals"):
+        for members in CLUSTERS.values():
+            assert dead not in members, f"{dead} must not be scored in quality (interim)"

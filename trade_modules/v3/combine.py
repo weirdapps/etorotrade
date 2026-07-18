@@ -58,23 +58,26 @@ CLUSTERS = {
     # (rho 0.75/0.77) and of each other (pe_forward~ps_sector 0.98) -> double-counted
     # valuation. Kept a diverse trio: earnings (pe_trailing), book (pb), enterprise
     # (ev_ebitda). Pruned metrics still SHOWN as raw context in the card, not scored.
-    "value_z": ["pe_trailing", "pb", "ev_ebitda"],
-    "quality_z": [
-        "roe",
-        "roa",
-        "gross_margin",
-        "op_margin",
-        "fcf",
-        "current_ratio",
-        "de",
-        "accruals",
-    ],
+    # FIX-NOW 2026-07-18 (D7): raw P/B dropped (degrades in an intangible-heavy
+    # mega-cap-tech universe — shorts the R&D/brand compounders). Anchor on
+    # EV/EBITDA + trailing earnings yield. Intangibles-adjusted book -> BUILD.
+    "value_z": ["pe_trailing", "ev_ebitda"],
+    # FIX-NOW 2026-07-18 (D8): interim quality = ROE + FCF (panel-available).
+    # GP/assets + operating-profitability/assets are the Novy-Marx anchors but need
+    # Total Assets / Gross Profit -> BUILD. de + current_ratio -> distress filter
+    # (financial strength, not profitability). accruals -> shadow (non-PIT, needs a
+    # point-in-time balance sheet). roa / per-sales margins retired for the interim.
+    "quality_z": ["roe", "fcf"],
     # price_perf pruned 2026-07-14: rho 0.95 with mom_12_1 (same price move counted
     # twice). Kept the academic 12-1 skip-month + 52w-high proximity (distinct).
     "momentum_z": ["mom_12_1", "pct_52w_high"],
     "growth_z": ["earn_growth", "rev_growth"],
     "lowvol_z": ["beta", "realized_vol"],
-    "strength_z": ["analyst_mom", "upside", "buy_pct", "short_interest", "target_dispersion"],
+    # FIX-NOW 2026-07-18 (agreed setup D2-D6): strength collapses to analyst_mom
+    # alone. upside (contaminated/contrarian), buy_pct (zero-IC level),
+    # short_interest (→ squeeze-exclude gate) and target_dispersion (non-PIT,
+    # discarded) are removed from scoring. Raw columns stay in the feature frame.
+    "strength_z": ["analyst_mom"],
 }
 
 # Cluster weights: Value + Quality = 0.55 (the ~55% joint cap), rest sum to 0.45.
