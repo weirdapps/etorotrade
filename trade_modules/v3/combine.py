@@ -80,17 +80,20 @@ CLUSTERS = {
     "strength_z": ["analyst_mom"],
 }
 
-# Cluster weights: Value + Quality = 0.55 (the ~55% joint cap), rest sum to 0.45.
-# Growth carries ZERO weight by default — it exists as a 6th cluster but is OFF
-# in the default / IC path (backward-compat: the default model is unchanged).
-# The growth rebalance is exposed only via the explicit ``cluster_weights`` arg.
+# FIX-NOW 2026-07-18 (D14/D6b/D11/D7): equal-risk core, NO discretionary tilt, and
+# NO Value+Quality cap-as-floor. Core (value/quality/momentum/lowvol) equal; growth a
+# reduced satellite; strength (analyst_mom only) a small cap. Sum = 1.0. Weight
+# ESTIMATION is frozen (no MVO/IC-fit on the ~5-mo panel — forecast-combination puzzle);
+# the ic_weights path stays available for the later sizing tier. (True equal-VOL
+# standardization of the cluster z's is a fast-follow refinement; this sets the
+# equal-risk nominal shares and removes the 0.55 VQ floor.)
 CLUSTER_WEIGHTS = {
-    "value_z": 0.275,
-    "quality_z": 0.275,
-    "momentum_z": 0.20,
-    "growth_z": 0.0,
-    "lowvol_z": 0.15,
-    "strength_z": 0.10,
+    "value_z": 0.21,
+    "quality_z": 0.21,
+    "momentum_z": 0.21,
+    "growth_z": 0.11,
+    "lowvol_z": 0.21,
+    "strength_z": 0.05,
 }
 
 # The Value+Quality joint weight is capped here regardless of the weighting scheme.
