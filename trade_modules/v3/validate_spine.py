@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from trade_modules.v3.constants import V3_SIGNAL_HORIZON
 from trade_modules.v3.labels import cross_sectional_ic, demean_by_date, ic_summary
 from trade_modules.validation.harness import evaluate
 from trade_modules.validation.ic_decay import compute_ic_decay
@@ -115,6 +116,7 @@ def run_gate(
     ic_min: float = 0.02,
     t_min: float = 3.0,
     hit_min: float = 0.55,
+    primary_horizon: int = V3_SIGNAL_HORIZON,
     regime: dict | None = None,
 ) -> dict:
     """Run the price-spine gate: cross-sectional IC check + harness DSR.
@@ -122,7 +124,10 @@ def run_gate(
     Args:
         scores:   Long-form DataFrame with columns [as_of, ticker, score].
         fwd:      Long-form DataFrame with columns [as_of, ticker, horizon, fwd_ret].
-        horizons: List of forecast horizons (primary = horizons[0]).
+        horizons: List of forecast horizons to grade (the measurement grid).
+        primary_horizon: The horizon at which the IC screen AND the harness DSR
+            are graded (default V3_SIGNAL_HORIZON = 21). Falls back to the nearest
+            member of ``horizons`` when the exact value is absent.
         n_trials: Number of tuned trials for DSR deflation.
         min_obs:  Minimum observations required for the harness to consider a family
                   material.
@@ -135,6 +140,7 @@ def run_gate(
         Dict with keys:
           - ic:               {horizon: ic_summary_dict}
           - ic_decay:         compute_ic_decay result
+          - primary_horizon:  the horizon graded (member of ``horizons``)
           - harness:          raw evaluate() VerdictReport
           - primary_ic_pass:  bool — IC gate on primary horizon
           - dsr_pass:         bool — harness overall passed
@@ -147,10 +153,15 @@ def run_gate(
         n_trials=n_trials,
         min_obs=min_obs,
         horizons=tuple(horizons),
+        primary_horizon=primary_horizon,
     )
     ic = {h: ic_summary(cross_sectional_ic(scores, fwd, h)) for h in horizons}
     decay = compute_ic_decay({h: ic[h]["mean_ic"] for h in horizons})
-    ph = horizons[0]
+    ph = (
+        primary_horizon
+        if primary_horizon in horizons
+        else min(horizons, key=lambda h: abs(h - primary_horizon))
+    )
     primary_ic_pass = bool(
         ic[ph]["mean_ic"] >= ic_min and ic[ph]["t_stat"] >= t_min and ic[ph]["hit_rate"] >= hit_min
     )
@@ -158,6 +169,7 @@ def run_gate(
     return {
         "ic": ic,
         "ic_decay": decay,
+        "primary_horizon": ph,
         "harness": report,
         "primary_ic_pass": primary_ic_pass,
         "dsr_pass": dsr_pass,

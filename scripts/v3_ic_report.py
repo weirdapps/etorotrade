@@ -1,8 +1,8 @@
 """Trading Model v3 — IC-join report (Phase 5E).
 
 Reads the forward-IC log at $V3_IC_LOG (or ~/.weirdapps-trading/v3_ic_log.csv),
-computes cross-sectional Spearman IC for each horizon in (5, 10, 21, 63) log-date
-steps, prints a summary, and saves a markdown report to:
+computes cross-sectional Spearman IC for each horizon in (5, 21, 63) log-date
+steps (primary = V3_SIGNAL_HORIZON), prints a summary, and saves a markdown report to:
 
     ~/Downloads/<UTCstamp>_v3_ic_report.md
 
@@ -24,12 +24,12 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from scripts.v3_ic_logger import DEFAULT_LOG, ic_from_log  # noqa: E402
+from trade_modules.v3.constants import V3_IC_HORIZONS  # noqa: E402
 
-HORIZONS = (5, 10, 21, 63)
+HORIZONS = V3_IC_HORIZONS
 
 _HORIZON_LABELS = {
     5: " ~1w",
-    10: " ~2w",
     21: " ~1m",
     63: " ~3m",
 }
