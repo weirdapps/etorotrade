@@ -258,27 +258,29 @@ def _read_tickers(path: str) -> list[str]:
 def main() -> None:
     # Lazy imports: avoid module-level yahoofinance.core.config import.
     from trade_modules.v3.combine import compute_scores  # noqa: PLC0415
+    from trade_modules.v3.constants import MIN_FACTOR_COVERAGE  # noqa: PLC0415
+    from trade_modules.v3.enrichment import select_enrichment_set  # noqa: PLC0415
     from trade_modules.v3.features import enrich_features  # noqa: PLC0415
     from trade_modules.v3.sectors import (  # noqa: PLC0415
         load_offline_sector_map,
         update_sector_cache,
     )
-    from trade_modules.v3.universe import assemble_scored_universe  # noqa: PLC0415
+    from trade_modules.v3.universe import load_universe  # noqa: PLC0415
 
-    # --- Universe assembly (mirrors v3_full_report.py exactly) ---
+    # --- Universe: two-stage scoring (pre-rank full coverage universe, enrich top slice) ---
     port = _read_tickers(PORTFOLIO_CSV)
     buy = _read_tickers(BUY_CSV)
     port_set = set(port)
-    # BUILD ④: coverage-gated broad universe ∪ holdings ∪ analyst candidates,
-    # replacing the analyst AND-gate (which scored only ~3% of the universe).
-    universe = assemble_scored_universe(ETORO_CSV, port, buy)
+    sector_map = load_offline_sector_map()
+    cap = int(os.environ.get("V3_ENRICH_CAP", "500"))
+    pool = load_universe(ETORO_CSV, min_factor_coverage=MIN_FACTOR_COVERAGE)
+    universe = select_enrichment_set(ETORO_CSV, port, buy, cap=cap, sector_map=sector_map)
     print(
-        f"universe: {len(universe)} tickers (coverage-gated ∪ {len(port_set)} held "
-        f"∪ {len(set(buy) - port_set)} analyst candidates)"
+        f"universe: pre-ranked {len(pool)} coverage names -> enriching {len(universe)} "
+        f"({len(port_set)} held + {len(set(buy) - port_set)} analyst candidates + top coverage)"
     )
 
     # --- Feature enrichment + scoring ---
-    sector_map = load_offline_sector_map()
     feats = enrich_features(
         universe,
         ETORO_CSV,

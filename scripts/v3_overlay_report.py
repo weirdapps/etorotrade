@@ -87,6 +87,7 @@ _REGION_CAP = float(os.environ.get("V3_REGION_CAP", "0.65"))
 _COPIER_MULT = float(
     os.environ.get("V3_COPIER_MULT", "1.0")
 )  # scales the tier ADV floor for a copied book
+_ENRICH_CAP = int(os.environ.get("V3_ENRICH_CAP", "500"))  # max names to fully enrich (two-stage)
 # Polymarket deployment dial. The signal is a shadow / ZERO-conviction cross-repo
 # input, so the book-moving tilt is OFF by default (V3_PM_MAX_TILT=0 -> advisory
 # only: the signal is fetched + shown in the report but does not move deployment).
@@ -452,23 +453,27 @@ def write_preview(out: str = PREVIEW_OUT) -> str:
 
 
 def main() -> None:
-    # --- Universe assembly: coverage-gated ∪ holdings ∪ analyst candidates (BUILD ④) ---
-    from trade_modules.v3.universe import assemble_scored_universe
+    # --- Universe: two-stage scoring (BUILD ④ + production runtime) ---
+    from trade_modules.v3.constants import MIN_FACTOR_COVERAGE
+    from trade_modules.v3.enrichment import select_enrichment_set
+    from trade_modules.v3.sectors import load_offline_sector_map, update_sector_cache
+    from trade_modules.v3.universe import load_universe
 
     port = _read_tickers(PORTFOLIO_CSV)
     buy = _read_tickers(BUY_CSV)
     port_set = set(port)
-    # Coverage-gated broad universe replaces the analyst AND-gate (which scored ~3%).
-    universe = assemble_scored_universe(ETORO_CSV, port, buy)
+    sector_map = load_offline_sector_map()
+    # Pre-rank the FULL coverage-gated universe network-free, then fully enrich only
+    # holdings + candidates + top coverage names — bounds the ~4s/name yfinance .info
+    # cost (a full ~2,580-name enrich would be ~3h).
+    pool = load_universe(ETORO_CSV, min_factor_coverage=MIN_FACTOR_COVERAGE)
+    universe = select_enrichment_set(ETORO_CSV, port, buy, cap=_ENRICH_CAP, sector_map=sector_map)
     print(
-        f"universe: {len(universe)} tickers (coverage-gated ∪ {len(port_set)} held "
-        f"∪ {len(set(buy) - port_set)} analyst candidates)"
+        f"universe: pre-ranked {len(pool)} coverage names -> enriching {len(universe)} "
+        f"({len(port_set)} held + {len(set(buy) - port_set)} analyst candidates + top coverage)"
     )
 
     # --- Feature enrichment + scoring with BALANCED cluster weights ---
-    from trade_modules.v3.sectors import load_offline_sector_map, update_sector_cache
-
-    sector_map = load_offline_sector_map()
     feats = enrich_features(
         universe,
         ETORO_CSV,
