@@ -48,12 +48,19 @@ def load_universe(
     min_price: float = 1.0,
     min_cap_usd: float = 5e8,
     min_factor_coverage: int = 0,
+    us_only: bool = False,
 ) -> list[str]:
-    """US, cap/price-filtered ticker list; optionally coverage-gated.
+    """Cap/price-filtered ticker list — GLOBAL by default (multi-currency book).
 
-    ``min_factor_coverage`` > 0 additionally keeps only names with at least that
-    many of the panel-native factors (``COVERAGE_FACTORS``) present — the BUILD ④
-    replacement for the analyst AND-gate. 0 (default) leaves the gate off.
+    eToro reports CAP and PRC in the listing's LOCAL currency, so cap and price are
+    FX-normalized to USD (``_usd_rate_for``) before the ``$500M`` / ``$1`` floors are
+    applied — otherwise a ¥ or HK$ value would be mis-compared against a USD floor.
+    For US listings the rate is 1.0, so their behaviour is unchanged.
+
+    Args:
+        us_only: restore the legacy US-listings-only filter (no exchange suffix).
+        min_factor_coverage: > 0 keeps only names with that many panel-native factors
+            present (``COVERAGE_FACTORS``) — the BUILD ④ coverage gate.
     """
     df = pd.read_csv(etoro_csv_path, na_values=["--"])
     df = validate_panel(
@@ -62,11 +69,17 @@ def load_universe(
         required_columns=("TKR", "PRC", "CAP"),
         required_numeric=("PRC",),
     )
+    # Lazy import: features imports universe (parse_cap), so importing it at module
+    # load would cycle; at call time features is already resolved.
+    from trade_modules.v3.features import _usd_rate_for
+
     tkr = df["TKR"].astype(str)
-    mask_us = tkr.str.match(US_TICKER)
-    price = pd.to_numeric(df["PRC"], errors="coerce")
-    cap = df["CAP"].map(parse_cap)
-    keep = mask_us & (price > min_price) & (cap >= min_cap_usd)
+    fx = tkr.map(_usd_rate_for)  # local currency -> USD (1.0 for US listings)
+    price_usd = pd.to_numeric(df["PRC"], errors="coerce") * fx
+    cap_usd = df["CAP"].map(parse_cap) * fx
+    keep = (price_usd > min_price) & (cap_usd >= min_cap_usd)
+    if us_only:
+        keep = keep & tkr.str.match(US_TICKER)
     if min_factor_coverage > 0:
         keep = keep & (_factor_coverage_count(df) >= min_factor_coverage)
     return sorted(df.loc[keep, "TKR"].dropna().astype(str).unique().tolist())
