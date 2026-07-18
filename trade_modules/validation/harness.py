@@ -455,6 +455,7 @@ def evaluate(
     min_obs: int = 30,
     config_perf: np.ndarray | None = None,
     signal_score_col: str = "conviction",
+    primary_horizon: int = 30,
 ) -> dict:
     """Pure orchestrator — the validation referee.
 
@@ -481,6 +482,10 @@ def evaluate(
             ``computed=False`` and the rest of the report is unaffected.  NOTE:
             the row PRODUCER must emit this column for the block to populate —
             producer wiring is out of scope for Phase 2B.
+        primary_horizon: the single horizon (in the row ``horizon`` units) at
+            which each family is graded — Sharpe / DSR and the cross-sectional IC.
+            Defaults to 30 for v2 back-compat; the v3 path passes
+            V3_SIGNAL_HORIZON (21). Nearest present horizon is used if absent.
 
     action_records schema note: the live action_log.jsonl uses ``committee_date``
     (not ``date``) and ``size`` (not ``weight_change``); ``size`` is null in all
@@ -489,8 +494,6 @@ def evaluate(
 
     Returns a VerdictReport dict.  Never crashes.
     """
-    primary_horizon = 30
-
     # -----------------------------------------------------------------------
     # Survivorship bias accounting (over ALL rows)
     # -----------------------------------------------------------------------

@@ -95,13 +95,9 @@ def test_nans_tolerated():
     assert scores["rank"].notna().all()
 
 
-def test_value_quality_weight_cap_about_55pct():
-    """Value + Quality jointly carry ~55% of conviction weight."""
-    from trade_modules.v3.combine import CLUSTER_WEIGHTS
-
-    total = sum(CLUSTER_WEIGHTS.values())
-    vq = CLUSTER_WEIGHTS["value_z"] + CLUSTER_WEIGHTS["quality_z"]
-    assert abs(vq / total - 0.55) < 0.01
+# (removed 2026-07-18, D7/D14) test_value_quality_weight_cap_about_55pct — the
+# Value+Quality 0.55 cap-as-floor is deleted; core clusters are now equal-risk.
+# See test_fixnow_equal_weight_core_no_vq_floor.
 
 
 def test_no_quote_type_column_means_all_eligible():
@@ -114,23 +110,9 @@ def test_no_quote_type_column_means_all_eligible():
     assert scores["rank"].notna().all()
 
 
-def test_accruals_in_quality_negated_low_accruals_scores_higher():
-    """Low (more negative) accruals = higher earnings quality = higher quality_z.
-
-    accruals direction is -1 (negated), consistent with the existing quality
-    metrics that penalise leverage (de: -1).  CLEAN has negative accruals
-    (cash-flow exceeds reported income) which is the gold standard for
-    earnings quality and must rank above DIRTY (high accruals = inflated
-    earnings, lower quality).
-    """
-    df = _base(["CLEAN", "DIRTY"])
-    df["accruals"] = [-0.10, 0.15]  # CLEAN: quality earner; DIRTY: accrual-heavy
-    scores = compute_scores(df, sector_neutral=False)
-    # CLEAN (low/negative accruals) must outscore DIRTY on quality_z.
-    assert scores.loc["CLEAN", "quality_z"] > scores.loc["DIRTY", "quality_z"]
-    # With only one metric, the direction must produce the right sign.
-    assert scores.loc["CLEAN", "quality_z"] > 0
-    assert scores.loc["DIRTY", "quality_z"] < 0
+# (removed 2026-07-18, D8) test_accruals_in_quality_* — accruals is no longer a
+# scored quality metric (moved to shadow; non-PIT, needs a point-in-time balance
+# sheet). Coverage is now via test_fixnow_quality_interim_is_roe_fcf.
 
 
 def test_eligibility_excludes_non_equity_and_dataless():
@@ -284,16 +266,28 @@ def test_derive_cluster_weights_equal_spread_when_rest_ic_nonpositive():
 
 
 def test_ic_weighting_shifts_conviction_toward_high_ic_cluster():
-    """A momentum-favoring IC vector flips the value-name / momentum-name ranking."""
+    """IC weighting shifts the ranking: a value-heavy IC ranks the value name first,
+    a momentum-heavy IC flips it to the momentum name. (Default weights are now
+    equal-risk, so the shift is shown via explicit IC vectors, not the default.)"""
     df = _base(["MOM_STAR", "VAL_STAR", "MID1", "MID2"])
     df["pe_trailing"] = [50.0, 5.0, 20.0, 25.0]  # VAL_STAR cheapest -> best value
     df["mom_12_1"] = [0.50, -0.20, 0.10, 0.05]  # MOM_STAR strongest momentum
 
-    default = compute_scores(df, sector_neutral=False)
-    # Fixed weights lean on Value (Value+Quality ~55%) -> the value name wins.
-    assert default.loc["VAL_STAR", "rank"] < default.loc["MOM_STAR", "rank"]
+    val = compute_scores(
+        df,
+        sector_neutral=False,
+        ic_weights={
+            "value_z": 1.0,
+            "quality_z": 0.05,
+            "momentum_z": 0.05,
+            "lowvol_z": 0.05,
+            "strength_z": 0.05,
+        },
+    )
+    # Value-heavy IC -> the value name wins.
+    assert val.loc["VAL_STAR", "rank"] < val.loc["MOM_STAR", "rank"]
 
-    ic = compute_scores(
+    mom = compute_scores(
         df,
         sector_neutral=False,
         ic_weights={
@@ -305,7 +299,7 @@ def test_ic_weighting_shifts_conviction_toward_high_ic_cluster():
         },
     )
     # Momentum-heavy IC -> the momentum name now out-ranks the value name.
-    assert ic.loc["MOM_STAR", "rank"] < ic.loc["VAL_STAR", "rank"]
+    assert mom.loc["MOM_STAR", "rank"] < mom.loc["VAL_STAR", "rank"]
 
 
 # --------------------------------------------------------------------------- #
@@ -369,13 +363,8 @@ def test_growth_z_nan_safe_single_metric():
     assert scores.loc["A", "growth_z"] > scores.loc["B", "growth_z"]
 
 
-def test_default_growth_weight_is_zero():
-    """Backward-compat contract: growth carries ZERO weight in the default model."""
-    from trade_modules.v3.combine import CLUSTER_WEIGHTS
-
-    assert CLUSTER_WEIGHTS["growth_z"] == 0.0
-    # The five evidence clusters still sum to 1.0 (growth adds nothing by default).
-    assert abs(sum(CLUSTER_WEIGHTS.values()) - 1.0) < 1e-12
+# (removed 2026-07-18, D11/D14) test_default_growth_weight_is_zero — growth is now a
+# weighted satellite (not zero). See test_fixnow_equal_weight_core_no_vq_floor.
 
 
 # --------------------------------------------------------------------------- #
@@ -457,12 +446,12 @@ def test_backward_compat_none_equals_explicit_default_weights():
         df,
         sector_neutral=False,
         cluster_weights={
-            "value": 0.275,
-            "quality": 0.275,
-            "momentum": 0.20,
-            "growth": 0.0,
-            "lowvol": 0.15,
-            "strength": 0.10,
+            "value": 0.21,
+            "quality": 0.21,
+            "momentum": 0.21,
+            "growth": 0.11,
+            "lowvol": 0.21,
+            "strength": 0.05,
         },
     )
     assert np.allclose(
@@ -492,24 +481,87 @@ def test_rank_normalization_bounds_outlier_magnitude():
     assert abs(ze) < 2.0  # bounded by rank, not blown up by the 5000x value
 
 
-def test_backward_compat_default_ignores_growth_data():
-    """With the default weights, adding growth data does NOT change conviction/rank."""
-    df = _base(["A", "B", "C", "D"])
-    df["pe_trailing"] = [5.0, 12.0, 25.0, 60.0]
-    df["roe"] = [40.0, 25.0, 15.0, 5.0]
-    df["mom_12_1"] = [0.30, 0.10, -0.05, -0.20]
+# (removed 2026-07-18, D11/D14) test_backward_compat_default_ignores_growth_data —
+# growth now carries a satellite weight, so growth data DOES affect conviction.
 
-    without = compute_scores(df, sector_neutral=False)
-    withg = df.copy()
-    withg["earn_growth"] = [2.0, 50.0, 5.0, 40.0]  # would reorder if growth were weighted
-    withg["rev_growth"] = [0.01, 0.40, 0.03, 0.30]
-    withg = compute_scores(withg, sector_neutral=False)
 
-    # growth_z is computed, but weight 0 -> conviction identical to the no-growth run.
-    assert withg["growth_z"].notna().all()
-    assert np.allclose(
-        without["conviction"].to_numpy(dtype=float),
-        withg["conviction"].to_numpy(dtype=float),
-        equal_nan=True,
+# --------------------------------------------------------------------------- #
+# FIX-NOW (agreed setup 2026-07-18): rebuilt scored factor set
+# --------------------------------------------------------------------------- #
+
+
+def test_fixnow_strength_cluster_is_analyst_mom_only():
+    """strength_z collapses to analyst_mom alone: upside, buy_pct, short_interest
+    and target_dispersion are removed from ALL scored clusters (D2-D6)."""
+    from trade_modules.v3.combine import CLUSTERS
+
+    assert CLUSTERS["strength_z"] == ["analyst_mom"]
+    for dead in ("upside", "buy_pct", "short_interest", "target_dispersion"):
+        for members in CLUSTERS.values():
+            assert dead not in members, f"{dead} must not be scored in any cluster"
+
+
+def test_fixnow_value_drops_raw_pb_anchors_ev_ebitda():
+    """Value = EV/EBITDA (anchor) + trailing P/E; raw P/B is dropped from scoring
+    (intangible-heavy tech universe degrades it) (D7)."""
+    from trade_modules.v3.combine import CLUSTERS
+
+    assert CLUSTERS["value_z"] == ["pe_trailing", "ev_ebitda"]
+    for members in CLUSTERS.values():
+        assert "pb" not in members, "raw P/B must not be scored in any cluster"
+
+
+def test_fixnow_quality_interim_is_roe_fcf():
+    """Interim quality = ROE + FCF (panel-available). Per-sales margins + roa retired
+    (GP/assets is the right anchor but unbuildable now → BUILD); current_ratio + de move
+    to a distress filter; accruals is shadow-only (non-PIT) (D8)."""
+    from trade_modules.v3.combine import CLUSTERS
+
+    assert CLUSTERS["quality_z"] == ["roe", "fcf"]
+    for dead in ("roa", "gross_margin", "op_margin", "current_ratio", "de", "accruals"):
+        for members in CLUSTERS.values():
+            assert dead not in members, f"{dead} must not be scored in quality (interim)"
+
+
+def test_fixnow_equal_weight_core_no_vq_floor():
+    """Default weights: core (value/quality/momentum/lowvol) equal — no discretionary
+    tilt; growth = satellite (reduced, >0); strength = small cap; NO Value+Quality
+    cap-as-floor (VQ well below 0.55); weights sum to 1 (D14, D6b, D11, D7)."""
+    from trade_modules.v3.combine import CLUSTER_WEIGHTS as w
+
+    assert w["value_z"] == w["quality_z"] == w["momentum_z"] == w["lowvol_z"]
+    assert 0.0 < w["growth_z"] < w["value_z"], "growth is a reduced satellite (>0)"
+    assert 0.0 < w["strength_z"] < w["growth_z"], "strength is a small cap"
+    assert (w["value_z"] + w["quality_z"]) < 0.55, "no Value+Quality cap-as-floor"
+    assert abs(sum(w.values()) - 1.0) < 1e-9
+
+
+def test_fixnow_equal_vol_standardize_gives_unit_std_columns():
+    """Equal-VOL: each cluster column is scaled to ~unit cross-sectional std, so equal
+    nominal weights are equal-RISK (a low-dispersion cluster no longer under-contributes).
+    Contemporaneous / per-snapshot -> look-ahead-free (D14 refinement)."""
+    from trade_modules.v3.combine import _equal_vol_standardize
+
+    zmat = pd.DataFrame(
+        {"a": [1.0, 2.0, 3.0, 4.0], "b": [10.0, 20.0, 30.0, 40.0]}  # b has 10x the spread
     )
-    assert list(without["rank"].astype("float")) == list(withg["rank"].astype("float"))
+    out = _equal_vol_standardize(zmat)
+    assert abs(float(out["a"].std(ddof=0)) - 1.0) < 1e-9
+    assert abs(float(out["b"].std(ddof=0)) - 1.0) < 1e-9
+
+
+def test_fixnow_equal_vol_standardize_is_nan_and_zero_std_safe():
+    """A NaN-bearing column keeps its NaNs; a constant (zero-std) column is left
+    unchanged (no divide-by-zero)."""
+    from trade_modules.v3.combine import _equal_vol_standardize
+
+    zmat = pd.DataFrame(
+        {
+            "with_nan": [1.0, np.nan, 3.0, 5.0],
+            "constant": [2.0, 2.0, 2.0, 2.0],  # zero std -> unchanged
+        }
+    )
+    out = _equal_vol_standardize(zmat)
+    assert pd.isna(out.loc[1, "with_nan"])
+    assert abs(float(out["with_nan"].std(ddof=0)) - 1.0) < 1e-9
+    assert list(out["constant"]) == [2.0, 2.0, 2.0, 2.0]
