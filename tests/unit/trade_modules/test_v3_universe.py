@@ -10,7 +10,7 @@ def test_parse_cap_suffixes():
     assert pd.isna(parse_cap("--"))
 
 
-def test_load_universe_filters(tmp_path):
+def test_load_universe_us_only_filter(tmp_path):
     csv = tmp_path / "etoro.csv"
     pd.DataFrame(
         {
@@ -19,8 +19,23 @@ def test_load_universe_filters(tmp_path):
             "CAP": ["3.5T", "10B", "100M", "40T", "2.5T"],
         }
     ).to_csv(csv, index=False)
+    u = load_universe(str(csv), min_price=1.0, min_cap_usd=5e8, us_only=True)
+    assert u == ["AAPL", "MSFT"]  # PENNY (price), SMALL (cap), 7203.T (non-US) excluded
+
+
+def test_load_universe_global_includes_non_us_fx_normalized(tmp_path):
+    csv = tmp_path / "etoro.csv"
+    pd.DataFrame(
+        {
+            "TKR": ["AAPL", "PENNY", "SMALL", "7203.T", "MSFT"],
+            "PRC": [200.0, 0.5, 50.0, 3000.0, 400.0],
+            "CAP": ["3.5T", "10B", "100M", "40T", "2.5T"],
+        }
+    ).to_csv(csv, index=False)
+    # Global default: 7203.T (¥40T≈$268B, ¥3000≈$20) clears the FX-normalized floors;
+    # PENNY ($0.50) and SMALL ($100M) still excluded. Legacy US behaviour is us_only=True.
     u = load_universe(str(csv), min_price=1.0, min_cap_usd=5e8)
-    assert u == ["AAPL", "MSFT"]  # PENNY (price), SMALL (cap), 7203.T (non-USD) excluded
+    assert set(u) == {"AAPL", "MSFT", "7203.T"}
 
 
 # ---------------------------------------------------------------------------
