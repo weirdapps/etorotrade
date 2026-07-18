@@ -23,9 +23,12 @@ def period_return_pct(series) -> float:
     """Total return % over a price series: (last / first - 1) x 100. NaN if < 2
     clean points or a zero base."""
     s = pd.Series(series).dropna()
-    if len(s) < 2 or float(s.iloc[0]) == 0.0:
+    if len(s) < 2:
         return float("nan")
-    return (float(s.iloc[-1]) / float(s.iloc[0]) - 1.0) * 100.0
+    first = float(s.iloc[0])
+    if abs(first) < 1e-12:  # ~zero base -> return undefined (avoid float == and /0)
+        return float("nan")
+    return (float(s.iloc[-1]) / first - 1.0) * 100.0
 
 
 def spy_eur_return_pct(spy_usd_close, eurusd_close) -> float:

@@ -508,7 +508,7 @@ def main() -> None:
     from trade_modules.v3.benchmark import fetch_spy_eur_return_pct
 
     spy_eur_1y = fetch_spy_eur_return_pct("1y")
-    if spy_eur_1y == spy_eur_1y:  # not NaN
+    if pd.notna(spy_eur_1y):
         print(f"benchmark: S&P 500 (EUR) 1y = {spy_eur_1y:+.1f}%")
 
     # Coverage: how much of the scored universe clears the eligibility bar (equity +
@@ -523,7 +523,7 @@ def main() -> None:
             if "roundtrip_cost_pct" in scores.columns and len(scores)
             else None
         ),
-        "spy_eur_1y_pct": (spy_eur_1y if spy_eur_1y == spy_eur_1y else None),
+        "spy_eur_1y_pct": (float(spy_eur_1y) if pd.notna(spy_eur_1y) else None),
     }
 
     # --- Prices + market regime ---
