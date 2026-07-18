@@ -231,6 +231,22 @@ def _z_plain(s: pd.Series) -> pd.Series:
     return (x - mu) / sd
 
 
+def _equal_vol_standardize(zmat: pd.DataFrame) -> pd.DataFrame:
+    """Scale each cluster-z column to ~unit cross-sectional std (population, ddof=0).
+
+    FIX-NOW 2026-07-18 (D14): "true equal-vol". Cluster-z's are means of member
+    rank-z's, so a cluster with more (or more-correlated) members has a lower
+    cross-sectional dispersion and would UNDER-contribute under equal nominal
+    weights. Dividing each cluster by its own cross-sectional std makes the
+    equal-risk nominal weights genuinely equal-RISK. A zero-/near-zero-std or
+    all-NaN column is left unchanged (no divide-by-zero); NaNs are preserved.
+    Computed per-snapshot on the current cross-section only -> no look-ahead.
+    """
+    std = zmat.std(axis=0, ddof=0)
+    denom = std.where(std > 1e-12, 1.0)
+    return zmat.divide(denom, axis=1)
+
+
 def _sector_demean(z: pd.Series, sector: pd.Series) -> pd.Series:
     """Subtract the within-sector mean of z. Missing sectors form one fallback
     group (their own subset mean), leaving the global ~0-mean z ~unchanged."""
@@ -322,6 +338,10 @@ def compute_scores(
     # Weighted conviction, renormalized per-row over the clusters actually present.
     cluster_names = list(CLUSTERS.keys())
     zmat = out[cluster_names]
+    # Equal-VOL standardize the cluster-z's so the equal-risk nominal weights are
+    # truly equal-RISK (the stored {cluster}_z columns stay RAW; only conviction
+    # uses the standardized matrix).
+    zmat_ev = _equal_vol_standardize(zmat)
     weights = pd.Series(resolve_cluster_weights(cluster_weights, ic_weights, cluster_names))[
         cluster_names
     ]
@@ -329,9 +349,9 @@ def compute_scores(
         np.tile(weights.to_numpy(), (len(out), 1)),
         index=out.index,
         columns=cluster_names,
-    ).where(zmat.notna())
+    ).where(zmat_ev.notna())
     wsum = wmat.sum(axis=1)
-    conv_raw = (zmat * wmat).sum(axis=1) / wsum.where(wsum > 0)
+    conv_raw = (zmat_ev * wmat).sum(axis=1) / wsum.where(wsum > 0)
 
     # Eligibility gate: ineligible names never enter the ranked cross-section,
     # so their conviction is NaN (which yields a NaN rank) and the re-z baseline
