@@ -83,3 +83,33 @@ def srw_sue(eps_history) -> float:
     if not sd or math.isnan(sd) or sd == 0:
         return math.nan
     return float(diffs.iloc[-1] / sd)
+
+
+def factor_panel(fasof: pd.DataFrame, fprior: pd.DataFrame, price: pd.Series) -> pd.DataFrame:
+    """Vectorized cross-section of the balance-sheet / cash-flow PIT factors.
+
+    ``fasof`` = point-in-time fundamentals as of date T (from ``read_asof(T)``);
+    ``fprior`` = fundamentals as of ~T−1yr (for asset growth); ``price`` = the price
+    at T per ticker (to form market cap = price × sharesbas). All aligned to
+    ``fasof.index``. Returns the four raw factors (book_to_price, asset_growth,
+    gp_assets, accruals) — SUE is series-based and handled separately.
+    """
+    idx = fasof.index
+
+    def col(df: pd.DataFrame, name: str) -> pd.Series:
+        return pd.to_numeric(df.reindex(idx).get(name), errors="coerce")
+
+    eq, assets, gp = col(fasof, "equity"), col(fasof, "assets"), col(fasof, "gp")
+    ni, cf, shares = col(fasof, "netinc"), col(fasof, "ncfo"), col(fasof, "sharesbas")
+    assets_prior = col(fprior, "assets")
+    px = pd.to_numeric(pd.Series(price).reindex(idx), errors="coerce")
+
+    mktcap = px * shares
+    return pd.DataFrame(
+        {
+            "book_to_price": (eq / mktcap).where((eq > 0) & (mktcap > 0)),
+            "asset_growth": (assets / assets_prior - 1.0).where(assets_prior > 0),
+            "gp_assets": (gp / assets).where(assets != 0),
+            "accruals": ((ni - cf) / assets).where(assets != 0),
+        }
+    )

@@ -11,6 +11,7 @@ from trade_modules.v3.fundamentals import (
     accruals,
     asset_growth,
     book_to_price,
+    factor_panel,
     gross_profit_to_assets,
     srw_sue,
 )
@@ -49,3 +50,25 @@ def test_srw_sue_positive_on_accelerating_eps():
 
 def test_srw_sue_needs_enough_history():
     assert math.isnan(srw_sue(pd.Series([1.0, 1.1, 1.2])))  # < 5 quarters -> NaN
+
+
+def test_factor_panel_matches_scalar_derivations():
+    fasof = pd.DataFrame(
+        {
+            "equity": [40.0, -5.0],
+            "assets": [200.0, 100.0],
+            "gp": [30.0, 20.0],
+            "netinc": [20.0, 5.0],
+            "ncfo": [12.0, 8.0],
+            "sharesbas": [10.0, 10.0],
+        },
+        index=["A", "B"],
+    )
+    fprior = pd.DataFrame({"assets": [180.0, 120.0]}, index=["A", "B"])
+    price = pd.Series({"A": 10.0, "B": 5.0})
+    fp = factor_panel(fasof, fprior, price)
+    assert fp.loc["A", "book_to_price"] == pytest.approx(0.40)  # 40 / (10*10)
+    assert fp.loc["A", "asset_growth"] == pytest.approx(200 / 180 - 1)
+    assert fp.loc["A", "gp_assets"] == pytest.approx(0.15)
+    assert fp.loc["A", "accruals"] == pytest.approx(0.04)
+    assert math.isnan(fp.loc["B", "book_to_price"])  # negative equity -> NaN
