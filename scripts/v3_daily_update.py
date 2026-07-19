@@ -22,6 +22,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -50,8 +51,15 @@ def _pages(table: str, q: dict):
         if cur:
             qq["qopts.cursor_id"] = cur
         url = f"{BASE}/{table}.json?{urllib.parse.urlencode(qq)}"
-        with urllib.request.urlopen(url, timeout=90) as r:  # noqa: S310 (fixed https host)
-            p = json.loads(r.read().decode())
+        for attempt in range(5):  # retry transient socket timeouts / 5xx
+            try:
+                with urllib.request.urlopen(url, timeout=120) as r:  # noqa: S310 (fixed host)
+                    p = json.loads(r.read().decode())
+                break
+            except Exception:  # noqa: BLE001
+                if attempt == 4:
+                    raise
+                time.sleep(5 * (attempt + 1))
         dt = p["datatable"]
         yield dt["data"], [c["name"] for c in dt["columns"]]
         cur = p.get("meta", {}).get("next_cursor_id")
@@ -106,9 +114,15 @@ def main() -> None:
     ap.add_argument("--since", default="2015-01-01")
     args = ap.parse_args()
     uni = build_universe(args.since)
+    # Resume: skip tickers already in the store (a prior run may have timed out).
+    done: set = set()
+    if Path(STORE).exists():
+        done = set(pd.read_parquet(STORE, columns=["ticker"])["ticker"].astype(str).unique())
+    todo = [t for t in uni if t not in done]
+    print(f"resume: {len(done)} tickers already stored, {len(todo)} to fetch")
     total = 0
-    for i in range(0, len(uni), 200):
-        chunk = uni[i : i + 200]
+    for i in range(0, len(todo), 200):
+        chunk = todo[i : i + 200]
         frames = []
         for data, cols in _pages(
             "DAILY",

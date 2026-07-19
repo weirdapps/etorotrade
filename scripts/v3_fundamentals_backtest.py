@@ -44,6 +44,7 @@ DAILY_STORE = str(Path("~/.weirdapps-trading/v3_daily_monthly.parquet").expandus
 SF1_STORE = str(Path("~/.weirdapps-trading/v3_fundamentals_store.parquet").expanduser())
 HAC_LAGS = 12
 BETA_WIN = 24
+MCAP_FLOOR = 100.0  # $100M (Sharadar marketcap is in $M): drop micro-cap return noise
 # factor -> directional sign (+1 high-good / -1 low-good)
 SIGNS = {
     "book_to_price": +1,
@@ -93,8 +94,17 @@ def main() -> None:
     )
     print(f"SF1 store: {sf1['ticker'].nunique()} names")
 
-    fwd_mat = mc.shift(-1) / mc - 1.0
-    mret = mc.pct_change(fill_method=None)
+    # Clean price proxy = marketcap / shares-outstanding: dividing out shares removes
+    # the issuance/buyback contamination in a raw marketcap return. Shares come from
+    # SF1 sharesbas as-of each month (updates at each filing, constant between).
+    shares = pd.DataFrame(index=mc.index, columns=mc.columns, dtype=float)
+    for T in mc.index:
+        f = _asof(sf1, T.strftime("%Y-%m-%d"))
+        if not f.empty:
+            shares.loc[T] = pd.to_numeric(f["sharesbas"], errors="coerce").reindex(mc.columns)
+    price = mc / shares.replace(0.0, np.nan)
+    fwd_mat = price.shift(-1) / price - 1.0
+    mret = price.pct_change(fill_method=None)
     mkt = mret.mean(axis=1)
     beta_mat = mret.rolling(BETA_WIN).cov(mkt).div(mkt.rolling(BETA_WIN).var(), axis=0)
     sue_tbl = _sue_table(sf1)
@@ -104,7 +114,9 @@ def main() -> None:
     dates = mc.index[12:-1]
     n_used = 0
     for T in dates:
-        fwd = fwd_mat.loc[T].dropna()
+        mcap_T = mc.loc[T]
+        keep = mcap_T[mcap_T > MCAP_FLOOR].index  # liquid-enough cross-section
+        fwd = fwd_mat.loc[T].reindex(keep).dropna()
         if len(fwd) < 20:
             continue
         tkey = T.strftime("%Y-%m-%d")

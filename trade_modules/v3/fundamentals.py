@@ -97,7 +97,11 @@ def factor_panel(fasof: pd.DataFrame, fprior: pd.DataFrame, price: pd.Series) ->
     idx = fasof.index
 
     def col(df: pd.DataFrame, name: str) -> pd.Series:
-        return pd.to_numeric(df.reindex(idx).get(name), errors="coerce")
+        # Always return a Series aligned to idx, even when df is empty / lacks the
+        # column (e.g. no prior-year filing) — otherwise .where() gets a scalar.
+        reixed = df.reindex(idx)
+        s = reixed[name] if name in reixed.columns else pd.Series(index=idx, dtype=float)
+        return pd.to_numeric(s, errors="coerce")
 
     eq, assets, gp = col(fasof, "equity"), col(fasof, "assets"), col(fasof, "gp")
     ni, cf, shares = col(fasof, "netinc"), col(fasof, "ncfo"), col(fasof, "sharesbas")

@@ -72,3 +72,21 @@ def test_factor_panel_matches_scalar_derivations():
     assert fp.loc["A", "gp_assets"] == pytest.approx(0.15)
     assert fp.loc["A", "accruals"] == pytest.approx(0.04)
     assert math.isnan(fp.loc["B", "book_to_price"])  # negative equity -> NaN
+
+
+def test_factor_panel_handles_empty_prior():
+    # Early months have no prior-year filing -> fprior is empty; must not crash.
+    fasof = pd.DataFrame(
+        {
+            "equity": [40.0],
+            "assets": [200.0],
+            "gp": [30.0],
+            "netinc": [20.0],
+            "ncfo": [12.0],
+            "sharesbas": [10.0],
+        },
+        index=["A"],
+    )
+    fp = factor_panel(fasof, pd.DataFrame(), pd.Series({"A": 10.0}))
+    assert math.isnan(fp.loc["A", "asset_growth"])  # no prior -> NaN
+    assert fp.loc["A", "gp_assets"] == pytest.approx(0.15)  # others still compute
