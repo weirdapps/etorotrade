@@ -306,6 +306,7 @@ def test_expected_columns_present(tmp_path):
         "country",
         # derived
         "target_dispersion",
+        "earn_trajectory",
         "adv_usd",
         "mom_12_1",
         "realized_vol",
@@ -330,6 +331,13 @@ def test_percent_and_numeric_coercion(tmp_path):
     assert pd.api.types.is_float_dtype(feats["pe_trailing"])
     # "--" native -> NaN
     assert pd.isna(feats.loc["ZZZ", "div_yield"])
+
+
+def test_earn_trajectory_math(tmp_path):
+    """earn_trajectory = trailing/forward P/E (>1 = forward cheaper = earnings rising)."""
+    feats = _run(tmp_path)
+    assert abs(feats.loc["AAPL", "earn_trajectory"] - 28.5 / 25.0) < 1e-9
+    assert abs(feats.loc["MSFT", "earn_trajectory"] - 35.0 / 30.0) < 1e-9
 
 
 def test_target_dispersion_math(tmp_path):

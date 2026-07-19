@@ -56,6 +56,7 @@ CARD_FACTORS = [
     ("Value", "value_z", [("pe_forward", "P/E"), ("pb", "P/B"), ("ps_sector", "P/S")]),
     ("Quality", "quality_z", [("roe", "ROE"), ("fcf", "FCF"), ("gp_assets", "GP/A")]),
     ("PEAD", "pead_z", [("sue", "SUE")]),
+    ("Traj", "trajectory_z", [("earn_trajectory", "t/f")]),
     ("Growth", "growth_z", [("earn_growth", "EPS"), ("rev_growth", "rev")]),
     (
         "Momentum",
@@ -76,6 +77,7 @@ _METRIC_FMT = {
     "mom_12_1": ("fracpct", 0, True),
     "gp_assets": ("fracpct", 0, False),  # gross profit / assets
     "sue": ("ratio", 2, True),  # standardized unexpected earnings (z-like)
+    "earn_trajectory": ("ratio", 2, False),  # trailing/forward P/E ratio (>1 = rising)
     "pct_52w_high": ("pct", 0, False),
     "price_perf": ("pct", 0, True),
     "pe_forward": ("ratio", 1, False),

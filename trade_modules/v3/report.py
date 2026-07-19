@@ -46,6 +46,7 @@ CLUSTER_CELLS = [
     ("lowvol_z", "Low-vol"),
     ("strength_z", "Strength"),
     ("pead_z", "PEAD"),
+    ("trajectory_z", "Traj"),
 ]
 
 # Cluster z-scores used in the collapsed card summary strip (all clusters the
@@ -55,6 +56,7 @@ _CARD_CLUSTERS = [
     ("quality_z", "Quality"),
     ("momentum_z", "Momentum"),
     ("pead_z", "PEAD"),
+    ("trajectory_z", "Trajectory"),
     ("growth_z", "Growth"),
     ("lowvol_z", "Low-vol"),
     ("strength_z", "Strength"),
@@ -96,6 +98,7 @@ DISPLAY_GROUPS = [
         ],
     ),
     ("PEAD", [("sue", "SUE")]),
+    ("Trajectory", [("earn_trajectory", "PET/PEF")]),
     ("Low-vol", [("beta", "Beta"), ("realized_vol", "Realized Vol")]),
     ("Strength", [("short_interest", "Short Int"), ("target_dispersion", "Target Disp")]),
     (
@@ -120,6 +123,7 @@ GROUP_CLUSTER = {
     "Low-vol": "lowvol_z",
     "Strength": "strength_z",
     "PEAD": "pead_z",
+    "Trajectory": "trajectory_z",
 }
 
 # Formatting hints.

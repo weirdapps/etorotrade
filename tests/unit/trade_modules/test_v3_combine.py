@@ -258,8 +258,8 @@ def test_derive_cluster_weights_equal_spread_when_rest_ic_nonpositive():
     assert abs(sum(w.values()) - 1.0) < 1e-9, f"weights sum {sum(w.values())} != 1.0"
     assert abs(w["value_z"] + w["quality_z"] - 0.55) < 1e-9, "VQ cap not exactly 0.55"
 
-    expected_each = (1.0 - 0.55) / 4  # rest = momentum, lowvol, strength, pead
-    for c in ("momentum_z", "lowvol_z", "strength_z", "pead_z"):
+    expected_each = (1.0 - 0.55) / 5  # rest = momentum, lowvol, strength, pead, trajectory
+    for c in ("momentum_z", "lowvol_z", "strength_z", "pead_z", "trajectory_z"):
         assert abs(w[c] - expected_each) < 1e-9, (
             f"{c}: got {w[c]:.6f}, expected {expected_each:.6f}"
         )
@@ -342,7 +342,27 @@ def test_growth_cluster_registered_direction_positive():
         "lowvol_z",
         "strength_z",
         "pead_z",
+        "trajectory_z",
     ]
+
+
+def test_trajectory_cluster_registered_direction_positive():
+    """Earnings-trajectory (PET/PEF) is a scored cluster: high ratio = forward cheaper =
+    earnings expected to rise, DIRECTION +1. Recovers the PET->PEF info dropped when
+    pe_forward left scoring; strongest survivorship-clean signal (beta-neutral t 2.17)."""
+    from trade_modules.v3.combine import CLUSTERS, DIRECTION
+
+    assert CLUSTERS["trajectory_z"] == ["earn_trajectory"]
+    assert DIRECTION["earn_trajectory"] == +1
+
+
+def test_trajectory_z_rising_earnings_ranks_above_falling():
+    """High PET/PEF (earnings rising) ranks above a falling-earnings peer (kept, +1)."""
+    df = _base(["RISING", "FLAT", "FALLING"])
+    df["earn_trajectory"] = [2.0, 1.0, 0.5]  # PET/PEF: >1 rising, <1 falling
+    scores = compute_scores(df, sector_neutral=False)
+    assert scores.loc["RISING", "trajectory_z"] > scores.loc["FLAT", "trajectory_z"]
+    assert scores.loc["FLAT", "trajectory_z"] > scores.loc["FALLING", "trajectory_z"]
 
 
 def test_growth_z_high_growth_ranks_above_low_growth():
@@ -525,14 +545,16 @@ def test_quality_is_roe_fcf_gp_assets():
             assert dead not in members, f"{dead} must not be scored in quality"
 
 
-def test_best_bet_prior_weights_2026_07_19():
-    """BEST-BET prior (grounded in the survivorship-clean backtest + literature):
-    quality-led (GP/assets), value+momentum held as durable core, PEAD added, low-vol
-    trimmed to a risk-diversifier, growth trimmed. VQ below the 0.55 cap; sum = 1."""
+def test_best_bet_prior_weights_2026_07_20():
+    """BEST-BET prior (survivorship-clean backtest + literature): quality-led (GP/assets),
+    value+momentum durable core, PEAD + earnings-trajectory (PET/PEF — strongest clean
+    signal, beta-neutral t 2.17) added, low-vol a risk-diversifier, growth trimmed. VQ
+    below the 0.55 cap; sum = 1."""
     from trade_modules.v3.combine import CLUSTER_WEIGHTS as w
 
     assert w["quality_z"] == max(w.values()), "quality is the evidence leader"
     assert w["pead_z"] > 0, "PEAD participates (best clean signal + robust literature)"
+    assert w["trajectory_z"] > 0, "earnings-trajectory participates (strongest clean signal)"
     assert w["lowvol_z"] < w["value_z"], "low-vol trimmed to a risk-diversifier"
     assert w["lowvol_z"] <= 0.10 + 1e-9, "low-vol capped low (its alpha was a beta artifact)"
     assert (w["value_z"] + w["quality_z"]) < 0.55, "no Value+Quality cap-as-floor"
