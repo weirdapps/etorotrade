@@ -130,7 +130,6 @@ MSI,"Motorola Solutions, Inc.",NYSE
 WDC,Western Digital Corporation,Nasdaq
 MU,"Micron Technology, Inc.",Nasdaq
 ANF,Abercrombie & Fitch Company,NYSE
-DEM,WisdomTree Emerging Markets High Dividend Fund,NYSE
 AGNC,AGNC Investment Corp,Nasdaq
 ADSK,"Autodesk, Inc.",Nasdaq
 ORCL,Oracle Corporation,NYSE
@@ -2212,6 +2211,7 @@ GSPARK.BD,GRAPHISOFT PARK SE,Budapest
 MAST.BD,MASTERPLAST,Budapest
 MOL.BD,MOL Hungarian Oil and Gas PLC,Budapest
 MTELEKOM.BD,Magyar Telekom Telecommunications PLC,Budapest
+HGBP.L,HSBC Sterling Liquidity Fund UCITS ETF,LSE
 IITB.MI,Ishares Italy Govt Bond,Borsa Italiana
 BTP10.MI,Lyxor Euromts 10Y Itl Gv Bnd,Borsa Italiana
 BTP13.MI,Lyxor Euromts 1-3Y It Btp Gv,Borsa Italiana
@@ -2565,7 +2565,6 @@ ANSS,ANSYS,Nasdaq
 ARII,American Railcar Industries Inc,Nasdaq
 AXTA,Axalta Coating Systems,NYSE
 BB,BlackBerry Limited,NYSE
-BITA,Bitauto Holdings Limited,NYSE
 BPY,Brookfield Property Partners L.P.,Nasdaq
 MTN DUMMY CVR,MTN DUMMY CVR for old delisting test units,LSE
 BSAC,Banco Santander Chile-ADR,NYSE
@@ -4012,7 +4011,7 @@ EXK,Endeavour Silver Corp,NYSE
 FCAU,Fiat Chrysler Automobiles NV,NYSE
 FCN,FTI Consulting Inc,NYSE
 XPEV,XPeng Inc ADR,NYSE
-XPRO,Expro Group Holdings NV,NYSE
+XPRO,EXPRO LTD,NYSE
 FNV,Franco-Nevada Corp,NYSE
 COUR,Coursera Inc.,NYSE
 FR,First Industrial Realty Trust Inc,NYSE
@@ -4776,7 +4775,7 @@ CHH,Choice Hotels International Inc,NYSE
 ALGT,Allegiant Travel Company,Nasdaq
 GRPN,Groupon Inc,Nasdaq
 IDT,IDT Corporation,NYSE
-REE,REE Automotive Ltd,Nasdaq
+REEAF,REE Automotive Ltd,OTC Markets
 BSY,"Bentley Systems, Incorporated",Nasdaq
 RYAN,"Ryan Specialty Group Holdings, Inc.",NYSE
 CMPS,COMPASS Pathways plc,Nasdaq
@@ -9985,7 +9984,7 @@ LIF,Life360 Inc,Nasdaq
 OTEX,Open Text Corp,Nasdaq
 LINE,Lineage Inc,Nasdaq
 CIGI,Colliers International Group Inc,Nasdaq
-SKHYV,SK hynix Inc,Nasdaq
+SKHY,SK hynix Inc ADR,Nasdaq
 DSGX,Descartes Systems Group Inc,Nasdaq
 DOO,BRP Inc,Nasdaq
 RGC,Regencell Bioscience Holdings Ltd,Nasdaq
@@ -10292,6 +10291,7 @@ MKC/V,McCormick & Co Inc/MD,NYSE
 CVR.AVDL,Avadel Pharmaceuticals CVR,Nasdaq
 IBOT,VanEck Robotics ETF,Nasdaq
 SGP,SpyGlass Pharma Inc,Nasdaq
+ESPR CVR,ESPERION THERAPEUTICS-CVR,Nasdaq
 GENB,"Generate Biomedicines, Inc",Nasdaq
 TKVA,Salspera Inc,Nasdaq
 CAST,"FreeCast, Inc",Nasdaq
@@ -10428,7 +10428,73 @@ AMEV.DE,Amundi Core MSCI Japan UCITS ETF USD Hedged Acc,Xetra ETFs
 WEBL.DE,Amundi Core MSCI USA UCITS ETF Acc,Xetra ETFs
 MEGU.DE,Amundi MSCI USA Mega Cap UCITS ETF Acc,Xetra ETFs
 WEBB.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
+HUKX.L,HSBC FTSE 100 UCITS ETF,LSE
 FSFL.L,Foresight Solar Fund Ltd,LSE
+CSQR,"Csquare, Inc",NYSE
+STDN,"Standard Nuclear, Inc",NYSE
+2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
+BITA,iShares Bitcoin Premium Income ETF,Nasdaq
+QQQM,Invesco Nasdaq 100 ETF,Nasdaq
+IDEF,iShares Defense Industrials Active ETF,Nasdaq
+BLCR,iShares Large Cap Core Active ETF,Nasdaq
+UFO,Procure Space ETF,Nasdaq
+DTCR,Global X Data Center & Digital Infrastructure ETF,Nasdaq
+DGRW,WisdomTree U.S. Quality Dividend Growth Fund,Nasdaq
+ESGE,iShares ESG Aware MSCI EM ETF,Nasdaq
+BUG,Global X Cybersecurity ETF,Nasdaq
+EEMA,iShares MSCI Emerging Markets Asia ETF,Nasdaq
+DAPP,VanEck Digital Transformation ETF,Nasdaq
+BKCH,Global X Blockchain ETF,Nasdaq
+INDY,iShares India 50 ETF,Nasdaq
+DRIV,Global X Autonomous & Electric Vehicles ETF,Nasdaq
+GNOM,Global X Genomics & Biotechnology ETF,Nasdaq
+PNQI,Invesco Nasdaq Internet ETF,Nasdaq
+CXSE,WisdomTree Trust WisdomTree China ex-State-Owned Enterprises Fund,Nasdaq
+HERO,Global X Video Games & Esports ETF,Nasdaq
+WDAF,WisdomTree Asia Defense Fund,Nasdaq
+CTEC,Global X ClimateTech ETF,Nasdaq
+EUV,Corgi Lithography & Semiconductor Photonics ETF,NYSE
+CGGR,Capital Group Growth ETF,NYSE
+PYLD,PIMCO Multisector Bond Active ETF,NYSE
+AVUV,Avantis U.S. Small Cap Value ETF,NYSE
+AVDE,Avantis International Equity ETF,NYSE
+AVEM,Avantis Emerging Markets Equity ETF,NYSE
+SGOV,iShares 0-3 Month Treasury Bond ETF,NYSE
+KORU,Direxion Daily MSCI South Korea Bull 3X ETF,NYSE
+SPDW,State Street SPDR Portfolio Developed World ex-US ETF,NYSE
+SPEM,State Street SPDR Portfolio Emerging Markets ETF,NYSE
+IAUM,iShares Gold Trust Micro,NYSE
+FDN,First Trust Dow Jones Internet Index Fund,NYSE
+DXJ,WisdomTree Japan Hedged Equity Fund,NYSE
+VPL,Vanguard FTSE Pacific ETF,NYSE
+FLTW,Franklin FTSE Taiwan ETF,NYSE
+IDMO,Invesco S&P International Developed Momentum ETF,NYSE
+HACK,Amplify Cybersecurity ETF,NYSE
+DEM,WisdomTree Emerging Markets High Dividend Fund,NYSE
+XCEM,Columbia EM Core ex-China ETF,NYSE
+PXF,Invesco RAFI Developed Markets ex-US ETF,NYSE
+EWM,iShares MSCI Malaysia ETF,NYSE
+LEMB,iShares J.P. Morgan EM Local Currency Bond ETF,NYSE
+EPHE,iShares MSCI Philippines ETF,NYSE
+FLCH,Franklin FTSE China ETF,NYSE
+FLGV,Franklin U.S. Treasury Bond ETF,NYSE
+KURE,Kraneshares MSCI All China Health Care Index ETF,NYSE
+FGDL,Franklin Responsibly Sourced Gold ETF,NYSE
+AFK,VanEck Africa Index ETF,NYSE
+IDLV,Invesco S&P International Developed Low Volatility ETF,NYSE
+FLEE,Franklin FTSE Europe ETF,NYSE
+WDIV,State Street SPDR S&P Global Dividend ETF,NYSE
+CHIQ,Global X MSCI China Consumer Discretionary ETF,NYSE
+KEMQ,KraneShares Emerging Markets Consumer Technology Index ETF,NYSE
+ASEA,Global X FTSE Southeast Asia ETF,NYSE
+SMOG,VanEck Low Carbon Energy ETF,NYSE
+SEMI,Columbia Select Technology ETF,NYSE
+KGRN,KraneShares MSCI China Clean Technology Index ETF,NYSE
+DVYA,iShares Asia/Pacific Dividend ETF,NYSE
+FLAX,Franklin FTSE Asia ex Japan ETF,NYSE
+HMWA.L,HSBC MSCI WORLD UCITS ETF,LSE
+HSTE.L,HSBC Hang Seng Tech UCITS ETF,LSE
+HNSC.L,HSBC Nasdaq Global Semiconductor UCITS ETF,LSE
 BOC.AX,Bougainville Copper Ltd,ASX
 KCN.AX,Kingsgate Consolidated Ltd,ASX
 HZN.AX,Horizon Oil Ltd,ASX
@@ -10995,6 +11061,56 @@ SAMPO.CO,Sampo Oyj,Copenhagen Stock Exchange
 CARA.ST,Carasent AB,Stockholm Stock Exchange
 INTEAD.ST,Intea Fastigheter AB,Stockholm Stock Exchange
 CCC.ST,Cavotec Group AB,Stockholm Stock Exchange
+BX4.PA,Amundi CAC 40 Daily -2X Inverse UCITS ETF,Euronext Paris
+LVC.PA,Amundi CAC 40 Daily 2X Leveraged UCITS ETF,Euronext Paris
+SHC.PA,Amundi CAC 40 Daily -1X Inverse UCITS ETF,Euronext Paris
+PSP5.PA,Amundi PEA S&P 500 UCITS ETF,Euronext Paris
+FGBL.PA,First Trust Global Equity Income UCITS ETF,Euronext Paris
+EMEH.PA,BNP Paribas Easy Energy & Metals Enhanced Roll UCI,Euronext Paris
+CSW.PA,Amundi Msci Switzerland UCITS ETF,Euronext Paris
+X1GD.PA,Amundi Euro Lowest Rated IG Government Bond UCITS ,Euronext Paris
+TPXE.PA,Amundi Japan Topix UCITS ETF,Euronext Paris
+CD9.PA,Amundi MSCI Europe High Dividend Factor UCITS ETF,Euronext Paris
+C4D.PA,Amundi CAC 40 ESG UCITS ETF,Euronext Paris
+MTH.PA,Amundi Euro Government Bond 25+Y UCITS ETF,Euronext Paris
+CACC.PA,Amundi CAC 40 UCITS ETF,Euronext Paris
+CMUD.PA,Amundi MSCI EMU ESG Selection - UCITS ETF DR,Euronext Paris
+PABZ.PA,Amundi MSCI EMU Climate Paris Aligned UCITS ETF,Euronext Paris
+WVAL.AS,SS SPDR MSCI World Value UCITS ETF,Euronext Amsterdam
+NDIA.AS,iShares MSCI India UCITS ETF,Euronext Amsterdam
+EMQQ.PA,EMQQ Emerging Markets Internet UCITS ETF,Euronext Paris
+ESGO.PA,Gold Miners Screened UCITS ETF ACC,Euronext Paris
+FLPE.AS,Northern Trust Listed Private Equity UCITS ETF,Euronext Amsterdam
+HODLV.PA,21Shares Crypto Basket Equal Weight ETP,Euronext Paris
+HODL.PA,21Shares Crypto Basket Index ETP,Euronext Paris
+AADA.PA,21Shares Cardano ETP,Euronext Paris
+HODLX.PA,21Shares Crypto Basket 10 Core ETP,Euronext Paris
+ALINK.PA,21Shares Chainlink ETP,Euronext Paris
+AAVE.PA,21Shares Aave ETP,Euronext Paris
+SRIC6.PA,BNP Paribas Easy EUR Corp Bond SRI PAB 3-5Y UCITS ,Euronext Paris
+BSRIC.PA,BNP Paribas Easy EUR Aggregate Bond SRI Fossil Fre,Euronext Paris
+GEU3C.PA,BNP Paribas Easy JPM ESG EMU Government Bond IG 1-,Euronext Paris
+GEU3D.PA,BNP Paribas Easy JPM ESG EMU Government Bond IG 1-,Euronext Paris
+LIDO.PA,21Shares Lido DAO ETP,Euronext Paris
+CLEM.PA,Amundi MSCI Emerging Markets ESG Broad Transition/,Euronext Paris
+CBEU.AS,First Trust Nasdaq Cybersecurity UCITS ETF,Euronext Amsterdam
+SRIUC.PA,BNP Paribas Easy EUR Corp Bond SRI Fossil Free Ult,Euronext Paris
+3EUL.PA,WisdomTree EURO STOXX 50 3x Daily Leveraged,Euronext Paris
+WEMT2.PA,BNP Paribas Easy MSCI World Min TE UCITS ETF,Euronext Paris
+S500.PA,Amundi S&P 500 Screened UCITS ETF,Euronext Paris
+S500H.PA,Amundi S&P 500 Screened UCITS ETF,Euronext Paris
+ENG.PA,BNP Paribas Easy ECPI Global ESG Infrastructure UC,Euronext Paris
+USA.PA,Amundi MSCI USA ESG Broad Transition UCITS ETF,Euronext Paris
+SPEUH.PA,BNP Paribas Easy S&P 500 Scored And Screened UCITS,Euronext Paris
+EWLD.PA,Amundi MSCI World Swap UCITS ETF,Euronext Paris
+WLDC.PA,Amundi MSCI World Swap II UCITS ETF,Euronext Paris
+ASUI.PA,21Shares Sui Staking ETP,Euronext Paris
+VSUI.AS,VanEck Sui ETN,Euronext Amsterdam
+GREAD.PA,BNP Paribas Easy FTSE EPRA Nareit Developed Europe,Euronext Paris
+REMX.PA,VanEck Rare Earth and Strategic Metals UCITS ETF,Euronext Paris
+DCAM.PA,Amundi PEA Monde MSCI World UCITS ETF,Euronext Paris
+DEFS.PA,Amundi Stoxx Europe Defense UCITS ETF,Euronext Paris
+SPHC.PA,Amundi Core S&P 500 Swap UCITS ETF,Euronext Paris
 AAME,Atlantic American Corp,Nasdaq
 ACU,Acme United Corp,NYSE
 AIRT,Air T Inc,Nasdaq
@@ -11293,7 +11409,7 @@ SIFY,Sify Technologies Ltd,Nasdaq
 AEMD,Aethlon Medical Inc,Nasdaq
 NNVC,NanoViricides Inc,NYSE
 TPCS,TechPrecision Corp,Nasdaq
-BNBX,BNB Plus Corp,Nasdaq
+BNBX,BNB Plus Corp,OTC Markets
 ALP,Alpha Compute Corp,Nasdaq
 IDN,Intellicheck Inc,Nasdaq
 USAU,US Gold Corp,Nasdaq
@@ -11677,7 +11793,7 @@ DBVT,DBV Technologies SA,Nasdaq
 ARTL,Artelo Biosciences Inc,Nasdaq
 BBLG,Bone Biologics Corp,Nasdaq
 ALOY,REalloys Inc,Nasdaq
-EVTV,Azio AI Holdings Inc,Nasdaq
+AZIO,Azio AI Holdings Inc,Nasdaq
 QNCX,Quince Therapeutics Inc,Nasdaq
 PRHI,Presurance Holdings Inc,Nasdaq
 PZG,Paramount Gold Nevada Corp,NYSE
@@ -12277,7 +12393,7 @@ OIO,OIO Group,Nasdaq
 NRXS,Neuraxis Inc,NYSE
 PTHS,Pelthos Therapeutics Inc,NYSE
 MGRX,Mangoceuticals Inc,Nasdaq
-WAI,Top Kingwin Ltd,Nasdaq
+DPU,Top Kingwin Ltd,Nasdaq
 FSEA,First Seacoast Bancorp Inc,Nasdaq
 NOEM,CO2 Energy Transition Corp,Nasdaq
 CRGO,Freightos Ltd,Nasdaq
@@ -12683,7 +12799,7 @@ AXIN,Axiom Intelligence Acquisition Corp 1,Nasdaq
 BACC,Blue Acquisition Corp,Nasdaq
 EVOX,Evolution Global Acquisition Corp,Nasdaq
 PLBL,Polibeli Group Ltd,Nasdaq
-SVAC,General Fusion Group Ltd,Nasdaq
+GFUZ,General Fusion Group Ltd,Nasdaq
 AVBH,Avidbank Holdings Inc,Nasdaq
 DKI,Darkiris Inc,Nasdaq
 GIW,GigCapital8 Corp,Nasdaq
