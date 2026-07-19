@@ -117,3 +117,32 @@ def factor_panel(fasof: pd.DataFrame, fprior: pd.DataFrame, price: pd.Series) ->
             "accruals": ((ni - cf) / assets).where(assets != 0),
         }
     )
+
+
+def live_fundamentals_factors(tickers, *, store_path: str | None = None) -> pd.DataFrame:
+    """Latest-filing GP/assets + SUE per ticker from the PIT SF1 store, for LIVE scoring.
+
+    'Live' = the most recent available filing per ticker. Tickers absent from the store
+    (non-US / no filing) get NaN so the quality / PEAD clusters degrade gracefully.
+    NaN-safe if the store is missing/empty. Returns a frame indexed by ticker with
+    columns ``gp_assets`` and ``sue``.
+    """
+    from trade_modules.v3.fundamentals_store import STORE_PATH, read_asof, read_history
+
+    sp = store_path or STORE_PATH
+    idx = pd.Index([str(t) for t in tickers], name="ticker")
+    out = pd.DataFrame(index=idx)
+    out["gp_assets"] = pd.Series(index=idx, dtype=float)
+    out["sue"] = pd.Series(index=idx, dtype=float)
+
+    fasof = read_asof(list(idx), "2099-12-31", store_path=sp)  # latest filing per ticker
+    if not fasof.empty:
+        gp = pd.to_numeric(fasof.get("gp"), errors="coerce")
+        assets = pd.to_numeric(fasof.get("assets"), errors="coerce")
+        out["gp_assets"] = (gp / assets).where(assets != 0).reindex(idx)
+
+    hist = read_history(list(idx), "2099-12-31", store_path=sp)
+    if not hist.empty:
+        sue = hist.sort_values("datekey").groupby("ticker")["eps"].apply(srw_sue)
+        out["sue"] = pd.to_numeric(sue, errors="coerce").reindex(idx)
+    return out

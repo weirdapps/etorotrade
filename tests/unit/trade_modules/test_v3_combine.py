@@ -239,10 +239,10 @@ def test_derive_cluster_weights_equal_spread_when_rest_ic_nonpositive():
     """Freed weight spreads equally when non-VQ clusters all have IC ≤ 0 (else branch).
 
     Triggers the ``else`` branch at combine.py ~line 118: VQ IC is high enough
-    to push sum above the 0.55 cap, and the three remaining clusters (momentum,
-    lowvol, strength) have IC ≤ 0 so their raw weights are all zero.  The freed
-    weight (1 - 0.55 = 0.45) must be spread equally across the three clusters,
-    giving each 0.15, and the VQ pair is still exactly at the 0.55 cap.
+    to push sum above the 0.55 cap, and the four remaining clusters (momentum,
+    lowvol, strength, pead) have IC ≤ 0 so their raw weights are all zero.  The freed
+    weight (1 - 0.55 = 0.45) must be spread equally across the four clusters,
+    giving each 0.1125, and the VQ pair is still exactly at the 0.55 cap.
     """
     from trade_modules.v3.combine import derive_cluster_weights
 
@@ -258,8 +258,8 @@ def test_derive_cluster_weights_equal_spread_when_rest_ic_nonpositive():
     assert abs(sum(w.values()) - 1.0) < 1e-9, f"weights sum {sum(w.values())} != 1.0"
     assert abs(w["value_z"] + w["quality_z"] - 0.55) < 1e-9, "VQ cap not exactly 0.55"
 
-    expected_each = (1.0 - 0.55) / 3  # 0.45 / 3 = 0.15
-    for c in ("momentum_z", "lowvol_z", "strength_z"):
+    expected_each = (1.0 - 0.55) / 4  # rest = momentum, lowvol, strength, pead
+    for c in ("momentum_z", "lowvol_z", "strength_z", "pead_z"):
         assert abs(w[c] - expected_each) < 1e-9, (
             f"{c}: got {w[c]:.6f}, expected {expected_each:.6f}"
         )
@@ -341,6 +341,7 @@ def test_growth_cluster_registered_direction_positive():
         "growth_z",
         "lowvol_z",
         "strength_z",
+        "pead_z",
     ]
 
 
@@ -511,27 +512,29 @@ def test_fixnow_value_drops_raw_pb_anchors_ev_ebitda():
         assert "pb" not in members, "raw P/B must not be scored in any cluster"
 
 
-def test_fixnow_quality_interim_is_roe_fcf():
-    """Interim quality = ROE + FCF (panel-available). Per-sales margins + roa retired
-    (GP/assets is the right anchor but unbuildable now → BUILD); current_ratio + de move
-    to a distress filter; accruals is shadow-only (non-PIT) (D8)."""
-    from trade_modules.v3.combine import CLUSTERS
+def test_quality_is_roe_fcf_gp_assets():
+    """Quality = ROE + FCF + GP/assets (Novy-Marx anchor added 2026-07-19 once the
+    Sharadar SF1 PIT data was in). Per-sales margins + roa stay retired; current_ratio
+    + de are a distress filter; accruals shadow-only (no clean alpha)."""
+    from trade_modules.v3.combine import CLUSTERS, DIRECTION
 
-    assert CLUSTERS["quality_z"] == ["roe", "fcf"]
+    assert CLUSTERS["quality_z"] == ["roe", "fcf", "gp_assets"]
+    assert DIRECTION["gp_assets"] == +1
     for dead in ("roa", "gross_margin", "op_margin", "current_ratio", "de", "accruals"):
         for members in CLUSTERS.values():
-            assert dead not in members, f"{dead} must not be scored in quality (interim)"
+            assert dead not in members, f"{dead} must not be scored in quality"
 
 
-def test_fixnow_equal_weight_core_no_vq_floor():
-    """Default weights: core (value/quality/momentum/lowvol) equal — no discretionary
-    tilt; growth = satellite (reduced, >0); strength = small cap; NO Value+Quality
-    cap-as-floor (VQ well below 0.55); weights sum to 1 (D14, D6b, D11, D7)."""
+def test_best_bet_prior_weights_2026_07_19():
+    """BEST-BET prior (grounded in the survivorship-clean backtest + literature):
+    quality-led (GP/assets), value+momentum held as durable core, PEAD added, low-vol
+    trimmed to a risk-diversifier, growth trimmed. VQ below the 0.55 cap; sum = 1."""
     from trade_modules.v3.combine import CLUSTER_WEIGHTS as w
 
-    assert w["value_z"] == w["quality_z"] == w["momentum_z"] == w["lowvol_z"]
-    assert 0.0 < w["growth_z"] < w["value_z"], "growth is a reduced satellite (>0)"
-    assert 0.0 < w["strength_z"] < w["growth_z"], "strength is a small cap"
+    assert w["quality_z"] == max(w.values()), "quality is the evidence leader"
+    assert w["pead_z"] > 0, "PEAD participates (best clean signal + robust literature)"
+    assert w["lowvol_z"] < w["value_z"], "low-vol trimmed to a risk-diversifier"
+    assert w["lowvol_z"] <= 0.10 + 1e-9, "low-vol capped low (its alpha was a beta artifact)"
     assert (w["value_z"] + w["quality_z"]) < 0.55, "no Value+Quality cap-as-floor"
     assert abs(sum(w.values()) - 1.0) < 1e-9
 

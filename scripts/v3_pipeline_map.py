@@ -60,6 +60,9 @@ LABEL = {
     "op_margin": "Operating margin",
     "accruals": "Accruals",
     "target_dispersion": "Target dispersion",
+    "gp_assets": "Gross profit / assets",
+    "sue": "Earnings surprise (SUE)",
+    "asset_growth": "Asset growth (CMA)",
 }
 _DIRTXT = {1: "high = good", -1: "low = good"}
 
@@ -70,6 +73,7 @@ CLUSTER_LABEL = {
     "growth_z": "Growth",
     "lowvol_z": "Low volatility",
     "strength_z": "Strength",
+    "pead_z": "PEAD (earnings surprise)",
 }
 
 # Curated non-scored classification (documented FIX-NOW / redesign decisions).
@@ -88,10 +92,11 @@ MONITORED = {  # shadow-logged + backtested, ZERO conviction
 DISCARDED = {
     "pe_forward": "near-duplicate of trailing P/E (ρ 0.75) — removed",
     "target_dispersion": "live-fetched, non-point-in-time — removed",
-    "accruals": "needs a point-in-time balance sheet — BUILD / shadow",
-    "roa": "retired for the interim quality set (ROE + FCF)",
-    "gross_margin": "per-sales margin; the Novy-Marx anchor is GP/assets — BUILD",
+    "roa": "retired for the interim quality set (ROE + FCF + GP/assets)",
+    "gross_margin": "per-sales margin; superseded by GP/assets (now scored)",
     "op_margin": "per-sales margin; operating-profitability/assets — BUILD",
+    "asset_growth": "CMA / investment — NO alpha on survivorship-clean data (FM ~0) → excluded",
+    "accruals": "Sloan accruals — NO alpha on survivorship-clean data → excluded",
 }
 
 

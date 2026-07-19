@@ -159,7 +159,16 @@ def test_render_email_is_outlook_safe():
         assert forbidden not in html, forbidden
     assert "&amp;amp;" not in html  # no HTML-entity double-escaping
     # sections + all six factor clusters present
-    for token in ("Factor Snapshot", "Value", "Quality", "Growth", "Momentum", "Analyst", "Risk"):
+    for token in (
+        "Factor Snapshot",
+        "Value",
+        "Quality",
+        "PEAD",
+        "Growth",
+        "Momentum",
+        "Strength",
+        "Risk",
+    ):
         assert token in html, token
     # USD-bloc breach surfaced (0.68 > 0.65 cap)
     assert "BREACH" in html
