@@ -24,7 +24,18 @@ STORE_PATH: str = str(Path("~/.weirdapps-trading/v3_fundamentals_store.parquet")
 
 KEYS = ["ticker", "datekey", "reportperiod"]
 # Numeric as-reported fields we derive factors from (Sharadar SF1 names, ARQ dimension).
-NUM_FIELDS = ["assets", "equity", "gp", "netinc", "ncfo", "revenue", "eps"]
+# sharesbas + marketcap let us build book-to-price at ANY date (equity / (price*shares)).
+NUM_FIELDS = [
+    "assets",
+    "equity",
+    "gp",
+    "netinc",
+    "ncfo",
+    "revenue",
+    "eps",
+    "sharesbas",
+    "marketcap",
+]
 STORE_COLS = KEYS + NUM_FIELDS
 
 
