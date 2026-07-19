@@ -70,7 +70,8 @@ def append_records(records: pd.DataFrame, *, store_path: str = STORE_PATH) -> in
     added = len(
         {(t, d) for t, d in zip(new["ticker"], new["datekey"], strict=False)} - existing_keys
     )
-    combined = pd.concat([existing, new], ignore_index=True)
+    # Skip concat when the store is empty to avoid a pandas all-NA FutureWarning.
+    combined = new if existing.empty else pd.concat([existing, new], ignore_index=True)
     combined = combined.drop_duplicates(subset=["ticker", "datekey"], keep="last").sort_values(
         ["ticker", "datekey"]
     )
