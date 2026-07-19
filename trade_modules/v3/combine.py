@@ -54,6 +54,10 @@ DIRECTION = {
     # earnings surprise / PEAD + investment (2026-07-19)
     "sue": +1,  # standardized unexpected earnings (post-earnings drift; high is good)
     "asset_growth": -1,  # CMA / investment (low is good) — monitored, not scored
+    # earnings trajectory (2026-07-20): trailing/forward P/E ratio (high = forward cheaper
+    # = earnings expected to RISE; low = value-trap). The distinct PET->PEF information
+    # lost when raw pe_forward was pruned. Strongest survivorship-clean signal we found.
+    "earn_trajectory": +1,
 }
 
 # Scoring clusters -> member metrics.
@@ -85,6 +89,13 @@ CLUSTERS = {
     # signal (beta-neutral IC t 2.06, hit 68%) + robust literature (Bernard-Thomas).
     # SUE = seasonal-random-walk standardized unexpected earnings, from SF1 actuals.
     "pead_z": ["sue"],
+    # Earnings trajectory (2026-07-20): PET/PEF = trailing/forward P/E ratio. Recovers
+    # the forward-looking information dropped when raw pe_forward was pruned (the LEVEL
+    # was a near-dup of trailing, zero IC; the SPREAD is not). Best clean signal on the
+    # panel: beta-neutral forward IC t 2.17, hit 80%, incremental to value+growth (FM
+    # t 1.71). Panel-only (Sharadar has no forward estimates) -> earn-in via the adaptive
+    # mechanism as forward IC accrues.
+    "trajectory_z": ["earn_trajectory"],
 }
 
 # ---------------------------------------------------------------------------
@@ -142,14 +153,18 @@ _VALUE_CANDIDATES = sorted({m for r in VALUE_GROUP_RECIPES.values() for m in r})
 # its standalone alpha was a beta artifact -> risk-diversifier only); growth trimmed
 # (short-leg-of-value). CMA + accruals EXCLUDED (no clean alpha). The adaptive shrinkage
 # mechanism (v3/weight_proposal.py) proposes drift toward measured forward IC as data accrues.
+# 2026-07-20: earnings-trajectory (PET/PEF) added at 0.10 — the strongest clean signal on
+# the panel (beta-neutral t 2.17, hit 80%, incremental to value+growth). Funded by trimming
+# value/momentum 0.20->0.18, growth 0.08->0.05, strength 0.07->0.05, quality 0.25->0.24.
 CLUSTER_WEIGHTS = {
-    "value_z": 0.20,
-    "quality_z": 0.25,
-    "momentum_z": 0.20,
+    "value_z": 0.18,
+    "quality_z": 0.24,
+    "momentum_z": 0.18,
     "pead_z": 0.10,
+    "trajectory_z": 0.10,
     "lowvol_z": 0.10,
-    "growth_z": 0.08,
-    "strength_z": 0.07,
+    "growth_z": 0.05,
+    "strength_z": 0.05,
 }
 
 # The Value+Quality joint weight is capped here regardless of the weighting scheme.
@@ -160,7 +175,15 @@ _VQ_CAP = 0.55
 # is deliberately EXCLUDED here: it is off (weight 0) in the default + IC paths
 # and only activated through the explicit ``cluster_weights`` arg, so the IC
 # redistribution math (and its unit tests) are unchanged.
-_IC_CLUSTERS = ["value_z", "quality_z", "momentum_z", "lowvol_z", "strength_z", "pead_z"]
+_IC_CLUSTERS = [
+    "value_z",
+    "quality_z",
+    "momentum_z",
+    "lowvol_z",
+    "strength_z",
+    "pead_z",
+    "trajectory_z",
+]
 
 # Short-name aliases for the explicit ``cluster_weights`` arg: "value" -> "value_z".
 _CLUSTER_ALIASES = {c[:-2]: c for c in CLUSTERS}
@@ -263,6 +286,7 @@ _ELIG_CLUSTERS = [
     "lowvol_z",
     "strength_z",
     "pead_z",
+    "trajectory_z",
 ]
 _MIN_CLUSTERS = 3
 

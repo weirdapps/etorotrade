@@ -156,6 +156,7 @@ def main() -> None:
     parts: dict[str, list[pd.DataFrame]] = {f: [] for f in set(factors.values())}
     parts["mom_12_1"] = []
     parts["realized_vol"] = []
+    parts["earn_trajectory"] = []
     cluster_parts: dict[str, list[pd.DataFrame]] = {c: [] for c in CLUSTERS}
     fm_parts: list[pd.DataFrame] = []  # P3: wide panel for Fama-MacBeth
     first_tickers: set = set()
@@ -201,6 +202,16 @@ def main() -> None:
                 zcols[feat] = z
                 _append_part(parts, feat, date, z, fwd, fwd_n, sec)
 
+        # earnings trajectory = trailing/forward P/E (>1 = forward cheaper = earnings
+        # expected to RISE; <1 = falling = value-trap). Recovers the PET->PEF info that
+        # was dropped when pe_forward left scoring; high is good (+1).
+        if "PET" in panel.columns and "PEF" in panel.columns:
+            pet, pef = _num(panel["PET"]), _num(panel["PEF"])
+            traj = (pet / pef).where((pet > 0) & (pef > 0))
+            ztraj = _sector_demean(_rank_z(traj), sec.reindex(traj.index))
+            zcols["earn_trajectory"] = ztraj
+            _append_part(parts, "earn_trajectory", date, ztraj, fwd, fwd_n, sec)
+
         # per-cluster z = mean of member factor-z present this snapshot
         cluster_cz: dict[str, pd.Series] = {}
         for cluster, members in CLUSTERS.items():
@@ -213,6 +224,10 @@ def main() -> None:
         # P3: wide row for the Fama-MacBeth regression (core clusters + beta vs fwd).
         if beta is not None:
             fm = pd.DataFrame({c: cluster_cz[c] for c in _FM_CLUSTERS if c in cluster_cz})
+            if "growth_z" in cluster_cz:  # include growth + trajectory for the spanning test
+                fm["growth_z"] = cluster_cz["growth_z"]
+            if "earn_trajectory" in zcols:
+                fm["earn_trajectory"] = zcols["earn_trajectory"]
             if not fm.empty:
                 fm["beta"] = beta.reindex(fm.index)
                 fm["fwd"] = fwd.reindex(fm.index)
@@ -267,7 +282,9 @@ def main() -> None:
     fm_result: dict = {}
     if fm_parts:
         fm_panel = pd.concat(fm_parts, ignore_index=True)
-        fm_x = [c for c in _FM_CLUSTERS if c in fm_panel.columns] + ["beta"]
+        fm_x = [
+            c for c in (*_FM_CLUSTERS, "growth_z", "earn_trajectory") if c in fm_panel.columns
+        ] + ["beta"]
         fm_result = fama_macbeth(fm_panel, "fwd", fm_x, date_col="date", lags=HORIZON)
     churn = (len(first_tickers - last_tickers) / len(first_tickers)) if first_tickers else 0.0
 

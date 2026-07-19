@@ -407,6 +407,12 @@ def enrich_features(
     safe_price = price.where(price > 0)
     disp = (feats["target_high"] - feats["target_low"]) / safe_price
     feats["target_dispersion"] = disp.replace([float("inf"), float("-inf")], float("nan"))
+    # earnings trajectory = trailing/forward P/E (>1 = forward cheaper = earnings expected
+    # to rise; <1 = value-trap). The distinct PET->PEF information lost when raw pe_forward
+    # left scoring; scored via the trajectory_z cluster (2026-07-20).
+    pet = pd.to_numeric(feats["pe_trailing"], errors="coerce")
+    pef = pd.to_numeric(feats["pe_forward"], errors="coerce")
+    feats["earn_trajectory"] = (pet / pef).where((pet > 0) & (pef > 0))
     # adv_usd = shares * local price * FX -> USD dollar-volume (for the ADV floor).
     feats["adv_usd"] = feats["avg_volume"] * price * feats.index.to_series().map(_usd_rate_for)
 

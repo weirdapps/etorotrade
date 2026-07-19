@@ -63,6 +63,7 @@ LABEL = {
     "gp_assets": "Gross profit / assets",
     "sue": "Earnings surprise (SUE)",
     "asset_growth": "Asset growth (CMA)",
+    "earn_trajectory": "Earnings trajectory (PET/PEF)",
 }
 _DIRTXT = {1: "high = good", -1: "low = good"}
 
@@ -74,6 +75,7 @@ CLUSTER_LABEL = {
     "lowvol_z": "Low volatility",
     "strength_z": "Strength",
     "pead_z": "PEAD (earnings surprise)",
+    "trajectory_z": "Earnings trajectory",
 }
 
 # Curated non-scored classification (documented FIX-NOW / redesign decisions).
@@ -90,7 +92,7 @@ MONITORED = {  # shadow-logged + backtested, ZERO conviction
     "price_perf": "≈ momentum (ρ 0.95) — shown as context, double-count avoided",
 }
 DISCARDED = {
-    "pe_forward": "near-duplicate of trailing P/E (ρ 0.75) — removed",
+    "pe_forward": "LEVEL near-dup of trailing P/E (ρ 0.75, ≈0 IC) — but its forward info is now captured by the earn_trajectory (PET/PEF) spread, which IS scored (β-neutral t 2.17)",
     "target_dispersion": "live-fetched, non-point-in-time — removed",
     "roa": "retired for the interim quality set (ROE + FCF + GP/assets)",
     "gross_margin": "per-sales margin; superseded by GP/assets (now scored)",
