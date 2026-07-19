@@ -13,6 +13,7 @@ from trade_modules.v3.fundamentals import (
     book_to_price,
     factor_panel,
     gross_profit_to_assets,
+    live_fundamentals_factors,
     srw_sue,
 )
 
@@ -90,3 +91,28 @@ def test_factor_panel_handles_empty_prior():
     fp = factor_panel(fasof, pd.DataFrame(), pd.Series({"A": 10.0}))
     assert math.isnan(fp.loc["A", "asset_growth"])  # no prior -> NaN
     assert fp.loc["A", "gp_assets"] == pytest.approx(0.15)  # others still compute
+
+
+def test_live_fundamentals_factors(tmp_path):
+    from trade_modules.v3.fundamentals_store import append_records
+
+    store = str(tmp_path / "f.parquet")
+    rows = [
+        {"ticker": "AAA", "datekey": dk, "reportperiod": dk, "assets": 200.0, "gp": 30.0, "eps": e}
+        for dk, e in [
+            ("2024-03-15", 1.0),
+            ("2024-06-15", 1.1),
+            ("2024-09-15", 1.2),
+            ("2024-12-15", 1.3),
+            ("2025-03-15", 1.2),
+            ("2025-06-15", 1.4),
+            ("2025-09-15", 1.5),
+            ("2025-12-15", 1.8),
+        ]
+    ]
+    append_records(pd.DataFrame(rows), store_path=store)
+    out = live_fundamentals_factors(["AAA", "ZZZ"], store_path=store)
+    assert out.loc["AAA", "gp_assets"] == pytest.approx(0.15)  # 30 / 200
+    assert not math.isnan(out.loc["AAA", "sue"])  # >=6 quarters -> SUE computable
+    assert math.isnan(out.loc["ZZZ", "gp_assets"])  # not in store -> NaN (graceful)
+    assert math.isnan(out.loc["ZZZ", "sue"])
