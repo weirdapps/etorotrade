@@ -99,6 +99,7 @@ def main() -> None:
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--tickers", help="comma-separated tickers")
     g.add_argument("--from-universe", action="store_true", help="use the etoro.csv universe")
+    g.add_argument("--from-file", help="read tickers from a file (one per line)")
     ap.add_argument("--since", help="only filings with datekey >= this (YYYY-MM-DD)")
     args = ap.parse_args()
 
@@ -111,11 +112,12 @@ def main() -> None:
         )
         sys.exit(2)
 
-    tickers = (
-        [t.strip() for t in args.tickers.split(",") if t.strip()]
-        if args.tickers
-        else _universe_tickers()
-    )
+    if args.tickers:
+        tickers = [t.strip() for t in args.tickers.split(",") if t.strip()]
+    elif args.from_file:
+        tickers = [ln.strip() for ln in Path(args.from_file).read_text().splitlines() if ln.strip()]
+    else:
+        tickers = _universe_tickers()
     if not tickers:
         print("ERROR: no tickers to fetch.", file=sys.stderr)
         sys.exit(1)
