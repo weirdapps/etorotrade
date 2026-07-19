@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
+import pytest
 
 from trade_modules.v3.factor_backtest import (
     BACKTEST_PANEL_FACTORS,
     beta_neutralize,
     factor_zscore,
+    fama_macbeth,
     forward_return_at,
+    hac_tstat,
     ic_by_sector,
     is_active,
     sector_neutralize,
@@ -117,3 +121,62 @@ def test_ic_by_sector_drops_thin_sectors():
     df = pd.DataFrame(rows)
     res = ic_by_sector(df, "z", "fwd", "sector", date_col="date", min_names_per_date=5)
     assert "Z" not in res
+
+
+def test_ic_by_sector_min_dates_drops_short_history():
+    # A sector present on only ONE date is dropped when min_dates=2 (too few
+    # independent observations for a meaningful mean IC).
+    rows = [
+        {"date": "2026-01-01", "ticker": f"X{i}", "z": float(i), "fwd": i * 0.01, "sector": "X"}
+        for i in range(8)
+    ]
+    df = pd.DataFrame(rows)
+    res = ic_by_sector(df, "z", "fwd", "sector", date_col="date", min_names_per_date=4, min_dates=2)
+    assert "X" not in res
+
+
+def test_hac_tstat_deflates_autocorrelated_series():
+    # A blocky, positively-autocorrelated IC series: the naive t treats the 32
+    # points as independent and OVERSTATES significance; HAC (Newey-West) inflates
+    # the SE, so the corrected |t| is smaller (but still positive here).
+    x = pd.Series([0.10] * 8 + [0.06] * 8 + [0.08] * 8 + [0.05] * 8)
+    naive = summarize_ic(x)["t_stat"]
+    hac = hac_tstat(x, lags=6)
+    assert 0 < hac < naive
+
+
+def test_hac_tstat_close_to_naive_without_lags():
+    # lags=0 applies no autocorrelation correction, so HAC ~ the naive t-stat.
+    x = pd.Series([0.1, -0.05, 0.08, -0.02, 0.06, -0.01, 0.04, 0.02])
+    naive = summarize_ic(x)["t_stat"]
+    assert hac_tstat(x, lags=0) == pytest.approx(naive, rel=0.15)
+
+
+def test_fama_macbeth_recovers_slope():
+    # y = intercept_d + slope_d * x with slope alternating 1.98/2.02 (mean 2.0).
+    # The simultaneous per-date regression should recover a mean slope ~2.0 with a
+    # large t-stat (the slope is highly consistent across dates).
+    frames = []
+    for d in range(6):
+        x = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        slope = 2.02 if d % 2 else 1.98
+        frames.append(pd.DataFrame({"date": f"d{d}", "x": x, "y": 1.0 * d + slope * x}))
+    df = pd.concat(frames, ignore_index=True)
+    res = fama_macbeth(df, y_col="y", x_cols=["x"], date_col="date")
+    assert res["x"]["coef"] == pytest.approx(2.0, abs=1e-6)
+    assert res["x"]["t"] > 3
+    assert res["x"]["n_dates"] == 6
+
+
+def test_fama_macbeth_multivariate_isolates_each_factor():
+    # y = 3*a - 1*b per date; FM should recover coef(a)~3, coef(b)~-1 SIMULTANEOUSLY
+    # (this is the point vs sequential residualization).
+    frames = []
+    for d in range(5):
+        a = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        b = np.array([5.0, 1.0, 4.0, 2.0, 3.0])
+        frames.append(pd.DataFrame({"date": f"d{d}", "a": a, "b": b, "y": 3.0 * a - 1.0 * b}))
+    df = pd.concat(frames, ignore_index=True)
+    res = fama_macbeth(df, y_col="y", x_cols=["a", "b"], date_col="date")
+    assert res["a"]["coef"] == pytest.approx(3.0, abs=1e-6)
+    assert res["b"]["coef"] == pytest.approx(-1.0, abs=1e-6)

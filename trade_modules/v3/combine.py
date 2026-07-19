@@ -80,6 +80,47 @@ CLUSTERS = {
     "strength_z": ["analyst_mom"],
 }
 
+# ---------------------------------------------------------------------------
+# P1 (2026-07-19): sector-conditional VALUE cluster. The right valuation metric
+# differs by sector (banks->P/B, REITs->cash-flow, tech->sales — confirmed by the
+# per-sector backtest and Damodaran / Fama-French). Rather than an over-fit
+# 55-cell per-sector lookup, we use THREE theory-motivated groups, each with its
+# own value recipe. Non-value clusters are UNCHANGED. Guardrails: value is never
+# dropped and its sign is never flipped — Group C only DOWN-WEIGHTS it.
+# ---------------------------------------------------------------------------
+SECTOR_GROUPS = {
+    # Group B — asset / cash-flow (earnings distorted; book / cash-flow is the anchor)
+    "Financial Services": "B",
+    "Real Estate": "B",
+    # Group C — growth / intangible (book meaningless, trailing earnings mislead)
+    "Technology": "C",
+    "Healthcare": "C",
+    # Group A — conventional earnings (classic value behaves)
+    "Industrials": "A",
+    "Consumer Cyclical": "A",
+    "Consumer Defensive": "A",
+    "Basic Materials": "A",
+    "Energy": "A",
+    "Communication Services": "A",
+    "Utilities": "A",
+}
+_DEFAULT_GROUP = "A"  # unknown / missing sector -> conventional recipe
+
+# Per-group value recipe: {metric -> weight within the value cluster}. Weights are
+# applied over the metrics PRESENT for a row and renormalized, so one present
+# metric reproduces its own z (a name is never penalized for a missing metric).
+VALUE_GROUP_RECIPES = {
+    "A": {"pe_trailing": 1.0, "ev_ebitda": 1.0},  # earnings + enterprise (default)
+    "B": {"pb": 1.0, "pe_trailing": 0.5},  # book primary; EV meaningless for banks/REITs
+    "C": {"ps_sector": 1.0, "ev_ebitda": 0.5},  # sales primary; drop trailing-PE + book
+}
+# Per-group multiplier on the value cluster's WEIGHT in conviction (value is weak /
+# sign-inverted in growth/intangible sectors -> halved there, never dropped).
+VALUE_WEIGHT_MULT = {"A": 1.0, "B": 1.0, "C": 0.5}
+
+# Every metric that can appear in a value recipe needs a metric-z computed.
+_VALUE_CANDIDATES = sorted({m for r in VALUE_GROUP_RECIPES.values() for m in r})
+
 # FIX-NOW 2026-07-18 (D14/D6b/D11/D7): equal-risk core, NO discretionary tilt, and
 # NO Value+Quality cap-as-floor. Core (value/quality/momentum/lowvol) equal; growth a
 # reduced satellite; strength (analyst_mom only) a small cap. Sum = 1.0. Weight
@@ -254,6 +295,38 @@ def _sector_demean(z: pd.Series, sector: pd.Series) -> pd.Series:
     return z - z.groupby(grp).transform("mean")
 
 
+def _sector_group(sector: pd.Series) -> pd.Series:
+    """Map each ticker's sector to its value group (A/B/C); unknown/missing -> A."""
+    return sector.astype(str).map(SECTOR_GROUPS).fillna(_DEFAULT_GROUP)
+
+
+def _conditional_value_z(zframe: pd.DataFrame, groups: pd.Series) -> pd.Series:
+    """Per-row ``value_z`` = the group's recipe weighted-mean of present value-z's.
+
+    ``zframe`` holds the directional (already sector-demeaned) ``{metric}_z``
+    columns for the value candidates. For each group the recipe weights are applied
+    over the metrics PRESENT for that row and renormalized (so a single present
+    metric reproduces its own z, and a missing metric is not penalized). Rows whose
+    group has no present recipe metric get NaN.
+    """
+    result = pd.Series(np.nan, index=zframe.index)
+    for g, recipe in VALUE_GROUP_RECIPES.items():
+        mask = groups == g
+        if not mask.any():
+            continue
+        cols = [f"{m}_z" for m in recipe if f"{m}_z" in zframe.columns]
+        if not cols:
+            continue
+        ws = np.array([recipe[m] for m in recipe if f"{m}_z" in zframe.columns], dtype=float)
+        sub = zframe.loc[mask, cols]
+        wmat = pd.DataFrame(np.tile(ws, (int(mask.sum()), 1)), index=sub.index, columns=cols).where(
+            sub.notna()
+        )
+        wsum = wmat.sum(axis=1)
+        result.loc[mask] = (sub * wmat).sum(axis=1) / wsum.where(wsum > 0)
+    return result
+
+
 def _eligibility(out: pd.DataFrame) -> pd.Series:
     """Boolean per-ticker eligibility for ranking / display.
 
@@ -318,22 +391,29 @@ def compute_scores(
     else:
         sector = pd.Series("__NA__", index=out.index)
 
-    # Per-metric directional z (+ optional sector demeaning).
-    cluster_zcols: dict[str, list[str]] = {c: [] for c in CLUSTERS}
-    for cluster, members in CLUSTERS.items():
-        for m in members:
-            if m not in out.columns:
-                continue
-            z = _rank_z(out[m]) * DIRECTION[m]
-            if sector_neutral:
-                z = _sector_demean(z, sector)
-            zcol = f"{m}_z"
-            out[zcol] = z
-            cluster_zcols[cluster].append(zcol)
+    # Per-metric directional z (+ optional sector demeaning), for every cluster
+    # member PLUS the sector-conditional value candidates (pb, ps_sector, ...).
+    metrics_needing_z = {m for members in CLUSTERS.values() for m in members}
+    metrics_needing_z.update(_VALUE_CANDIDATES)
+    for m in metrics_needing_z:
+        if m not in out.columns:
+            continue
+        z = _rank_z(out[m]) * DIRECTION.get(m, 1)
+        if sector_neutral:
+            z = _sector_demean(z, sector)
+        out[f"{m}_z"] = z
 
-    # Cluster z = mean of member metric-z, skipping NaN.
-    for cluster, zcols in cluster_zcols.items():
+    # Non-value clusters: cluster z = mean of member metric-z, skipping NaN.
+    for cluster, members in CLUSTERS.items():
+        if cluster == "value_z":
+            continue
+        zcols = [f"{m}_z" for m in members if f"{m}_z" in out.columns]
         out[cluster] = out[zcols].mean(axis=1, skipna=True) if zcols else np.nan
+
+    # Value cluster: sector-conditional recipe (banks->P/B, REITs->cash-flow,
+    # tech->sales) instead of one uniform P/E + EV/EBITDA mean.
+    groups = _sector_group(sector)
+    out["value_z"] = _conditional_value_z(out, groups)
 
     # Weighted conviction, renormalized per-row over the clusters actually present.
     cluster_names = list(CLUSTERS.keys())
@@ -350,6 +430,9 @@ def compute_scores(
         index=out.index,
         columns=cluster_names,
     ).where(zmat_ev.notna())
+    # P1: down-weight the value cluster per-row in growth/intangible sectors
+    # (Group C x0.5). NaN value weights (value_z absent) stay NaN.
+    wmat["value_z"] = wmat["value_z"] * groups.map(VALUE_WEIGHT_MULT).fillna(1.0)
     wsum = wmat.sum(axis=1)
     conv_raw = (zmat_ev * wmat).sum(axis=1) / wsum.where(wsum > 0)
 

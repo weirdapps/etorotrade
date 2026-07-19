@@ -95,6 +95,69 @@ def summarize_ic(ic_by_date: pd.Series) -> dict:
     return {"n": n, "mean_ic": mean, "ic_std": sd, "t_stat": t, "hit_rate": hit}
 
 
+def hac_tstat(x: pd.Series, lags: int) -> float:
+    """Newey-West (HAC) t-stat for the mean of a series — robust to overlap.
+
+    Weekly (or daily) snapshots with a multi-day forward return make consecutive
+    IC observations autocorrelated, which INFLATES the naive t-stat. Newey-West
+    replaces the variance with a Bartlett-weighted long-run variance::
+
+        LRV = g0 + 2 * sum_{k=1..L} (1 - k/(L+1)) * g_k
+
+    and the t-stat is ``mean / sqrt(LRV / n)``. ``lags=0`` applies no correction
+    (reduces to the population-variance t). NaN for <2 points or non-positive LRV.
+    """
+    s = pd.to_numeric(pd.Series(x), errors="coerce").dropna().to_numpy(dtype=float)
+    n = len(s)
+    if n < 2:
+        return float("nan")
+    dev = s - s.mean()
+    lrv = float(dev @ dev) / n  # g0
+    for k in range(1, min(int(lags), n - 1) + 1):
+        weight = 1.0 - k / (int(lags) + 1.0)
+        lrv += 2.0 * weight * (float(dev[k:] @ dev[:-k]) / n)
+    if lrv <= 0:
+        return float("nan")
+    se = (lrv / n) ** 0.5
+    return float(s.mean() / se) if se > 0 else float("nan")
+
+
+def fama_macbeth(
+    df: pd.DataFrame,
+    y_col: str,
+    x_cols: list[str],
+    date_col: str = "date",
+    lags: int = 0,
+) -> dict[str, dict]:
+    """Fama-MacBeth: per-date cross-sectional OLS of ``y`` on ``x_cols``, then
+    average the slopes over dates (with an overlap-robust HAC t-stat).
+
+    This is the correct SIMULTANEOUS alternative to sequential beta-residualization:
+    each date's multivariate regression isolates every factor's marginal slope
+    jointly (an intercept is always included), and the time-series of per-date
+    slopes gives the premium and its t-stat. Dates with fewer than
+    ``len(x_cols)+2`` clean rows are skipped. Returns ``{factor: {coef, t, n_dates}}``.
+    """
+    per_date: dict[str, list[float]] = {c: [] for c in x_cols}
+    for _, g in df.groupby(date_col):
+        sub = g[[y_col, *x_cols]].apply(pd.to_numeric, errors="coerce").dropna()
+        if len(sub) < len(x_cols) + 2:
+            continue
+        xmat = np.column_stack([np.ones(len(sub))] + [sub[c].to_numpy(dtype=float) for c in x_cols])
+        coef, *_ = np.linalg.lstsq(xmat, sub[y_col].to_numpy(dtype=float), rcond=None)
+        for i, c in enumerate(x_cols):
+            per_date[c].append(float(coef[i + 1]))  # +1 skips the intercept
+    out: dict[str, dict] = {}
+    for c in x_cols:
+        series = pd.Series(per_date[c], dtype=float)
+        out[c] = {
+            "coef": float(series.mean()) if len(series) else float("nan"),
+            "t": hac_tstat(series, lags) if len(series) > 1 else float("nan"),
+            "n_dates": int(len(series)),
+        }
+    return out
+
+
 def is_active(feature_name: str) -> bool:
     """True if the feature is in a live scoring cluster (else it is a discarded factor)."""
     return feature_name in _ACTIVE_FEATURES
@@ -134,13 +197,16 @@ def ic_by_sector(
     *,
     date_col: str = "date",
     min_names_per_date: int = 8,
+    min_dates: int = 1,
 ) -> dict[str, dict]:
     """Forward IC of one factor computed WITHIN each sector separately.
 
     Answers "is this the right metric for this sector?" — e.g. whether P/E predicts
     inside Financials as well as it does inside Technology. For each sector we keep
     only date-slices with at least ``min_names_per_date`` names (a cross-sectional
-    rank needs a populated slice), then compute the per-date Spearman IC and average.
+    rank needs a populated slice) and require at least ``min_dates`` such slices
+    (too few dates => the mean IC is not meaningful), then compute the per-date
+    Spearman IC and average.
 
     Returns ``{sector: {mean_ic, t_stat, n_dates, n_obs}}`` (thin sectors dropped).
     """
@@ -150,7 +216,7 @@ def ic_by_sector(
     for sec, g in df.groupby(sector_col):
         counts = g.groupby(date_col)[z_col].transform("size")
         g2 = g[counts >= min_names_per_date].dropna(subset=[z_col, fwd_col])
-        if g2.empty or g2[date_col].nunique() < 1:
+        if g2.empty or g2[date_col].nunique() < min_dates:
             continue
         ic = cross_sectional_ic(g2, z_col, fwd_col, date_col=date_col)
         out[str(sec)] = {
