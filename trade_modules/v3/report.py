@@ -45,14 +45,16 @@ CLUSTER_CELLS = [
     ("momentum_z", "Mom"),
     ("lowvol_z", "Low-vol"),
     ("strength_z", "Strength"),
+    ("pead_z", "PEAD"),
 ]
 
-# Six cluster z-scores used in the collapsed card summary strip (all six clusters
-# including Growth, which the combiner computes even when its weight is 0).
+# Cluster z-scores used in the collapsed card summary strip (all clusters the
+# combiner computes, including Growth even when its weight is 0).
 _CARD_CLUSTERS = [
     ("value_z", "Value"),
     ("quality_z", "Quality"),
     ("momentum_z", "Momentum"),
+    ("pead_z", "PEAD"),
     ("growth_z", "Growth"),
     ("lowvol_z", "Low-vol"),
     ("strength_z", "Strength"),
@@ -80,6 +82,7 @@ DISPLAY_GROUPS = [
             ("gross_margin", "Gross Mgn"),
             ("op_margin", "Op Mgn"),
             ("fcf", "FCF Yld"),
+            ("gp_assets", "GP/Assets"),
             ("current_ratio", "Current Ratio"),
             ("de", "Debt/Eq"),
         ],
@@ -92,6 +95,7 @@ DISPLAY_GROUPS = [
             ("pct_52w_high", "% 52w High"),
         ],
     ),
+    ("PEAD", [("sue", "SUE")]),
     ("Low-vol", [("beta", "Beta"), ("realized_vol", "Realized Vol")]),
     ("Strength", [("short_interest", "Short Int"), ("target_dispersion", "Target Disp")]),
     (
@@ -115,6 +119,7 @@ GROUP_CLUSTER = {
     "Momentum": "momentum_z",
     "Low-vol": "lowvol_z",
     "Strength": "strength_z",
+    "PEAD": "pead_z",
 }
 
 # Formatting hints.

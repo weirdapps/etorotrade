@@ -431,5 +431,14 @@ def enrich_features(
         errors="coerce",
     )
 
+    # --- (6) PIT fundamentals from the Sharadar SF1 store: GP/assets (quality) + SUE
+    # (PEAD). Latest filing per ticker; NaN for non-US / no-filing names (US-only store),
+    # so the quality / PEAD clusters degrade gracefully. NaN-safe if the store is absent.
+    from trade_modules.v3.fundamentals import live_fundamentals_factors  # noqa: PLC0415
+
+    ff = live_fundamentals_factors(list(feats.index))
+    feats["gp_assets"] = ff["gp_assets"].reindex(feats.index)
+    feats["sue"] = ff["sue"].reindex(feats.index)
+
     feats.index.name = "ticker"
     return feats

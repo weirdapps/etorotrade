@@ -31,6 +31,7 @@ DIRECTION = {
     "gross_margin": +1,
     "op_margin": +1,
     "fcf": +1,
+    "gp_assets": +1,  # gross profitability / assets (Novy-Marx) — added 2026-07-19
     "current_ratio": +1,
     "de": -1,
     "accruals": -1,  # high accruals = lower earnings quality = BAD
@@ -50,6 +51,9 @@ DIRECTION = {
     "buy_pct": +1,
     "short_interest": -1,
     "target_dispersion": -1,
+    # earnings surprise / PEAD + investment (2026-07-19)
+    "sue": +1,  # standardized unexpected earnings (post-earnings drift; high is good)
+    "asset_growth": -1,  # CMA / investment (low is good) — monitored, not scored
 }
 
 # Scoring clusters -> member metrics.
@@ -62,12 +66,11 @@ CLUSTERS = {
     # mega-cap-tech universe — shorts the R&D/brand compounders). Anchor on
     # EV/EBITDA + trailing earnings yield. Intangibles-adjusted book -> BUILD.
     "value_z": ["pe_trailing", "ev_ebitda"],
-    # FIX-NOW 2026-07-18 (D8): interim quality = ROE + FCF (panel-available).
-    # GP/assets + operating-profitability/assets are the Novy-Marx anchors but need
-    # Total Assets / Gross Profit -> BUILD. de + current_ratio -> distress filter
-    # (financial strength, not profitability). accruals -> shadow (non-PIT, needs a
-    # point-in-time balance sheet). roa / per-sales margins retired for the interim.
-    "quality_z": ["roe", "fcf"],
+    # quality = ROE + FCF + GP/assets. GP/assets (Novy-Marx) added 2026-07-19 once the
+    # Sharadar SF1 PIT data was in — it was the best survivorship-clean raw IC (t 3.5)
+    # AND the documented profitability anchor. de + current_ratio stay a distress
+    # filter; accruals shadow-only (no clean alpha).
+    "quality_z": ["roe", "fcf", "gp_assets"],
     # price_perf pruned 2026-07-14: rho 0.95 with mom_12_1 (same price move counted
     # twice). Kept the academic 12-1 skip-month + 52w-high proximity (distinct).
     "momentum_z": ["mom_12_1", "pct_52w_high"],
@@ -78,6 +81,10 @@ CLUSTERS = {
     # short_interest (→ squeeze-exclude gate) and target_dispersion (non-PIT,
     # discarded) are removed from scoring. Raw columns stay in the feature frame.
     "strength_z": ["analyst_mom"],
+    # PEAD / earnings surprise (2026-07-19): the most consistent survivorship-clean
+    # signal (beta-neutral IC t 2.06, hit 68%) + robust literature (Bernard-Thomas).
+    # SUE = seasonal-random-walk standardized unexpected earnings, from SF1 actuals.
+    "pead_z": ["sue"],
 }
 
 # ---------------------------------------------------------------------------
@@ -128,13 +135,21 @@ _VALUE_CANDIDATES = sorted({m for r in VALUE_GROUP_RECIPES.values() for m in r})
 # the ic_weights path stays available for the later sizing tier. (True equal-VOL
 # standardization of the cluster z's is a fast-follow refinement; this sets the
 # equal-risk nominal shares and removes the 0.55 VQ floor.)
+# BEST-BET PRIOR 2026-07-19 (grounded in our survivorship-clean backtest + literature,
+# Bayesian-anchored). Quality-led (GP/assets = best clean IC + Novy-Marx); value +
+# momentum held as durable decades-premia (regime-weak now, not chased-dropped); PEAD
+# added (best clean signal + robust); low-vol trimmed 0.21->0.10 (our clean data showed
+# its standalone alpha was a beta artifact -> risk-diversifier only); growth trimmed
+# (short-leg-of-value). CMA + accruals EXCLUDED (no clean alpha). The adaptive shrinkage
+# mechanism (v3/weight_proposal.py) proposes drift toward measured forward IC as data accrues.
 CLUSTER_WEIGHTS = {
-    "value_z": 0.21,
-    "quality_z": 0.21,
-    "momentum_z": 0.21,
-    "growth_z": 0.11,
-    "lowvol_z": 0.21,
-    "strength_z": 0.05,
+    "value_z": 0.20,
+    "quality_z": 0.25,
+    "momentum_z": 0.20,
+    "pead_z": 0.10,
+    "lowvol_z": 0.10,
+    "growth_z": 0.08,
+    "strength_z": 0.07,
 }
 
 # The Value+Quality joint weight is capped here regardless of the weighting scheme.
@@ -145,7 +160,7 @@ _VQ_CAP = 0.55
 # is deliberately EXCLUDED here: it is off (weight 0) in the default + IC paths
 # and only activated through the explicit ``cluster_weights`` arg, so the IC
 # redistribution math (and its unit tests) are unchanged.
-_IC_CLUSTERS = ["value_z", "quality_z", "momentum_z", "lowvol_z", "strength_z"]
+_IC_CLUSTERS = ["value_z", "quality_z", "momentum_z", "lowvol_z", "strength_z", "pead_z"]
 
 # Short-name aliases for the explicit ``cluster_weights`` arg: "value" -> "value_z".
 _CLUSTER_ALIASES = {c[:-2]: c for c in CLUSTERS}
@@ -240,7 +255,15 @@ def derive_cluster_weights(ic_weights: dict | None = None) -> dict[str, float]:
 # Eligibility: cluster columns whose availability is counted (need >= 3 of 6).
 # Growth is included so a name rich in growth data counts toward the minimum;
 # the threshold stays at 3 (a name never becomes ineligible by adding a cluster).
-_ELIG_CLUSTERS = ["value_z", "quality_z", "momentum_z", "growth_z", "lowvol_z", "strength_z"]
+_ELIG_CLUSTERS = [
+    "value_z",
+    "quality_z",
+    "momentum_z",
+    "growth_z",
+    "lowvol_z",
+    "strength_z",
+    "pead_z",
+]
 _MIN_CLUSTERS = 3
 
 
