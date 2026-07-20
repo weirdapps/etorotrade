@@ -29,6 +29,10 @@ V3_USD_BLOC_CAP=0.65 V3_VOL_CEILING=0.35 \
 
 # 3) Email the freshest report — the Outlook-safe EMAIL edition (table-based,
 #    inline styles), not the browser HTML which the Outlook body sanitizer breaks.
+#    This edition is now at FULL info-parity with the browser attachment (conviction
+#    heatmap + full per-stock factor cards + trade levels). It is the ONLY thing this
+#    scheduled job mails — the pipeline map + factor backtest are on-demand (sent with
+#    the snapshot only when the owner asks for "all three files").
 REPORT="$(ls -t "$HOME/Downloads/"*_v3_overlay_email.html 2>/dev/null | head -1 || true)"
 if [ -z "${REPORT:-}" ]; then
   echo "ERROR: no v3 overlay email report produced" >&2
