@@ -3,6 +3,9 @@
 All tests inject FAKE info_fetch + price_fetch and a tmp CSV — no network.
 """
 
+import sys
+import types
+
 import numpy as np
 import pandas as pd
 
@@ -565,3 +568,176 @@ def test_description_word_boundary_fallback(tmp_path):
     assert len(desc) <= 222  # 220 chars + possible "…" (1 char)
     # Must not end with a raw space (no trailing whitespace after trim)
     assert not desc.rstrip("…").endswith(" ")
+
+
+def _patch_info_fetch_env(monkeypatch, fake_ticker_cls):
+    """Wire _default_info_fetch to a fake yfinance + no-op cache/sleep."""
+    import trade_modules.v3.features as feat
+
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(Ticker=fake_ticker_cls))
+    monkeypatch.setattr(feat, "_load_info_cache", lambda: {})
+    monkeypatch.setattr(feat, "_save_info_cache", lambda cache: None)
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+    return feat
+
+
+def test_default_info_fetch_maps_symbol_and_keys_by_etoro(monkeypatch):
+    """The fetch uses the Yahoo symbol (SBMO.NV -> SBMO.AS) but the result is keyed by
+    the original eToro ticker."""
+    seen = []
+
+    class FakeTicker:
+        def __init__(self, sym):
+            seen.append(sym)
+
+        @property
+        def info(self):
+            return {"shortName": "SBM Offshore", "trailingPE": 8.6}
+
+    feat = _patch_info_fetch_env(monkeypatch, FakeTicker)
+    out = feat._default_info_fetch(["SBMO.NV"])
+    assert seen == ["SBMO.AS"]  # fetched the mapped Yahoo symbol
+    assert out["SBMO.NV"]["trailingPE"] == 8.6  # keyed by the original eToro ticker
+
+
+def test_default_info_fetch_retries_on_empty_dict(monkeypatch):
+    """A rate-limited empty .info (no exception) is retried until it populates."""
+    seq = [{}, {"shortName": "Kawasaki", "trailingPE": 20.1}]
+
+    class FakeTicker:
+        def __init__(self, sym):
+            pass
+
+        @property
+        def info(self):
+            return seq.pop(0)
+
+    feat = _patch_info_fetch_env(monkeypatch, FakeTicker)
+    out = feat._default_info_fetch(["7012.T"])
+    assert out["7012.T"]["shortName"] == "Kawasaki"  # retried past the empty response
+    assert seq == []  # both the empty and the populated response were consumed
+
+
+def test_info_cache_round_trip(tmp_path, monkeypatch):
+    """_save_info_cache then _load_info_cache round-trips; a missing file -> {}."""
+    import trade_modules.v3.features as feat
+
+    monkeypatch.setattr(feat, "_info_cache_path", lambda: str(tmp_path / "cache.json"))
+    feat._save_info_cache({"AAPL": {"shortName": "Apple", "trailingPE": 40.5}})
+    assert feat._load_info_cache()["AAPL"]["trailingPE"] == 40.5
+
+    monkeypatch.setattr(feat, "_info_cache_path", lambda: str(tmp_path / "missing.json"))
+    assert feat._load_info_cache() == {}
+
+
+def test_default_info_fetch_uses_cache_hit(monkeypatch):
+    """A cached Yahoo symbol short-circuits the network fetch (keyed by eToro ticker)."""
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, sym):
+            calls.append(sym)
+
+        @property
+        def info(self):
+            return {"shortName": "x", "regularMarketPrice": 1}
+
+    import trade_modules.v3.features as feat
+
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(Ticker=FakeTicker))
+    monkeypatch.setattr(
+        feat, "_load_info_cache", lambda: {"SBMO.AS": {"shortName": "SBM", "trailingPE": 8.6}}
+    )
+    monkeypatch.setattr(feat, "_save_info_cache", lambda cache: None)
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+    out = feat._default_info_fetch(["SBMO.NV"])
+    assert calls == []  # cache hit -> no network call
+    assert out["SBMO.NV"]["trailingPE"] == 8.6
+
+
+def test_default_info_fetch_gives_up_after_retries(monkeypatch):
+    """A persistently empty .info -> {} for the ticker, and empties are NOT cached."""
+    saved: dict = {}
+
+    class FakeTicker:
+        def __init__(self, sym):
+            pass
+
+        @property
+        def info(self):
+            return {}  # always rate-limited / empty
+
+    import trade_modules.v3.features as feat
+
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(Ticker=FakeTicker))
+    monkeypatch.setattr(feat, "_load_info_cache", lambda: {})
+    monkeypatch.setattr(feat, "_save_info_cache", lambda cache: saved.update(cache))
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+    out = feat._default_info_fetch(["ZZZ"])
+    assert out["ZZZ"] == {}
+    assert saved == {}  # empty results not cached -> retried next run
+
+
+def test_default_accruals_fetch_maps_symbol(monkeypatch):
+    """The accruals fetch maps the eToro ticker (SBMO.NV -> SBMO.AS) before yfinance."""
+    seen = []
+
+    class FakeTicker:
+        def __init__(self, sym):
+            seen.append(sym)
+
+        @property
+        def financials(self):
+            return pd.DataFrame()
+
+        @property
+        def cashflow(self):
+            return pd.DataFrame()
+
+        @property
+        def balance_sheet(self):
+            return pd.DataFrame()
+
+    import trade_modules.v3.features as feat
+
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(Ticker=FakeTicker))
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+    out = feat._default_accruals_fetch(["SBMO.NV"])
+    assert seen == ["SBMO.AS"]  # mapped to Yahoo symbol
+    assert out == {}  # no statement data -> skipped, never raises
+
+
+def test_info_cache_path_is_dated_json():
+    """The cache path is a dated JSON under the trading data dir."""
+    import trade_modules.v3.features as feat
+
+    p = feat._info_cache_path()
+    assert p.endswith(".json") and "v3_info_cache_" in p
+
+
+def test_info_cache_is_best_effort_on_bad_path(tmp_path, monkeypatch):
+    """A bad cache path never raises on save; a corrupt/non-JSON file loads as {}."""
+    import trade_modules.v3.features as feat
+
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not json")  # a FILE where a directory would be needed
+    monkeypatch.setattr(feat, "_info_cache_path", lambda: str(blocker / "sub" / "c.json"))
+    feat._save_info_cache({"A": {"shortName": "a"}})  # makedirs under a file -> swallowed
+    monkeypatch.setattr(feat, "_info_cache_path", lambda: str(blocker))
+    assert feat._load_info_cache() == {}  # non-JSON -> {}
+
+
+def test_default_info_fetch_retries_on_exception(monkeypatch):
+    """A raising yfinance (network error) is retried, then yields {} for the ticker."""
+
+    class BoomTicker:
+        def __init__(self, sym):
+            pass
+
+        @property
+        def info(self):
+            raise RuntimeError("network down")
+
+    feat = _patch_info_fetch_env(monkeypatch, BoomTicker)
+    out = feat._default_info_fetch(["ZZZ"])
+    assert out["ZZZ"] == {}  # never raises; unfetchable -> empty

@@ -3,10 +3,44 @@
 All tests use a FAKE downloader — no network calls, pause=0 for speed.
 """
 
+import sys
+import types
+
 import numpy as np
 import pandas as pd
 
-from trade_modules.v3.fetch import robust_fetch_prices
+from trade_modules.v3.fetch import _default_downloader, robust_fetch_prices
+
+
+def test_default_downloader_maps_etoro_to_yahoo_and_renames_back(monkeypatch):
+    """_default_downloader fetches Yahoo symbols (SBMO.NV -> SBMO.AS) but returns columns
+    keyed by the original eToro tickers."""
+    captured = {}
+
+    def fake_download(batch, **kwargs):
+        captured["batch"] = list(batch)
+        idx = pd.date_range("2026-01-01", periods=3)
+        cols = pd.MultiIndex.from_product([["Close"], list(batch)])
+        return pd.DataFrame(1.0, index=idx, columns=cols)
+
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(download=fake_download))
+    out = _default_downloader(["SBMO.NV", "7012.T"], "1mo")
+    assert captured["batch"] == ["SBMO.AS", "7012.T"]  # fetched the mapped Yahoo symbols
+    assert set(out.columns) == {"SBMO.NV", "7012.T"}  # renamed back to eToro tickers
+
+
+def test_default_downloader_flat_single_ticker_layout(monkeypatch):
+    """Legacy single-ticker flat 'Close' layout is handled and renamed back to eToro."""
+
+    def fake_download(batch, **kwargs):
+        idx = pd.date_range("2026-01-01", periods=3)
+        return pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 2.0}, index=idx)
+
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(download=fake_download))
+    out = _default_downloader(["SBMO.NV"], "1mo")  # -> fetches SBMO.AS, renames back
+    assert list(out.columns) == ["SBMO.NV"]
+    assert float(out["SBMO.NV"].iloc[-1]) == 2.0
+
 
 # ---------------------------------------------------------------------------
 # Helpers

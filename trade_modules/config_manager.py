@@ -12,6 +12,15 @@ from typing import Any
 
 from .yaml_config_loader import YamlConfigLoader
 
+# eToro/Bloomberg exchange suffix -> Yahoo Finance suffix, applied in get_data_fetch_ticker
+# (Yahoo 404s on the eToro form; verified via live probes). .DH (Gulf) is intentionally
+# absent — Yahoo uses numeric codes there, so it needs per-name data_fetch_substitutions.
+_YAHOO_SUFFIX_MAP = {"NV": "AS", "IM": "MI", "LN": "L", "CH": "SW"}
+# Currency / price-unit lines eToro appends (e.g. MSFT.EUR, KSP.L.GBX) -> stripped before fetch.
+_CURRENCY_SUFFIXES = {"EUR", "USD", "GBP", "GBX"}
+# US class-share letters -> Yahoo dash form (BRK.B -> BRK-B).
+_CLASS_SHARE_LETTERS = {"A", "B", "C"}
+
 
 class ConfigManager:
     """Unified configuration management for the entire application."""
@@ -399,17 +408,27 @@ class ConfigManager:
         ):
             return "^VIX"  # Yahoo Finance uses ^VIX for the VIX index
 
-        # Special case: .NV (Euronext Amsterdam) tickers should fetch as .AS
-        # Yahoo Finance doesn't recognize .NV but does recognize .AS
-        if ticker and ticker.upper().endswith(".NV"):
-            # Replace .NV with .AS for data fetching
-            base_ticker = ticker.upper()[:-3]  # Remove .NV
-            return base_ticker + ".AS"
+        tu = ticker.upper() if ticker else ""
 
-        # Same-security cross-exchange substitution (e.g. LYXGRE.DE → GRE.PA)
-        # for tickers Yahoo doesn't index. See data_fetch_substitutions docstring.
-        if ticker and ticker.upper() in self.data_fetch_substitutions:
-            return self.data_fetch_substitutions[ticker.upper()]
+        # Same-security per-name override wins (e.g. LYXGRE.DE → GRE.PA) for tickers Yahoo
+        # doesn't index. See data_fetch_substitutions docstring.
+        if tu in self.data_fetch_substitutions:
+            return self.data_fetch_substitutions[tu]
+
+        # eToro-suffix → Yahoo-symbol normalization (Yahoo 404s on the eToro form):
+        if "." in tu:
+            stem, _, suf = tu.rpartition(".")
+            if stem:
+                # 1. strip a currency / price-unit line, then re-resolve the stem
+                #    (MSFT.EUR → MSFT ; KSP.L.GBX → KSP.L).
+                if suf in _CURRENCY_SUFFIXES:
+                    return self.get_data_fetch_ticker(stem)
+                # 2. exchange-suffix remap (.NV→.AS, .IM→.MI, .LN→.L, .CH→.SW).
+                if suf in _YAHOO_SUFFIX_MAP:
+                    return stem + "." + _YAHOO_SUFFIX_MAP[suf]
+                # 3. US class share (single letter, no further exchange suffix): BRK.B → BRK-B.
+                if suf in _CLASS_SHARE_LETTERS and "." not in stem:
+                    return stem + "-" + suf
 
         # For data fetching, we might want to use US tickers when available
         # as they often have better data coverage, but we'll normalize the results
