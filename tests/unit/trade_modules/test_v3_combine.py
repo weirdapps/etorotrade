@@ -583,6 +583,9 @@ def test_best_bet_prior_weights_2026_07_20():
     assert w["lowvol_z"] < w["value_z"], "low-vol trimmed to a risk-diversifier"
     assert w["lowvol_z"] <= 0.10 + 1e-9, "low-vol capped low (its alpha was a beta artifact)"
     assert (w["value_z"] + w["quality_z"]) < 0.55, "no Value+Quality cap-as-floor"
+    # C (2026-07-20): analyst_mom upweighted (β-neutral t 2.36) above growth.
+    assert w["strength_z"] >= 0.08 - 1e-9, "analyst_mom (strength) upweighted per C"
+    assert w["strength_z"] > w["growth_z"], "strength now ranks above the trimmed growth satellite"
     assert abs(sum(w.values()) - 1.0) < 1e-9
 
 

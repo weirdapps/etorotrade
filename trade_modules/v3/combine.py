@@ -156,15 +156,20 @@ _VALUE_CANDIDATES = sorted({m for r in VALUE_GROUP_RECIPES.values() for m in r})
 # 2026-07-20: earnings-trajectory (PET/PEF) added at 0.10 — the strongest clean signal on
 # the panel (beta-neutral t 2.17, hit 80%, incremental to value+growth). Funded by trimming
 # value/momentum 0.20->0.18, growth 0.08->0.05, strength 0.07->0.05, quality 0.25->0.24.
+# 2026-07-20 (C): analyst_mom (strength_z) upweighted 0.05->0.08 — β-neutral forward IC
+# t 2.36 on the panel, the 2nd-strongest clean signal after trajectory; kept modest (it is
+# a single noisy metric: raw IC ~0, hit 50%). Funded by growth 0.05->0.03 (theory-weak) +
+# low-vol 0.10->0.09 (risk-diversifier, not alpha). Upside/EXR stay MONITOR (zero β-alpha,
+# t -0.15) — a negative-upside BUY is often a right contrarian bet (see capitulation study).
 CLUSTER_WEIGHTS = {
     "value_z": 0.18,
     "quality_z": 0.24,
     "momentum_z": 0.18,
     "pead_z": 0.10,
     "trajectory_z": 0.10,
-    "lowvol_z": 0.10,
-    "growth_z": 0.05,
-    "strength_z": 0.05,
+    "lowvol_z": 0.09,
+    "strength_z": 0.08,
+    "growth_z": 0.03,
 }
 
 # The Value+Quality joint weight is capped here regardless of the weighting scheme.
