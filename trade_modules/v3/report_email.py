@@ -23,7 +23,8 @@ unchanged.
 from __future__ import annotations
 
 import html as _htmllib
-import math
+
+import pandas as pd
 
 # Single-source the data model + metric formatting from the browser report so the two
 # editions never drift — only the HTML rendering differs (this file stays email-safe).
@@ -69,7 +70,12 @@ def _esc(v) -> str:
 
 
 def _nan(v) -> bool:
-    return v is None or (isinstance(v, float) and math.isnan(v))
+    # pd.isna catches None, float NaN, and pandas NAType (rank is an Int64 that can be NA);
+    # guard the array case (never expected here) so a stray Series can't raise.
+    try:
+        return bool(pd.isna(v))
+    except (TypeError, ValueError):
+        return v is None
 
 
 def _money(v) -> str:
@@ -464,8 +470,6 @@ def _heat_z(z) -> str:
 def _heatmap_section(scores, max_rows: int = 120) -> str:
     """Ranked names × cluster z heat-strip — the browser overview, as an email table.
     Shows all holdings plus the top ``max_rows`` by conviction (email-deliverable size)."""
-    import pandas as pd  # noqa: PLC0415
-
     if scores is None or "conviction" not in getattr(scores, "columns", []):
         return ""
     ranked = scores.sort_values("conviction", ascending=False, na_position="last")
