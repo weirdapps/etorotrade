@@ -290,6 +290,15 @@ _ELIG_CLUSTERS = [
 ]
 _MIN_CLUSTERS = 3
 
+# Value-trap gate (2026-07-20, owner rule): a forward P/E materially above trailing means
+# earnings are expected to FALL (a value trap / cyclical peak) — the trailing-cheap look is
+# a mirage. earn_trajectory = PET/PEF, so "forward > 1.10x trailing" is earn_trajectory <
+# 1/1.10. Trap names are made INELIGIBLE: they never surface as a new BUY, and a held trap
+# trips the overlay's weak-name SELL — so a collapsing-earnings name is never recommended
+# as attractive. Names with a missing PET or PEF (NaN trajectory) are never gated.
+_TRAP_MAX_FWD_TTM = 1.10
+_TRAP_MIN_TRAJECTORY = 1.0 / _TRAP_MAX_FWD_TTM
+
 
 def _rank_z(s: pd.Series) -> pd.Series:
     """Rank-normal (van der Waerden) cross-sectional score.
@@ -401,6 +410,10 @@ def _eligibility(out: pd.DataFrame) -> pd.Series:
             ok &= pd.to_numeric(out[col], errors="coerce").notna()
     clusters_present = out[_ELIG_CLUSTERS].notna().sum(axis=1)
     ok &= clusters_present >= _MIN_CLUSTERS
+    # Value-trap gate: forward P/E > 1.10x trailing (earn_trajectory below 1/1.10).
+    if "earn_trajectory" in out.columns:
+        traj = pd.to_numeric(out["earn_trajectory"], errors="coerce")
+        ok &= ~(traj < _TRAP_MIN_TRAJECTORY)  # NaN trajectory (missing PET/PEF) never gated
     return ok.fillna(False).astype(bool)
 
 

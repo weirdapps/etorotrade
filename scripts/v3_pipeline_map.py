@@ -80,6 +80,7 @@ CLUSTER_LABEL = {
 
 # Curated non-scored classification (documented FIX-NOW / redesign decisions).
 GATES = {
+    "earn_trajectory": "value-trap EXCLUDE gate — forward P/E &gt; 1.10x trailing (earnings expected to fall) → ineligible: never a new BUY, held names flagged SELL/TRIM (owner rule 2026-07-20)",
     "short_interest": "squeeze / hard-to-borrow EXCLUDE gate (SI &gt; 20%) — not scored",
     "de": "distress screen (with current ratio) — financial strength, not profitability",
     "current_ratio": "distress screen (with D/E) — liquidity, not profitability",
