@@ -29,6 +29,19 @@ def test_default_downloader_maps_etoro_to_yahoo_and_renames_back(monkeypatch):
     assert set(out.columns) == {"SBMO.NV", "7012.T"}  # renamed back to eToro tickers
 
 
+def test_default_downloader_flat_single_ticker_layout(monkeypatch):
+    """Legacy single-ticker flat 'Close' layout is handled and renamed back to eToro."""
+
+    def fake_download(batch, **kwargs):
+        idx = pd.date_range("2026-01-01", periods=3)
+        return pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 2.0}, index=idx)
+
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(download=fake_download))
+    out = _default_downloader(["SBMO.NV"], "1mo")  # -> fetches SBMO.AS, renames back
+    assert list(out.columns) == ["SBMO.NV"]
+    assert float(out["SBMO.NV"].iloc[-1]) == 2.0
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

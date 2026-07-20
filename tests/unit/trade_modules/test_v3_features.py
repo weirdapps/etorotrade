@@ -705,3 +705,39 @@ def test_default_accruals_fetch_maps_symbol(monkeypatch):
     out = feat._default_accruals_fetch(["SBMO.NV"])
     assert seen == ["SBMO.AS"]  # mapped to Yahoo symbol
     assert out == {}  # no statement data -> skipped, never raises
+
+
+def test_info_cache_path_is_dated_json():
+    """The cache path is a dated JSON under the trading data dir."""
+    import trade_modules.v3.features as feat
+
+    p = feat._info_cache_path()
+    assert p.endswith(".json") and "v3_info_cache_" in p
+
+
+def test_info_cache_is_best_effort_on_bad_path(tmp_path, monkeypatch):
+    """A bad cache path never raises on save; a corrupt/non-JSON file loads as {}."""
+    import trade_modules.v3.features as feat
+
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not json")  # a FILE where a directory would be needed
+    monkeypatch.setattr(feat, "_info_cache_path", lambda: str(blocker / "sub" / "c.json"))
+    feat._save_info_cache({"A": {"shortName": "a"}})  # makedirs under a file -> swallowed
+    monkeypatch.setattr(feat, "_info_cache_path", lambda: str(blocker))
+    assert feat._load_info_cache() == {}  # non-JSON -> {}
+
+
+def test_default_info_fetch_retries_on_exception(monkeypatch):
+    """A raising yfinance (network error) is retried, then yields {} for the ticker."""
+
+    class BoomTicker:
+        def __init__(self, sym):
+            pass
+
+        @property
+        def info(self):
+            raise RuntimeError("network down")
+
+    feat = _patch_info_fetch_env(monkeypatch, BoomTicker)
+    out = feat._default_info_fetch(["ZZZ"])
+    assert out["ZZZ"] == {}  # never raises; unfetchable -> empty
