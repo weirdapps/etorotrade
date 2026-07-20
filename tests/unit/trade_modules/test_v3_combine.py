@@ -115,6 +115,31 @@ def test_no_quote_type_column_means_all_eligible():
 # sheet). Coverage is now via test_fixnow_quality_interim_is_roe_fcf.
 
 
+def test_value_trap_gate_excludes_forward_pe_far_above_trailing():
+    """Owner rule (2026-07-20): forward P/E > 1.10x trailing (earn_trajectory < 1/1.10)
+    = value trap -> INELIGIBLE, so a trap never surfaces as a BUY and a held trap trips
+    the overlay's weak-name SELL. Names at/below the threshold stay eligible."""
+    idx = ["GOOD", "FLAT", "TRAP"]
+    df = _base(idx)
+    df["quote_type"] = ["EQUITY", "EQUITY", "EQUITY"]
+    df["price"] = [100.0, 50.0, 80.0]
+    df["pe_trailing"] = [10.0, 15.0, 3.2]
+    df["roe"] = [30.0, 20.0, 25.0]
+    df["mom_12_1"] = [0.20, 0.15, 0.10]
+    df["realized_vol"] = [0.20, 0.22, 0.25]
+    # earn_trajectory = PET/PEF: GOOD 1.11 (forward cheaper), FLAT 1.0 (=trailing, not a
+    # trap), TRAP 3.2/46 = 0.07 (forward 14x trailing = earnings collapsing).
+    df["earn_trajectory"] = [1.11, 1.0, 3.2 / 46.0]
+
+    scores = compute_scores(df, sector_neutral=False)
+
+    assert bool(scores.loc["GOOD", "eligible"]) is True
+    assert bool(scores.loc["FLAT", "eligible"]) is True  # exactly flat is not a trap
+    assert bool(scores.loc["TRAP", "eligible"]) is False
+    assert pd.isna(scores.loc["TRAP", "conviction"])
+    assert pd.isna(scores.loc["TRAP", "rank"])
+
+
 def test_eligibility_excludes_non_equity_and_dataless():
     """With quote_type present, ETFs and dataless names drop out of the ranking."""
     idx = ["EQ1", "EQ2", "ETF1", "DATALESS"]
