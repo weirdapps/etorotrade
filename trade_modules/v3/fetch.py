@@ -20,12 +20,26 @@ def _default_downloader(batch: list[str], period: str) -> pd.DataFrame:
     - Legacy single-ticker: flat columns ("Open", "High", …, "Close") —
       extract the "Close" column and rename to the ticker symbol.
 
+    Maps eToro tickers to Yahoo symbols (``get_data_fetch_ticker``: ``.NV``→``.AS``,
+    ``.IM``→``.MI``, currency-line strip, class-share dash, …) for the download, then
+    renames the columns back to the ORIGINAL eToro tickers so callers are unaffected.
+
     Imported at call time so the module is safe to import without yfinance.
     """
     import yfinance as yf  # noqa: PLC0415
 
+    from trade_modules.config_manager import get_config  # noqa: PLC0415
+
+    resolve = get_config().get_data_fetch_ticker
+    y2e: dict[str, str] = {}  # Yahoo symbol -> original eToro ticker
+    ybatch: list[str] = []
+    for t in batch:
+        y = resolve(t)
+        y2e[y] = t
+        ybatch.append(y)
+
     data = yf.download(
-        batch,
+        ybatch,
         period=period,
         auto_adjust=True,
         progress=False,
@@ -37,22 +51,23 @@ def _default_downloader(batch: list[str], period: str) -> pd.DataFrame:
         close = data["Close"]
         if isinstance(close, pd.Series):
             # Shouldn't happen with MultiIndex, but guard anyway.
-            close = close.to_frame(name=batch[0])
+            close = close.to_frame(name=ybatch[0])
     elif "Close" in data.columns:
         # Legacy single-ticker flat layout: columns are metric names.
-        close = data[["Close"]].rename(columns={"Close": batch[0]})
+        close = data[["Close"]].rename(columns={"Close": ybatch[0]})
     else:
         close = data
 
     if isinstance(close, pd.Series):
-        close = close.to_frame(name=batch[0])
+        close = close.to_frame(name=ybatch[0])
 
     # Safety net: if yfinance returns a 1-column frame but the name doesn't
-    # match the requested ticker (e.g. version quirks), fix it up.
-    if len(batch) == 1 and len(close.columns) == 1 and close.columns[0] != batch[0]:
-        close = close.rename(columns={close.columns[0]: batch[0]})
+    # match the requested symbol (e.g. version quirks), fix it up.
+    if len(ybatch) == 1 and len(close.columns) == 1 and close.columns[0] != ybatch[0]:
+        close = close.rename(columns={close.columns[0]: ybatch[0]})
 
-    return close
+    # Rename Yahoo columns back to the original eToro tickers.
+    return close.rename(columns=y2e)
 
 
 def robust_fetch_prices(
