@@ -244,11 +244,14 @@ def _default_accruals_fetch(tickers: list[str]) -> dict[str, float]:
 
     import yfinance as yf  # noqa: PLC0415
 
+    from trade_modules.config_manager import get_config  # noqa: PLC0415
+
+    resolve = get_config().get_data_fetch_ticker  # eToro ticker -> Yahoo symbol
     out: dict[str, float] = {}
     for t in tickers:
         for attempt in range(3):
             try:
-                tkr = yf.Ticker(t)
+                tkr = yf.Ticker(resolve(t))
                 ni = _first_label_value(tkr.financials, _NI_LABELS)
                 ocf = _first_label_value(tkr.cashflow, _OCF_LABELS)
                 ta_vals = _two_most_recent(tkr.balance_sheet, _TA_LABELS)
@@ -273,28 +276,89 @@ def _default_accruals_fetch(tickers: list[str]) -> dict[str, float]:
     return out
 
 
-def _default_info_fetch(tickers: list[str]) -> dict[str, dict]:
-    """Throttled per-ticker yfinance ``.info`` fetch.
+def _info_cache_path() -> str:
+    """Daily on-disk cache for yfinance ``.info`` (keyed by Yahoo symbol)."""
+    import os  # noqa: PLC0415
+    from datetime import date  # noqa: PLC0415
 
-    Sleeps ~0.3s between tickers, retries twice on exception, and skips
-    (never raises) a ticker whose info cannot be retrieved.  Imported at
-    call time so the module stays importable without yfinance installed.
+    return os.path.expanduser(f"~/.weirdapps-trading/v3_info_cache_{date.today():%Y%m%d}.json")
+
+
+def _load_info_cache() -> dict[str, dict]:
+    import json  # noqa: PLC0415
+
+    try:
+        with open(_info_cache_path()) as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except Exception:  # noqa: BLE001  (best-effort: missing/corrupt -> refetch)
+        return {}
+
+
+def _save_info_cache(cache: dict[str, dict]) -> None:
+    import json  # noqa: PLC0415
+    import os  # noqa: PLC0415
+
+    try:
+        path = _info_cache_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as fh:
+            json.dump(cache, fh, default=str)
+    except Exception:  # noqa: BLE001  (best-effort cache; never fail the run)
+        pass
+
+
+def _info_is_populated(info) -> bool:
+    """A rate-limited ``.info`` comes back as an empty/sparse dict WITHOUT raising.
+    Treat 'no shortName and no price' as a fetch failure so it is retried."""
+    return isinstance(info, dict) and bool(
+        info.get("shortName") or info.get("regularMarketPrice") is not None
+    )
+
+
+def _default_info_fetch(tickers: list[str]) -> dict[str, dict]:
+    """Throttled per-ticker yfinance ``.info`` fetch, provider-mapped + rate-limit-safe.
+
+    Maps each eToro ticker to its Yahoo symbol (``get_data_fetch_ticker``: ``.NV``→``.AS``,
+    ``.IM``→``.MI``, currency-line strip, class-share dash, …) before fetching, but keys the
+    result by the ORIGINAL eToro ticker. Retries on exception AND on an empty/sparse dict
+    (yfinance returns ``{}`` when rate-limited, without raising) with exponential back-off.
+    A daily on-disk cache keyed by Yahoo symbol skips already-fetched names (the overlay runs
+    every 4h — the cache collapses ~6 fetches/day to ~1). Never raises; unfetchable → ``{}``.
     """
     import time  # noqa: PLC0415
 
     import yfinance as yf  # noqa: PLC0415
 
+    from trade_modules.config_manager import get_config  # noqa: PLC0415
+
+    resolve = get_config().get_data_fetch_ticker
+    cache = _load_info_cache()
     out: dict[str, dict] = {}
+    dirty = False
     for t in tickers:
+        y = resolve(t)
+        if y in cache:  # cache hit (populated result stored earlier today)
+            out[t] = cache[y]
+            continue
+        info: dict = {}
         for attempt in range(3):  # initial try + 2 retries
             try:
-                info = yf.Ticker(t).info
-                out[t] = info if isinstance(info, dict) else {}
-                break
+                got = yf.Ticker(y).info
+                if _info_is_populated(got):
+                    info = got
+                    break
             except Exception:  # noqa: BLE001
-                if attempt < 2:
-                    time.sleep(0.3 * (attempt + 1))
+                pass
+            if attempt < 2:
+                time.sleep(0.5 * (3**attempt))  # 0.5s, 1.5s back-off (rate-limit recovery)
+        out[t] = info
+        if info:  # cache only populated results, so rate-limited names retry next run
+            cache[y] = info
+            dirty = True
         time.sleep(0.3)
+    if dirty:
+        _save_info_cache(cache)
     return out
 
 

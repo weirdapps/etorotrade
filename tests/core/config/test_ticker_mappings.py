@@ -313,6 +313,34 @@ class TestDisplayAndDataFetch:
             result = get_data_fetch_ticker(input_ticker)
             assert result == expected_fetch
 
+    def test_get_data_fetch_ticker_exchange_suffix_mapping(self):
+        """eToro/Bloomberg exchange suffixes map to Yahoo symbols; currency/price-unit
+        lines are stripped; US class shares use the dash form; already-valid suffixes and
+        the deferred Gulf (.DH) names pass through unchanged."""
+        cases = [
+            ("SBMO.NV", "SBMO.AS"),  # Euronext Amsterdam (eToro .NV -> Yahoo .AS)
+            ("28IA.IM", "28IA.MI"),  # Milan (Bloomberg .IM -> Yahoo .MI)
+            ("SHLD.LN", "SHLD.L"),  # London (Bloomberg .LN -> Yahoo .L)
+            ("QUNR.CH", "QUNR.SW"),  # Switzerland (Bloomberg .CH -> Yahoo .SW)
+            ("MSFT.EUR", "MSFT"),  # currency line stripped
+            ("KSP.L.GBX", "KSP.L"),  # pence line stripped, exchange suffix kept
+            ("BRK.B", "BRK-B"),  # US class share -> dash form
+            ("RDS.A", "RDS-A"),  # US class share -> dash form
+            ("7012.T", "7012.T"),  # Tokyo already valid -> unchanged
+            ("UCG.MI", "UCG.MI"),  # already-valid Yahoo suffix -> unchanged
+            ("AAPL", "AAPL"),  # plain US -> unchanged
+            ("MODON.DH", "MODON.DH"),  # Gulf deferred -> unchanged
+        ]
+        for inp, exp in cases:
+            assert get_data_fetch_ticker(inp) == exp, (
+                f"{inp} -> {get_data_fetch_ticker(inp)} (want {exp})"
+            )
+
+    def test_get_data_fetch_ticker_specials_still_honored(self):
+        """VIX + per-name data_fetch_substitutions survive the new suffix logic."""
+        assert get_data_fetch_ticker("VIX") == "^VIX"
+        assert get_data_fetch_ticker("LYXGRE.DE") == "GRE.PA"
+
 
 class TestDualListedDetection:
     """Test cases for dual-listed stock detection."""
