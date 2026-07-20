@@ -43,6 +43,37 @@ def _scores() -> pd.DataFrame:
             "beta": [-0.2, 0.4, 1.0],
             "realized_vol": [0.35, 0.25, 0.30],
             "de": [40.4, NAN, 15.5],
+            # ranking + heatmap
+            "conviction": [1.66, -0.8, 0.5],
+            "rank": [1, 3, 2],
+            "is_portfolio": [True, False, True],
+            "pead_z": [0.6, -0.4, 0.1],
+            "trajectory_z": [0.9, 0.0, -0.3],
+            "strength_z": [0.5, -0.2, 0.0],
+            # full-metric parity (browser-only before)
+            "pe_trailing": [28.0, 12.0, 9.0],
+            "ev_ebitda": [15.0, 6.0, 8.0],
+            "peg": [1.2, 0.8, NAN],
+            "roa": [0.12, 0.06, NAN],
+            "gross_margin": [0.44, 0.30, NAN],
+            "current_ratio": [1.2, 2.0, 1.1],
+            "gp_assets": [0.30, 0.12, NAN],
+            "sue": [1.5, -0.5, 0.2],
+            "earn_trajectory": [1.14, 0.90, 1.00],
+            "short_interest": [1.1, 5.0, 0.8],
+            "target_dispersion": [0.5, 0.2, 0.3],
+            "target_high": [250.0, 60.0, 15.0],
+            "target_low": [150.0, 40.0, 10.0],
+            "cap": [3.5e12, 8e9, 5e8],
+            "avg_volume": [1e6, 5e5, 2e5],
+            "adv_usd": [2e8, 1e7, 1e6],
+            "div_yield": [0.005, 0.030, 0.010],
+            "price": [200.0, 50.0, 12.0],
+            # vol-scaled trade levels
+            "entry": [200.0, 50.0, 12.0],
+            "stop_loss": [180.0, 45.0, 10.5],
+            "take_profit": [240.0, 60.0, 15.0],
+            "rr": [2.0, 1.5, 1.8],
         },
         index=["AAA", "BBB", "CCC"],
     )
@@ -158,18 +189,41 @@ def test_render_email_is_outlook_safe():
     for forbidden in ("var(--", "<details", "display:flex", "display:grid", "<svg"):
         assert forbidden not in html, forbidden
     assert "&amp;amp;" not in html  # no HTML-entity double-escaping
-    # sections + all six factor clusters present
+    # sections + all factor groups (DISPLAY_GROUPS parity with the browser report)
     for token in (
         "Factor Snapshot",
+        "Conviction heatmap",  # new overview section
         "Value",
         "Quality",
-        "PEAD",
-        "Growth",
         "Momentum",
+        "PEAD",
+        "Trajectory",
+        "Low-vol",
         "Strength",
-        "Risk",
+        "Analyst",
+        "Size-Liq",
+        "Income",
     ):
         assert token in html, token
+    # full-metric parity: labels that were browser-only before now render in the email
+    for label in (
+        "EV/EBITDA",
+        "P/E TTM",
+        "ROA",
+        "Op Mgn",
+        "GP/Assets",
+        "Tgt High",
+        "ADV",
+        "Div Yield",
+    ):
+        assert label in html, label
+    # trade levels per card
+    for lvl in ("R:R", "Stop", "Target", "Entry"):
+        assert lvl in html, lvl
+    # heatmap actually rendered cells (solid hex tint on a bgcolor cell)
+    assert 'bgcolor="#' in html
+    # methodology text
+    assert "winsorized" in html
     # USD-bloc breach surfaced (0.68 > 0.65 cap)
     assert "BREACH" in html
     # full name resolved from the description (not the truncated eToro name)
@@ -193,10 +247,12 @@ def test_full_name_extraction():
     assert rem._full_name(None, "FB") == "FB"
 
 
-def test_metric_formatting():
-    assert rem._mfmt("mom_12_1", 0.30) == "+30%"  # fraction -> signed percent
-    assert rem._mfmt("roe", 18.9) == "18.9%"  # already a percent
-    assert rem._mfmt("pe_forward", 23.0) == "23.0"  # ratio
-    assert rem._mfmt("beta", -0.2) == "-0.20"
-    assert rem._mfmt("upside", 15.5) == "+15.5%"
-    assert rem._mfmt("de", NAN) == "n/a"
+def test_heat_hex_tint():
+    """Heat cell tint: green above-peer, red below, neutral warm for NaN — solid hex."""
+    assert rem._heat_hex(1.5).startswith("#") and len(rem._heat_hex(1.5)) == 7
+    # positive leans green (G channel highest), negative leans red (R channel highest)
+    pos = rem._heat_hex(2.0)
+    neg = rem._heat_hex(-2.0)
+    assert int(pos[3:5], 16) > int(pos[1:3], 16)  # G > R for green
+    assert int(neg[1:3], 16) > int(neg[3:5], 16)  # R > G for red
+    assert rem._heat_hex(NAN) == rem.WARM
