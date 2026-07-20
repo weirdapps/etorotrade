@@ -256,3 +256,14 @@ def test_heat_hex_tint():
     assert int(pos[3:5], 16) > int(pos[1:3], 16)  # G > R for green
     assert int(neg[1:3], 16) > int(neg[3:5], 16)  # R > G for red
     assert rem._heat_hex(NAN) == rem.WARM
+
+
+def test_heatmap_handles_na_rank_and_conviction():
+    """An ineligible name carries an Int64 NA rank + NaN conviction — the heatmap must
+    render it without crashing (regression: int(pd.NA) TypeError on live data)."""
+    s = _scores().copy()
+    s["rank"] = s["rank"].astype("Int64")
+    s.loc["CCC", "rank"] = pd.NA
+    s.loc["CCC", "conviction"] = NAN
+    html = rem.render_email_report(s, _meta(), portfolio=_view(), actions=_actions())
+    assert isinstance(html, str) and "Conviction heatmap" in html
