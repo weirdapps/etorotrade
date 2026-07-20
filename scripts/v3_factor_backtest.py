@@ -24,7 +24,13 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from trade_modules.v3.combine import CLUSTERS, DIRECTION, _rank_z, _sector_demean  # noqa: E402
+from trade_modules.v3.combine import (  # noqa: E402
+    CLUSTER_WEIGHTS,
+    CLUSTERS,
+    DIRECTION,
+    _rank_z,
+    _sector_demean,
+)
 from trade_modules.v3.factor_backtest import (  # noqa: E402
     BACKTEST_PANEL_FACTORS,
     beta_neutralize,
@@ -325,6 +331,114 @@ def _f(v, nd: int = 4) -> str:
     return f"{v:.{nd}f}" if isinstance(v, (int, float)) and v == v else "n/a"
 
 
+# Human-readable cluster names + the per-cluster benchmark taxonomy. SCORED members come
+# from combine.CLUSTERS (weight = cluster_weight / n_members, equal-mean); the rest are the
+# monitored / gate / excluded metrics assigned to the cluster they conceptually belong to.
+_CLUSTER_LABEL = {
+    "value_z": "Value",
+    "quality_z": "Quality",
+    "momentum_z": "Momentum",
+    "pead_z": "PEAD (earnings surprise)",
+    "trajectory_z": "Trajectory (PET/PEF)",
+    "lowvol_z": "Low-vol",
+    "strength_z": "Strength (analyst revisions)",
+    "growth_z": "Growth",
+    "_income": "Income (context only)",
+    "_investment": "Investment (excluded)",
+}
+# metric -> (cluster_key, status, note). status: monitor | exclude | gate | scored*.
+_NONSCORED = {
+    "pe_forward": (
+        "value_z",
+        "exclude",
+        "level ρ0.75 w/ trailing (≈0 IC); its SPREAD is scored via Trajectory",
+    ),
+    "pb": ("value_z", "scored*", "sector-conditional: financials/REIT value recipe"),
+    "ps_sector": ("value_z", "scored*", "sector-conditional: tech/healthcare value recipe"),
+    "peg": ("value_z", "monitor", "growth-adjusted value; noisy"),
+    "roa": ("quality_z", "exclude", "retired for the interim quality set"),
+    "gross_margin": ("quality_z", "exclude", "superseded by GP/assets"),
+    "op_margin": ("quality_z", "exclude", "operating-profitability/assets is a BUILD"),
+    "current_ratio": ("quality_z", "gate", "distress screen (with D/E) — not scored"),
+    "de": ("quality_z", "gate", "distress screen (with current ratio) — not scored"),
+    "accruals": ("quality_z", "exclude", "Sloan accruals — no clean alpha"),
+    "price_perf": ("momentum_z", "monitor", "≈ mom_12-1 (ρ0.95) — double-count avoided"),
+    "short_interest": ("strength_z", "gate", "squeeze EXCLUDE gate (SI > 20%)"),
+    "upside": ("strength_z", "monitor", "contaminated ρ−0.72 w/ 52w-high; zero β-alpha (t −0.15)"),
+    "buy_pct": ("strength_z", "monitor", "analyst buy-% level ≈ zero IC"),
+    "target_dispersion": ("strength_z", "exclude", "live-fetched, non-point-in-time"),
+    "asset_growth": ("_investment", "exclude", "CMA / investment — no clean alpha (FM ≈ 0)"),
+    "div_yield": ("_income", "monitor", "mildly positive; utilities-tilt candidate"),
+}
+_STATUS_BADGE = {
+    "scored": ("#0a7d33", "#e5f6ea"),
+    "scored*": ("#0a7d33", "#e5f6ea"),
+    "monitor": ("#916516", "#f8f1df"),
+    "gate": ("#1d4ed8", "#e7edfd"),
+    "exclude": ("#6b7280", "#eef0f2"),
+}
+
+
+def _cluster_benchmark(fac: list[dict]) -> str:
+    """Cluster-organized parameter benchmark: per cluster, every metric (scored / monitored /
+    gate / excluded) with its weight + forward-IC stats — the individual-metric contribution."""
+    by = {r["name"]: r for r in fac}
+
+    def _mrow(metric: str, status: str, weight: str, note: str) -> str:
+        r = by.get(metric)
+        fg, bg = _STATUS_BADGE.get(status, ("#6b7280", "#eef0f2"))
+        badge = f'<span class="b" style="color:{fg};background:{bg}">{status}</span>'
+        if r:
+            rc = "#0a7d33" if (r["ic_raw"] or 0) > 0 else "#b91c1c"
+            nc = "#0a7d33" if (r["ic_neu"] or 0) > 0 else "#b91c1c"
+            tw = "700" if abs(r.get("t_neu_hac") or 0) >= 2 else "400"
+            stats = (
+                f"<td style='color:{rc}'>{_f(r['ic_raw'])}</td>"
+                f"<td style='color:{nc}'>{_f(r['ic_neu'])}</td>"
+                f"<td style='font-weight:{tw}'>{_f(r['t_neu_hac'], 2)}</td>"
+                f"<td>{_f(r['hit_neu'], 2)}</td>"
+            )
+        else:
+            stats = "<td colspan='4' style='color:#9aa1a9'>not in this panel (see fundamentals backtest / .info-only)</td>"
+        dtxt = "high=good" if DIRECTION.get(metric, 1) > 0 else "low=good"
+        return (
+            f"<tr><td><code>{metric}</code> {badge}</td><td>{weight}</td>"
+            f"<td class='dir'>{dtxt}</td>{stats}<td class='mnote'>{note}</td></tr>"
+        )
+
+    order = sorted(CLUSTER_WEIGHTS, key=lambda c: -CLUSTER_WEIGHTS[c]) + ["_income", "_investment"]
+    blocks = []
+    for cl in order:
+        members = CLUSTERS.get(cl, [])
+        w = CLUSTER_WEIGHTS.get(cl, 0.0)
+        n = len(members) or 1
+        rows = []
+        for m in members:  # SCORED members
+            eff = "recipe" if cl == "value_z" else f"{100 * w / n:.1f}%"
+            rows.append(_mrow(m, "scored", eff, "member of the scored cluster"))
+        for m, (mc, status, note) in _NONSCORED.items():  # monitored / gate / excluded here
+            if mc == cl:
+                rows.append(_mrow(m, status, "—" if status != "scored*" else "recipe", note))
+        if not rows:
+            continue
+        wtxt = f" · cluster weight <b>{w * 100:.0f}%</b>" if w else " · not a scored cluster"
+        blocks.append(
+            f"<h3>{_CLUSTER_LABEL.get(cl, cl)}{wtxt} · {len(members)} scored</h3>"
+            "<table><thead><tr><th>Metric</th><th>weight</th><th>dir</th>"
+            "<th>IC raw</th><th>IC β-neut</th><th>t (HAC)</th><th>hit</th><th>note</th></tr></thead>"
+            f"<tbody>{''.join(rows)}</tbody></table>"
+        )
+    return (
+        "<h2>Parameter benchmark — by cluster</h2>"
+        '<p class="note">Every parameter grouped by its cluster, with the cluster weight, the '
+        "metric's weight <i>within</i> conviction (cluster weight ÷ members, equal-mean; Value is "
+        "sector-conditional so its members are recipe-weighted), and its forward-IC stats. "
+        "<b>scored</b> = live in conviction · <b>scored*</b> = scored only in some sector recipes · "
+        "<b>monitor</b> = shadow, zero weight · <b>gate</b> = exclusion screen, not scored · "
+        "<b>exclude</b> = dropped (no clean alpha). Bold t = |HAC t| ≥ 2.</p>" + "".join(blocks)
+    )
+
+
 def _render(fac, clu, sector_val, fm_result, churn, n_snap, n_uni, n_px, snaps) -> str:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
     out = os.path.expanduser(f"~/Downloads/{stamp}_v3_factor_backtest.html")
@@ -422,12 +536,14 @@ h2{{font-size:17px;margin:26px 0 8px;border-bottom:2px solid #1a1a1a;padding-bot
 table{{width:100%;border-collapse:collapse;font-size:13px}}th{{text-align:left;background:#f7f8fa;padding:7px 9px;border-bottom:1px solid #e6e8ec}}
 td{{padding:6px 9px;border-bottom:1px solid #eef0f2}}code{{background:#f2f3f5;padding:1px 5px;border-radius:4px;font-size:12px}}
 .b{{font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:4px}}.act{{color:#0a7d33;background:#e5f6ea}}.disc{{color:#6b7280;background:#eef0f2}}
-.note{{color:#5b6470;font-size:12.5px;margin:6px 0 2px}}</style></head><body>
+.note{{color:#5b6470;font-size:12.5px;margin:6px 0 2px}}
+h3{{font-size:14.5px;margin:18px 0 6px;color:#1a1a1a}}.dir{{color:#5b6470;font-size:12px}}.mnote{{color:#5b6470;font-size:11.5px}}</style></head><body>
 <h1>v3 Panel-History Factor Backtest</h1>
 <div class="sub">Forward IC (Spearman) at {HORIZON}td, over {n_snap} daily point-in-time snapshots
 ({snaps[0][1]} .. {snaps[-1][1]}) reconstructed from etoro.csv git history · universe {n_uni:,} global coverage names, {n_px:,} priced (EUR).</div>
 <p class="note"><b>How to read:</b> <b>IC raw</b> = Spearman(factor-z, raw forward return); <b>IC β-neutral</b> = vs the beta-residualised return (per-date OLS residual on beta) — this removes the market-beta component that dominates a trending regime and is the <b>honest test of factor alpha</b>. Positive β-neutral IC with |t|≥2 (bold) = evidence of alpha on this (short) sample. <b>active</b> = in a live cluster; <b>discarded</b> = removed from scoring (shown to validate the discard). ~{n_snap} daily dates — indicative, NOT the deflated-Sharpe gate.</p>
 {pit_note}
+{_cluster_benchmark(fac)}
 <h2>Clusters</h2>
 <table><thead><tr><th>Cluster</th><th>IC raw</th><th>IC β-neutral</th><th>t (naive)</th><th>t (HAC)</th><th>hit</th><th>dates</th><th>obs</th></tr></thead><tbody>{ch}</tbody></table>
 <h2>Factors (active + discarded)</h2>
