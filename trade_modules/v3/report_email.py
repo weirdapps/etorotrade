@@ -25,6 +25,17 @@ from __future__ import annotations
 import html as _htmllib
 import math
 
+# Single-source the data model + metric formatting from the browser report so the two
+# editions never drift — only the HTML rendering differs (this file stays email-safe).
+from trade_modules.v3.report import (
+    CLUSTER_CELLS,
+    DISPLAY_GROUPS,
+    GROUP_CLUSTER,
+)
+from trade_modules.v3.report import (
+    _fmt as _bfmt,
+)
+
 # --- Palette (literal; Outlook has no CSS variables) ------------------------
 INK = "#16181d"
 INK2 = "#4a4e57"
@@ -50,52 +61,6 @@ ACTION_META = {
 }
 ACTION_ORDER = ["BUY", "ADD", "TRIM", "SELL", "HOLD"]
 CONTENT_W = 680
-
-# Per-stock factor grid: (cluster label, z-column or None, [(metric_key, short label), ...]).
-CARD_FACTORS = [
-    ("Value", "value_z", [("pe_forward", "P/E"), ("pb", "P/B"), ("ps_sector", "P/S")]),
-    ("Quality", "quality_z", [("roe", "ROE"), ("fcf", "FCF"), ("gp_assets", "GP/A")]),
-    ("PEAD", "pead_z", [("sue", "SUE")]),
-    ("Traj", "trajectory_z", [("earn_trajectory", "t/f")]),
-    ("Growth", "growth_z", [("earn_growth", "EPS"), ("rev_growth", "rev")]),
-    (
-        "Momentum",
-        "momentum_z",
-        [("mom_12_1", "12-1"), ("pct_52w_high", "52w"), ("price_perf", "12m")],
-    ),
-    (
-        "Strength",
-        "strength_z",
-        [("analyst_mom", "revis"), ("upside", "upside"), ("buy_pct", "buy")],
-    ),
-    ("Risk", "lowvol_z", [("beta", "β"), ("realized_vol", "vol"), ("de", "D/E")]),
-]
-
-# metric formatting: key -> (kind, decimals, signed). kind: fracpct (x100), pct
-# (already a percent), ratio (plain number). Scales verified against live scores.
-_METRIC_FMT = {
-    "mom_12_1": ("fracpct", 0, True),
-    "gp_assets": ("fracpct", 0, False),  # gross profit / assets
-    "sue": ("ratio", 2, True),  # standardized unexpected earnings (z-like)
-    "earn_trajectory": ("ratio", 2, False),  # trailing/forward P/E ratio (>1 = rising)
-    "pct_52w_high": ("pct", 0, False),
-    "price_perf": ("pct", 0, True),
-    "pe_forward": ("ratio", 1, False),
-    "pb": ("ratio", 2, False),
-    "ps_sector": ("ratio", 2, False),
-    "roe": ("pct", 1, False),
-    "op_margin": ("fracpct", 0, False),
-    "fcf": ("pct", 1, False),
-    "earn_growth": ("pct", 0, True),
-    "rev_growth": ("fracpct", 0, True),
-    "upside": ("pct", 1, True),
-    "buy_pct": ("pct", 0, False),
-    "analyst_mom": ("ratio", 0, True),
-    "beta": ("ratio", 2, False),
-    "realized_vol": ("fracpct", 0, False),
-    "de": ("ratio", 1, False),
-    "target_dispersion": ("fracpct", 0, False),
-}
 
 
 # --- Formatters -------------------------------------------------------------
@@ -131,20 +96,6 @@ def _pp(v) -> str:  # fraction delta -> "-2.5pp"
 
 def _num(v, d=2) -> str:
     return "n/a" if _nan(v) else f"{v:.{d}f}"
-
-
-def _mfmt(key: str, v) -> str:
-    """Format a raw factor metric for the card grid (compact, readable units)."""
-    if _nan(v):
-        return "n/a"
-    try:
-        v = float(v)
-    except (TypeError, ValueError):
-        return _esc(v)
-    kind, dp, signed = _METRIC_FMT.get(key, ("ratio", 2, False))
-    x = v * 100 if kind == "fracpct" else v
-    body = f"{x:+.{dp}f}" if signed else f"{x:.{dp}f}"
-    return body + ("%" if kind in ("fracpct", "pct") else "")
 
 
 def _tone(v) -> str:
@@ -301,7 +252,7 @@ def _factor_cell(label: str, z_col: str | None, metrics: list, row) -> str:
     sep = f' <span style="color:{MUTED};">·</span> '
     chips = sep.join(
         f'<span style="color:{MUTED};">{_esc(lbl)}</span> '
-        f'<span style="color:{INK};font-weight:700;">{_mfmt(k, _get(row, k))}</span>'
+        f'<span style="color:{INK};font-weight:700;">{_bfmt(k, _get(row, k))}</span>'
         for k, lbl in metrics
     )
     return (
@@ -316,7 +267,9 @@ def _factor_cell(label: str, z_col: str | None, metrics: list, row) -> str:
 def _factor_grid(row) -> str:
     if row is None:
         return ""
-    cells = [_factor_cell(lbl, zc, ms, row) for lbl, zc, ms in CARD_FACTORS]
+    # Full info-parity with the browser report: every DISPLAY_GROUPS group + all its
+    # metrics (not the old CARD_FACTORS subset), with the cluster z from GROUP_CLUSTER.
+    cells = [_factor_cell(lbl, GROUP_CLUSTER.get(lbl), ms, row) for lbl, ms in DISPLAY_GROUPS]
     rows = []
     for i in range(0, len(cells), 2):
         pair = cells[i : i + 2]
@@ -327,6 +280,33 @@ def _factor_grid(row) -> str:
         f'<div style="border-top:1px solid {LINE};margin:10px 0 0 0;padding-top:8px;">'
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
         f'style="border-collapse:collapse;">{"".join(rows)}</table></div>'
+    )
+
+
+def _levels_tiles(row) -> str:
+    """Vol-scaled trade levels (entry / stop / target / R:R) as email tiles."""
+    if row is None:
+        return ""
+    entry, stop, tp, rr = (
+        _get(row, "entry"),
+        _get(row, "stop_loss"),
+        _get(row, "take_profit"),
+        _get(row, "rr"),
+    )
+    if all(_nan(x) for x in (entry, stop, tp, rr)):
+        return ""
+    return (
+        '<div style="margin-top:8px;">'
+        + _tiles(
+            [
+                ("Entry", _money(entry), "", INK),
+                ("Stop", _money(stop), "vol-scaled", BEAR),
+                ("Target", _money(tp), "vol-scaled", BULL),
+                ("R:R", _num(rr, 1), "reward/risk", INK),
+            ],
+            per_row=4,
+        )
+        + "</div>"
     )
 
 
@@ -403,13 +383,14 @@ def _header_row(a: dict, color: str, cmax: float) -> str:
 
 
 def _action_card(a: dict, row, color: str, cmax: float) -> str:
-    """Rich per-stock card: header + six-cluster factor grid."""
+    """Rich per-stock card: header + trade levels + full factor grid + description."""
     return (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
         'style="border-collapse:separate;margin-bottom:10px;"><tr>'
         f'<td bgcolor="{CANVAS}" style="background:{CANVAS};border:1px solid {LINE};'
         f'border-left:3px solid {color};border-radius:0 9px 9px 0;padding:12px 14px;">'
-        f"{_header_row(a, color, cmax)}{_factor_grid(row)}{_desc_block(a.get('_desc'))}"
+        f"{_header_row(a, color, cmax)}{_levels_tiles(row)}{_factor_grid(row)}"
+        f"{_desc_block(a.get('_desc'))}"
         "</td></tr></table>"
     )
 
@@ -458,6 +439,85 @@ def _action_group(act: str, rows: list, cmax: float, scores) -> str:
         body = "".join(_action_card(a, _row_of(a), color, cmax) for a in rows)
         body += '<div style="height:8px;font-size:0;">&nbsp;</div>'
     return header + body
+
+
+# --- Conviction heatmap (email-safe: solid bgcolor cells, no rgba) ----------
+def _heat_hex(z) -> str:
+    """Solid hex tint for a heat cell — the browser's green/red rgba blended over
+    white (Outlook's ``bgcolor`` needs a solid hex, not rgba)."""
+    if _nan(z):
+        return WARM
+    a = min(abs(float(z)) / 2.0, 1.0)
+    alpha = 0.10 + a * 0.50
+    r, g, b = (45, 106, 79) if z >= 0 else (179, 64, 47)
+
+    def _mix(c: int) -> int:
+        return round(255 * (1 - alpha) + c * alpha)
+
+    return f"#{_mix(r):02x}{_mix(g):02x}{_mix(b):02x}"
+
+
+def _heat_z(z) -> str:
+    return "·" if _nan(z) else f"{z:+.1f}"
+
+
+def _heatmap_section(scores, max_rows: int = 120) -> str:
+    """Ranked names × cluster z heat-strip — the browser overview, as an email table.
+    Shows all holdings plus the top ``max_rows`` by conviction (email-deliverable size)."""
+    import pandas as pd  # noqa: PLC0415
+
+    if scores is None or "conviction" not in getattr(scores, "columns", []):
+        return ""
+    ranked = scores.sort_values("conviction", ascending=False, na_position="last")
+    total = int(ranked["conviction"].notna().sum())
+    if total == 0:
+        return ""
+    held = ranked.index[ranked.get("is_portfolio", pd.Series(False, index=ranked.index)) == True]  # noqa: E712
+    keep = set(held) | set(ranked.head(max_rows).index)
+    shown = ranked.loc[[i for i in ranked.index if i in keep]]
+
+    def _th(txt: str, align: str = "center") -> str:
+        return (
+            f'<td align="{align}" style="font-family:{FONT};font-size:9px;font-weight:700;'
+            f'letter-spacing:.3px;text-transform:uppercase;color:{MUTED};padding:0 3px 6px;">{txt}</td>'
+        )
+
+    header = (
+        '<tr><td style="padding:0 8px 6px 0;">&nbsp;</td>'
+        + "".join(_th(lbl) for _, lbl in CLUSTER_CELLS)
+        + _th("Conv", "right")
+        + _th("Rank", "right")
+        + "</tr>"
+    )
+    body = []
+    for tkr, r in shown.iterrows():
+        conv, rank = r.get("conviction"), r.get("rank")
+        pf = (
+            f' <span style="color:{ACCENT};font-size:8px;font-weight:700;">PF</span>'
+            if bool(r.get("is_portfolio"))
+            else ""
+        )
+        cells = "".join(
+            f'<td bgcolor="{_heat_hex(r.get(zc))}" align="center" style="font-family:{MONO};'
+            f'font-size:9.5px;color:{INK};padding:4px 3px;border:2px solid {CANVAS};">{_heat_z(r.get(zc))}</td>'
+            for zc, _ in CLUSTER_CELLS
+        )
+        body.append(
+            f'<tr><td style="font-family:{MONO};font-size:10.5px;font-weight:700;color:{INK};'
+            f'padding:4px 8px 4px 0;white-space:nowrap;">{_esc(str(tkr))}{pf}</td>{cells}'
+            f'<td align="right" style="font-family:{MONO};font-size:10px;font-weight:700;'
+            f'color:{_tone(conv)};padding:4px 0 4px 8px;">{"·" if _nan(conv) else f"{conv:+.2f}"}</td>'
+            f'<td align="right" style="font-family:{MONO};font-size:9.5px;color:{MUTED};'
+            f'padding:4px 0 4px 6px;">{"" if _nan(rank) else "#" + str(int(rank))}</td></tr>'
+        )
+    cap = f" &middot; showing {len(shown)} of {total}" if len(shown) < total else ""
+    return (
+        '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;">{header}{"".join(body)}</table></div>'
+        f'<div style="font-family:{FONT};font-size:10px;color:{MUTED};margin-top:6px;">'
+        f"Cluster z per name &middot; green above-peer / red below{cap}.</div>"
+    )
 
 
 # --- Main -------------------------------------------------------------------
@@ -512,8 +572,8 @@ def render_email_report(
         f'<div style="border-top:2px solid {INK};width:44px;font-size:0;line-height:0;margin:14px 0;">&nbsp;</div>'
         f'<div style="font-family:{FONT};font-size:12px;color:{INK2};line-height:1.6;">'
         f"A daily overlay on your live eToro book: keep what clears the bar, sell the genuinely weak, "
-        f"buy the strongest non-held names, then risk-gate the whole book. Each traded name carries its "
-        f"six-cluster factor breakdown.</div>"
+        f"buy the strongest non-held names, then risk-gate the whole book. Every scored name is ranked "
+        f"in the conviction heatmap; each traded name carries its full factor breakdown + trade levels.</div>"
         f'<div style="margin-top:12px;">'
         f'<span style="font-family:{MONO};font-size:11px;color:{INK};background:{WARM};'
         f'border:1px solid {LINE};border-radius:20px;padding:4px 11px;">Regime <b>{_esc(regime)}</b></span>'
@@ -625,9 +685,10 @@ def render_email_report(
         f"Universe {cov.get('n_scored', 'n/a')} scored &middot; {cov.get('n_eligible', 'n/a')} eligible"
         f"{(' (' + _pct1(cov_pct) + ' coverage)') if cov_pct is not None else ''}"
         f" &middot; caps name {_pct1(caps.get('name'))} / sector {_pct1(caps.get('sector'))} / USD-bloc {_pct1(caps.get('usd_bloc'))}.<br>"
-        f"Factor grid z-scores are the rank-normalized cluster contributions (value, quality, momentum, growth, "
-        f"low-vol, strength); metrics are the underlying raw values. ERC + conviction tilt, hard risk gate. "
-        f"Decision-support, not advice. Generated {gen}."
+        f"Factor grid z-scores are the rank-normalized cluster contributions (value, quality, momentum, "
+        f"PEAD, trajectory, low-vol, strength, growth); metrics are the underlying raw values. Each metric "
+        f"is winsorized (1/99) and cross-sectionally z-scored; conviction re-z-scored, rank 1 = best. "
+        f"ERC + conviction tilt, hard risk gate. Decision-support, not advice. Generated {gen}."
         "</div>"
     )
 
@@ -643,11 +704,17 @@ def render_email_report(
         + '<div style="height:12px;font-size:0;">&nbsp;</div>'
         + pos_tiles
         + _rule()
-        + _section_head("III", "Decisions", f"{len(actions)} names · factor cards for every trade")
+        + _section_head("III", "Conviction heatmap", "every scored name, ranked · cluster z-scores")
+        + '<div style="height:12px;font-size:0;">&nbsp;</div>'
+        + _heatmap_section(scores)
+        + _rule()
+        + _section_head(
+            "IV", "Decisions", f"{len(actions)} names · full factor cards for every trade"
+        )
         + '<div style="height:14px;font-size:0;">&nbsp;</div>'
         + groups
         + _rule()
-        + _section_head("IV", "Allocation", "current book by geography, asset, sector")
+        + _section_head("V", "Allocation", "current book by geography, asset, sector")
         + '<div style="height:12px;font-size:0;">&nbsp;</div>'
         + alloc_html
         + _rule()
