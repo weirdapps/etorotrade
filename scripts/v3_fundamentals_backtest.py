@@ -54,7 +54,41 @@ SIGNS = {
     "asset_growth": -1,
     "accruals": -1,
     "sue": +1,
+    # profitability / margins / growth / leverage / cash-flow (from factor_panel)
+    "roe": +1,
+    "roa": +1,
+    "gross_margin": +1,
+    "op_margin": +1,
+    "earn_growth": +1,
+    "rev_growth": +1,
+    "fcf_yield": +1,
+    "de": -1,
+    "current_ratio": +1,
+    "ev_ebitda": -1,
+    "div_yield": +1,
+    "net_issuance": -1,  # dilution bad / buyback good (Pontiff-Woodgate)
+    # price-derived (monthly marketcap price proxy)
+    "mom_12_1": +1,
+    "price_perf": +1,
+    "pct_52w_high": +1,
+    "beta": -1,
+    "realized_vol": -1,
+    "reversal_1m": -1,  # short-term reversal: high last-month return -> lower next-month
+    "residual_mom": +1,  # beta-residual 12-1 momentum (idiosyncratic)
+    "earn_stability": +1,  # low earnings coefficient-of-variation = QMJ 'safety'
 }
+# The joint Fama-MacBeth stays on the ORIGINAL durable premia — adding the full 22
+# (with collinear pairs like mom_12_1/price_perf and roe/roa) would make the per-date
+# cross-sectional regression singular. Individual IC below still covers all factors.
+FM_FACTORS = [
+    "book_to_price",
+    "earnings_yield",
+    "sales_yield",
+    "gp_assets",
+    "asset_growth",
+    "accruals",
+    "sue",
+]
 
 
 def _matrix(daily: pd.DataFrame, col: str) -> pd.DataFrame:
@@ -79,6 +113,25 @@ def _sue_table(sf1: pd.DataFrame) -> pd.DataFrame:
             pd.DataFrame({"ticker": tkr, "datekey": g["datekey"].to_numpy(), "sue": sue.to_numpy()})
         )
     return pd.concat(out, ignore_index=True).dropna(subset=["sue"]) if out else pd.DataFrame()
+
+
+def _estab_table(sf1: pd.DataFrame) -> pd.DataFrame:
+    """Per (ticker, datekey) earnings stability = -(coefficient of variation of trailing EPS).
+
+    Low CV = steady earnings = the QMJ 'safety' leg. Scale-free (std / |mean|), so it is not a
+    size proxy; higher (less negative) = more stable."""
+    out = []
+    for tkr, g in sf1.sort_values("datekey").groupby("ticker"):
+        eps = pd.to_numeric(g["eps"], errors="coerce")
+        sd = eps.rolling(8, min_periods=4).std()
+        mn = eps.rolling(8, min_periods=4).mean().abs()
+        stab = -(sd / (mn + 1e-6))
+        out.append(
+            pd.DataFrame(
+                {"ticker": tkr, "datekey": g["datekey"].to_numpy(), "stab": stab.to_numpy()}
+            )
+        )
+    return pd.concat(out, ignore_index=True).dropna(subset=["stab"]) if out else pd.DataFrame()
 
 
 def main() -> None:
@@ -106,8 +159,25 @@ def main() -> None:
     fwd_mat = price.shift(-1) / price - 1.0
     mret = price.pct_change(fill_method=None)
     mkt = mret.mean(axis=1)
-    beta_mat = mret.rolling(BETA_WIN).cov(mkt).div(mkt.rolling(BETA_WIN).var(), axis=0)
+    # min_periods = half-window: the delisted-inclusive price proxy has gaps (median ~75/127
+    # months per name), so demanding a FULL 24-month window collapsed beta to 25 dates (0 in
+    # 2026). A half-window floor restores ~110 dates and — since this same beta drives the
+    # β-neutralization — repairs fwd_n for every factor, not just the beta factor itself.
+    _bmp = BETA_WIN // 2
+    beta_mat = (
+        mret.rolling(BETA_WIN, min_periods=_bmp)
+        .cov(mkt)
+        .div(mkt.rolling(BETA_WIN, min_periods=_bmp).var(), axis=0)
+    )
+    # price-derived factors from the monthly price proxy
+    mom_mat = price.shift(1) / price.shift(12) - 1.0  # 12-1 momentum (skip the last month)
+    perf_mat = price / price.shift(12) - 1.0  # trailing 12-month price performance
+    hi_mat = price / price.rolling(12).max()  # proximity to the 12-month high (<=1)
+    vol_mat = mret.rolling(12).std()  # realized volatility of monthly returns
+    res_mat = mret.sub(beta_mat.mul(mkt, axis=0))  # residual (idiosyncratic) monthly return
+    resmom_mat = res_mat.shift(1).rolling(11, min_periods=6).sum()  # residual 12-1 momentum
     sue_tbl = _sue_table(sf1)
+    estab_tbl = _estab_table(sf1)
 
     parts: dict[str, list[pd.DataFrame]] = {f: [] for f in SIGNS}
     fm_parts: list[pd.DataFrame] = []
@@ -130,12 +200,40 @@ def main() -> None:
         for name, ratio in (("book_to_price", pb), ("earnings_yield", pe), ("sales_yield", ps)):
             r = ratio.loc[T]
             vals[name] = (1.0 / r).where(r > 0)
-        # SF1 balance-sheet / cash-flow factors
+        # SF1 balance-sheet / cash-flow / profitability factors
         fp = factor_panel(fasof, _asof(sf1, pkey), mc.loc[T])
-        for name in ("gp_assets", "asset_growth", "accruals"):
+        for name in (
+            "gp_assets",
+            "asset_growth",
+            "accruals",
+            "roe",
+            "roa",
+            "gross_margin",
+            "op_margin",
+            "earn_growth",
+            "rev_growth",
+            "fcf_yield",
+            "de",
+            "current_ratio",
+            "ev_ebitda",
+            "div_yield",
+            "net_issuance",
+        ):
             vals[name] = fp[name]
         sue_asof = _asof(sue_tbl, tkey) if not sue_tbl.empty else pd.DataFrame()
         vals["sue"] = sue_asof["sue"] if "sue" in sue_asof.columns else pd.Series(dtype=float)
+        # price-derived (from the monthly price proxy matrices)
+        vals["mom_12_1"] = mom_mat.loc[T]
+        vals["price_perf"] = perf_mat.loc[T]
+        vals["pct_52w_high"] = hi_mat.loc[T]
+        vals["realized_vol"] = vol_mat.loc[T]
+        vals["beta"] = beta_mat.loc[T] if T in beta_mat.index else pd.Series(dtype=float)
+        vals["reversal_1m"] = mret.loc[T]  # last-month return (signed -1 in SIGNS)
+        vals["residual_mom"] = resmom_mat.loc[T]
+        estab_asof = _asof(estab_tbl, tkey) if not estab_tbl.empty else pd.DataFrame()
+        vals["earn_stability"] = (
+            estab_asof["stab"] if "stab" in estab_asof.columns else pd.Series(dtype=float)
+        )
 
         beta_T = beta_mat.loc[T] if T in beta_mat.index else None
         fwd_n = (
@@ -187,10 +285,45 @@ def main() -> None:
         )
     )
 
+    # Cache the 10yr survivorship-clean stats so the etoro-panel cluster benchmark can show
+    # the BEST available window per metric (10yr Sharadar here vs the ~5-mo etoro panel there).
+    try:
+        import json as _json  # noqa: PLC0415
+
+        sp = os.path.expanduser("~/.weirdapps-trading/v3_fundamentals_stats.json")
+        os.makedirs(os.path.dirname(sp), exist_ok=True)
+        win = f"10yr ({dates[0].date()}..{dates[-1].date()})" if len(dates) else "10yr"
+        payload = {
+            "window": win,
+            "factors": {
+                r["name"]: {
+                    "ic_raw": r["ic_raw"],
+                    "ic_neu": r["ic_neu"],
+                    "t_hac": r["t_neu"],
+                    "hit": r["hit"],
+                    "n_dates": r["n_dates"],
+                }
+                for r in rows
+            },
+        }
+        with open(sp, "w") as fh:
+            _json.dump(payload, fh)
+        print(f"stats cache -> {sp}")
+    except Exception:  # noqa: BLE001  (best-effort cache; never fail the backtest)
+        pass
+
     fm = {}
     if fm_parts:
         fmp = pd.concat(fm_parts, ignore_index=True)
-        fm = fama_macbeth(fmp, "fwd", list(SIGNS), date_col="date", lags=HAC_LAGS)
+        # Dump the stacked signed-z panel (date × ticker × all factors + fwd) so the
+        # redundancy / incremental-IC analysis can read it without rebuilding the panel.
+        try:
+            zp = os.path.expanduser("~/.weirdapps-trading/v3_factor_zpanel.parquet")
+            fmp.to_parquet(zp, index=False)
+            print(f"z-panel -> {zp}  ({len(fmp):,} rows)")
+        except Exception:  # noqa: BLE001  (best-effort; never fail the backtest)
+            pass
+        fm = fama_macbeth(fmp, "fwd", FM_FACTORS, date_col="date", lags=HAC_LAGS)
 
     _print(rows, fm, n_used, mc)
     out = _render(rows, fm, n_used, dates, mc.shape[1])

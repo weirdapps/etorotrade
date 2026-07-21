@@ -18,9 +18,9 @@ def _base(index):
 
 
 def test_value_metric_negation_cheap_ranks_high():
-    """Low P/E (cheap) must produce a HIGH value_z (value metrics are negated)."""
+    """Low forward P/E (cheap) must produce a HIGH value_z (value metrics are negated)."""
     df = _base(["CHEAP", "MID", "RICH"])
-    df["pe_trailing"] = [5.0, 15.0, 50.0]
+    df["pe_forward"] = [5.0, 15.0, 50.0]
     scores = compute_scores(df, sector_neutral=False)
     assert scores.loc["CHEAP", "value_z"] > scores.loc["MID", "value_z"]
     assert scores.loc["MID", "value_z"] > scores.loc["RICH", "value_z"]
@@ -64,9 +64,9 @@ def test_sector_neutral_flips_a_sector_leader_positive():
 
 def test_conviction_and_rank_produced():
     df = _base(["A", "B", "C", "D"])
-    df["pe_trailing"] = [5.0, 12.0, 25.0, 60.0]
+    df["pe_forward"] = [5.0, 12.0, 25.0, 60.0]
     df["roe"] = [40.0, 25.0, 15.0, 5.0]
-    df["mom_12_1"] = [0.30, 0.10, -0.05, -0.20]
+    df["pct_52w_high"] = [0.30, 0.10, -0.05, -0.20]
     scores = compute_scores(df, sector_neutral=False)
 
     assert "conviction" in scores.columns
@@ -83,7 +83,7 @@ def test_conviction_and_rank_produced():
 def test_nans_tolerated():
     """Rows/metrics with NaN don't crash; clusters use present metrics only."""
     df = _base(["A", "B", "C"])
-    df["pe_trailing"] = [5.0, np.nan, 40.0]  # B missing value metric
+    df["pe_forward"] = [5.0, np.nan, 40.0]  # B missing value metric
     df["roe"] = [30.0, 20.0, np.nan]  # C missing quality metric
     scores = compute_scores(df, sector_neutral=False)
 
@@ -146,12 +146,12 @@ def test_eligibility_excludes_non_equity_and_dataless():
     df = _base(idx)
     df["quote_type"] = ["EQUITY", "EQUITY", "ETF", "EQUITY"]
     df["price"] = [100.0, 50.0, 200.0, 30.0]
-    df["pe_trailing"] = [10.0, 20.0, 15.0, 12.0]
+    df["pe_forward"] = [10.0, 20.0, 15.0, 12.0]
     df["roe"] = [30.0, 20.0, 25.0, 18.0]
-    df["mom_12_1"] = [0.20, 0.10, 0.15, 0.05]
+    df["pct_52w_high"] = [0.20, 0.10, 0.15, 0.05]
     df["realized_vol"] = [0.20, 0.25, 0.22, 0.30]
     # DATALESS: strip its core data (no price/mom/vol, and its cluster members go NaN).
-    df.loc["DATALESS", ["price", "pe_trailing", "roe", "mom_12_1", "realized_vol"]] = np.nan
+    df.loc["DATALESS", ["price", "pe_forward", "roe", "pct_52w_high", "realized_vol"]] = np.nan
 
     scores = compute_scores(df, sector_neutral=False)
 
@@ -218,7 +218,7 @@ def test_derive_cluster_weights_proportional_to_positive_ic():
 
 
 def test_derive_cluster_weights_preserves_value_quality_cap():
-    """IC that would over-weight Value+Quality is capped at 0.55, excess to the rest."""
+    """IC that would over-weight Value+Quality is capped at 0.60, excess to the rest."""
     from trade_modules.v3.combine import derive_cluster_weights
 
     ic = {
@@ -231,11 +231,11 @@ def test_derive_cluster_weights_preserves_value_quality_cap():
     w = derive_cluster_weights(ic)
     assert abs(sum(w.values()) - 1.0) < 1e-9
     vq = w["value_z"] + w["quality_z"]
-    assert abs(vq - 0.55) < 1e-9  # capped exactly at the joint cap
+    assert abs(vq - 0.60) < 1e-9  # capped exactly at the joint cap (raised 0.55->0.60)
     # equal IC -> equal split inside the VQ bucket
     assert abs(w["value_z"] - w["quality_z"]) < 1e-9
-    # the freed 0.45 is spread over the other three (equal IC -> equal split)
-    assert abs(w["momentum_z"] - 0.15) < 1e-9
+    # the freed 0.40 is spread over the three positive-IC clusters (equal IC -> equal split)
+    assert abs(w["momentum_z"] - 0.40 / 3) < 1e-9
 
 
 def test_derive_cluster_weights_clamps_negative_ic():
@@ -281,9 +281,9 @@ def test_derive_cluster_weights_equal_spread_when_rest_ic_nonpositive():
     w = derive_cluster_weights(ic)
 
     assert abs(sum(w.values()) - 1.0) < 1e-9, f"weights sum {sum(w.values())} != 1.0"
-    assert abs(w["value_z"] + w["quality_z"] - 0.55) < 1e-9, "VQ cap not exactly 0.55"
+    assert abs(w["value_z"] + w["quality_z"] - 0.60) < 1e-9, "VQ cap not exactly 0.60"
 
-    expected_each = (1.0 - 0.55) / 5  # rest = momentum, lowvol, strength, pead, trajectory
+    expected_each = (1.0 - 0.60) / 5  # rest = momentum, lowvol, strength, pead, trajectory
     for c in ("momentum_z", "lowvol_z", "strength_z", "pead_z", "trajectory_z"):
         assert abs(w[c] - expected_each) < 1e-9, (
             f"{c}: got {w[c]:.6f}, expected {expected_each:.6f}"
@@ -295,8 +295,8 @@ def test_ic_weighting_shifts_conviction_toward_high_ic_cluster():
     a momentum-heavy IC flips it to the momentum name. (Default weights are now
     equal-risk, so the shift is shown via explicit IC vectors, not the default.)"""
     df = _base(["MOM_STAR", "VAL_STAR", "MID1", "MID2"])
-    df["pe_trailing"] = [50.0, 5.0, 20.0, 25.0]  # VAL_STAR cheapest -> best value
-    df["mom_12_1"] = [0.50, -0.20, 0.10, 0.05]  # MOM_STAR strongest momentum
+    df["pe_forward"] = [50.0, 5.0, 20.0, 25.0]  # VAL_STAR cheapest -> best value
+    df["pct_52w_high"] = [0.50, -0.20, 0.10, 0.05]  # MOM_STAR strongest momentum
 
     val = compute_scores(
         df,
@@ -352,13 +352,14 @@ _GROWTH_FORWARD = {
 
 
 def test_growth_cluster_registered_direction_positive():
-    """Growth is the 6th cluster: earnings + revenue growth, DIRECTION +1."""
+    """Growth cluster: earnings growth + earnings stability (2026-07-21: rev_growth demoted
+    to watch/margin-conditioning; earn_stability added as the QMJ 'safety' leg). DIRECTION +1."""
     from trade_modules.v3.combine import CLUSTERS, DIRECTION
 
     assert "growth_z" in CLUSTERS
-    assert set(CLUSTERS["growth_z"]) == {"earn_growth", "rev_growth"}
+    assert set(CLUSTERS["growth_z"]) == {"earn_growth", "earn_stability"}
     assert DIRECTION["earn_growth"] == +1
-    assert DIRECTION["rev_growth"] == +1
+    assert DIRECTION["earn_stability"] == +1
     assert list(CLUSTERS.keys()) == [
         "value_z",
         "quality_z",
@@ -451,8 +452,8 @@ def test_resolve_cluster_weights_accepts_long_and_short_names():
 def test_cluster_weights_precedence_over_ic_and_default():
     """Explicit cluster_weights override BOTH ic_weights and the default."""
     df = _base(["MOM_STAR", "VAL_STAR", "MID"])
-    df["pe_trailing"] = [50.0, 5.0, 20.0]
-    df["mom_12_1"] = [0.50, -0.20, 0.10]
+    df["pe_forward"] = [50.0, 5.0, 20.0]
+    df["pct_52w_high"] = [0.50, -0.20, 0.10]
     # cluster_weights momentum-only should beat an ic_weights that favors value.
     out = compute_scores(
         df,
@@ -466,10 +467,10 @@ def test_cluster_weights_precedence_over_ic_and_default():
 def test_cluster_weights_growth_forward_shifts_ranking():
     """Growth-forward ranks a high-growth expensive name ABOVE a cheap no-growth name."""
     df = _base(["GROWTH_EXP", "VALUE_CHEAP", "MID"])
-    df["pe_trailing"] = [60.0, 6.0, 20.0]  # GROWTH_EXP expensive, VALUE_CHEAP cheap
+    df["pe_forward"] = [60.0, 6.0, 20.0]  # GROWTH_EXP expensive, VALUE_CHEAP cheap
     df["earn_growth"] = [40.0, 1.0, 15.0]  # GROWTH_EXP fast grower, VALUE_CHEAP flat
-    df["rev_growth"] = [0.35, 0.01, 0.12]
-    df["mom_12_1"] = [0.40, -0.10, 0.10]  # momentum reinforces the growth name
+    df["earn_stability"] = [0.9, 0.2, 0.5]  # GROWTH_EXP steadier earnings too
+    df["pct_52w_high"] = [0.40, -0.10, 0.10]  # momentum reinforces the growth name
 
     vh = compute_scores(df, sector_neutral=False, cluster_weights=_VALUE_HEAVY)
     gf = compute_scores(df, sector_neutral=False, cluster_weights=_GROWTH_FORWARD)
@@ -483,21 +484,23 @@ def test_cluster_weights_growth_forward_shifts_ranking():
 def test_backward_compat_none_equals_explicit_default_weights():
     """cluster_weights=None reproduces the default model EXACTLY (allclose)."""
     df = _base(["A", "B", "C", "D"])
-    df["pe_trailing"] = [5.0, 12.0, 25.0, 60.0]
+    df["pe_forward"] = [5.0, 12.0, 25.0, 60.0]
     df["roe"] = [40.0, 25.0, 15.0, 5.0]
-    df["mom_12_1"] = [0.30, 0.10, -0.05, -0.20]
+    df["pct_52w_high"] = [0.30, 0.10, -0.05, -0.20]
 
     default = compute_scores(df, sector_neutral=False)
     explicit = compute_scores(
         df,
         sector_neutral=False,
         cluster_weights={
-            "value": 0.21,
-            "quality": 0.21,
-            "momentum": 0.21,
-            "growth": 0.11,
-            "lowvol": 0.21,
+            "value": 0.16,
+            "quality": 0.42,
+            "momentum": 0.14,
+            "growth": 0.12,
+            "pead": 0.06,
+            "trajectory": 0.05,
             "strength": 0.05,
+            "lowvol": 0.00,
         },
     )
     assert np.allclose(
@@ -547,14 +550,15 @@ def test_fixnow_strength_cluster_is_analyst_mom_only():
             assert dead not in members, f"{dead} must not be scored in any cluster"
 
 
-def test_fixnow_value_drops_raw_pb_anchors_ev_ebitda():
-    """Value = EV/EBITDA (anchor) + trailing P/E; raw P/B is dropped from scoring
-    (intangible-heavy tech universe degrades it) (D7)."""
+def test_value_cluster_is_ps_forward_pb():
+    """2026-07-21 (owner): value = P/S (sector default) + forward P/E + P/B (financials/REITs
+    recipe); pe_trailing + ev_ebitda dropped from scoring (redundant / dead this regime)."""
     from trade_modules.v3.combine import CLUSTERS
 
-    assert CLUSTERS["value_z"] == ["pe_trailing", "ev_ebitda"]
-    for members in CLUSTERS.values():
-        assert "pb" not in members, "raw P/B must not be scored in any cluster"
+    assert CLUSTERS["value_z"] == ["ps_sector", "pe_forward", "pb"]
+    for dead in ("pe_trailing", "ev_ebitda"):
+        for members in CLUSTERS.values():
+            assert dead not in members, f"{dead} must not be scored in any cluster"
 
 
 def test_quality_is_roe_fcf_gp_assets():
@@ -563,29 +567,26 @@ def test_quality_is_roe_fcf_gp_assets():
     + de are a distress filter; accruals shadow-only (no clean alpha)."""
     from trade_modules.v3.combine import CLUSTERS, DIRECTION
 
-    assert CLUSTERS["quality_z"] == ["roe", "fcf", "gp_assets"]
+    assert CLUSTERS["quality_z"] == ["roe", "fcf", "gp_assets", "net_issuance"]
     assert DIRECTION["gp_assets"] == +1
+    assert DIRECTION["net_issuance"] == -1  # dilution bad / buyback good
     for dead in ("roa", "gross_margin", "op_margin", "current_ratio", "de", "accruals"):
         for members in CLUSTERS.values():
             assert dead not in members, f"{dead} must not be scored in quality"
 
 
-def test_best_bet_prior_weights_2026_07_20():
-    """BEST-BET prior (survivorship-clean backtest + literature): quality-led (GP/assets),
-    value+momentum durable core, PEAD + earnings-trajectory (PET/PEF — strongest clean
-    signal, beta-neutral t 2.17) added, low-vol a risk-diversifier, growth trimmed. VQ
-    below the 0.55 cap; sum = 1."""
+def test_master_taxonomy_weights_2026_07_21():
+    """Master-taxonomy cluster weights (owner-locked 2026-07-21): quality-led (absorbs
+    net_issuance t2.95), low-vol -> 0 (beta/realized_vol moved to SIZING, not scored alpha),
+    value = P/S+P/B+pe_forward, growth = earn_growth+earn_stability above the analyst earn-in
+    sleeve, PEAD + trajectory retained. Value+Quality within the 0.60 cap; sum = 1."""
     from trade_modules.v3.combine import CLUSTER_WEIGHTS as w
 
     assert w["quality_z"] == max(w.values()), "quality is the evidence leader"
-    assert w["pead_z"] > 0, "PEAD participates (best clean signal + robust literature)"
-    assert w["trajectory_z"] > 0, "earnings-trajectory participates (strongest clean signal)"
-    assert w["lowvol_z"] < w["value_z"], "low-vol trimmed to a risk-diversifier"
-    assert w["lowvol_z"] <= 0.10 + 1e-9, "low-vol capped low (its alpha was a beta artifact)"
-    assert (w["value_z"] + w["quality_z"]) < 0.55, "no Value+Quality cap-as-floor"
-    # C (2026-07-20): analyst_mom upweighted (β-neutral t 2.36) above growth.
-    assert w["strength_z"] >= 0.08 - 1e-9, "analyst_mom (strength) upweighted per C"
-    assert w["strength_z"] > w["growth_z"], "strength now ranks above the trimmed growth satellite"
+    assert w["pead_z"] > 0 and w["trajectory_z"] > 0, "PEAD + trajectory participate"
+    assert w["lowvol_z"] == 0.0, "low-vol -> 0 (moved to sizing, not alpha)"
+    assert (w["value_z"] + w["quality_z"]) <= 0.60 + 1e-9, "value+quality within the 0.60 cap"
+    assert w["growth_z"] > w["strength_z"], "growth satellite above the analyst earn-in sleeve"
     assert abs(sum(w.values()) - 1.0) < 1e-9
 
 

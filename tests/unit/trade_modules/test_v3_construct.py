@@ -890,3 +890,43 @@ def test_name_cap_binding_max_weight_respected():
         )
     # Cap is working (not breached): binding flag must be False.
     assert d["binding"]["name_cap"] is False
+
+
+# --------------------------------------------------------------------------- #
+# Owner sizing (2026-07-21): per-name market-cap-tier caps + dividend up-size tilt
+# --------------------------------------------------------------------------- #
+
+
+def test_apply_name_cap_vec_per_name_caps_preserve_total():
+    """Per-name cap vector caps each name at its own cap and preserves the total weight."""
+    from trade_modules.riskfirst.construct import apply_name_cap_vec
+
+    w = np.array([0.5, 0.3, 0.2])
+    caps = np.array([0.1, 0.6, 0.6])
+    out = apply_name_cap_vec(w, caps)
+    assert (out <= caps + 1e-9).all()
+    assert abs(out[0] - 0.1) < 1e-9
+    assert abs(float(out.sum()) - 1.0) < 1e-9
+
+
+def test_tiered_name_caps_by_market_cap():
+    """Market-cap-tier single-name caps: mega 0.10 down to micro 0.0025; unknown -> 0.06."""
+    from trade_modules.v3.construct import _tiered_name_caps
+
+    scored = pd.DataFrame(
+        {"cap": [5e11, 5e10, 5e9, 1e9, 1e8, np.nan]},
+        index=["MEGA", "LARGE", "MID", "SMALL", "MICRO", "UNK"],
+    )
+    caps = _tiered_name_caps(scored, list(scored.index))
+    assert list(caps) == [0.10, 0.06, 0.02, 0.005, 0.0025, 0.06]
+
+
+def test_div_tilt_moderate_upsizes_extreme_yield_flagged():
+    """Dividend up-size: moderate yield (0-4%) up-sizes to +50%; > 6% = value-trap -> no bonus."""
+    from trade_modules.v3.construct import _div_tilt
+
+    scored = pd.DataFrame({"div_yield": [0.0, 0.04, 0.08]}, index=["NONE", "MOD", "HIGH"])
+    t = _div_tilt(scored, list(scored.index))
+    assert abs(t[0] - 1.0) < 1e-9
+    assert abs(t[1] - 1.5) < 1e-9  # 4% -> +50%
+    assert abs(t[2] - 1.0) < 1e-9  # > 6% -> value-trap flag, no up-size

@@ -25,6 +25,9 @@ STORE_PATH: str = str(Path("~/.weirdapps-trading/v3_fundamentals_store.parquet")
 KEYS = ["ticker", "datekey", "reportperiod"]
 # Numeric as-reported fields we derive factors from (Sharadar SF1 names, ARQ dimension).
 # sharesbas + marketcap let us build book-to-price at ANY date (equity / (price*shares)).
+# The lower block are Sharadar's precomputed metrics (populated in ARQ) for the quality /
+# leverage / liquidity / cash-flow factors; roe/roa are null in ARQ so we DERIVE those from
+# netinc/equity/assets in fundamentals.py instead.
 NUM_FIELDS = [
     "assets",
     "equity",
@@ -35,6 +38,12 @@ NUM_FIELDS = [
     "eps",
     "sharesbas",
     "marketcap",
+    "de",
+    "currentratio",
+    "evebitda",
+    "fcf",
+    "opinc",
+    "divyield",
 ]
 STORE_COLS = KEYS + NUM_FIELDS
 

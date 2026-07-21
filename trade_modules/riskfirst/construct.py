@@ -113,3 +113,23 @@ def apply_name_cap(w: np.ndarray, cap: float, max_iter: int = 1000) -> np.ndarra
             break
         w[under] += excess * (w[under] / under_sum)
     return w
+
+
+def apply_name_cap_vec(w: np.ndarray, caps: np.ndarray, max_iter: int = 1000) -> np.ndarray:
+    """Per-name cap: cap each weight at ``caps[i]`` (e.g. a market-cap-tier schedule),
+    redistributing the excess proportionally to the remaining HEADROOM of under-cap names.
+    Preserves the total invested weight (headroom-proportional avoids re-exceeding small caps)."""
+    w = np.asarray(w, dtype=float).copy()
+    caps = np.asarray(caps, dtype=float)
+    for _ in range(max_iter):
+        over = w > caps + 1e-12
+        if not over.any():
+            break
+        excess = float((w[over] - caps[over]).sum())
+        w[over] = caps[over]
+        head = np.where(~over, caps - w, 0.0)
+        head_sum = float(head.sum())
+        if head_sum <= 1e-15:
+            break
+        w = w + excess * (head / head_sum)
+    return w
