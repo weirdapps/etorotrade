@@ -58,6 +58,10 @@ DIRECTION = {
     # = earnings expected to RISE; low = value-trap). The distinct PET->PEF information
     # lost when raw pe_forward was pruned. Strongest survivorship-clean signal we found.
     "earn_trajectory": +1,
+    # net share issuance (2026-07-21): dilution bad / buyback good (Pontiff-Woodgate).
+    "net_issuance": -1,
+    # earnings stability (2026-07-21): low earnings coefficient-of-variation = QMJ 'safety'.
+    "earn_stability": +1,
 }
 
 # Scoring clusters -> member metrics.
@@ -69,16 +73,16 @@ CLUSTERS = {
     # FIX-NOW 2026-07-18 (D7): raw P/B dropped (degrades in an intangible-heavy
     # mega-cap-tech universe — shorts the R&D/brand compounders). Anchor on
     # EV/EBITDA + trailing earnings yield. Intangibles-adjusted book -> BUILD.
-    "value_z": ["pe_trailing", "ev_ebitda"],
+    "value_z": ["ps_sector", "pe_forward", "pb"],
     # quality = ROE + FCF + GP/assets. GP/assets (Novy-Marx) added 2026-07-19 once the
     # Sharadar SF1 PIT data was in — it was the best survivorship-clean raw IC (t 3.5)
     # AND the documented profitability anchor. de + current_ratio stay a distress
     # filter; accruals shadow-only (no clean alpha).
-    "quality_z": ["roe", "fcf", "gp_assets"],
+    "quality_z": ["roe", "fcf", "gp_assets", "net_issuance"],
     # price_perf pruned 2026-07-14: rho 0.95 with mom_12_1 (same price move counted
     # twice). Kept the academic 12-1 skip-month + 52w-high proximity (distinct).
-    "momentum_z": ["mom_12_1", "pct_52w_high"],
-    "growth_z": ["earn_growth", "rev_growth"],
+    "momentum_z": ["pct_52w_high"],
+    "growth_z": ["earn_growth", "earn_stability"],
     "lowvol_z": ["beta", "realized_vol"],
     # FIX-NOW 2026-07-18 (agreed setup D2-D6): strength collapses to analyst_mom
     # alone. upside (contaminated/contrarian), buy_pct (zero-IC level),
@@ -128,9 +132,12 @@ _DEFAULT_GROUP = "A"  # unknown / missing sector -> conventional recipe
 # applied over the metrics PRESENT for a row and renormalized, so one present
 # metric reproduces its own z (a name is never penalized for a missing metric).
 VALUE_GROUP_RECIPES = {
-    "A": {"pe_trailing": 1.0, "ev_ebitda": 1.0},  # earnings + enterprise (default)
-    "B": {"pb": 1.0, "pe_trailing": 0.5},  # book primary; EV meaningless for banks/REITs
-    "C": {"ps_sector": 1.0, "ev_ebitda": 0.5},  # sales primary; drop trailing-PE + book
+    # 2026-07-21 (owner): P/S default value lead, P/B for financials/REITs, pe_forward
+    # PROMOTED in place of pe_trailing (earn-in — yfinance forward EPS, no 10yr PIT);
+    # ev_ebitda + pe_trailing dropped (redundant / dead this regime).
+    "A": {"ps_sector": 1.0, "pe_forward": 1.0},  # sales + forward-earnings (default)
+    "B": {"pb": 1.0, "pe_forward": 0.5},  # book primary; banks/REITs
+    "C": {"ps_sector": 1.0, "pe_forward": 0.5},  # sales primary; growth/intangible
 }
 # Per-group multiplier on the value cluster's WEIGHT in conviction (value is weak /
 # sign-inverted in growth/intangible sectors -> halved there, never dropped).
@@ -161,20 +168,25 @@ _VALUE_CANDIDATES = sorted({m for r in VALUE_GROUP_RECIPES.values() for m in r})
 # a single noisy metric: raw IC ~0, hit 50%). Funded by growth 0.05->0.03 (theory-weak) +
 # low-vol 0.10->0.09 (risk-diversifier, not alpha). Upside/EXR stay MONITOR (zero β-alpha,
 # t -0.15) — a negative-upside BUY is often a right contrarian bet (see capitulation study).
+# 2026-07-21 (owner review): cluster weights re-derived as the SUM of the locked per-metric
+# weights per cluster (master taxonomy). Quality absorbs net_issuance (t2.95) + is the
+# strongest sleeve; value = P/S+P/B+pe_forward; growth = earn_growth+earn_stability; low-vol
+# → 0 (beta/realized_vol moved to SIZING, not alpha). Within-cluster is still ~equal-mean here
+# (a first-look approximation of the 13/13/9/7-type per-metric weights).
 CLUSTER_WEIGHTS = {
-    "value_z": 0.18,
-    "quality_z": 0.24,
-    "momentum_z": 0.18,
-    "pead_z": 0.10,
-    "trajectory_z": 0.10,
-    "lowvol_z": 0.09,
-    "strength_z": 0.08,
-    "growth_z": 0.03,
+    "value_z": 0.16,
+    "quality_z": 0.42,
+    "momentum_z": 0.14,
+    "growth_z": 0.12,
+    "pead_z": 0.06,
+    "trajectory_z": 0.05,
+    "strength_z": 0.05,
+    "lowvol_z": 0.00,
 }
 
 # The Value+Quality joint weight is capped here regardless of the weighting scheme.
 _VALUE_QUALITY = ("value_z", "quality_z")
-_VQ_CAP = 0.55
+_VQ_CAP = 0.60  # raised 0.55->0.60 (2026-07-21): the quality-led set puts value+quality at 0.58
 
 # The five "evidence" clusters the IC / default weighting operates over. Growth
 # is deliberately EXCLUDED here: it is off (weight 0) in the default + IC paths

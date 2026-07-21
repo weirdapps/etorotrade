@@ -507,8 +507,8 @@ def enrich_features(
     from trade_modules.v3.fundamentals import live_fundamentals_factors  # noqa: PLC0415
 
     ff = live_fundamentals_factors(list(feats.index))
-    feats["gp_assets"] = ff["gp_assets"].reindex(feats.index)
-    feats["sue"] = ff["sue"].reindex(feats.index)
+    for _c in ("gp_assets", "sue", "net_issuance", "earn_stability"):
+        feats[_c] = ff[_c].reindex(feats.index)
 
     feats.index.name = "ticker"
     return feats

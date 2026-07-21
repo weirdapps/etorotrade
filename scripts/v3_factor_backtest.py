@@ -379,31 +379,374 @@ _STATUS_BADGE = {
 }
 
 
-def _cluster_benchmark(fac: list[dict]) -> str:
-    """Cluster-organized parameter benchmark: per cluster, every metric (scored / monitored /
-    gate / excluded) with its weight + forward-IC stats — the individual-metric contribution."""
-    by = {r["name"]: r for r in fac}
+# Plain-language description per metric (owner wants to know what each metric IS).
+_METRIC_DESC = {
+    "pe_trailing": "price ÷ trailing-12m earnings — cheaper = higher earnings yield",
+    "ev_ebitda": "enterprise value ÷ EBITDA — capital-structure-neutral cheapness",
+    "pb": "price ÷ book value — Fama-French value anchor (banks / REITs)",
+    "ps_sector": "price ÷ sales — value for unprofitable / growth names",
+    "peg": "P/E ÷ earnings growth — growth-adjusted value",
+    "pe_forward": "price ÷ next-12m expected earnings",
+    "earn_trajectory": "trailing-P/E ÷ forward-P/E — >1 = earnings expected to RISE (value-trap guard)",
+    "roe": "net income ÷ shareholders' equity — return on equity",
+    "roa": "net income ÷ total assets — return on assets",
+    "gross_margin": "gross profit ÷ revenue",
+    "op_margin": "operating profit ÷ revenue",
+    "fcf": "free-cash-flow yield — cash after capex ÷ price",
+    "gp_assets": "gross profit ÷ total assets — Novy-Marx profitability (the quality anchor)",
+    "current_ratio": "current assets ÷ current liabilities — short-term liquidity",
+    "de": "total debt ÷ equity — leverage",
+    "accruals": "(net income − operating cash flow) ÷ assets — earnings quality, Sloan (high = bad)",
+    "mom_12_1": "12-month return skipping the last month — classic momentum",
+    "pct_52w_high": "price ÷ 52-week high — proximity to the highs",
+    "price_perf": "recent 12-month price performance",
+    "sue": "standardized unexpected earnings — post-earnings-announcement drift (PEAD)",
+    "beta": "sensitivity to the market — lower = more defensive",
+    "realized_vol": "annualized volatility of daily returns — lower = calmer",
+    "analyst_mom": "direction of analyst estimate revisions — up = upgrades",
+    "upside": "analyst avg target ÷ price − 1 — implied upside",
+    "buy_pct": "% of covering analysts rating Buy",
+    "target_dispersion": "spread of analyst price targets — disagreement",
+    "short_interest": "% of float sold short — squeeze / borrow risk",
+    "earn_growth": "year-over-year earnings growth",
+    "rev_growth": "year-over-year revenue growth",
+    "asset_growth": "year-over-year total-asset growth — CMA investment factor (high = bad)",
+    "div_yield": "dividend ÷ price",
+}
+# etoro-panel metric -> fundamentals-backtest factor name (the 10yr survivorship-clean stat).
+_FUND_STAT = {
+    "pe_trailing": "earnings_yield",
+    "pb": "book_to_price",
+    "ps_sector": "sales_yield",
+    "gp_assets": "gp_assets",
+    "sue": "sue",
+    "asset_growth": "asset_growth",
+    "accruals": "accruals",
+    # profitability / margins / growth / leverage / cash-flow (derived + Sharadar precomputed)
+    "roe": "roe",
+    "roa": "roa",
+    "gross_margin": "gross_margin",
+    "op_margin": "op_margin",
+    "earn_growth": "earn_growth",
+    "rev_growth": "rev_growth",
+    "fcf": "fcf_yield",
+    "de": "de",
+    "current_ratio": "current_ratio",
+    "ev_ebitda": "ev_ebitda",
+    # price-derived (monthly marketcap proxy over the 10yr Sharadar DAILY panel)
+    "mom_12_1": "mom_12_1",
+    "price_perf": "price_perf",
+    "pct_52w_high": "pct_52w_high",
+    "beta": "beta",
+    "realized_vol": "realized_vol",
+    "div_yield": "div_yield",
+}
+# Metrics for which NO 10yr backtest is possible — Sharadar has no analyst estimates,
+# forward earnings, short-interest or dividend history. These legitimately stay on the
+# ~5-mo etoro git panel (or have no backtest at all); it is NOT a coverage gap.
+_NO_10YR = {
+    "pe_forward",
+    "earn_trajectory",
+    "analyst_mom",
+    "upside",
+    "buy_pct",
+    "target_dispersion",
+    "peg",
+    "short_interest",
+}
 
-    def _mrow(metric: str, status: str, weight: str, note: str) -> str:
-        r = by.get(metric)
-        fg, bg = _STATUS_BADGE.get(status, ("#6b7280", "#eef0f2"))
-        badge = f'<span class="b" style="color:{fg};background:{bg}">{status}</span>'
-        if r:
-            rc = "#0a7d33" if (r["ic_raw"] or 0) > 0 else "#b91c1c"
-            nc = "#0a7d33" if (r["ic_neu"] or 0) > 0 else "#b91c1c"
-            tw = "700" if abs(r.get("t_neu_hac") or 0) >= 2 else "400"
-            stats = (
-                f"<td style='color:{rc}'>{_f(r['ic_raw'])}</td>"
-                f"<td style='color:{nc}'>{_f(r['ic_neu'])}</td>"
-                f"<td style='font-weight:{tw}'>{_f(r['t_neu_hac'], 2)}</td>"
-                f"<td>{_f(r['hit_neu'], 2)}</td>"
+
+_PROPOSAL_BADGE = {
+    "keep": ("#0a7d33", "#e5f6ea"),  # green — scored + validated, hold
+    "promote?": ("#1d4ed8", "#e7edfd"),  # blue — unscored but strong 10yr, candidate
+    "earn-in": ("#0e7490", "#e0f2f7"),  # teal — no 10yr possible, accrue on 5mo
+    "watch": ("#916516", "#f8f1df"),  # amber — weak / regime-dependent, monitor
+    "drop": ("#6b7280", "#eef0f2"),  # grey — confirm exclude, no clean alpha
+}
+# My data-driven call per metric given the 10yr β-neutral evidence (proposes, does NOT
+# impose — weights stay frozen / earn-in per governance). (verdict, one-line rationale).
+_PROPOSAL = {
+    # quality
+    "roe": ("keep", "scored · 10yr t3.5 ✓"),
+    "fcf": ("keep", "scored · 10yr t2.8 ✓"),
+    "gp_assets": ("keep", "quality anchor · 10yr t3.0 ✓"),
+    "roa": ("promote?", "10yr t4.0 (>roe, but ρ-high) — swap/blend with roe"),
+    "op_margin": ("promote?", "10yr t2.8, additive — add to quality"),
+    "gross_margin": ("drop", "10yr t≈0 — confirm exclude (gp_assets dominates)"),
+    "current_ratio": ("keep", "distress gate — keep"),
+    "de": ("keep", "leverage gate — keep"),
+    "accruals": ("drop", "10yr t-1.9, no clean alpha — confirm exclude"),
+    # value
+    "pe_trailing": (
+        "keep",
+        "value regime-weak 10yr — keep at DISCOUNTED weight (durable premium, don't kill)",
+    ),
+    "ev_ebitda": ("keep", "value regime-weak 10yr — keep discounted vs pe_trailing"),
+    "pb": ("keep", "sector recipe (banks / REIT) — hold"),
+    "ps_sector": ("keep", "sector recipe (tech / health) — hold"),
+    "pe_forward": ("drop", "level ≈0 IC; spread scored via trajectory — keep excluded"),
+    "peg": ("drop", "noisy, no 10yr — keep monitor"),
+    # momentum
+    "mom_12_1": ("keep", "scored · 10yr t2.6 ✓"),
+    "pct_52w_high": ("keep", "scored · 10yr t3.8 (top momentum) ✓"),
+    "price_perf": ("drop", "ρ0.95 with mom_12-1 — keep monitor (double-count)"),
+    # low-vol
+    "beta": ("keep", "scored · 10yr t2.2 ✓ (was a broken 25-date read)"),
+    "realized_vol": ("keep", "scored · 10yr t3.9 ✓"),
+    # strength (analyst / forward — no 10yr possible)
+    "analyst_mom": ("earn-in", "scored on 5mo; no 10yr possible — earn-in"),
+    "short_interest": ("keep", "squeeze gate — keep"),
+    "upside": ("drop", "5mo zero/neg β-alpha — keep monitor, do NOT gate"),
+    "buy_pct": ("drop", "5mo ≈0 IC — keep monitor"),
+    "target_dispersion": ("drop", "non-PIT, live-fetched — keep excluded"),
+    # growth
+    "earn_growth": ("keep", "scored · 10yr t2.7 ✓"),
+    "rev_growth": ("watch", "10yr t1.7 borderline — monitor"),
+    # pead
+    "sue": ("keep", "scored · 10yr t2.0 ✓"),
+    # trajectory (no 10yr possible)
+    "earn_trajectory": ("earn-in", "value-trap gate + 5mo scored — earn-in"),
+    # investment / income
+    "asset_growth": ("drop", "CMA / investment, FM≈0 — keep excluded"),
+    "div_yield": ("watch", "mildly positive; no 10yr — keep monitor"),
+}
+
+
+def _load_fund_stats() -> dict:
+    """The 10yr survivorship-clean stats cached by scripts/v3_fundamentals_backtest.py."""
+    import json  # noqa: PLC0415
+
+    try:
+        with open(os.path.expanduser("~/.weirdapps-trading/v3_fundamentals_stats.json")) as fh:
+            return json.load(fh)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+# Proposed per-metric weights (RAW points — normalized to 100% in the decision table).
+# Method: diversified equal-risk, NOT IC-proportional. Correlated profitability metrics share
+# a capped sleeve; value is kept at a regime-discounted floor (its weak 10yr is a value-hostile
+# regime, not death); analyst/forward sit on a small earn-in sleeve (unvalidatable on 10yr).
+# A PROPOSAL to earn into per governance, not an in-sample optimum.
+_PROPOSED_WT_RAW = {
+    # profitability / quality (strongest 10yr; 5 correlated members → capped sleeve)
+    "gp_assets": 6.0,
+    "roa": 5.0,
+    "roe": 5.0,
+    "op_margin": 5.0,
+    "fcf": 5.0,
+    # momentum
+    "pct_52w_high": 7.0,
+    "mom_12_1": 6.0,
+    # low-vol
+    "realized_vol": 7.0,
+    "beta": 6.0,
+    # value (regime-discounted floor; sector-conditional recipe)
+    "pe_trailing": 4.0,
+    "pb": 4.0,
+    "ps_sector": 4.0,
+    "ev_ebitda": 3.0,
+    # pead
+    "sue": 6.0,
+    # growth
+    "earn_growth": 5.0,
+    # analyst / forward — earn-in (no 10yr possible → kept small)
+    "analyst_mom": 5.0,
+    "earn_trajectory": 4.0,
+}
+# Active exclusion screens (no weight — kept as gates, not scored signals).
+_GATES = {"current_ratio", "de", "short_interest"}
+# metric -> cluster key (for the Cluster column)
+_CLUSTER_OF: dict[str, str] = {}
+for _cl, _mem in CLUSTERS.items():
+    for _m in _mem:
+        _CLUSTER_OF[_m] = _cl
+for _m, (_cl, _st, _nt) in _NONSCORED.items():
+    _CLUSTER_OF.setdefault(_m, _cl)
+
+
+def _decision_table(fac: list[dict]) -> str:
+    """The MAIN view: a flat, per-metric decision table. Proposed weight (diversified
+    equal-risk) sorted ↓ for the participating set, then WATCH, GATES, DROP — each row with
+    current weight, Δ, and the best-available 10yr / 5mo evidence, so the owner can judge
+    whether each weight is right."""
+    by = {r["name"]: r for r in fac}
+    fund_f = _load_fund_stats().get("factors", {})
+    cur: dict[str, float] = {}
+    for cl, mem in CLUSTERS.items():
+        w = CLUSTER_WEIGHTS.get(cl, 0.0)
+        for m in mem:
+            cur[m] = 100.0 * w / len(mem)
+    tot = sum(_PROPOSED_WT_RAW.values()) or 1.0
+    prop = {m: 100.0 * v / tot for m, v in _PROPOSED_WT_RAW.items()}
+
+    def _stat(metric: str):
+        fkey = _FUND_STAT.get(metric)
+        if fkey and fkey in fund_f:
+            s = fund_f[fkey]
+            return "10yr", "#0a7d33", s["ic_neu"], s["t_hac"], s["hit"]
+        if metric in by:
+            r = by[metric]
+            win = "5mo·no10yr" if metric in _NO_10YR else "5mo"
+            return win, "#916516", r["ic_neu"], r["t_neu_hac"], r["hit_neu"]
+        return "—", "#9aa1a9", None, None, None
+
+    def _row(metric: str, pw, cw) -> str:
+        cl = _CLUSTER_OF.get(metric, "")
+        clabel = _CLUSTER_LABEL.get(cl, cl).split(" ")[0] if cl else ""
+        win, wc, icn, t, hit = _stat(metric)
+        nc = "#0a7d33" if (icn or 0) > 0 else "#b91c1c"
+        tw = "700" if abs(t or 0) >= 2 else "400"
+        if isinstance(pw, float) and isinstance(cw, (int, float)):
+            d = pw - cw
+            dc = "#0a7d33" if d > 0.05 else ("#b91c1c" if d < -0.05 else "#6b7280")
+            dtxt = f"<span style='color:{dc}'>{d:+.1f}</span>"
+        else:
+            dtxt = "<span style='color:#9aa1a9'>—</span>"
+        pwt = (
+            f"<b>{pw:.1f}%</b>"
+            if isinstance(pw, float)
+            else f"<span style='color:#6b7280'>{pw}</span>"
+        )
+        cwt = (
+            f"{cw:.1f}%"
+            if isinstance(cw, (int, float))
+            else f"<span style='color:#9aa1a9'>{cw}</span>"
+        )
+        why = _PROPOSAL.get(metric, ("", ""))[1]
+        return (
+            f"<tr><td><code>{metric}</code></td><td style='color:#5b6470'>{clabel}</td>"
+            f"<td>{pwt}</td><td>{cwt}</td><td>{dtxt}</td>"
+            f"<td class='win' style='color:{wc}'>{win}</td>"
+            f"<td style='color:{nc}'>{_f(icn)}</td><td style='font-weight:{tw}'>{_f(t, 2)}</td>"
+            f"<td>{_f(hit, 2)}</td><td class='mdesc'>{why}</td></tr>"
+        )
+
+    part = sorted(_PROPOSED_WT_RAW, key=lambda m: -prop[m])
+    watch = sorted(
+        m
+        for m, (v, _) in _PROPOSAL.items()
+        if v == "watch" and m not in _PROPOSED_WT_RAW and m not in _GATES
+    )
+    gates = sorted(_GATES)
+    drop = sorted(m for m, (v, _) in _PROPOSAL.items() if v == "drop" and m not in _PROPOSED_WT_RAW)
+
+    def _tier(label: str, bg: str) -> str:
+        return (
+            f"<tr><td colspan='10' style='background:{bg};font-weight:700;padding:6px 9px'>"
+            f"{label}</td></tr>"
+        )
+
+    # current weight: cluster members carry their live weight; pb/ps_sector are a sector
+    # recipe (no fixed number); everything else is currently unscored → 0%.
+    _recipe = {"pb", "ps_sector"}
+
+    def _cur_wt(m):
+        if m in cur:
+            return cur[m]
+        return "recipe" if m in _recipe else 0.0
+
+    prows = "".join(_row(m, prop[m], _cur_wt(m)) for m in part)
+    wrows = "".join(_row(m, "—", _cur_wt(m)) for m in watch)
+    grows = "".join(_row(m, "gate", _cur_wt(m)) for m in gates)
+    drows = "".join(_row(m, "—", _cur_wt(m)) for m in drop)
+    body = (
+        _tier(f"● PARTICIPATE — scored · proposed weight ↓ · Σ = 100% ({len(part)})", "#e5f6ea")
+        + prows
+        + _tier(f"◐ WATCH — shadow, 0 weight ({len(watch)})", "#f8f1df")
+        + wrows
+        + _tier(f"▣ GATES — active exclusion screens, no weight ({len(gates)})", "#e7edfd")
+        + grows
+        + _tier(f"○ DROP — excluded, no clean alpha ({len(drop)})", "#eef0f2")
+        + drows
+    )
+    return (
+        "<h2>Decision table — proposed weights vs evidence</h2>"
+        '<p class="note">The <b>main</b> view: every metric, flat. <b>Proposed weight</b> = '
+        "diversified equal-risk (NOT IC-proportional) — correlated profitability metrics share a "
+        "capped sleeve; value is kept at a <b>regime-discounted</b> floor (its weak 10yr is a "
+        "value-hostile regime, not death); analyst / forward sit on a small <b>earn-in</b> sleeve "
+        "(unvalidatable on 10yr). A proposal to <b>earn into</b> per governance, not an in-sample "
+        "optimum. Judge each proposed weight against its 10yr <b>t (HAC)</b> + hit; <b>Δ pp</b> = "
+        "proposed − current (— where current is a sector recipe). Bold t = |HAC t| ≥ 2.</p>"
+        "<table><thead><tr><th>Metric</th><th>Cluster</th><th>Proposed</th><th>Current</th>"
+        "<th>Δ pp</th><th>window</th><th>IC β-neut</th><th>t (HAC)</th><th>hit</th>"
+        "<th>Rationale</th></tr></thead>"
+        f"<tbody>{body}</tbody></table>"
+    )
+
+
+def _cluster_benchmark(fac: list[dict]) -> str:
+    """Cluster-organized parameter benchmark: per cluster, every metric with a plain-language
+    description, its weight, and its BEST-available forward-IC stats — the 10yr survivorship-clean
+    Sharadar backtest where we have it, else the ~5-mo etoro git panel."""
+    by = {r["name"]: r for r in fac}
+    fund = _load_fund_stats()
+    fund_f = fund.get("factors", {})
+    fund_win = str(fund.get("window", "10yr"))
+
+    def _stat_cells(metric: str) -> str:
+        fkey = _FUND_STAT.get(metric)
+        if fkey and fkey in fund_f:
+            s = fund_f[fkey]
+            ic_raw, ic_neu, t, hit, win, wc = (
+                s["ic_raw"],
+                s["ic_neu"],
+                s["t_hac"],
+                s["hit"],
+                "10yr",
+                "#0a7d33",
+            )
+        elif metric in by:
+            r = by[metric]
+            ic_raw, ic_neu, t, hit, win, wc = (
+                r["ic_raw"],
+                r["ic_neu"],
+                r["t_neu_hac"],
+                r["hit_neu"],
+                "5mo",
+                "#916516",
             )
         else:
-            stats = "<td colspan='4' style='color:#9aa1a9'>not in this panel (see fundamentals backtest / .info-only)</td>"
-        dtxt = "high=good" if DIRECTION.get(metric, 1) > 0 else "low=good"
+            reason = (
+                "analyst / forward — no 10yr data possible"
+                if metric in _NO_10YR
+                else "no backtest data (.info-only)"
+            )
+            return f"<td class='win'>—</td><td colspan='4' style='color:#9aa1a9'>{reason}</td>"
+        rc = "#0a7d33" if (ic_raw or 0) > 0 else "#b91c1c"
+        nc = "#0a7d33" if (ic_neu or 0) > 0 else "#b91c1c"
+        tw = "700" if abs(t or 0) >= 2 else "400"
+        # A 5mo window on an analyst/forward metric is legitimate (no Sharadar 10yr), not a gap.
+        win_cell = (
+            f"<td class='win' style='color:{wc}'>5mo "
+            "<span style='font-size:10px;color:#9aa1a9'>no 10yr</span></td>"
+            if (win == "5mo" and metric in _NO_10YR)
+            else f"<td class='win' style='color:{wc};font-weight:700'>{win}</td>"
+        )
         return (
-            f"<tr><td><code>{metric}</code> {badge}</td><td>{weight}</td>"
-            f"<td class='dir'>{dtxt}</td>{stats}<td class='mnote'>{note}</td></tr>"
+            win_cell
+            + f"<td style='color:{rc}'>{_f(ic_raw)}</td><td style='color:{nc}'>{_f(ic_neu)}</td>"
+            f"<td style='font-weight:{tw}'>{_f(t, 2)}</td><td>{_f(hit, 2)}</td>"
+        )
+
+    def _prop_cell(metric: str) -> str:
+        verdict, why = _PROPOSAL.get(metric, ("", ""))
+        if not verdict:
+            return "<td></td>"
+        fg, bg = _PROPOSAL_BADGE.get(verdict, ("#6b7280", "#eef0f2"))
+        return (
+            f'<td><span class="b" style="color:{fg};background:{bg}">{verdict}</span>'
+            f'<div class="mdesc" style="margin-top:3px">{why}</div></td>'
+        )
+
+    def _mrow(metric: str, status: str, weight: str) -> str:
+        fg, bg = _STATUS_BADGE.get(status, ("#6b7280", "#eef0f2"))
+        badge = f'<span class="b" style="color:{fg};background:{bg}">{status}</span>'
+        return (
+            f"<tr><td><code>{metric}</code> {badge}</td>"
+            f"<td class='mdesc'>{_METRIC_DESC.get(metric, '')}</td>"
+            f"<td>{weight}</td>{_stat_cells(metric)}{_prop_cell(metric)}</tr>"
         )
 
     order = sorted(CLUSTER_WEIGHTS, key=lambda c: -CLUSTER_WEIGHTS[c]) + ["_income", "_investment"]
@@ -412,30 +755,44 @@ def _cluster_benchmark(fac: list[dict]) -> str:
         members = CLUSTERS.get(cl, [])
         w = CLUSTER_WEIGHTS.get(cl, 0.0)
         n = len(members) or 1
-        rows = []
-        for m in members:  # SCORED members
-            eff = "recipe" if cl == "value_z" else f"{100 * w / n:.1f}%"
-            rows.append(_mrow(m, "scored", eff, "member of the scored cluster"))
-        for m, (mc, status, note) in _NONSCORED.items():  # monitored / gate / excluded here
+        rows = [
+            _mrow(m, "scored", "recipe" if cl == "value_z" else f"{100 * w / n:.1f}%")
+            for m in members
+        ]
+        for m, (mc, status, _note) in _NONSCORED.items():
             if mc == cl:
-                rows.append(_mrow(m, status, "—" if status != "scored*" else "recipe", note))
+                rows.append(_mrow(m, status, "recipe" if status == "scored*" else "—"))
         if not rows:
             continue
         wtxt = f" · cluster weight <b>{w * 100:.0f}%</b>" if w else " · not a scored cluster"
         blocks.append(
-            f"<h3>{_CLUSTER_LABEL.get(cl, cl)}{wtxt} · {len(members)} scored</h3>"
-            "<table><thead><tr><th>Metric</th><th>weight</th><th>dir</th>"
-            "<th>IC raw</th><th>IC β-neut</th><th>t (HAC)</th><th>hit</th><th>note</th></tr></thead>"
+            f"<h3>{_CLUSTER_LABEL.get(cl, cl)}{wtxt}</h3>"
+            "<table><thead><tr><th>Metric</th><th>What it measures</th><th>weight</th>"
+            "<th>window</th><th>IC raw</th><th>IC β-neut</th><th>t (HAC)</th><th>hit</th>"
+            "<th>Proposal</th></tr></thead>"
             f"<tbody>{''.join(rows)}</tbody></table>"
         )
+    fund_range = fund_win.replace("10yr ", "").strip("()") or "10yr Sharadar"
     return (
         "<h2>Parameter benchmark — by cluster</h2>"
-        '<p class="note">Every parameter grouped by its cluster, with the cluster weight, the '
-        "metric's weight <i>within</i> conviction (cluster weight ÷ members, equal-mean; Value is "
-        "sector-conditional so its members are recipe-weighted), and its forward-IC stats. "
-        "<b>scored</b> = live in conviction · <b>scored*</b> = scored only in some sector recipes · "
-        "<b>monitor</b> = shadow, zero weight · <b>gate</b> = exclusion screen, not scored · "
-        "<b>exclude</b> = dropped (no clean alpha). Bold t = |HAC t| ≥ 2.</p>" + "".join(blocks)
+        '<p class="note">Every parameter grouped by its cluster, with a plain-language description, '
+        "its weight within conviction (cluster weight ÷ members; Value is sector-conditional → "
+        "recipe-weighted), and its <b>best-available</b> forward-IC stats — "
+        f"<b style='color:#0a7d33'>10yr</b> = survivorship-clean Sharadar ({fund_range}); "
+        "<b style='color:#916516'>5mo</b> = the etoro git panel — now used <b>only</b> for "
+        "analyst / forward metrics (analyst revisions, forward P/E, earnings trajectory, short "
+        "interest), where Sharadar has no 10yr equivalent. Every durable-fundamental or "
+        "price-based parameter (roe, roa, margins, growth, leverage, momentum, vol, beta …) is "
+        "now on the 10yr window. "
+        "<b>scored</b> = live in conviction · <b>scored*</b> = some sector recipes only · "
+        "<b>monitor</b> = shadow, 0 weight · <b>gate</b> = exclusion screen · <b>exclude</b> = dropped. "
+        "Bold t = |HAC t| ≥ 2.<br><b>Proposal</b> = my data-driven call given the 10yr evidence "
+        "(proposes, does not impose — weights stay frozen / earn-in per governance): "
+        "<b style='color:#0a7d33'>keep</b> = scored &amp; validated · "
+        "<b style='color:#1d4ed8'>promote?</b> = unscored but strong 10yr, candidate · "
+        "<b style='color:#0e7490'>earn-in</b> = no 10yr possible, accrue on 5mo · "
+        "<b style='color:#916516'>watch</b> = weak / regime-dependent · "
+        "<b style='color:#6b7280'>drop</b> = confirm exclude.</p>" + "".join(blocks)
     )
 
 
@@ -537,12 +894,13 @@ table{{width:100%;border-collapse:collapse;font-size:13px}}th{{text-align:left;b
 td{{padding:6px 9px;border-bottom:1px solid #eef0f2}}code{{background:#f2f3f5;padding:1px 5px;border-radius:4px;font-size:12px}}
 .b{{font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:4px}}.act{{color:#0a7d33;background:#e5f6ea}}.disc{{color:#6b7280;background:#eef0f2}}
 .note{{color:#5b6470;font-size:12.5px;margin:6px 0 2px}}
-h3{{font-size:14.5px;margin:18px 0 6px;color:#1a1a1a}}.dir{{color:#5b6470;font-size:12px}}.mnote{{color:#5b6470;font-size:11.5px}}</style></head><body>
+h3{{font-size:14.5px;margin:18px 0 6px;color:#1a1a1a}}.mdesc{{color:#374151;font-size:12px;max-width:360px}}.win{{font-size:11px;text-align:center}}</style></head><body>
 <h1>v3 Panel-History Factor Backtest</h1>
 <div class="sub">Forward IC (Spearman) at {HORIZON}td, over {n_snap} daily point-in-time snapshots
 ({snaps[0][1]} .. {snaps[-1][1]}) reconstructed from etoro.csv git history · universe {n_uni:,} global coverage names, {n_px:,} priced (EUR).</div>
 <p class="note"><b>How to read:</b> <b>IC raw</b> = Spearman(factor-z, raw forward return); <b>IC β-neutral</b> = vs the beta-residualised return (per-date OLS residual on beta) — this removes the market-beta component that dominates a trending regime and is the <b>honest test of factor alpha</b>. Positive β-neutral IC with |t|≥2 (bold) = evidence of alpha on this (short) sample. <b>active</b> = in a live cluster; <b>discarded</b> = removed from scoring (shown to validate the discard). ~{n_snap} daily dates — indicative, NOT the deflated-Sharpe gate.</p>
 {pit_note}
+{_decision_table(fac)}
 {_cluster_benchmark(fac)}
 <h2>Clusters</h2>
 <table><thead><tr><th>Cluster</th><th>IC raw</th><th>IC β-neutral</th><th>t (naive)</th><th>t (HAC)</th><th>hit</th><th>dates</th><th>obs</th></tr></thead><tbody>{ch}</tbody></table>

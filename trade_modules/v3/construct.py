@@ -35,7 +35,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from trade_modules.riskfirst.construct import apply_name_cap, cap_groups, erc_weights
+from trade_modules.riskfirst.construct import (
+    apply_name_cap,
+    apply_name_cap_vec,
+    cap_groups,
+    erc_weights,
+)
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import USD_BLOC, cap_bloc, currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
@@ -374,6 +379,41 @@ def dedup_dual_listings(scored: pd.DataFrame) -> pd.DataFrame:
     return scored.loc[[t for t in tickers if t not in drop]]
 
 
+# Market-cap-tier single-name caps (2026-07-21 owner sizing): mega can concentrate, micro is
+# strictly capped. Applied as a per-name cap vector in place of the flat name_cap.
+_MCAP_TIER_CAPS = [
+    (200e9, 0.10),  # mega  > $200B
+    (20e9, 0.06),  # large $20-200B
+    (2e9, 0.02),  # mid   $2-20B
+    (0.3e9, 0.005),  # small $0.3-2B
+    (0.0, 0.0025),  # micro < $0.3B
+]
+_UNKNOWN_MCAP_CAP = 0.06  # unknown market cap -> large-tier cap (not specially punished)
+
+
+def _tiered_name_caps(scored: pd.DataFrame, selected: list[str]) -> np.ndarray:
+    """Per-name single-name cap from the market-cap tier schedule (NaN cap -> large-tier)."""
+    caps = pd.to_numeric(scored.reindex(selected).get("cap"), errors="coerce").to_numpy()
+    out = []
+    for c in caps:
+        if not (c == c):  # NaN market cap
+            out.append(_UNKNOWN_MCAP_CAP)
+        else:
+            out.append(next((cp for lo, cp in _MCAP_TIER_CAPS if c >= lo), 0.0025))
+    return np.asarray(out, dtype=float)
+
+
+def _div_tilt(scored: pd.DataFrame, selected: list[str]) -> np.ndarray:
+    """Dividend-yield up-size: moderate yield (0-4%) up-sizes to +50%; > 6% = value-trap flag
+    -> no bonus (owner sizing: div_yield is a quality/stability lens applied at sizing)."""
+    dv = (
+        pd.to_numeric(scored.reindex(selected).get("div_yield"), errors="coerce")
+        .fillna(0.0)
+        .to_numpy()
+    )
+    return np.where(dv > 0.06, 1.0, 1.0 + 0.5 * np.clip(dv / 0.04, 0.0, 1.0))
+
+
 def build_portfolio(
     scored: pd.DataFrame,
     prices: pd.DataFrame,
@@ -382,6 +422,7 @@ def build_portfolio(
     conviction_weight: float = 0.5,
     target_vol: float = 0.12,
     name_cap: float = 0.08,
+    sizing_tilt: bool = False,  # 2026-07-21: opt-in owner sizing (div up-size + market-cap-tier caps)
     sector_cap: float = 0.25,
     usd_bloc_cap: float = 0.60,
     region_cap: float = 0.65,
@@ -490,17 +531,35 @@ def build_portfolio(
     if w_sum > 0:
         w = w / w_sum  # renormalize to sum = 1
 
+    # --- owner sizing (2026-07-21): dividend up-size tilt, then market-cap-TIER single-name
+    # caps (mega 10% .. micro 0.25%) in place of the flat name_cap. Div tilt slightly
+    # over-weights steady payers; tier caps let mega-caps concentrate and pin micro-caps. ---
+    if sizing_tilt:
+        w = w * _div_tilt(sub, selected)
+        _ws = float(w.sum())
+        if _ws > 0:
+            w = w / _ws
+        tcaps = _tiered_name_caps(sub, selected)
+
+        def _namecap(ww: np.ndarray) -> np.ndarray:
+            return apply_name_cap_vec(ww, tcaps)
+    else:  # default: EXACT legacy behavior — uniform scalar name_cap
+        tcaps = np.full(len(selected), name_cap, dtype=float)
+
+        def _namecap(ww: np.ndarray) -> np.ndarray:
+            return apply_name_cap(ww, name_cap)
+
     # --- caps: name -> USD-bloc -> sector (single-name reasserted between) ---
     # Region is enforced by the risk gate below (which converges + clamps to cash on
     # an infeasible book), not here, so a trailing name cap cannot silently undo it.
     is_bloc = np.array([currency_of(t) in USD_BLOC for t in selected])
     sec_arr = sub.reindex(selected)["SECTOR"].astype(str).to_numpy()
     region_arr = np.array([region_of(t) for t in selected])
-    w = apply_name_cap(w, name_cap)
+    w = _namecap(w)
     w = cap_bloc(w, is_bloc, usd_bloc_cap)
-    w = apply_name_cap(w, name_cap)  # keep single-name cap after bloc redistribution
+    w = _namecap(w)  # keep single-name cap(s) after bloc redistribution
     w = cap_groups(w, sec_arr, sector_cap)
-    w = apply_name_cap(w, name_cap)
+    w = _namecap(w)
 
     gross_risk = float(w.sum())  # capped risk-book gross (≈ 1.0)
 
@@ -559,7 +618,7 @@ def build_portfolio(
             _rg = region_of(_t)
             _region_totals[_rg] = _region_totals.get(_rg, 0.0) + float(_wt)
         _max_region = max(_region_totals.values(), default=0.0)
-        _name_cap_breach = bool(_max_name > name_cap + _TOL)
+        _name_cap_breach = bool((w_shape > tcaps + _TOL).any())  # per-name tier caps
         _sector_cap_breach = bool(_max_sector > sector_cap + _TOL)
         _usd_bloc_breach = bool(_usd_frac > usd_bloc_cap + _TOL)
         _region_cap_breach = bool(_max_region > region_cap + _TOL)
@@ -656,7 +715,8 @@ def build_portfolio(
         gate_diag["usd_bloc"] = usd_bloc_book
         _b = diagnostics["binding"]
         _b["region_cap"] = bool(_max_region > region_cap + _TOL)
-        _b["name_cap"] = bool(max_name > name_cap + _TOL)
+        _cap_ceiling = _MCAP_TIER_CAPS[0][1] if sizing_tilt else name_cap  # mega tier 0.10 vs flat
+        _b["name_cap"] = bool(max_name > _cap_ceiling + _TOL)
         _b["sector_cap"] = bool(_max_sector > sector_cap + _TOL)
         _b["usd_bloc_cap"] = bool(usd_bloc_book > usd_bloc_cap + _TOL)
     return {
