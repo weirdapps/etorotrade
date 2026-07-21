@@ -89,10 +89,15 @@ def factor_panel(fasof: pd.DataFrame, fprior: pd.DataFrame, price: pd.Series) ->
     """Vectorized cross-section of the balance-sheet / cash-flow PIT factors.
 
     ``fasof`` = point-in-time fundamentals as of date T (from ``read_asof(T)``);
-    ``fprior`` = fundamentals as of ~T−1yr (for asset growth); ``price`` = the price
-    at T per ticker (to form market cap = price × sharesbas). All aligned to
-    ``fasof.index``. Returns the four raw factors (book_to_price, asset_growth,
-    gp_assets, accruals) — SUE is series-based and handled separately.
+    ``fprior`` = fundamentals as of ~T−1yr (for asset / earnings / revenue growth);
+    ``price`` = the price at T per ticker (to form market cap = price × sharesbas). All
+    aligned to ``fasof.index``. Returns the durable-premia factors plus the
+    profitability / margin / growth / leverage set: book_to_price, asset_growth,
+    gp_assets, accruals, roe, roa, gross_margin, op_margin, earn_growth, rev_growth,
+    fcf_yield, de, current_ratio, ev_ebitda. roe/roa/margins/growth are DERIVED from
+    the as-reported fields; de/current_ratio/ev_ebitda are Sharadar precomputed
+    passthroughs (null in ARQ for roe/roa, hence those are derived). SUE is
+    series-based and handled separately.
     """
     idx = fasof.index
 
@@ -105,7 +110,15 @@ def factor_panel(fasof: pd.DataFrame, fprior: pd.DataFrame, price: pd.Series) ->
 
     eq, assets, gp = col(fasof, "equity"), col(fasof, "assets"), col(fasof, "gp")
     ni, cf, shares = col(fasof, "netinc"), col(fasof, "ncfo"), col(fasof, "sharesbas")
-    assets_prior = col(fprior, "assets")
+    rev, opinc, fcf = col(fasof, "revenue"), col(fasof, "opinc"), col(fasof, "fcf")
+    de, curr, evebitda = col(fasof, "de"), col(fasof, "currentratio"), col(fasof, "evebitda")
+    eps, divy = col(fasof, "eps"), col(fasof, "divyield")
+    assets_prior, eps_prior, rev_prior, shares_prior = (
+        col(fprior, "assets"),
+        col(fprior, "eps"),
+        col(fprior, "revenue"),
+        col(fprior, "sharesbas"),
+    )
     px = pd.to_numeric(pd.Series(price).reindex(idx), errors="coerce")
 
     mktcap = px * shares
@@ -115,6 +128,26 @@ def factor_panel(fasof: pd.DataFrame, fprior: pd.DataFrame, price: pd.Series) ->
             "asset_growth": (assets / assets_prior - 1.0).where(assets_prior > 0),
             "gp_assets": (gp / assets).where(assets != 0),
             "accruals": ((ni - cf) / assets).where(assets != 0),
+            # profitability / margins (derived — roe/roa are null in Sharadar ARQ)
+            "roe": (ni / eq).where(eq > 0),
+            "roa": (ni / assets).where(assets > 0),
+            "gross_margin": (gp / rev).where(rev > 0),
+            "op_margin": (opinc / rev).where(rev > 0),
+            # year-over-year growth (guard positive base so the ratio is meaningful)
+            "earn_growth": (eps / eps_prior - 1.0).where(eps_prior > 0),
+            "rev_growth": (rev / rev_prior - 1.0).where(rev_prior > 0),
+            # net share issuance: YoY change in shares outstanding (+ = dilution/bad,
+            # - = buyback/good). Scored negative in the combiner. Pontiff-Woodgate / Daniel-Titman.
+            "net_issuance": (shares / shares_prior - 1.0).where(shares_prior > 0),
+            # cash-flow yield (negative FCF is a real signal → not guarded away)
+            "fcf_yield": (fcf / mktcap).where(mktcap > 0),
+            # Sharadar precomputed passthroughs, guarded to sane ranges: negative D/E
+            # (from negative equity) and non-positive EV/EBITDA (negative EBITDA) are
+            # distress artifacts that would rank as "cheap/safe" under the low-is-good sign.
+            "de": de.where(de >= 0),
+            "current_ratio": curr.where(curr > 0),
+            "ev_ebitda": evebitda.where(evebitda > 0),
+            "div_yield": divy.where(divy >= 0),
         }
     )
 
@@ -132,8 +165,8 @@ def live_fundamentals_factors(tickers, *, store_path: str | None = None) -> pd.D
     sp = store_path or STORE_PATH
     idx = pd.Index([str(t) for t in tickers], name="ticker")
     out = pd.DataFrame(index=idx)
-    out["gp_assets"] = pd.Series(index=idx, dtype=float)
-    out["sue"] = pd.Series(index=idx, dtype=float)
+    for c in ("gp_assets", "sue", "net_issuance", "earn_stability"):
+        out[c] = pd.Series(index=idx, dtype=float)
 
     fasof = read_asof(list(idx), "2099-12-31", store_path=sp)  # latest filing per ticker
     if not fasof.empty:
@@ -143,6 +176,28 @@ def live_fundamentals_factors(tickers, *, store_path: str | None = None) -> pd.D
 
     hist = read_history(list(idx), "2099-12-31", store_path=sp)
     if not hist.empty:
-        sue = hist.sort_values("datekey").groupby("ticker")["eps"].apply(srw_sue)
-        out["sue"] = pd.to_numeric(sue, errors="coerce").reindex(idx)
+        h = hist.sort_values("datekey")
+        out["sue"] = pd.to_numeric(
+            h.groupby("ticker")["eps"].apply(srw_sue), errors="coerce"
+        ).reindex(idx)
+
+        def _net_iss(s) -> float:  # YoY change in shares outstanding (dilution + / buyback -)
+            v = pd.to_numeric(pd.Series(s), errors="coerce").dropna()
+            return (
+                float(v.iloc[-1] / v.iloc[-5] - 1.0) if len(v) >= 5 and v.iloc[-5] > 0 else math.nan
+            )
+
+        def _estab(s) -> float:  # -(coefficient of variation of trailing EPS): high = stable
+            v = pd.to_numeric(pd.Series(s), errors="coerce").dropna().tail(8)
+            if len(v) < 4:
+                return math.nan
+            m = abs(float(v.mean()))
+            return float(-(v.std() / (m + 1e-6)))
+
+        out["net_issuance"] = pd.to_numeric(
+            h.groupby("ticker")["sharesbas"].apply(_net_iss), errors="coerce"
+        ).reindex(idx)
+        out["earn_stability"] = pd.to_numeric(
+            h.groupby("ticker")["eps"].apply(_estab), errors="coerce"
+        ).reindex(idx)
     return out

@@ -93,6 +93,81 @@ def test_factor_panel_handles_empty_prior():
     assert fp.loc["A", "gp_assets"] == pytest.approx(0.15)  # others still compute
 
 
+def test_factor_panel_extended_factors():
+    # roe/roa/margins/growth are DERIVED; de/current_ratio/ev_ebitda are Sharadar
+    # precomputed passthroughs; fcf_yield = fcf / market cap.
+    fasof = pd.DataFrame(
+        {
+            "equity": [50.0],
+            "assets": [200.0],
+            "gp": [60.0],
+            "netinc": [25.0],
+            "ncfo": [12.0],
+            "revenue": [300.0],
+            "opinc": [45.0],
+            "eps": [2.0],
+            "sharesbas": [10.0],
+            "de": [1.5],
+            "currentratio": [2.0],
+            "evebitda": [12.0],
+            "fcf": [30.0],
+            "divyield": [0.03],
+        },
+        index=["A"],
+    )
+    fprior = pd.DataFrame(
+        {"eps": [1.6], "revenue": [250.0], "assets": [180.0], "sharesbas": [8.0]}, index=["A"]
+    )
+    price = pd.Series({"A": 10.0})  # market cap = 10 * 10 shares = 100
+    fp = factor_panel(fasof, fprior, price)
+    assert fp.loc["A", "div_yield"] == pytest.approx(0.03)  # passthrough
+    assert fp.loc["A", "net_issuance"] == pytest.approx(0.25)  # 10 / 8 - 1 (dilution)
+    assert fp.loc["A", "roe"] == pytest.approx(0.50)  # 25 / 50
+    assert fp.loc["A", "roa"] == pytest.approx(0.125)  # 25 / 200
+    assert fp.loc["A", "gross_margin"] == pytest.approx(0.20)  # 60 / 300
+    assert fp.loc["A", "op_margin"] == pytest.approx(0.15)  # 45 / 300
+    assert fp.loc["A", "de"] == pytest.approx(1.5)  # passthrough
+    assert fp.loc["A", "current_ratio"] == pytest.approx(2.0)  # passthrough
+    assert fp.loc["A", "ev_ebitda"] == pytest.approx(12.0)  # passthrough
+    assert fp.loc["A", "fcf_yield"] == pytest.approx(0.30)  # 30 / 100
+    assert fp.loc["A", "earn_growth"] == pytest.approx(2.0 / 1.6 - 1)  # 0.25
+    assert fp.loc["A", "rev_growth"] == pytest.approx(0.20)  # 300 / 250 - 1
+
+
+def test_factor_panel_extended_guards():
+    # Negative book -> roe NaN; zero revenue -> margins NaN; negative equity makes D/E
+    # negative (distress) -> guarded; negative EV/EBITDA (negative EBITDA) -> guarded;
+    # negative prior EPS -> earn_growth NaN; but negative FCF is meaningful -> kept.
+    fasof = pd.DataFrame(
+        {
+            "equity": [-5.0],
+            "assets": [100.0],
+            "gp": [20.0],
+            "netinc": [5.0],
+            "revenue": [0.0],
+            "opinc": [3.0],
+            "eps": [1.0],
+            "sharesbas": [10.0],
+            "de": [-2.0],
+            "currentratio": [1.1],
+            "evebitda": [-8.0],
+            "fcf": [-4.0],
+        },
+        index=["B"],
+    )
+    fprior = pd.DataFrame({"eps": [-1.0], "revenue": [200.0], "assets": [90.0]}, index=["B"])
+    price = pd.Series({"B": 5.0})  # market cap = 50
+    fp = factor_panel(fasof, fprior, price)
+    assert math.isnan(fp.loc["B", "roe"])  # negative equity
+    assert math.isnan(fp.loc["B", "gross_margin"])  # zero revenue
+    assert math.isnan(fp.loc["B", "op_margin"])
+    assert math.isnan(fp.loc["B", "de"])  # negative (from negative equity) -> guarded
+    assert math.isnan(fp.loc["B", "ev_ebitda"])  # negative EBITDA -> guarded
+    assert fp.loc["B", "fcf_yield"] == pytest.approx(-4.0 / 50.0)  # negative FCF kept
+    assert math.isnan(fp.loc["B", "earn_growth"])  # negative prior EPS
+    assert fp.loc["B", "roa"] == pytest.approx(0.05)  # 5 / 100 (assets positive)
+
+
 def test_live_fundamentals_factors(tmp_path):
     from trade_modules.v3.fundamentals_store import append_records
 

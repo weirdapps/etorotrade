@@ -63,16 +63,23 @@ PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
 BUY_CSV = "yahoofinance/output/buy.csv"
 ETORO_CSV = "yahoofinance/output/etoro.csv"
 
-PREVIEW_OUT = "~/Downloads/v3_overlay_preview.html"
+# Output dir override (V3_OUT_DIR) — a detached process on macOS can be TCC-blocked from
+# writing to ~/Downloads; point it at a writable dir for local/background runs.
+_OUT_DIR = os.path.expanduser(os.environ.get("V3_OUT_DIR", "~/Downloads"))
+PREVIEW_OUT = os.path.join(_OUT_DIR, "v3_overlay_preview.html")
 
-# Balanced factor tilt requested by the owner for the overlay.
+# 2026-07-21 (owner review): locked master-taxonomy cluster weights (sum of the per-metric
+# weights per cluster). Quality-led (absorbs net_issuance), value = P/S+P/B+pe_forward,
+# growth = earn_growth+earn_stability, low-vol → 0 (beta/realized_vol are SIZING, not alpha).
 BALANCED_WEIGHTS: dict[str, float] = {
-    "value": 0.15,
-    "quality": 0.25,
-    "momentum": 0.25,
-    "growth": 0.15,
-    "lowvol": 0.12,
-    "strength": 0.08,
+    "value": 0.16,
+    "quality": 0.42,
+    "momentum": 0.14,
+    "growth": 0.12,
+    "pead": 0.06,
+    "trajectory": 0.05,
+    "strength": 0.05,
+    "lowvol": 0.00,
 }
 
 # Mega-cap "core" whose kept-vs-sold status is always reported.
@@ -647,7 +654,7 @@ def main() -> None:
     html = render_report(scores, meta, portfolio=view, actions=actions, conditioning=cond)
 
     stamp = now.strftime("%Y%m%d%H%M")
-    out = os.path.expanduser(f"~/Downloads/{stamp}_v3_overlay_report.html")
+    out = os.path.join(_OUT_DIR, f"{stamp}_v3_overlay_report.html")
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(html)
 
@@ -660,7 +667,7 @@ def main() -> None:
     email_html = render_email_report(
         scores, meta, portfolio=view, actions=actions, conditioning=cond
     )
-    email_out = os.path.expanduser(f"~/Downloads/{stamp}_v3_overlay_email.html")
+    email_out = os.path.join(_OUT_DIR, f"{stamp}_v3_overlay_email.html")
     with open(email_out, "w", encoding="utf-8") as fh:
         fh.write(email_html)
     print(f"overlay email  -> {email_out}")
