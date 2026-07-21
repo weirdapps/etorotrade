@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from trade_modules.v3.fundamentals_store import (  # noqa: E402
     NUM_FIELDS,
+    STORE_PATH,
     append_records,
     store_coverage,
 )
@@ -94,6 +95,25 @@ def _fetch(key: str, tickers: list[str], since: str | None) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=_COLUMNS)
 
 
+def _catch_up_since(
+    *, buffer_days: int = 90, backfill_since: str = "2015-01-01", store_path: str = STORE_PATH
+) -> str:
+    """Self-healing ``--since`` for the scheduled daily sync: the store's newest
+    ``datekey`` minus ``buffer_days`` (re-pull recent filings idempotently — the buffer
+    heals a missed run and picks up late/amended filings inside the window). Falls back
+    to ``backfill_since`` when the store is empty.
+
+    Note: this is ``datekey``-based, so a restatement of an OLDER period (same datekey,
+    new value) is only re-fetched while it stays inside the buffer window, and a brand-new
+    universe ticker gets only its recent history; a periodic full
+    ``--from-universe --since <backfill>`` refresh remains the way to capture those.
+    """
+    last = store_coverage(store_path=store_path).get("last")
+    if not last:
+        return backfill_since
+    return (pd.Timestamp(last) - pd.Timedelta(days=buffer_days)).strftime("%Y-%m-%d")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Ingest Sharadar SF1 into the PIT fundamentals store.")
     g = ap.add_mutually_exclusive_group(required=True)
@@ -101,6 +121,12 @@ def main() -> None:
     g.add_argument("--from-universe", action="store_true", help="use the etoro.csv universe")
     g.add_argument("--from-file", help="read tickers from a file (one per line)")
     ap.add_argument("--since", help="only filings with datekey >= this (YYYY-MM-DD)")
+    ap.add_argument(
+        "--catch-up",
+        action="store_true",
+        help="incremental self-healing sync: derive --since from the store's newest "
+        "datekey minus a buffer (overrides --since). Use this for the scheduled job.",
+    )
     args = ap.parse_args()
 
     key = _api_key()
@@ -122,11 +148,11 @@ def main() -> None:
         print("ERROR: no tickers to fetch.", file=sys.stderr)
         sys.exit(1)
 
-    print(
-        f"fetching SF1 (ARQ) for {len(tickers)} tickers"
-        + (f" since {args.since}" if args.since else "")
-    )
-    df = _fetch(key, tickers, args.since)
+    since = _catch_up_since() if args.catch_up else args.since
+    if args.catch_up:
+        print(f"catch-up: derived --since {since} from store coverage")
+    print(f"fetching SF1 (ARQ) for {len(tickers)} tickers" + (f" since {since}" if since else ""))
+    df = _fetch(key, tickers, since)
     print(f"fetched {len(df)} filing rows")
     added = append_records(df)
     cov = store_coverage()
