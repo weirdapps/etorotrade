@@ -73,6 +73,27 @@ def test_classification_bottom_dataless_ineligible_sold_middling_kept():
     assert d["buy_threshold"] == pytest.approx(float(elig_conv.quantile(0.85)))
 
 
+def test_tier_name_caps_hold_small_caps_to_their_market_cap_tier():
+    """tier_name_caps=True sizes each name by its market-cap tier: a high-conviction
+    $0.5B small-cap is capped at 0.5% instead of the flat name_cap. Off = legacy."""
+    tks = ["MEGA", "BIG", "SMALL"]
+    sc = _scored(tks, [2.0, 1.8, 1.9])
+    sc["cap"] = [3.0e12, 5.0e10, 0.5e9]  # $3T mega (10%), $50B large (6%), $0.5B small (0.5%)
+    current = pd.Series(dtype=float)  # empty book -> all three are buys
+    kw = {
+        "max_new": 8,
+        "buy_pctile": 0.0,  # all positive-conviction names qualify as buys
+        "gross_target": 0.95,
+        "name_cap": 0.10,
+        "sector_cap": 0.99,
+        "usd_bloc_cap": 0.99,
+    }
+    on = build_overlay(sc, current, pd.DataFrame(), tier_name_caps=True, **kw)["weights"]
+    off = build_overlay(sc, current, pd.DataFrame(), tier_name_caps=False, **kw)["weights"]
+    assert on.get("SMALL", 0.0) <= 0.005 + 1e-6  # $0.5B -> 0.5% tier
+    assert off.get("SMALL", 0.0) > on.get("SMALL", 0.0)  # tiers trimmed the small-cap
+
+
 def test_sell_negative_noncore_deadband_is_noncore_and_protect_core_spares_percentile():
     """Two distinct owner rules on the core sleeve.
 
