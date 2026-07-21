@@ -1681,7 +1681,14 @@ def render_report(
             "Suggested Actions",
             "Risk-gated target book vs current holdings · grouped by action",
         ) + _actions_block_cards(
-            actions, scored, conv_scale, bool(meta.get("current_weights_approx"))
+            # Full `scores` (not the eligible-only `scored`): Suggested Actions include
+            # SELLs of INELIGIBLE holdings (e.g. value-trap-gated names). Those rows exist
+            # in the full frame with their native eToro name; resolving against `scored`
+            # would drop them to row=None and render a blank name (the Tokyo-stocks bug).
+            actions,
+            scores,
+            conv_scale,
+            bool(meta.get("current_weights_approx")),
         )
         sec_idx += 1
 

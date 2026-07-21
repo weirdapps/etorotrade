@@ -236,6 +236,32 @@ def test_render_excludes_ineligible_and_shows_footnote():
     assert "non-equity or insufficient data" in html
 
 
+def test_render_action_card_shows_name_for_ineligible_holding():
+    """A HELD position that is ineligible (e.g. the value-trap gate → SELL) must
+    still show its company NAME in Suggested Actions. The action lookup has to use
+    the FULL scores frame, not the eligible-only subset — otherwise ineligible
+    holdings render with a blank name (the Tokyo-stocks regression)."""
+    scores = _scores_with_etf()
+    scores.loc["GLD", "is_portfolio"] = True  # held, and ineligible → a SELL
+    assert not bool(scores.loc["GLD", "eligible"])  # sanity: ineligible
+    actions = [
+        {
+            "ticker": "GLD",
+            "action": "SELL",
+            "conviction": float("nan"),
+            "current_pct": 0.05,
+            "target_pct": 0.0,
+            "delta_pct": -0.05,
+            "delta_usd": -5000.0,
+        }
+    ]
+    html = render_report(scores, {"regime": "NEUTRAL"}, actions=actions)
+    # GLD is excluded from the overview/candidate sections (ineligible), so its
+    # name can only appear via the SELL action card — proving the action lookup
+    # resolved the ineligible holding's row.
+    assert "SPDR Gold" in html
+
+
 def test_render_shows_trade_levels():
     scores = _scores()
     scores["entry"] = [200.0, 400.0, 10.0]
