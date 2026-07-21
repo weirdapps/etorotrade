@@ -123,6 +123,36 @@ def test_caps_to_convergence_all_within_tol():
     assert abs(gated.sum() - 0.90) < _TOL  # feasible caps -> deployment preserved
 
 
+def test_name_caps_enforce_per_name_tier_caps():
+    """A per-name cap vector (market-cap tiers) caps each name at its OWN ceiling:
+    oversized small-caps are trimmed to their tier while a large-cap with headroom
+    absorbs the freed weight. Without the vector, the flat name_cap leaves the
+    small-caps grossly oversized — the small-cap sizing bug."""
+    tickers = ["MEGA", "SMALL", "MICRO"]
+    currencies = ["USD"] * 3
+    sectors = ["TECH"] * 3
+    w = pd.Series([0.30, 0.35, 0.35], index=tickers)  # SMALL/MICRO grossly oversized
+    cov = _cov(np.full(3, 0.15), corr=0.2)  # calm -> vol lever inert
+    tiers = pd.Series([0.90, 0.02, 0.01], index=tickers)  # mega ~uncapped; small/micro tiny
+    kw = {
+        "sectors": sectors,
+        "currencies": currencies,
+        "vol_ceiling": 0.50,
+        "name_cap": 0.90,
+        "sector_cap": 0.99,
+        "usd_bloc_cap": 0.99,
+    }
+    # Control: no tier caps -> the flat 0.90 name_cap lets SMALL stay oversized.
+    base, _ = apply_risk_gate(w, cov, **kw)
+    assert base["SMALL"] > 0.30
+    # With tier caps -> each name within its own tier; small-caps trimmed hard.
+    gated, diag = apply_risk_gate(w, cov, name_caps=tiers, **kw)
+    assert gated["SMALL"] <= 0.02 + _TOL
+    assert gated["MICRO"] <= 0.01 + _TOL
+    assert gated["MEGA"] > w["MEGA"]  # absorbed the redistributed weight
+    assert "tier_caps" in diag["levers_fired"]
+
+
 # --------------------------------------------------------------------------- #
 # (c) lever order — de-weight before gross cut
 # --------------------------------------------------------------------------- #

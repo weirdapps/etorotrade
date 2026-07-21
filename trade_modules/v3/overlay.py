@@ -32,7 +32,13 @@ from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
-from trade_modules.v3.construct import _norm_name, _root_of, dedup_dual_listings, region_of
+from trade_modules.v3.construct import (
+    _norm_name,
+    _root_of,
+    _tiered_name_caps,
+    dedup_dual_listings,
+    region_of,
+)
 from trade_modules.v3.risk_gate import apply_risk_gate
 
 # A holding/target weight at or below this is treated as flat (not held).
@@ -213,6 +219,7 @@ def build_overlay(
     max_short_interest: float | None = 20.0,
     min_current_ratio: float | None = 1.0,
     max_de: float | None = None,
+    tier_name_caps: bool = False,
 ) -> dict:
     """Build a minimal keep/sell/buy overlay on the live book, then risk-gate it.
 
@@ -372,6 +379,13 @@ def build_overlay(
             cap_mode=cap_mode,
             caps=caps_ser,
             managed_vol_ceiling=managed_vol_ceiling,
+            # Owner sizing: cap each name at its market-cap tier (mega 10% .. micro 0.25%)
+            # so small-caps can't be sized like mega-caps regardless of conviction.
+            name_caps=(
+                pd.Series(_tiered_name_caps(scored, target_names), index=target_names)
+                if tier_name_caps and scored is not None
+                else None
+            ),
         )
 
         # Deliberate thesis overlay: FLOOR core names at a chosen minimum (their

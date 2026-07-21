@@ -119,6 +119,9 @@ def _polymarket_signal() -> float | None:
 
 
 _CAP_MODE: str | None = os.environ.get("V3_CAP_MODE") or None
+# Owner sizing: enforce market-cap tier caps (mega 10% .. micro 0.25%) per name so
+# small-caps aren't sized like mega-caps. Default ON; set V3_TIER_CAPS=0 to disable.
+_TIER_CAPS: bool = os.environ.get("V3_TIER_CAPS", "1") != "0"
 
 
 # Owner rule (2026-07-13): sell negative-conviction NON-core names, protect the AI
@@ -613,6 +616,7 @@ def main() -> None:
         noncore_sell_floor=_NONCORE_SELL_FLOOR,
         protect_core=_PROTECT_CORE,
         core_floor=core_floor,
+        tier_name_caps=_TIER_CAPS,
     )
     view = overlay_portfolio_view(overlay, scores)
     actions = build_actions(overlay["weights"], current_weights, scores, nav=nav)
