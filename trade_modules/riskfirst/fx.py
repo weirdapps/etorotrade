@@ -13,21 +13,32 @@ from __future__ import annotations
 
 import numpy as np
 
+# Genuine eurozone listings (share the EUR rate). Nordic exchanges are NOT here:
+# SEK/NOK float and DKK is only EUR-pegged, so their market-cap / ADV USD normalization
+# needs their OWN rate — mapping them to EUR overstated Nordic caps ~7-11x (Investor AB
+# read as $1.3T instead of ~$115B, so its market-cap tier cap was mega instead of large).
 _EUR_SUFFIXES = {
     ".DE",
     ".PA",
     ".MI",
     ".AS",
     ".MC",
-    ".OL",
-    ".ST",
-    ".CO",
     ".HE",
     ".LS",
     ".BR",
     ".VI",
 }
-_SUFFIX_CCY = {".L": "GBP", ".HK": "HKD", ".T": "JPY", ".SW": "CHF", ".TO": "CAD", ".AX": "AUD"}
+_SUFFIX_CCY = {
+    ".L": "GBP",
+    ".HK": "HKD",
+    ".T": "JPY",
+    ".SW": "CHF",
+    ".TO": "CAD",
+    ".AX": "AUD",
+    ".ST": "SEK",  # Stockholm
+    ".OL": "NOK",  # Oslo
+    ".CO": "DKK",  # Copenhagen (EUR-pegged, but its own rate for cap normalization)
+}
 
 # Currencies that move with (or are pegged to) the US dollar for a EUR investor.
 USD_BLOC = frozenset({"USD", "HKD"})

@@ -7,7 +7,13 @@ HKD is USD-pegged, so it counts in the USD bloc.
 import numpy as np
 import pytest
 
-from trade_modules.riskfirst.fx import bloc_exposure, cap_bloc, currency_of, hedge_advisory
+from trade_modules.riskfirst.fx import (
+    USD_BLOC,
+    bloc_exposure,
+    cap_bloc,
+    currency_of,
+    hedge_advisory,
+)
 
 
 def test_currency_inference():
@@ -16,6 +22,16 @@ def test_currency_inference():
     assert currency_of("SAP.DE") == "EUR"
     assert currency_of("0700.HK") == "HKD"
     assert currency_of("7012.T") == "JPY"
+    # Nordic listings float against the EUR -> resolve to their OWN currency so the
+    # USD cap/ADV normalization applies the right rate (Investor AB is ~$115B, not $1.3T).
+    assert currency_of("INVE-A.ST") == "SEK"
+    assert currency_of("EQNR.OL") == "NOK"
+    assert currency_of("NOVO-B.CO") == "DKK"
+    # genuine eurozone listings stay EUR
+    assert currency_of("ASML.AS") == "EUR"
+    assert currency_of("NESTE.HE") == "EUR"
+    # all of them remain OUTSIDE the USD bloc (bloc classification unchanged)
+    assert not any(currency_of(t) in USD_BLOC for t in ("INVE-A.ST", "EQNR.OL", "NOVO-B.CO"))
 
 
 def test_bloc_exposure_counts_usd_and_hkd():
