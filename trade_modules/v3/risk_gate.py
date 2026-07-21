@@ -36,7 +36,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from trade_modules.riskfirst.construct import apply_name_cap, cap_groups, portfolio_vol
+from trade_modules.riskfirst.construct import (
+    apply_name_cap,
+    apply_name_cap_vec,
+    cap_groups,
+    portfolio_vol,
+)
 from trade_modules.riskfirst.fx import USD_BLOC, cap_bloc
 
 # Parametric-normal 95% Expected Shortfall multiplier: E[Z | Z > z_.95].
@@ -57,6 +62,7 @@ def _clamp_caps(
     name_thr: float,
     bloc_thr: float,
     sector_thr: float,
+    name_caps: np.ndarray | None = None,
     region_arr: np.ndarray | None = None,
     region_thr: float | None = None,
 ) -> np.ndarray:
@@ -70,7 +76,9 @@ def _clamp_caps(
     region -> bloc, all downward, so every later clamp preserves the earlier ones.
     ``region_arr`` / ``region_thr`` are opt-in (None -> region not enforced).
     """
-    w = np.minimum(np.asarray(w, dtype=float).copy(), name_thr)  # per-name -> cash
+    w = np.asarray(w, dtype=float).copy()
+    # Per-name cap: a market-cap tier vector when supplied, else the flat scalar.
+    w = np.minimum(w, name_caps) if name_caps is not None else np.minimum(w, name_thr)
     for lab in dict.fromkeys(sec_arr.tolist()):
         mask = sec_arr == lab
         s = float(w[mask].sum())
@@ -97,10 +105,15 @@ def _caps_to_convergence(
     bloc_thr: float,
     sector_thr: float,
     max_iter: int,
+    name_caps: np.ndarray | None = None,
     region_arr: np.ndarray | None = None,
     region_thr: float | None = None,
 ) -> tuple[np.ndarray, int]:
     """Iterate {name -> USD-bloc -> sector} caps until the weights stop moving.
+
+    ``name_caps`` (per-name absolute cap vector, e.g. market-cap tiers) takes
+    precedence over the scalar ``name_thr`` when supplied — the name step then
+    redistributes each name's excess to headroom via :func:`apply_name_cap_vec`.
 
     Thresholds are ABSOLUTE (``cap * gross``), which for a book whose gross equals
     the caller's deployment target is exactly the proportional cap, and — unlike
@@ -116,7 +129,11 @@ def _caps_to_convergence(
     for _ in range(max_iter):
         iters += 1
         prev = w.copy()
-        w = apply_name_cap(w, name_thr)
+        w = (
+            apply_name_cap_vec(w, name_caps)
+            if name_caps is not None
+            else apply_name_cap(w, name_thr)
+        )
         w = cap_bloc(w, is_bloc, bloc_thr)
         w = cap_groups(w, sec_arr, sector_thr)
         if _has_region:
@@ -130,6 +147,7 @@ def _caps_to_convergence(
         name_thr=name_thr,
         bloc_thr=bloc_thr,
         sector_thr=sector_thr,
+        name_caps=name_caps,
         region_arr=region_arr if _has_region else None,
         region_thr=region_thr if _has_region else None,
     )
@@ -336,6 +354,7 @@ def apply_risk_gate(
     managed_vol_ceiling: float = 0.18,
     regions=None,
     region_cap: float | None = None,
+    name_caps: pd.Series | np.ndarray | None = None,
 ) -> tuple[pd.Series, dict]:
     """Enforce the vol ceiling + concentration caps on a constructed book.
 
@@ -620,6 +639,37 @@ def apply_risk_gate(
             levers_fired.append("gross_cut")
     else:
         raise ValueError(f"Unknown cap_mode: {cap_mode!r}")
+
+    # --- 3b. per-name market-cap tier caps (owner sizing) --------------------- #
+    # Final joint {name-tier -> bloc -> sector} convergence. Tier caps only SHRINK
+    # oversized (small-cap) names, so vol is non-increasing and the ceiling enforced
+    # above still holds; each name's excess redistributes to headroom (apply_name_cap_vec)
+    # so the book stays deployed rather than dropping the trim to cash.
+    if name_caps is not None:
+        _nc_ser = (
+            name_caps
+            if isinstance(name_caps, pd.Series)
+            else pd.Series(list(name_caps), index=index)
+        )
+        _nc = pd.to_numeric(_nc_ser.reindex(index), errors="coerce").to_numpy()
+        # cap = min(flat name_cap, tier cap); NaN tier -> flat name_cap. Absolute basis (x gross).
+        _nc = np.where(np.isfinite(_nc), np.minimum(_nc, name_cap), name_cap) * g_target
+        _w_pre_tier = w.copy()
+        w, ci = _caps_to_convergence(
+            w,
+            sec_arr,
+            is_bloc,
+            name_thr=name_thr,
+            bloc_thr=bloc_thr,
+            sector_thr=sector_thr,
+            max_iter=max_iter,
+            name_caps=_nc,
+            region_arr=region_arr,
+            region_thr=region_thr,
+        )
+        caps_iter_total += ci
+        if np.max(np.abs(w - _w_pre_tier)) > _STABLE_TOL:
+            levers_fired.append("tier_caps")
 
     # Invariant: the gate only vetoes/shrinks. Cap-excess redistribution (incl. the
     # initial concentration-caps pass) is conviction-blind and can nudge a disliked
