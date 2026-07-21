@@ -31,8 +31,10 @@ V3_USD_BLOC_CAP=0.65 V3_VOL_CEILING=0.35 \
 #    inline styles), not the browser HTML which the Outlook body sanitizer breaks.
 #    This edition is now at FULL info-parity with the browser attachment (conviction
 #    heatmap + full per-stock factor cards + trade levels). It is the ONLY thing this
-#    scheduled job mails — the pipeline map + factor backtest are on-demand (sent with
-#    the snapshot only when the owner asks for "all three files").
+#    scheduled job mails. The other two of the trio are on-demand (sent WITH the snapshot
+#    only when the owner asks for "all three files"): the pipeline map (v3_pipeline_map.py)
+#    and the MASTER TAXONOMY (v3_master_taxonomy.py — factors x dimensions x weights;
+#    replaced the old factor-backtest file as the 3rd member 2026-07-21).
 REPORT="$(ls -t "$HOME/Downloads/"*_v3_overlay_email.html 2>/dev/null | head -1 || true)"
 if [ -z "${REPORT:-}" ]; then
   echo "ERROR: no v3 overlay email report produced" >&2
