@@ -154,6 +154,9 @@ def _screen_buy_candidates(
     max_short_interest: float | None,
     min_current_ratio: float | None,
     max_de: float | None,
+    min_analyst_mom: float | None = None,
+    min_analyst_n: int = 4,
+    min_earn_trajectory: float | None = None,
 ) -> tuple[list[str], list[str]]:
     """FIX-NOW 2026-07-18 (D4/D8): drop squeeze-risky / distressed names from the BUY
     pool. Applied to buys ONLY — never force-sells a holding.
@@ -161,9 +164,16 @@ def _screen_buy_candidates(
     A candidate is screened out when ANY active criterion trips:
       * short_interest (% of float) > ``max_short_interest``  — squeeze/borrow risk;
       * current_ratio < ``min_current_ratio``                 — distress (illiquid);
-      * de > ``max_de``                                       — distress (over-levered).
+      * de > ``max_de``                                       — distress (over-levered);
+      * analyst_mom <= ``min_analyst_mom`` AND n_analysts >= ``min_analyst_n`` — the
+        Street is actively downgrading the name with meaningful coverage (owner
+        2026-07-22). Asymmetric: we reject active downgrades but never *require*
+        positive coverage (that would anti-select momentum winners);
+      * earn_trajectory (= trailing/forward P/E) < ``min_earn_trajectory`` — forward
+        P/E materially above trailing, i.e. earnings expected to FALL (value-trap tilt;
+        owner 2026-07-22). Use ``1/1.05`` to block a > 1.05x forward/trailing rise.
     A criterion whose param is ``None`` is off; an absent column or NaN value never
-    excludes (missing data is not treated as distress). Returns (kept, screened_out).
+    excludes (missing data is not treated as a red flag). Returns (kept, screened_out).
     """
     if scored is None or not cand_list:
         return cand_list, []
@@ -180,10 +190,22 @@ def _screen_buy_candidates(
     out: list[str] = []
     for t in cand_list:
         si, cr, de = _val(t, "short_interest"), _val(t, "current_ratio"), _val(t, "de")
+        am, na, traj = _val(t, "analyst_mom"), _val(t, "n_analysts"), _val(t, "earn_trajectory")
         squeeze = max_short_interest is not None and pd.notna(si) and si > max_short_interest
         illiquid = min_current_ratio is not None and pd.notna(cr) and cr < min_current_ratio
         levered = max_de is not None and pd.notna(de) and de > max_de
-        (out if (squeeze or illiquid or levered) else kept).append(t)
+        downgraded = (
+            min_analyst_mom is not None
+            and pd.notna(am)
+            and am <= min_analyst_mom
+            and pd.notna(na)
+            and na >= min_analyst_n
+        )
+        value_trap = (
+            min_earn_trajectory is not None and pd.notna(traj) and traj < min_earn_trajectory
+        )
+        excluded = squeeze or illiquid or levered or downgraded or value_trap
+        (out if excluded else kept).append(t)
     return kept, out
 
 
@@ -219,6 +241,9 @@ def build_overlay(
     max_short_interest: float | None = 20.0,
     min_current_ratio: float | None = 1.0,
     max_de: float | None = None,
+    min_analyst_mom: float | None = -3.0,  # owner 2026-07-22: veto buys the Street is downgrading
+    min_analyst_n: int = 4,  # ...only when coverage is meaningful (>=4 analysts)
+    min_earn_trajectory: float | None = 1.0 / 1.05,  # veto buys w/ fwd P/E > 1.05x trailing
     tier_name_caps: bool = False,
 ) -> dict:
     """Build a minimal keep/sell/buy overlay on the live book, then risk-gate it.
@@ -333,6 +358,9 @@ def build_overlay(
             max_short_interest=max_short_interest,
             min_current_ratio=min_current_ratio,
             max_de=max_de,
+            min_analyst_mom=min_analyst_mom,
+            min_analyst_n=min_analyst_n,
+            min_earn_trajectory=min_earn_trajectory,
         )
         bought = cand_list[: int(max_new)]
 

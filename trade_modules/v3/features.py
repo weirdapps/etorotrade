@@ -76,6 +76,7 @@ _NATIVE_NUM = {
     "PP": "price_perf",
     "SI": "short_interest",
     "AM": "analyst_mom",
+    "#A": "n_analysts",  # analyst count — coverage floor for the analyst-momentum buy veto
     "EG": "earn_growth",
     "DV": "div_yield",
     "UP%": "upside",

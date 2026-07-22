@@ -485,3 +485,35 @@ def test_fixnow_screen_tolerates_missing_data_and_spares_holdings():
     sc2.loc["U10", "short_interest"] = 90.0  # held + very high SI
     held = build_overlay(sc2, current, pd.DataFrame(), max_new=2)["diagnostics"]
     assert "U10" not in held["sold"] and "U10" in held["kept"]
+
+
+def test_analyst_mom_veto_excludes_downgraded_buy():
+    """A strong non-held candidate with strongly negative analyst momentum (AM <= -3)
+    and enough coverage (n_analysts >= 4) is screened from buys; a thin-coverage name
+    with the same AM is NOT vetoed (needs a meaningful analyst count)."""
+    _tks, _convs, sc = _universe20()
+    sc["analyst_mom"] = np.nan
+    sc["n_analysts"] = np.nan
+    sc.loc["U00", ["analyst_mom", "n_analysts"]] = [-3.0, 6.0]  # -3 from 6 analysts -> veto
+    sc.loc["U01", ["analyst_mom", "n_analysts"]] = [-5.0, 2.0]  # strong neg but thin -> kept
+    current = pd.Series({"U10": 0.3})
+
+    d = build_overlay(sc, current, pd.DataFrame(), max_new=2)["diagnostics"]
+    assert "U00" not in d["bought"]  # vetoed on analyst momentum
+    assert "U00" in d.get("screened_out", [])
+    assert "U01" in d["bought"]  # thin coverage -> not vetoed
+
+
+def test_trajectory_guard_excludes_rising_forward_pe_buy():
+    """A buy whose forward P/E is materially above trailing (earn_trajectory = PET/PEF
+    below ~0.95, i.e. fwd P/E > 1.05x trailing -> earnings expected to fall) is screened;
+    a positive-trajectory candidate is bought instead."""
+    _tks, _convs, sc = _universe20()
+    sc["earn_trajectory"] = np.nan
+    sc.loc["U00", "earn_trajectory"] = 0.90  # fwd P/E ~11% above trailing -> value-trap-ish
+    current = pd.Series({"U10": 0.3})
+
+    d = build_overlay(sc, current, pd.DataFrame(), max_new=2)["diagnostics"]
+    assert "U00" not in d["bought"]
+    assert "U00" in d.get("screened_out", [])
+    assert set(d["bought"]) == {"U01", "U02"}
