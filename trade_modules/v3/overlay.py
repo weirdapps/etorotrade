@@ -285,6 +285,37 @@ def _sector_labels(names: list[str], scored: pd.DataFrame) -> list[str]:
     return [s if s else "UNKNOWN" for s in ser.tolist()]
 
 
+def _fund_floor_weakest_first(
+    weights: pd.Series, conviction: pd.Series, raised: float
+) -> pd.Series:
+    """Free ``raised`` of weight from the non-core book by cutting the WEAKEST-conviction
+    names FIRST (to zero if needed), sparing the strongest.
+
+    The core floor lifts the giants back to their target; that weight has to come from
+    somewhere. Funding it by scaling ALL non-core proportionally is conviction-blind — it
+    shaves a high-conviction satellite (e.g. a +1.9 name) the same as a weak one. Instead we
+    sort non-core by conviction ASCENDING (NaN / dataless = weakest, cut first) and draw the
+    funding from the bottom up, so strong satellites survive while the model's least-liked
+    non-core names are the ones sacrificed. Returns new weights over the same index; the total
+    removed equals ``raised`` (gross preserved). Caller ensures ``sum(weights) >= raised``.
+    """
+    out = weights.astype(float).copy()
+
+    def _key(t: str) -> float:
+        c = conviction.get(t)
+        return float(c) if (c is not None and pd.notna(c)) else float("-inf")
+
+    need = float(raised)
+    for t in sorted(out.index, key=_key):  # weakest conviction first
+        if need <= 1e-12:
+            break
+        w = float(out[t])
+        cut = min(w, need)
+        out[t] = w - cut
+        need -= cut
+    return out
+
+
 def build_overlay(
     scored: pd.DataFrame,
     current_weights,
@@ -502,9 +533,10 @@ def build_overlay(
         )
 
         # Deliberate thesis overlay: FLOOR core names at a chosen minimum (their
-        # current weights, pre-capped by name_cap), scaling non-core proportionally
-        # so gross holds. The conviction gate trims middling-conviction core; this
-        # re-expresses the owner's high-conviction AI view as a VISIBLE post-gate floor.
+        # current weights, pre-capped by name_cap), funding the lift from the WEAKEST
+        # non-core names first (sparing high-conviction satellites like EXEL) so gross
+        # holds. The conviction gate trims middling-conviction core; this re-expresses
+        # the owner's high-conviction AI view as a VISIBLE post-gate floor.
         if core_floor is not None and len(final):
             floors = pd.to_numeric(core_floor, errors="coerce").dropna()
             floors = floors[floors > 0.0]
@@ -518,10 +550,13 @@ def build_overlay(
             if raised > 1e-9:
                 noncore = [t for t in final.index if t not in floors.index]
                 nc_sum = float(final.reindex(noncore).sum())
-                if nc_sum > raised:  # scale non-core down to fund the floor
-                    scale = (nc_sum - raised) / nc_sum
+                if nc_sum > raised:  # fund the floor from the WEAKEST non-core first,
+                    # sparing high-conviction satellites (see _fund_floor_weakest_first)
+                    nc_funded = _fund_floor_weakest_first(
+                        final.reindex(noncore).astype(float), conv_all, raised
+                    )
                     for t in noncore:
-                        final[t] = float(final[t]) * scale
+                        final[t] = float(nc_funded[t])
                 else:  # non-core cannot fully fund the floor -> haircut the lifts to
                     # what it frees, then zero it, so gross is PRESERVED (never inflated).
                     haircut = nc_sum / raised  # raised > 1e-9 above, so safe
