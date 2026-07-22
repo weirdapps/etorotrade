@@ -910,15 +910,19 @@ def test_apply_name_cap_vec_per_name_caps_preserve_total():
 
 
 def test_tiered_name_caps_by_market_cap():
-    """Market-cap-tier single-name caps: mega 0.10 down to micro 0.0025; unknown -> 0.06."""
+    """Market-cap-tier single-name caps: mega 0.10 down to micro 0.0025; unknown -> 0.06.
+
+    The small/micro boundary is $1B (owner 2026-07-22): a $0.5B name (WIX/NRDS range)
+    caps at 0.0025, a $1B name at 0.005.
+    """
     from trade_modules.v3.construct import _tiered_name_caps
 
     scored = pd.DataFrame(
-        {"cap": [5e11, 5e10, 5e9, 1e9, 1e8, np.nan]},
-        index=["MEGA", "LARGE", "MID", "SMALL", "MICRO", "UNK"],
+        {"cap": [5e11, 5e10, 5e9, 1e9, 5e8, 1e8, np.nan]},
+        index=["MEGA", "LARGE", "MID", "SMALL", "TINY", "MICRO", "UNK"],
     )
     caps = _tiered_name_caps(scored, list(scored.index))
-    assert list(caps) == [0.10, 0.06, 0.02, 0.005, 0.0025, 0.06]
+    assert list(caps) == [0.10, 0.06, 0.02, 0.005, 0.0025, 0.0025, 0.06]
 
 
 def test_div_tilt_moderate_upsizes_extreme_yield_flagged():

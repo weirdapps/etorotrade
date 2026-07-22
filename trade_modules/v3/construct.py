@@ -385,8 +385,8 @@ _MCAP_TIER_CAPS = [
     (200e9, 0.10),  # mega  > $200B
     (20e9, 0.06),  # large $20-200B
     (2e9, 0.02),  # mid   $2-20B
-    (0.3e9, 0.005),  # small $0.3-2B
-    (0.0, 0.0025),  # micro < $0.3B
+    (1e9, 0.005),  # small $1-2B
+    (0.0, 0.0025),  # micro < $1B (owner 2026-07-22: sub-$1B too small -> 0.25% cap)
 ]
 _UNKNOWN_MCAP_CAP = 0.06  # unknown market cap -> large-tier cap (not specially punished)
 
