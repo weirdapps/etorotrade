@@ -52,7 +52,7 @@ from trade_modules.riskfirst.fx import USD_BLOC, currency_of  # noqa: E402
 from trade_modules.v3.actions import build_actions  # noqa: E402
 from trade_modules.v3.combine import compute_scores  # noqa: E402
 from trade_modules.v3.conditioning import resolve_deployment  # noqa: E402
-from trade_modules.v3.construct import region_of  # noqa: E402
+from trade_modules.v3.construct import mega_core_by_cap, region_of  # noqa: E402
 from trade_modules.v3.features import enrich_features  # noqa: E402
 from trade_modules.v3.fetch import robust_fetch_prices  # noqa: E402
 from trade_modules.v3.overlay import build_overlay  # noqa: E402
@@ -82,8 +82,10 @@ BALANCED_WEIGHTS: dict[str, float] = {
     "lowvol": 0.00,
 }
 
-# Mega-cap "core" whose kept-vs-sold status is always reported.
-MEGA_CORE: list[str] = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "AVGO", "TSM", "META"]
+# The mega-cap "core" is derived at RUNTIME from market cap (>= the $200B mega tier)
+# via mega_core_by_cap() — NOT a hardcoded ticker list. Any holding qualifies for the
+# core floor / no-force-sell protection purely by its size, so the rule generalizes as
+# the book changes instead of pinning specific named assets.
 
 # Overridable via env so the same runner produces any confirmed config.
 _VOL_CEILING = float(os.environ.get("V3_VOL_CEILING", "0.18"))
@@ -588,21 +590,23 @@ def main() -> None:
             f"({managed_weight:.1%}); model deployment -> {gross_target:.0%}"
         )
 
-    # --- Owner thesis overlay: floor the AI core at its current weight (capped by the
-    #     single-name limit) so the conviction gate can't trim the sleeve below where
-    #     the owner holds it. Off by default; V3_FLOOR_CORE=1 for the owner config. ---
+    # --- Mega-cap core (GENERAL, market-cap-driven — NOT a ticker list): any HELD name
+    #     in the $200B+ mega tier. Floored at its current weight (capped by the single-name
+    #     limit) so the ERC vol gate can't trim the winners below where the owner holds
+    #     them, and never force-sold. Off by default; V3_FLOOR_CORE=1 for the owner config.
+    mega_core = mega_core_by_cap(current_weights, scores)
     core_floor = None
     if _FLOOR_CORE:
         cf = {
             t: min(float(current_weights[t]), _NAME_CAP)
-            for t in MEGA_CORE
+            for t in mega_core
             if t in current_weights.index
         }
         core_floor = pd.Series(cf, dtype=float) if cf else None
         if core_floor is not None:
             print(
-                f"AI-core floor ON: {len(core_floor)} names floored at current "
-                f"(<= {_NAME_CAP:.0%}/name), sleeve target {core_floor.sum():.1%}"
+                f"mega-cap core floor ON: {len(core_floor)} held names >= $200B floored at "
+                f"current (<= {_NAME_CAP:.0%}/name), sleeve target {core_floor.sum():.1%}"
             )
 
     # --- Overlay construction (keep book, sell weak, add strongest) ---
@@ -615,7 +619,7 @@ def main() -> None:
         sector_cap=_SECTOR_CAP,
         usd_bloc_cap=_USD_BLOC_CAP,
         vol_ceiling=_VOL_CEILING,
-        core_list=MEGA_CORE,
+        core_list=mega_core,
         cap_mode=_CAP_MODE,
         sell_negative_noncore=_SELL_NEG,
         noncore_sell_floor=_NONCORE_SELL_FLOOR,

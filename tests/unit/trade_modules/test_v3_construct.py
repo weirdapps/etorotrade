@@ -934,3 +934,36 @@ def test_div_tilt_moderate_upsizes_extreme_yield_flagged():
     assert abs(t[0] - 1.0) < 1e-9
     assert abs(t[1] - 1.5) < 1e-9  # 4% -> +50%
     assert abs(t[2] - 1.0) < 1e-9  # > 6% -> value-trap flag, no up-size
+
+
+def test_mega_core_by_cap_is_market_cap_driven_not_a_ticker_list():
+    """The mega-cap core is derived from MARKET CAP (>= the mega tier boundary),
+    not a hardcoded ticker list: held names in the mega tier qualify; held smaller
+    caps, unheld mega-caps, and NaN-cap names do not."""
+    from trade_modules.v3.construct import _MCAP_TIER_CAPS, mega_core_by_cap
+
+    mega = _MCAP_TIER_CAPS[0][0]  # $200B mega-tier boundary
+    scored = pd.DataFrame(
+        {"cap": [3e12, 5e11, 5e10, 8e8, float("nan"), 1e12]},
+        index=["BIG1", "BIG2", "MIDX", "SMALLX", "NOCAP", "UNHELD_BIG"],
+    )
+    current = pd.Series(
+        {"BIG1": 0.09, "BIG2": 0.05, "MIDX": 0.03, "SMALLX": 0.01, "NOCAP": 0.02}
+    )  # UNHELD_BIG intentionally absent from the book
+
+    core = mega_core_by_cap(current, scored, threshold=mega)
+
+    assert set(core) == {"BIG1", "BIG2"}  # only HELD names with cap >= $200B
+    assert "MIDX" not in core and "SMALLX" not in core  # below the mega tier
+    assert "NOCAP" not in core  # NaN market cap
+    assert "UNHELD_BIG" not in core  # mega-cap but not currently held
+
+
+def test_mega_core_by_cap_handles_missing_cap_column_and_empty_book():
+    """Degrades gracefully: no 'cap' column or an empty book -> empty core."""
+    from trade_modules.v3.construct import mega_core_by_cap
+
+    no_cap = pd.DataFrame({"conviction": [1.0]}, index=["X"])
+    assert mega_core_by_cap(pd.Series({"X": 0.1}), no_cap) == []
+    scored = pd.DataFrame({"cap": [3e12]}, index=["X"])
+    assert mega_core_by_cap(pd.Series(dtype=float), scored) == []
