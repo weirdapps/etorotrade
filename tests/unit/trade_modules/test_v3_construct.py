@@ -967,3 +967,14 @@ def test_mega_core_by_cap_handles_missing_cap_column_and_empty_book():
     assert mega_core_by_cap(pd.Series({"X": 0.1}), no_cap) == []
     scored = pd.DataFrame({"cap": [3e12]}, index=["X"])
     assert mega_core_by_cap(pd.Series(dtype=float), scored) == []
+
+
+def test_mega_core_by_cap_threshold_narrows_to_fewer_larger_names():
+    """A higher threshold selects FEWER, larger names (owner's '$1T fewer, larger core'):
+    a $500B held name qualifies at $200B but drops out at $1T."""
+    from trade_modules.v3.construct import mega_core_by_cap
+
+    scored = pd.DataFrame({"cap": [3e12, 5e11]}, index=["GIANT", "HALFT"])
+    current = pd.Series({"GIANT": 0.08, "HALFT": 0.05})
+    assert set(mega_core_by_cap(current, scored, threshold=200e9)) == {"GIANT", "HALFT"}
+    assert set(mega_core_by_cap(current, scored, threshold=1e12)) == {"GIANT"}

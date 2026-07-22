@@ -142,6 +142,10 @@ _SELL_NEG = _envflag("V3_SELL_NEGATIVE_NONCORE")
 _NONCORE_SELL_FLOOR = float(os.environ.get("V3_NONCORE_SELL_FLOOR", "0.0"))  # sell deadband
 _PROTECT_CORE = _envflag("V3_PROTECT_CORE")
 _FLOOR_CORE = _envflag("V3_FLOOR_CORE", "0")  # floor AI core at current (thesis overlay)
+# Mega-cap core = held names with market cap >= this (default $1T -> the true giants;
+# owner 2026-07-22). A higher threshold = fewer, larger core names, each with room to
+# run to the single-name cap; lower = broader protection, biggest names smaller.
+_MEGA_CORE_MIN_CAP = float(os.environ.get("V3_MEGA_CORE_MIN_CAP", "1e12"))
 _MANAGED_SLEEVES = [
     s.strip()
     for s in os.environ.get("V3_MANAGED_SLEEVES", "GLD,UVXY,LYXGRE.DE").split(",")
@@ -591,10 +595,11 @@ def main() -> None:
         )
 
     # --- Mega-cap core (GENERAL, market-cap-driven — NOT a ticker list): any HELD name
-    #     in the $200B+ mega tier. Floored at its current weight (capped by the single-name
-    #     limit) so the ERC vol gate can't trim the winners below where the owner holds
-    #     them, and never force-sold. Off by default; V3_FLOOR_CORE=1 for the owner config.
-    mega_core = mega_core_by_cap(current_weights, scores)
+    #     at/above V3_MEGA_CORE_MIN_CAP (default $1T — the true giants; owner 2026-07-22).
+    #     Floored at its current weight (capped by the single-name limit) so the ERC vol
+    #     gate can't trim the winners below where the owner holds them, and never force-sold.
+    #     Fewer, larger core names (higher threshold) each get room to run to the cap.
+    mega_core = mega_core_by_cap(current_weights, scores, threshold=_MEGA_CORE_MIN_CAP)
     core_floor = None
     if _FLOOR_CORE:
         cf = {
@@ -605,8 +610,9 @@ def main() -> None:
         core_floor = pd.Series(cf, dtype=float) if cf else None
         if core_floor is not None:
             print(
-                f"mega-cap core floor ON: {len(core_floor)} held names >= $200B floored at "
-                f"current (<= {_NAME_CAP:.0%}/name), sleeve target {core_floor.sum():.1%}"
+                f"mega-cap core floor ON: {len(core_floor)} held names >= "
+                f"${_MEGA_CORE_MIN_CAP / 1e12:.1f}T floored at current "
+                f"(<= {_NAME_CAP:.0%}/name), sleeve target {core_floor.sum():.1%}"
             )
 
     # --- Overlay construction (keep book, sell weak, add strongest) ---
