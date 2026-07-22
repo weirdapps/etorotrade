@@ -209,6 +209,74 @@ def _screen_buy_candidates(
     return kept, out
 
 
+# Portfolio-aware buy selection (owner 2026-07-22): tilt the SHOWN buys toward what the
+# book needs, not just standalone score. Crowding = current-book group weight / group cap;
+# the tilt strengths are in conviction units, kept small so conviction stays primary.
+_DIV_TILT_SECTOR = 0.5
+_DIV_TILT_REGION = 0.3
+_SELECT_REGION_CAP = 0.65
+
+
+def _portfolio_aware_order(
+    cand_list: list[str],
+    scored: pd.DataFrame,
+    current: pd.Series,
+    conv: pd.Series,
+    *,
+    sector_cap: float,
+    region_cap: float,
+) -> tuple[list[str], list[str]]:
+    """Re-order buy candidates by portfolio FIT, not standalone conviction.
+
+    Using the current book's sector + region exposure (as a fraction of the invested
+    book): (1) SKIP a candidate whose sector or region is already at its cap — the risk
+    gate would zero it at sizing anyway, so surfacing it is a wasted recommendation;
+    (2) re-rank the rest by conviction minus a mild crowding penalty
+    (``_DIV_TILT_* * group_weight / group_cap``) so buys tilt toward UNDER-weight
+    sectors/markets. Conviction stays primary — the penalty only re-orders near-ties,
+    never buys a weak name to diversify. Returns (reordered_kept, skipped).
+    """
+    if scored is None or not cand_list:
+        return cand_list, []
+    held = [t for t in current.index if float(current.get(t, 0.0)) > _EPS]
+    invested = float(sum(float(current[t]) for t in held)) or 1.0
+
+    def _sector_of(t: str) -> str:
+        if "sector" in scored.columns and t in scored.index and pd.notna(scored.at[t, "sector"]):
+            return str(scored.at[t, "sector"]).upper()
+        return "UNKNOWN"
+
+    def _grp_weights(labeler) -> dict:
+        w: dict = {}
+        for t in held:
+            g = labeler(t)
+            w[g] = w.get(g, 0.0) + float(current[t]) / invested
+        return w
+
+    sec_w = _grp_weights(_sector_of)
+    reg_w = _grp_weights(region_of)
+
+    kept: list[str] = []
+    skipped: list[str] = []
+    adj: dict[str, float] = {}
+    for t in cand_list:
+        sc = sec_w.get(_sector_of(t), 0.0)
+        rc = reg_w.get(region_of(t), 0.0)
+        # Hard skip only on SECTOR (the gate-enforced cap; sectors are diverse so this
+        # rarely binds). Region is NOT hard-capped at sizing — a US-heavy book is ~100%
+        # one region, so a region skip would drop every US buy; region stays a soft tilt.
+        if sc >= sector_cap:
+            skipped.append(t)
+            continue
+        penalty = _DIV_TILT_SECTOR * min(1.0, sc / sector_cap) + _DIV_TILT_REGION * min(
+            1.0, rc / region_cap
+        )
+        adj[t] = float(conv.get(t, 0.0)) - penalty
+        kept.append(t)
+    kept.sort(key=lambda t: -adj[t])
+    return kept, skipped
+
+
 def _sector_labels(names: list[str], scored: pd.DataFrame) -> list[str]:
     """Uppercased sector label per name ("UNKNOWN" when missing)."""
     if scored is None or "sector" not in scored.columns:
@@ -244,6 +312,8 @@ def build_overlay(
     min_analyst_mom: float | None = -3.0,  # owner 2026-07-22: veto buys the Street is downgrading
     min_analyst_n: int = 4,  # ...only when coverage is meaningful (>=4 analysts)
     min_earn_trajectory: float | None = 1.0 / 1.05,  # veto buys w/ fwd P/E > 1.05x trailing
+    min_conviction: float | None = None,  # absolute conviction floor for a new buy (owner)
+    portfolio_aware: bool = False,  # tilt buy selection toward under-weight sectors/markets
     tier_name_caps: bool = False,
 ) -> dict:
     """Build a minimal keep/sell/buy overlay on the live book, then risk-gate it.
@@ -347,7 +417,10 @@ def build_overlay(
     screened_out: list[str] = []
     if not np.isnan(buy_threshold) and max_new > 0:
         cand = elig_conv[[t for t in elig_conv.index if t not in held_set]]
-        cand = cand[cand >= buy_threshold].sort_values(ascending=False)
+        # Absolute conviction floor (owner 2026-07-22): a buy must clear BOTH the
+        # percentile AND the floor, so a weak universe yields fewer buys, not 8 mediocre.
+        buy_floor = buy_threshold if min_conviction is None else max(buy_threshold, min_conviction)
+        cand = cand[cand >= buy_floor].sort_values(ascending=False)
         # FIX A: never buy the same company twice, nor a dual listing of a name
         # already in the book (dedup the candidate pool + drop held companies).
         cand_list = _dedup_buy_candidates(list(cand.index), held, scored)
@@ -362,6 +435,18 @@ def build_overlay(
             min_analyst_n=min_analyst_n,
             min_earn_trajectory=min_earn_trajectory,
         )
+        # Owner 2026-07-22: tilt selection toward what the book NEEDS — skip at-cap
+        # sectors/markets and re-rank by conviction minus a mild crowding penalty.
+        if portfolio_aware:
+            cand_list, _div_skipped = _portfolio_aware_order(
+                cand_list,
+                scored,
+                cur,
+                conv_all,
+                sector_cap=sector_cap,
+                region_cap=_SELECT_REGION_CAP,
+            )
+            screened_out = screened_out + _div_skipped
         bought = cand_list[: int(max_new)]
 
     # Pre-gate target: keeps anchored at current weight; buys funded from the freed
