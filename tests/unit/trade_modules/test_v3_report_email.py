@@ -176,6 +176,28 @@ def _view() -> dict:
     }
 
 
+def test_render_summary_is_compact_and_outlook_safe():
+    html = rem.render_summary(_meta(), _actions(), portfolio=_view())
+    # Header: regime + counts + deployment.
+    assert "RISK_ON" in html
+    assert "buy" in html and "sell" in html
+    assert "84" in html  # deployment gross_after 0.84 -> 84.0%
+    # Action rows carry ticker + action.
+    assert "AAA" in html and "BUY" in html
+    assert "BBB" in html and "SELL" in html
+    # Compact: none of the heavy structural sections (the words may appear in the
+    # "full snapshot attached" note, but the actual heatmap rows / factor cards must not).
+    assert "hm-row" not in html  # no heatmap rows
+    assert "All factors" not in html  # no per-stock factor-card details
+    assert "ac-strip" not in html and "cluster-strip" not in html  # no card internals
+    # Outlook-safe: no unsupported CSS.
+    for bad in ("display:flex", "display:grid", "<details", ":hover", "@keyframes"):
+        assert bad not in html
+    # Points at the attached full snapshot; well-formed doc.
+    assert "attach" in html.lower()
+    assert html.startswith("<!DOCTYPE") and "</html>" in html
+
+
 def test_render_email_is_outlook_safe():
     html = rem.render_email_report(
         _scores(),
