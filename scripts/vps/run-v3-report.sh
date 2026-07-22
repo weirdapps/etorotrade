@@ -32,7 +32,11 @@ git pull --ff-only --quiet 2>/dev/null \
 #    V3_USE_PRICE_STORE=1 (owner 2026-07-22): read prices from the append-only price
 #    store (refreshed daily by refresh-prices) + live-fetch only names it misses — so a
 #    per-run yfinance throttle no longer unscores core holdings (the "-" bug).
-V3_FLOOR_CORE=1 V3_NONCORE_SELL_FLOOR=-0.5 V3_CAP_MODE=cap_ordered \
+#    V3_MEGA_CORE_MIN_CAP=1e12 (owner 2026-07-22): the mega-cap core is derived from
+#    market cap (held names >= $1T — the true giants), NOT a hardcoded ticker list, so
+#    the floor generalizes with the book. $1T (vs the $200B mega tier) = fewer, larger
+#    core names, each with room to run to the 10% cap (banks/mid-mega left to the model).
+V3_FLOOR_CORE=1 V3_MEGA_CORE_MIN_CAP=1e12 V3_NONCORE_SELL_FLOOR=-0.5 V3_CAP_MODE=cap_ordered \
 V3_USD_BLOC_CAP=0.65 V3_VOL_CEILING=0.35 V3_USE_PRICE_STORE=1 \
   .venv/bin/python scripts/v3_overlay_report.py
 
