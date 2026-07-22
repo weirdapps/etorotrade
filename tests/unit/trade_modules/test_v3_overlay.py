@@ -563,3 +563,30 @@ def test_trajectory_guard_excludes_rising_forward_pe_buy():
     assert "U00" not in d["bought"]
     assert "U00" in d.get("screened_out", [])
     assert set(d["bought"]) == {"U01", "U02"}
+
+
+def test_fund_floor_weakest_first_spares_strong_satellites():
+    """The core floor is funded by cutting the WEAKEST-conviction non-core names
+    first (to zero if needed); a high-conviction satellite is spared."""
+    from trade_modules.v3.overlay import _fund_floor_weakest_first
+
+    weights = pd.Series({"WEAK": 0.05, "MID": 0.05, "STRONG": 0.05})
+    conv = pd.Series({"WEAK": -0.5, "MID": 0.5, "STRONG": 1.88})
+    out = _fund_floor_weakest_first(weights, conv, raised=0.06)
+
+    assert out["WEAK"] == 0.0  # weakest cut fully first
+    assert abs(out["MID"] - 0.04) < 1e-9  # then partially cut the next-weakest
+    assert out["STRONG"] == 0.05  # strong satellite untouched
+    assert abs((weights.sum() - out.sum()) - 0.06) < 1e-9  # freed exactly `raised`
+
+
+def test_fund_floor_weakest_first_treats_nan_conviction_as_weakest():
+    """A NaN-conviction (ineligible/dataless) non-core name is cut before a scored one."""
+    from trade_modules.v3.overlay import _fund_floor_weakest_first
+
+    weights = pd.Series({"NANC": 0.05, "STRONG": 0.05})
+    conv = pd.Series({"NANC": float("nan"), "STRONG": 1.0})
+    out = _fund_floor_weakest_first(weights, conv, raised=0.03)
+
+    assert abs(out["NANC"] - 0.02) < 1e-9  # NaN cut first
+    assert out["STRONG"] == 0.05  # spared
