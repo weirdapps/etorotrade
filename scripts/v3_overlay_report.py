@@ -57,7 +57,7 @@ from trade_modules.v3.features import enrich_features  # noqa: E402
 from trade_modules.v3.fetch import robust_fetch_prices  # noqa: E402
 from trade_modules.v3.overlay import build_overlay  # noqa: E402
 from trade_modules.v3.report import compute_regime, render_report  # noqa: E402
-from trade_modules.v3.report_email import render_email_report  # noqa: E402
+from trade_modules.v3.report_email import render_email_report, render_summary  # noqa: E402
 
 PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
 BUY_CSV = "yahoofinance/output/buy.csv"
@@ -675,6 +675,15 @@ def main() -> None:
     with open(email_out, "w", encoding="utf-8") as fh:
         fh.write(email_html)
     print(f"overlay email  -> {email_out}")
+
+    # Compact summary body for the scheduled mail: the wrapper mails THIS as the body
+    # and attaches the full browser report above (which renders identically to the trio
+    # snapshot). Called after render_email_report so each action carries its _full_name.
+    summary_html = render_summary(meta, actions, portfolio=view)
+    summary_out = os.path.join(_OUT_DIR, f"{stamp}_v3_overlay_summary.html")
+    with open(summary_out, "w", encoding="utf-8") as fh:
+        fh.write(summary_html)
+    print(f"overlay summary -> {summary_out}")
 
     # Always emit the offline synthetic preview alongside the live report.
     write_preview()
