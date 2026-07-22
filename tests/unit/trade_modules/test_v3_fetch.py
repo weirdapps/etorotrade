@@ -76,6 +76,40 @@ def test_single_batch_returns_all_tickers():
     assert calls[0] == tickers
 
 
+def test_store_first_reads_store_and_live_fetches_only_missing(monkeypatch):
+    """use_store=True: names in the price store come from it; only store-MISSING names
+    are live-downloaded (the daily refresh keeps the store full -> no throttle)."""
+    stored = _make_close(["A", "B"])
+
+    def fake_read_close(tickers, **kw):
+        cols = [t for t in ["A", "B"] if t in set(tickers)]
+        return stored[cols] if cols else pd.DataFrame()
+
+    monkeypatch.setattr("trade_modules.v3.price_store.read_close", fake_read_close)
+    live_calls: list[list[str]] = []
+
+    def fake_dl(batch, period):
+        live_calls.append(list(batch))
+        return _make_close(batch)
+
+    out = robust_fetch_prices(["A", "B", "C"], pause=0, downloader=fake_dl, use_store=True)
+    assert live_calls == [["C"]]  # only the store-missing name hit the network
+    assert set(out.columns) == {"A", "B", "C"}  # store + live merged
+
+
+def test_store_off_by_default_does_not_read_store(monkeypatch):
+    """use_store=False (default): the store is never read; all names are live-fetched."""
+
+    def boom(*a, **k):
+        raise AssertionError("store must not be read when use_store is off")
+
+    monkeypatch.setattr("trade_modules.v3.price_store.read_close", boom)
+    out = robust_fetch_prices(
+        ["A", "C"], pause=0, downloader=lambda b, p: _make_close(b), use_store=False
+    )
+    assert set(out.columns) == {"A", "C"}
+
+
 def test_batching_correct_chunk_sizes():
     """7 tickers @ batch_size=3 → 3 calls with correct chunk sizes."""
     tickers = [f"T{i}" for i in range(7)]
