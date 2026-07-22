@@ -6,9 +6,19 @@ and retries on network/rate-limit errors with exponential back-off.
 
 from __future__ import annotations
 
+import os
 import time
 
 import pandas as pd
+
+
+def _use_price_store(explicit: bool | None) -> bool:
+    """Store-first is opt-in: an explicit ``use_store`` wins, else the
+    ``V3_USE_PRICE_STORE`` env flag (unset/``0`` -> off, so backtests + tests are
+    unchanged; the overlay/cron sets it to 1)."""
+    if explicit is not None:
+        return explicit
+    return os.environ.get("V3_USE_PRICE_STORE", "") not in ("", "0")
 
 
 def _default_downloader(batch: list[str], period: str) -> pd.DataFrame:
@@ -77,6 +87,7 @@ def robust_fetch_prices(
     pause: float = 1.0,
     retries: int = 3,
     downloader=None,
+    use_store: bool | None = None,
 ) -> pd.DataFrame:
     """Fetch adjusted Close prices in batches with retry and exponential back-off.
 
@@ -106,6 +117,36 @@ def robust_fetch_prices(
         All-NaN columns are dropped.  Returns an empty DataFrame if every
         batch fails.
     """
+    # Store-first (opt-in via ``use_store`` / V3_USE_PRICE_STORE): read the append-only
+    # price store and live-fetch ONLY the names it is missing. The daily price-store
+    # refresh keeps the store full, so a normal overlay run does ~no live download — no
+    # yfinance throttle, so core names never drop out of scoring on a transient miss.
+    if _use_price_store(use_store) and tickers:
+        try:
+            from trade_modules.v3.price_store import read_close  # noqa: PLC0415
+
+            stored = read_close(list(tickers))
+        except Exception:  # noqa: BLE001 — a bad/absent store must never break the fetch
+            stored = pd.DataFrame()
+        have = set(stored.columns) if stored is not None and not stored.empty else set()
+        missing = [t for t in tickers if t not in have]
+        if not missing:
+            return stored
+        live = robust_fetch_prices(
+            missing,
+            period=period,
+            batch_size=batch_size,
+            pause=pause,
+            retries=retries,
+            downloader=downloader,
+            use_store=False,
+        )
+        if stored is None or stored.empty:
+            return live
+        if live is None or live.empty:
+            return stored
+        return stored.join(live, how="outer")
+
     if downloader is None:
         downloader = _default_downloader
 
