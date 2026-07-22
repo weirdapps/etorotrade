@@ -414,6 +414,37 @@ def _div_tilt(scored: pd.DataFrame, selected: list[str]) -> np.ndarray:
     return np.where(dv > 0.06, 1.0, 1.0 + 0.5 * np.clip(dv / 0.04, 0.0, 1.0))
 
 
+def mega_core_by_cap(
+    current_weights: pd.Series,
+    scored: pd.DataFrame,
+    *,
+    threshold: float = _MCAP_TIER_CAPS[0][0],
+) -> list[str]:
+    """Held names whose market cap is in the mega tier (GENERAL — cap-driven, not a list).
+
+    Returns the currently-held tickers whose ``cap`` is at or above ``threshold``
+    (default the top ``_MCAP_TIER_CAPS`` boundary, $200B). This is the general
+    replacement for a hardcoded mega-cap whitelist: ANY holding qualifies for the
+    core floor / no-force-sell protection purely by its market cap, so the rule
+    loosens uniformly as new mega-caps enter the book and tightens as caps fall.
+
+    Only HELD names are returned (the floor protects existing positions from the ERC
+    vol trim). NaN / missing caps and a missing ``cap`` column are treated as
+    non-mega (excluded), degrading gracefully to an empty core.
+    """
+    if current_weights is None or len(current_weights) == 0:
+        return []
+    if scored is None or "cap" not in getattr(scored, "columns", []):
+        return []
+    caps = pd.to_numeric(scored["cap"], errors="coerce")
+    out: list[str] = []
+    for t in current_weights.index:
+        c = caps.get(t, float("nan"))
+        if c == c and float(c) >= float(threshold):  # not NaN and in the mega tier
+            out.append(str(t))
+    return out
+
+
 def build_portfolio(
     scored: pd.DataFrame,
     prices: pd.DataFrame,
