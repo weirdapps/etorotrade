@@ -27,17 +27,17 @@ V3_FLOOR_CORE=0 V3_NONCORE_SELL_FLOOR=-0.5 V3_CAP_MODE=cap_ordered \
 V3_USD_BLOC_CAP=0.65 V3_VOL_CEILING=0.35 \
   .venv/bin/python scripts/v3_overlay_report.py
 
-# 3) Email the freshest report — the Outlook-safe EMAIL edition (table-based,
-#    inline styles), not the browser HTML which the Outlook body sanitizer breaks.
-#    This edition is now at FULL info-parity with the browser attachment (conviction
-#    heatmap + full per-stock factor cards + trade levels). It is the ONLY thing this
-#    scheduled job mails. The other two of the trio are on-demand (sent WITH the snapshot
-#    only when the owner asks for "all three files"): the pipeline map (v3_pipeline_map.py)
-#    and the MASTER TAXONOMY (v3_master_taxonomy.py — factors x dimensions x weights;
-#    replaced the old factor-backtest file as the 3rd member 2026-07-21).
-REPORT="$(ls -t "$HOME/Downloads/"*_v3_overlay_email.html 2>/dev/null | head -1 || true)"
-if [ -z "${REPORT:-}" ]; then
-  echo "ERROR: no v3 overlay email report produced" >&2
+# 3) Email the scheduled Factor Snapshot. BODY = the compact Outlook-safe summary
+#    (regime, buy/keep/sell counts, deployment, vol, one-line action table). The FULL
+#    browser Factor Snapshot — IDENTICAL to the trio's attachment (conviction heatmap +
+#    per-stock factor cards + trade levels) — rides along as an HTML ATTACHMENT: it
+#    can't be the email body because its modern CSS breaks the Outlook sanitizer.
+#    (Owner choice 2026-07-22: "attach + short summary".) The other two of the trio
+#    (v3_pipeline_map.py + v3_master_taxonomy.py) stay on-demand.
+SUMMARY="$(ls -t "$HOME/Downloads/"*_v3_overlay_summary.html 2>/dev/null | head -1 || true)"
+SNAPSHOT="$(ls -t "$HOME/Downloads/"*_v3_overlay_report.html 2>/dev/null | head -1 || true)"
+if [ -z "${SUMMARY:-}" ] || [ -z "${SNAPSHOT:-}" ]; then
+  echo "ERROR: no v3 overlay summary/report produced" >&2
   exit 1
 fi
 
@@ -46,7 +46,8 @@ SUBJECT="trading model v3 · factor snapshot $(TZ=Europe/Athens date '+%Y-%m-%d 
 ~/scripts/outlook-cli send-mail \
   --to dimitrios.plessas@nbg.gr \
   --subject "$SUBJECT" \
-  --html "$REPORT" \
+  --html "$SUMMARY" \
+  --attach "$SNAPSHOT" \
   --send-now --no-signature
 
-echo "OK: emailed $(basename "$REPORT") ($(wc -c < "$REPORT" | tr -d ' ') bytes)"
+echo "OK: emailed summary $(basename "$SUMMARY") + attached $(basename "$SNAPSHOT")"

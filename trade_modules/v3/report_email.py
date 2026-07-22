@@ -740,3 +740,132 @@ def render_email_report(
         f"Trading Model v3 &middot; generated on the VPS &middot; {date}</td></tr>"
         "</table></td></tr></table></body></html>"
     )
+
+
+def render_summary(
+    meta: dict,
+    actions: list,
+    *,
+    portfolio: dict | None = None,
+) -> str:
+    """Compact Outlook-safe summary body for the scheduled 4h mail.
+
+    Masthead + regime / buy-keep-sell counts / deployment / vol, then a
+    one-line-per-name action table (BUY/ADD/TRIM/SELL). The FULL browser Factor
+    Snapshot (heatmap, per-stock factor cards, trade levels) rides along as the
+    attachment. Call after :func:`render_email_report` so each action already carries
+    ``_full_name``; falls back to the eToro name / ticker otherwise.
+    """
+    meta = meta or {}
+    actions = actions or []
+    diag = ((portfolio or {}).get("diagnostics") or {}).get("gate") or {}
+    by_action: dict[str, list] = {k: [] for k in ACTION_ORDER}
+    for a in actions:
+        by_action.setdefault(a.get("action"), []).append(a)
+    c = {k: len(v) for k, v in by_action.items()}
+    keep = c.get("ADD", 0) + c.get("TRIM", 0) + c.get("HOLD", 0)
+    regime = _esc(str(meta.get("regime", "")).upper())
+    gen = _esc(meta.get("generated_utc", ""))
+    date = _esc(meta.get("date", ""))
+    dep = _pct1(diag.get("gross_after"))
+    vol = _pct1(diag.get("vol_after"))
+
+    head = (
+        f'<div style="font-family:{FONT};font-size:10.5px;font-weight:700;letter-spacing:1.4px;'
+        f'text-transform:uppercase;color:{ACCENT};">Trading Model v3</div>'
+        f'<div style="font-family:{FONT};font-size:25px;font-weight:800;color:{INK};'
+        f'line-height:1.08;margin-top:3px;">Factor Snapshot</div>'
+        f'<div style="border-top:2px solid {INK};width:44px;font-size:0;line-height:0;'
+        f'margin:12px 0;">&nbsp;</div>'
+        f'<div style="font-family:{FONT};font-size:12.5px;color:{INK2};line-height:1.7;">'
+        f'Regime <b style="color:{INK};">{regime}</b> &middot; '
+        f'<b style="color:{BULL};">{c.get("BUY", 0)}</b> buy &middot; {keep} keep &middot; '
+        f'<b style="color:{BEAR};">{c.get("SELL", 0)}</b> sell &middot; '
+        f'deployment <b style="color:{INK};">{dep}</b> &middot; vol {vol}</div>'
+        f'<div style="font-family:{FONT};font-size:11px;color:{MUTED};margin-top:3px;">{gen}</div>'
+    )
+
+    def _th(label: str, align: str = "left", pr: str = "8px") -> str:
+        return (
+            f'<td style="padding:0 {pr} 7px 0;font-family:{FONT};font-size:10px;font-weight:700;'
+            f"text-transform:uppercase;letter-spacing:.5px;color:{MUTED};"
+            f'text-align:{align};">{label}</td>'
+        )
+
+    def _conv(a: dict) -> float:
+        """Conviction as a float; NaN when absent/unparseable (renders as a dot)."""
+        try:
+            return float(a.get("conviction"))  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return float("nan")
+
+    def _sort_key(a: dict) -> float:
+        v = _conv(a)
+        return -abs(v) if v == v else 0.0  # NaN sorts last
+
+    trs = []
+    for act in ("BUY", "ADD", "TRIM", "SELL"):
+        color = ACTION_META[act][0]
+        for a in sorted(by_action.get(act, []), key=_sort_key):
+            tkr = _esc(a.get("ticker", ""))
+            nm = _esc(a.get("_full_name") or a.get("name") or a.get("ticker", ""))
+            cur, tgt = _pct1(a.get("current_pct")), _pct1(a.get("target_pct"))
+            cvf = _conv(a)
+            conv_s = f"{cvf:+.2f}" if cvf == cvf else "&middot;"  # NaN -> dot
+            bt = f"border-top:1px solid {LINE};"
+            trs.append(
+                "<tr>"
+                f'<td style="padding:7px 8px 7px 0;{bt}"><span style="font-family:{FONT};'
+                f'font-size:11px;font-weight:800;color:{color};">{act}</span></td>'
+                f'<td style="padding:7px 8px;{bt}font-family:{MONO};font-size:12px;'
+                f'font-weight:700;color:{INK};">{tkr}</td>'
+                f'<td style="padding:7px 8px;{bt}font-family:{FONT};font-size:12px;'
+                f'color:{INK2};">{nm}</td>'
+                f'<td style="padding:7px 8px;{bt}font-family:{MONO};font-size:12px;'
+                f'color:{INK2};white-space:nowrap;">{cur} &#8594; {tgt}</td>'
+                f'<td style="padding:7px 0 7px 8px;{bt}font-family:{MONO};font-size:12px;'
+                f'color:{INK2};text-align:right;">{conv_s}</td>'
+                "</tr>"
+            )
+    table = (
+        (
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
+            'style="border-collapse:collapse;margin-top:18px;"><tr>'
+            + _th("")
+            + _th("Ticker")
+            + _th("Name")
+            + _th("Current &#8594; Target")
+            + _th("Conv", "right", "0")
+            + "</tr>"
+            + "".join(trs)
+            + "</table>"
+        )
+        if trs
+        else ""
+    )
+
+    note = (
+        f'<div style="font-family:{FONT};font-size:11.5px;color:{INK2};margin-top:18px;'
+        f'padding-top:12px;border-top:1px solid {LINE};line-height:1.6;">The full '
+        f"<b>Factor Snapshot</b> &mdash; conviction heatmap, per-stock factor cards and trade "
+        f"levels &mdash; is <b>attached</b> as HTML; open it in a browser for the complete view. "
+        f"{c.get('HOLD', 0)} held name{'s' if c.get('HOLD', 0) != 1 else ''} maintained.</div>"
+    )
+
+    body = head + table + note
+    return (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        "<title>Trading Model v3 · Factor Snapshot</title></head>"
+        f'<body style="margin:0;padding:0;background:{WARM};">'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;background:{WARM};"><tr>'
+        f'<td align="center" style="padding:22px 12px;">'
+        f'<table role="presentation" width="{CONTENT_W}" cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:collapse;width:{CONTENT_W}px;max-width:100%;">'
+        f'<tr><td bgcolor="{CANVAS}" style="background:{CANVAS};border:1px solid {LINE};'
+        f'border-radius:14px;padding:30px 32px;">{body}</td></tr>'
+        f'<tr><td style="padding:14px 4px;font-family:{FONT};font-size:10px;color:{MUTED};'
+        f'text-align:center;">Trading Model v3 &middot; generated on the VPS &middot; {date}</td></tr>'
+        "</table></td></tr></table></body></html>"
+    )
