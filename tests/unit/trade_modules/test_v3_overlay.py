@@ -504,6 +504,52 @@ def test_analyst_mom_veto_excludes_downgraded_buy():
     assert "U01" in d["bought"]  # thin coverage -> not vetoed
 
 
+def test_conviction_floor_trims_marginal_percentile_buys():
+    """A name can clear the buy percentile yet be below the absolute conviction floor
+    -> not bought. Floor trims the weakest buys (protects weak-universe days)."""
+    _tks, _convs, sc = _universe20()  # conviction linspace +2.0 .. -2.0
+    current = pd.Series({"U19": 0.3})  # hold the worst so the top names are candidates
+    # buy_pctile=0.0 isolates the floor from the percentile (top-5 vs floor>=1.5 -> top-3).
+    base = build_overlay(sc, current, pd.DataFrame(), max_new=5, buy_pctile=0.0)["diagnostics"]
+    floored = build_overlay(
+        sc, current, pd.DataFrame(), max_new=5, buy_pctile=0.0, min_conviction=1.5
+    )["diagnostics"]
+    assert len(floored["bought"]) < len(base["bought"])  # floor removed marginal buys
+    for t in floored["bought"]:
+        assert float(sc.loc[t, "conviction"]) >= 1.5  # every survivor clears the floor
+
+
+def test_portfolio_aware_skips_at_cap_sector():
+    """A buy candidate whose sector is already AT the sector cap in the current book is
+    skipped (the risk gate would zero it) — buys flow to names with room instead."""
+    _tks, _convs, sc = _universe20()
+    sc["sector"] = "Energy"
+    sc.loc[["U01", "U02", "U00"], "sector"] = "Technology"  # incl. the strongest (U00)
+    current = pd.Series({"U01": 0.35, "U02": 0.35})  # held Tech (high conv -> kept) => Tech at cap
+    d = build_overlay(
+        sc, current, pd.DataFrame(), max_new=3, portfolio_aware=True, sector_cap=0.35
+    )["diagnostics"]
+    assert "U00" not in d["bought"]  # Tech is at cap -> strongest Tech candidate skipped
+    assert all(sc.loc[t, "sector"] == "Energy" for t in d["bought"])  # buys go to Energy
+
+
+def test_portfolio_aware_tiebreaker_prefers_underweight_sector():
+    """Between two near-conviction candidates, the one in the less-crowded sector is
+    ranked ahead — conviction stays primary, crowding only breaks near-ties."""
+    sc = _scored(
+        ["A", "B", "C", "D"],
+        [1.5, 1.4, 1.8, 1.7],
+        sectors=["Technology", "Energy", "Technology", "Financial Services"],
+    )
+    current = pd.Series({"C": 0.4, "D": 0.4})  # held, high conv -> kept: book 50% Tech / 50% Fin
+    base = build_overlay(sc, current, pd.DataFrame(), max_new=1, buy_pctile=0.0)["diagnostics"]
+    assert base["bought"] == ["A"]  # plain top-conviction
+    pa = build_overlay(
+        sc, current, pd.DataFrame(), max_new=1, buy_pctile=0.0, portfolio_aware=True, sector_cap=0.9
+    )["diagnostics"]
+    assert pa["bought"] == ["B"]  # A (crowded Tech) penalized below B (empty Energy)
+
+
 def test_trajectory_guard_excludes_rising_forward_pe_buy():
     """A buy whose forward P/E is materially above trailing (earn_trajectory = PET/PEF
     below ~0.95, i.e. fwd P/E > 1.05x trailing -> earnings expected to fall) is screened;
