@@ -326,6 +326,9 @@ class TestDisplayAndDataFetch:
             ("KSP.L.GBX", "KSP.L"),  # pence line stripped, exchange suffix kept
             ("BRK.B", "BRK-B"),  # US class share -> dash form
             ("RDS.A", "RDS-A"),  # US class share -> dash form
+            ("T.US", "T"),  # eToro .US US-listing suffix stripped (Yahoo uses the bare ticker)
+            ("AAPL.US", "AAPL"),  # eToro .US stripped
+            ("BRK.B.US", "BRK-B"),  # .US stripped, then US class share -> dash form
             ("7012.T", "7012.T"),  # Tokyo already valid -> unchanged
             ("UCG.MI", "UCG.MI"),  # already-valid Yahoo suffix -> unchanged
             ("AAPL", "AAPL"),  # plain US -> unchanged
@@ -340,6 +343,7 @@ class TestDisplayAndDataFetch:
         """VIX + per-name data_fetch_substitutions survive the new suffix logic."""
         assert get_data_fetch_ticker("VIX") == "^VIX"
         assert get_data_fetch_ticker("LYXGRE.DE") == "GRE.PA"
+        assert get_data_fetch_ticker("JD.US") == "9618.HK"  # ADR override wins over the .US strip
 
 
 class TestDualListedDetection:
