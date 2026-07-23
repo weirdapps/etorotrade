@@ -12,17 +12,23 @@ jobs:
     steps:
       - name: Get Dependabot metadata
         id: meta
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98  # v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Enable auto-merge for safe updates
-        # Auto-merge: patch + minor for ALL ecosystems, including grouped updates.
-        # Major version bumps still require manual review.
+        # Auto-merge github-actions patch/minor/grouped ONLY. pip is EXCLUDED on purpose:
+        # this repo's dependency source of truth is poetry.lock, but pip-Dependabot edits
+        # the DERIVED requirements-*-lock.txt WITHOUT updating poetry.lock, so auto-merging
+        # a pip PR corrupts lockfile-sync (poetry.lock vs requirements drift). Python deps
+        # are updated the correct way via poetry (deps-refresh.yml monthly + manual
+        # `poetry update` + relock); pip-Dependabot PRs stay open for SECURITY VISIBILITY
+        # and require poetry-correct handling. Major bumps also still need manual review.
         if: |
+          !startsWith(github.event.pull_request.head.ref, 'dependabot/pip/') && (
           steps.meta.outputs.update-type == 'version-update:semver-patch' ||
           steps.meta.outputs.update-type == 'version-update:semver-minor' ||
           steps.meta.outputs.update-type == 'version-update:semver-patchminor' ||
-          steps.meta.outputs.dependency-group != ''
+          steps.meta.outputs.dependency-group != '')
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
