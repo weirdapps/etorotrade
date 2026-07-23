@@ -13,7 +13,7 @@ PRIMITIVES directly, so that conviction participates in sizing:
   * single-name / USD-bloc / sector caps in the same order the riskfirst engine
     applies them;
   * regime deployment — the final capped book is scaled to a ``gross_target``
-    fraction of capital (85-95% by regime), replacing fractional Kelly
+    fraction of capital (78-98% by regime), replacing fractional Kelly
     (Change 2);
   * an empirical shrunk-covariance estimate from the supplied price history,
     falling back to a single-factor beta covariance whenever a selected name
@@ -489,7 +489,7 @@ def build_portfolio(
         gross_target: Fraction of capital deployed (Change 2, replaces Kelly).
             The final capped book is scaled so ``sum(weights) == gross_target``
             and ``cash == 1 - gross_target``. The runner sets it per regime
-            (85% risk_off / 90% neutral / 95% risk_on).
+            (78% risk_off / 88% neutral / 98% risk_on).
         cvar_budget: Annual parametric-normal CVaR(95%) ceiling for the risk
             book. A breach only sets ``binding["cvar"]`` — it NEVER shrinks the
             book (the CVaR flag stays report-only; hard VOL enforcement is done by
