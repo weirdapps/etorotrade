@@ -48,7 +48,16 @@ def realized_vol(prices: pd.Series, window: int = 252, ppy: int = 252) -> float:
 def shrunk_cov(returns_df: pd.DataFrame, shrink: float = 0.2, annualize: int = 252) -> np.ndarray:
     """Sample covariance shrunk toward its diagonal (a transparent Ledoit-Wolf-style
     estimator): (1-d)*S + d*diag(S). Off-diagonals shrink by (1-d); diagonal intact.
-    Reduces the estimation error that wrecks mean-variance/ERC on short samples."""
+    Reduces the estimation error that wrecks mean-variance/ERC on short samples.
+
+    NOTE (2026-07-23 review): shrinking toward the diagonal pulls correlations ~(1-d)
+    toward zero, mildly UNDER-measuring the co-movement of a concentrated bloc (the AI
+    mega-caps). A correlation-preserving upgrade was attempted (constant-correlation and
+    single-index targets) but both had problems on this book — constant-correlation
+    dilutes a tight bloc toward the book-wide average; the single-index target broke an
+    internal ERC-consistency invariant. The upgrade needs a dedicated, fully-validated
+    treatment (proper Ledoit-Wolf optimal intensity + conditioning checks + before/after
+    on the live book), not a drop-in swap. Kept the safe diagonal target for now."""
     R = returns_df.dropna(how="any")
     S = np.atleast_2d(np.cov(R.to_numpy(), rowvar=False)) * annualize
     target = np.diag(np.diag(S))

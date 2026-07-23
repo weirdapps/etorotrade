@@ -42,14 +42,68 @@ def _universe20(betas=1.0):
     return tks, convs, _scored(tks, convs, betas=betas)
 
 
+def test_missing_data_holds_but_value_trap_sells():
+    """FIX: absence of data is NOT a sell signal. A held name that is un-scoreable
+    from MISSING DATA (dataless, or ineligible with no value-trap) is HELD-with-flag,
+    never auto-sold. Only a POSITIVE trigger sells: a genuinely-eligible bottom-
+    percentile conviction, or a value-trap (fwd P/E > 1.10x trailing = earn_trajectory
+    below 1/1.10)."""
+    _tks, _convs, sc = _universe20()
+    extra = _scored(["INELIG", "TRAP"], [np.nan, np.nan], eligible=[False, False])
+    extra["earn_trajectory"] = [
+        np.nan,
+        0.80,
+    ]  # INELIG: missing-data; TRAP: earnings expected to fall
+    sc = pd.concat([sc, extra])
+    # held: strong keep, eligible-weak (sell), missing-data ineligible (hold),
+    # value-trap (sell), dataless/absent from scored (hold).
+    current = pd.Series({"U00": 0.2, "U19": 0.2, "INELIG": 0.2, "TRAP": 0.2, "MISS": 0.2})
+
+    res = build_overlay(sc, current, pd.DataFrame(), max_new=0)
+    d, w = res["diagnostics"], res["weights"]
+
+    assert set(d["sold"]) == {"U19", "TRAP"}  # only positive sell triggers
+    for t in ("U00", "INELIG", "MISS"):
+        assert t in d["kept"] and float(w.get(t, 0.0)) > 0.0  # missing-data HELD, not dumped
+    assert set(d.get("held_unscored", [])) >= {"INELIG", "MISS"}  # surfaced for manual review
+
+
+def test_buy_screen_suppresses_current_ratio_and_de_for_financials():
+    """Banks/REITs run low current ratios and high leverage BY NATURE (deposits are the
+    business), so the current-ratio + D/E distress screens must be suppressed for them
+    (as the taxonomy documents) — else every financial buy is wrongly screened out."""
+    from trade_modules.v3.overlay import _screen_buy_candidates
+
+    sc = _scored(
+        ["BANK", "REIT", "INDU"],
+        [1.0, 1.0, 1.0],
+        sectors=["Financial Services", "Real Estate", "Industrials"],
+    )
+    sc["current_ratio"] = [0.5, 0.5, 0.5]  # all below 1.0
+    sc["de"] = [400.0, 400.0, 400.0]  # all high leverage
+    kept, out = _screen_buy_candidates(
+        ["BANK", "REIT", "INDU"],
+        sc,
+        max_short_interest=None,
+        min_current_ratio=1.0,
+        max_de=200.0,
+    )
+    assert "BANK" in kept and "REIT" in kept  # financials/REITs: distress screens suppressed
+    assert "INDU" in out  # non-financial: screened on low CR / high D/E
+
+
 # --------------------------------------------------------------------------- #
 # SELL / KEEP classification
 # --------------------------------------------------------------------------- #
 
 
-def test_classification_bottom_dataless_ineligible_sold_middling_kept():
+def test_classification_sells_only_eligible_weak_holds_missing_data():
+    """SELL only a genuinely-eligible bottom-percentile conviction; HOLD-with-flag any
+    holding un-scoreable from missing data (ineligible / dataless). Absence of data is
+    never a sell signal (a value-trap, a POSITIVE signal, is covered separately)."""
     _tks, _convs, sc = _universe20()
-    # An ineligible held name mirrors reality: eligible=False AND conviction NaN.
+    # An ineligible held name mirrors reality: eligible=False AND conviction NaN
+    # (missing data, NOT a value-trap).
     sc = pd.concat([sc, _scored(["INELIG"], [np.nan], eligible=[False])])
     current = pd.Series(
         {"U00": 0.2, "U10": 0.2, "U19": 0.2, "INELIG": 0.2, "ZZZ": 0.2}
@@ -59,13 +113,13 @@ def test_classification_bottom_dataless_ineligible_sold_middling_kept():
     d = res["diagnostics"]
     w = res["weights"]
 
-    assert set(d["sold"]) == {"U19", "INELIG", "ZZZ"}  # bottom + ineligible + dataless
-    assert set(d["kept"]) == {"U00", "U10"}  # strong + middling holdings retained
-    assert d["n_sell"] == 3 and d["n_keep"] == 2
-    for t in ("U19", "INELIG", "ZZZ"):
-        assert float(w.get(t, 0.0)) == 0.0  # sold names freed from the book
-    for t in ("U00", "U10"):
-        assert t in w.index and w[t] > 0.0
+    assert set(d["sold"]) == {"U19"}  # only the eligible bottom-percentile holding
+    assert set(d["kept"]) == {"U00", "U10", "INELIG", "ZZZ"}  # missing-data HELD, not dumped
+    assert d["n_sell"] == 1 and d["n_keep"] == 4
+    assert set(d["held_unscored"]) == {"INELIG", "ZZZ"}  # surfaced for manual review
+    assert float(w.get("U19", 0.0)) == 0.0  # the sold name is freed from the book
+    for t in ("U00", "U10", "INELIG", "ZZZ"):
+        assert t in w.index and w[t] > 0.0  # every kept holding (incl. flagged) stays
 
     # Thresholds are percentiles of the ELIGIBLE universe (INELIG's NaN excluded).
     elig_conv = pd.to_numeric(sc.loc[sc["eligible"], "conviction"], errors="coerce").dropna()

@@ -93,7 +93,8 @@ MONITORED = {  # shadow-logged + backtested, ZERO conviction
     "price_perf": "≈ momentum (ρ 0.95) — shown as context, double-count avoided",
 }
 DISCARDED = {
-    "pe_forward": "LEVEL near-dup of trailing P/E (ρ 0.75, ≈0 IC) — but its forward info is now captured by the earn_trajectory (PET/PEF) spread, which IS scored (β-neutral t 2.17)",
+    # NOTE: pe_forward is NOT discarded — it is a scored value-recipe member (Group A/B/C)
+    # and is rendered under the sector-conditional value block above.
     "target_dispersion": "live-fetched, non-point-in-time — removed",
     "roa": "retired for the interim quality set (ROE + FCF + GP/assets)",
     "gross_margin": "per-sales margin; superseded by GP/assets (now scored)",

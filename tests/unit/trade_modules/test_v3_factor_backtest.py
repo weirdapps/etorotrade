@@ -54,7 +54,8 @@ def test_summarize_ic():
 
 
 def test_is_active_flags_discarded_factors():
-    assert is_active("pe_trailing") is True  # in the value cluster
+    assert is_active("pe_forward") is True  # in the value cluster (recipe metric)
+    assert is_active("pe_trailing") is False  # discarded 2026-07-21 (replaced by pe_forward)
     assert is_active("roe") is True
     assert is_active("upside") is False  # discarded
     assert is_active("buy_pct") is False  # discarded
