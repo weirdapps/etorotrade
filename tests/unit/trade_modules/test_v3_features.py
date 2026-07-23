@@ -265,6 +265,116 @@ def test_enrich_without_sector_map_is_unchanged(tmp_path):
     assert pd.isna(feats.loc["ZZZ", "sector"])
 
 
+# --- ticker-key reconciliation (cross-listing) ------------------------------ #
+_BASE_ROW = {
+    "TKR": "AAPL",
+    "NAME": "APPLE INC",
+    "CAP": "3.5T",
+    "PRC": "200.00",
+    "TGT": "240.00",
+    "UP%": "20.0%",
+    "#T": "30",
+    "%B": "78%",
+    "#A": "30",
+    "AM": "5",
+    "A": "A",
+    "EXR": "18.8%",
+    "B": "1.2",
+    "52W": "95",
+    "2H": "Y",
+    "PET": "28.5",
+    "PEF": "25.0",
+    "P/S": "7.0",
+    "PEG": "2.1",
+    "DV": "0.5%",
+    "SI": "1.1",
+    "EG": "12.0",
+    "PP": "15.3",
+    "ROE": "45.0",
+    "DE": "120.0",
+    "FCF": "3.9%",
+    "ERN": "07/31",
+    "SZ": "50M",
+    "BS": "B",
+    "SIGNAL_TRACK": "momentum",
+    "SIGNAL_HORIZON": "30",
+}
+
+
+def _row(**over):
+    r = dict(_BASE_ROW)
+    r.update(over)
+    return r
+
+
+def _write_rows(tmp_path, rows):
+    df = pd.DataFrame(rows)[FULL_COLS]
+    p = tmp_path / "u.csv"
+    df.to_csv(p, index=False)
+    return str(p)
+
+
+def _native_only(tickers, csv):
+    """enrich with no network: isolates the native (CSV) join."""
+    return enrich_features(
+        tickers,
+        csv,
+        info_fetch=lambda t: {},
+        price_fetch=lambda t, period="2y", **_kw: pd.DataFrame(),
+        accruals_fetch=lambda t: {},
+    )
+
+
+def test_enrich_resolves_held_ticker_under_aliased_csv_key(tmp_path):
+    """BUG: the account holds bare NVDA, but the signal CSV lists NVIDIA only as
+    NVDA.EUR. The native join must resolve NVDA -> NVDA.EUR so price/cap/factors are
+    recovered; otherwise NVDA is all-NaN -> ineligible -> spuriously SOLD (~9% of NAV)."""
+    csv = _write_rows(
+        tmp_path,
+        [
+            _row(),  # AAPL: normal exact-match row
+            _row(
+                TKR="NVDA.EUR",
+                NAME="NVIDIA CORP",
+                CAP="5.1T",
+                PRC="180.00",
+                PET="55.0",
+                PEF="45.0",
+                ROE="115.0",
+            ),
+        ],
+    )
+    feats = _native_only(["NVDA"], csv)
+    assert "NVDA" in feats.index
+    assert feats.loc["NVDA", "price"] == 180.0  # recovered from the NVDA.EUR row
+    assert feats.loc["NVDA", "cap"] > 1e12  # company-level cap recovered (not NaN)
+    assert feats.loc["NVDA", "pe_trailing"] == 55.0  # native factor recovered
+
+
+def test_enrich_reconciles_venue_and_currency_aliases(tmp_path):
+    """T.US<->T, GILD<->GILD.L, SBMO.NV<->SBMO.AS all resolve by underlying root."""
+    csv = _write_rows(
+        tmp_path,
+        [
+            _row(TKR="T", NAME="AT&T", PRC="22.00", PET="9.0"),  # held as T.US
+            _row(TKR="GILD.L", NAME="GILEAD", PRC="88.00", PET="13.0"),  # held as GILD
+            _row(TKR="SBMO.AS", NAME="SBM OFFSHORE", PRC="16.00", PET="7.0"),  # held as SBMO.NV
+        ],
+    )
+    feats = _native_only(["T.US", "GILD", "SBMO.NV"], csv)
+    assert feats.loc["T.US", "price"] == 22.0
+    assert feats.loc["GILD", "price"] == 88.0
+    assert feats.loc["SBMO.NV", "price"] == 16.0
+
+
+def test_enrich_does_not_merge_distinct_class_shares(tmp_path):
+    """Safety: a class-share suffix (BRK.B) is NOT stripped, so it never wrong-matches
+    BRK.A; an unresolved held key stays NaN (to be HOLD-flagged, never mis-priced)."""
+    csv = _write_rows(tmp_path, [_row(TKR="BRK.A", NAME="BERKSHIRE A", PRC="600000.0")])
+    feats = _native_only(["BRK.B"], csv)
+    assert pd.isna(feats.loc["BRK.B", "price"])  # no accidental A<->B merge
+
+
 def test_frame_indexed_by_ticker_with_all_tickers(tmp_path):
     feats = _run(tmp_path)
     assert feats.index.name == "ticker"

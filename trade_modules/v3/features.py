@@ -391,6 +391,120 @@ def _price_factors(prices: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
     return out
 
 
+# --- cross-listing ticker reconciliation ---------------------------------- #
+# An account/holding key (from the eToro account API: NVDA, GILD, T.US, SBMO.NV)
+# can differ from the signal-CSV key (NVDA.EUR, GILD.L, T, SBMO.AS). Native
+# price/cap/factors come only from the CSV, so an unmatched key NaNs the whole
+# row -> the name is ineligible -> spuriously SOLD. We resolve a target ticker to
+# its CSV row by UNDERLYING-COMPANY ROOT, but only on a UNIQUE match, so an
+# ambiguous or class-share ticker is never wrong-matched (it stays NaN and is
+# HOLD-flagged downstream, never mis-priced).
+_VENUE_SUFFIXES = frozenset(
+    {
+        # currency / price-unit lines eToro appends
+        "EUR",
+        "USD",
+        "GBP",
+        "GBX",
+        "CHF",
+        "JPY",
+        "HKD",
+        "SEK",
+        "NOK",
+        "DKK",
+        "CAD",
+        "AUD",
+        "SGD",
+        "PLN",
+        "ZAR",
+        "INR",
+        "KRW",
+        "TWD",
+        "CNY",
+        "ILS",
+        "TRY",
+        "AED",
+        # exchange venues (eToro / Yahoo suffixes)
+        "US",
+        "L",
+        "LN",
+        "NV",
+        "AS",
+        "IM",
+        "MI",
+        "DE",
+        "PA",
+        "MC",
+        "SW",
+        "CH",
+        "ST",
+        "OL",
+        "CO",
+        "HE",
+        "BR",
+        "VI",
+        "LS",
+        "IR",
+        "TO",
+        "AX",
+        "NZ",
+        "SI",
+        "HK",
+        "T",
+        "TW",
+        "KS",
+        "KQ",
+        "SR",
+        "SA",
+        "MX",
+        "JK",
+        "BK",
+        "F",
+        "BE",
+        "DU",
+        "HM",
+        "MU",
+        "SG",
+    }
+)
+
+
+def _underlying_root(ticker: str) -> str:
+    """Strip trailing exchange/currency suffixes to the underlying-company root.
+
+    ``NVDA.EUR`` -> ``NVDA``, ``T.US`` -> ``T``, ``SBMO.AS`` -> ``SBMO``,
+    ``KSP.L.GBX`` -> ``KSP``. Class-share suffixes are preserved (``BRK.B`` stays
+    ``BRK.B`` because ``B`` is not a venue token), so distinct share classes never
+    collapse. Never strips below the first segment.
+    """
+    parts = str(ticker).upper().split(".")
+    while len(parts) > 1 and parts[-1] in _VENUE_SUFFIXES:
+        parts = parts[:-1]
+    return ".".join(parts)
+
+
+def _resolve_csv_keys(raw_index, tickers) -> dict:
+    """Map each target ticker to its signal-CSV row key.
+
+    Exact key wins; otherwise a target resolves to a CSV key with the same
+    underlying root — but ONLY when that root maps to exactly one CSV key
+    (ambiguous roots are left unresolved). Unresolved targets map to themselves
+    (-> a NaN native row -> HOLD-flagged downstream, never a wrong match).
+    """
+    keys = [str(k) for k in raw_index]
+    exact = set(keys)
+    counts: dict[str, int] = {}
+    for k in keys:
+        r = _underlying_root(k)
+        counts[r] = counts.get(r, 0) + 1
+    root_to_key = {_underlying_root(k): k for k in keys if counts[_underlying_root(k)] == 1}
+    out: dict[str, str] = {}
+    for t in tickers:
+        ts = str(t)
+        out[ts] = ts if ts in exact else root_to_key.get(_underlying_root(ts), ts)
+    return out
+
+
 def enrich_features(
     tickers,
     etoro_csv_path,
@@ -446,7 +560,12 @@ def enrich_features(
     native["cap"] = native["cap"] * native.index.to_series().map(_usd_rate_for)
     for col, feat in _NATIVE_NUM.items():
         native[feat] = _num(raw[col]) if col in raw.columns else float("nan")
-    native = native.reindex(tickers)
+    # Resolve held/target keys to their CSV row (exact, else unique underlying-root
+    # match) so a cross-listing label mismatch (NVDA vs NVDA.EUR) no longer NaNs the
+    # row. Unresolved targets stay NaN (HOLD-flagged downstream, never mis-priced).
+    _csv_key = _resolve_csv_keys(native.index, tickers)
+    native = native.reindex([_csv_key[str(t)] for t in tickers])
+    native.index = [str(t) for t in tickers]
 
     # --- (2) added metrics from yfinance .info ---
     info = info_fetch(tickers) or {}

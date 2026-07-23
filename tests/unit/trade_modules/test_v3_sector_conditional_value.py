@@ -62,7 +62,7 @@ def test_group_A_value_ignores_pb():
     idx = ["X", "Y"]
     df = _base(idx)
     df["sector"] = ["Industrials", "Industrials"]
-    df["pe_trailing"] = [10.0, 10.0]  # equal earnings valuation
+    df["pe_forward"] = [10.0, 10.0]  # equal earnings valuation (group-A recipe metric)
     df["pb"] = [0.5, 5.0]  # very different book valuation -> must not matter in A
     s = compute_scores(df, sector_neutral=False)
     assert s.loc["X", "value_z"] == pytest.approx(s.loc["Y", "value_z"])
@@ -83,14 +83,14 @@ def test_group_C_value_multiplier_reduces_conviction():
     """Group C halves the value cluster's weight in conviction.
 
     A_NAME (Industrials/A) and C_NAME (Technology/C) share an identical value_z
-    (only ev_ebitda present, which sits in both recipes -> value_z = ev_ebitda_z)
+    (only P/S present, which sits in BOTH the A and C recipes -> value_z = ps_sector_z)
     and an identical, present quality_z. The ONLY difference is the Group-C value
     multiplier, so value lifts A_NAME's conviction more than C_NAME's.
     """
     idx = ["A_NAME", "C_NAME", "F1", "F2"]
     df = _base(idx)
     df["sector"] = ["Industrials", "Technology", "Industrials", "Technology"]
-    df["ev_ebitda"] = [5.0, 5.0, 20.0, 20.0]  # A_NAME & C_NAME cheap; fillers rich
+    df["ps_sector"] = [5.0, 5.0, 20.0, 20.0]  # A_NAME & C_NAME cheap; fillers rich
     df["roe"] = [5.0, 5.0, 5.0, 5.0]  # equal quality, present for all
     s = compute_scores(df, sector_neutral=False)
     assert s.loc["A_NAME", "value_z"] == pytest.approx(s.loc["C_NAME", "value_z"])
