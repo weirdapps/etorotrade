@@ -140,6 +140,39 @@ def test_value_trap_gate_excludes_forward_pe_far_above_trailing():
     assert pd.isna(scores.loc["TRAP", "rank"])
 
 
+def test_negative_pe_forward_not_scored_as_cheap():
+    """Owner 2026-07-23: a NEGATIVE forward P/E (loss expected) must NOT rank as the
+    'cheapest' value. Non-positive valuation multiples are cleaned to NaN before scoring,
+    so a loss-maker is UNSCORED on the P/E axis, not treated as an infinitely-low multiple
+    that its low-is-good direction would flip into the best score."""
+    idx = ["LOSS", "CHEAP", "RICH"]
+    df = _base(idx)
+    df["sector"] = ["Industrials"] * 3  # Group A value recipe -> pe_forward is scored
+    df["pe_forward"] = [-10.0, 5.0, 50.0]
+    s = compute_scores(df, sector_neutral=False)
+    assert pd.isna(s.loc["LOSS", "value_z"])  # negative fwd P/E -> unscored, NOT best
+    assert s.loc["CHEAP", "value_z"] > s.loc["RICH", "value_z"]
+
+
+def test_forward_loss_is_ineligible_value_trap():
+    """Owner 2026-07-23: profitable trailing but NON-positive forward earnings (PET>0,
+    PEF<=0) is the extreme value-trap the PEF/PET ratio can't express (ratio = NaN) ->
+    INELIGIBLE. A both-positive forward-cheaper name stays eligible."""
+    idx = ["GOOD", "FWDLOSS"]
+    df = _base(idx)
+    df["quote_type"] = ["EQUITY", "EQUITY"]
+    df["price"] = [100.0, 100.0]
+    df["roe"] = [20.0, 20.0]
+    df["pct_52w_high"] = [0.8, 0.8]
+    df["mom_12_1"] = [0.1, 0.1]
+    df["realized_vol"] = [0.2, 0.2]
+    df["pe_trailing"] = [20.0, 20.0]
+    df["pe_forward"] = [15.0, -5.0]  # GOOD: forward cheaper; FWDLOSS: forward loss
+    s = compute_scores(df, sector_neutral=False)
+    assert bool(s.loc["GOOD", "eligible"]) is True
+    assert bool(s.loc["FWDLOSS", "eligible"]) is False
+
+
 def test_eligibility_excludes_non_equity_and_dataless():
     """With quote_type present, ETFs and dataless names drop out of the ranking."""
     idx = ["EQ1", "EQ2", "ETF1", "DATALESS"]

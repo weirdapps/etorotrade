@@ -329,6 +329,25 @@ _MIN_CLUSTERS = 3
 # Names with a missing PET or PEF (NaN trajectory) are never gated.
 _TRAP_MAX_FWD_TTM = 1.10  # forward P/E may not exceed 1.10x trailing (= PEF/PET ceiling)
 
+# Valuation multiples where a NON-positive value is meaningless as "cheap": a negative or
+# zero P/E / P/B / EV-EBITDA is a loss-maker or negative book, NOT a bargain. Cleaned to NaN
+# before scoring so their low-is-good direction can never rank them as the cheapest. Owner
+# 2026-07-23 (the PEF/PET rework surfaced negative forward P/Es scoring as ultra-cheap).
+_POSITIVE_MULTIPLES = frozenset({"pe_trailing", "pe_forward", "ps_sector", "pb", "ev_ebitda"})
+
+
+def _fwd_loss_trap(out: pd.DataFrame) -> pd.Series:
+    """True where trailing earnings are POSITIVE but forward earnings are NON-positive
+    (profitable today, a loss expected). The extreme value-trap the PEF/PET ratio cannot
+    express — ``earn_trajectory`` is NaN when PEF<=0 — so it is read from the raw signs.
+    Owner 2026-07-23: forward earnings turning negative is the opposite of 'price lagging
+    RISING earnings', so such a name is made ineligible (and a held one is sold)."""
+    if "pe_trailing" not in out.columns or "pe_forward" not in out.columns:
+        return pd.Series(False, index=out.index)
+    pet = pd.to_numeric(out["pe_trailing"], errors="coerce")
+    pef = pd.to_numeric(out["pe_forward"], errors="coerce")
+    return (pet > 0) & (pef <= 0)  # NaN on either side -> False (not a trap)
+
 
 def _rank_z(s: pd.Series) -> pd.Series:
     """Rank-normal (van der Waerden) cross-sectional score.
@@ -444,6 +463,9 @@ def _eligibility(out: pd.DataFrame) -> pd.Series:
     if "earn_trajectory" in out.columns:
         traj = pd.to_numeric(out["earn_trajectory"], errors="coerce")
         ok &= ~(traj > _TRAP_MAX_FWD_TTM)  # NaN trajectory (missing PET/PEF) never gated
+    # Forward-loss trap: profitable now but forward earnings expected NON-positive (owner
+    # 2026-07-23) — the ratio is NaN there, so gate on the raw PET>0 & PEF<=0 signs.
+    ok &= ~_fwd_loss_trap(out)
     return ok.fillna(False).astype(bool)
 
 
@@ -488,7 +510,13 @@ def compute_scores(
     for m in metrics_needing_z:
         if m not in out.columns:
             continue
-        z = _rank_z(out[m]) * DIRECTION.get(m, 1)
+        raw = out[m]
+        if m in _POSITIVE_MULTIPLES:
+            # A non-positive valuation multiple = a loss-maker / negative book, NOT cheap.
+            # Exclude it so DIRECTION -1 can't flip it into the best (cheapest) score.
+            raw = pd.to_numeric(raw, errors="coerce")
+            raw = raw.where(raw > 0)
+        z = _rank_z(raw) * DIRECTION.get(m, 1)
         if sector_neutral:
             z = _sector_demean(z, sector)
         out[f"{m}_z"] = z
