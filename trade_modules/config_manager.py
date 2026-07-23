@@ -423,6 +423,13 @@ class ConfigManager:
                 #    (MSFT.EUR → MSFT ; KSP.L.GBX → KSP.L).
                 if suf in _CURRENCY_SUFFIXES:
                     return self.get_data_fetch_ticker(stem)
+                # 1b. eToro .US US-listing marker: Yahoo uses the BARE US ticker (T.US → T,
+                #     AAPL.US → AAPL). Re-resolve the stem so a US class share still gets its
+                #     dash form (BRK.B.US → BRK.B → BRK-B). ADR overrides that map a .US line
+                #     to a foreign primary (e.g. JD.US → 9618.HK) win above via
+                #     data_fetch_substitutions, so they never reach this strip.
+                if suf == "US":
+                    return self.get_data_fetch_ticker(stem)
                 # 2. exchange-suffix remap (.NV→.AS, .IM→.MI, .LN→.L, .CH→.SW).
                 if suf in _YAHOO_SUFFIX_MAP:
                     return stem + "." + _YAHOO_SUFFIX_MAP[suf]
