@@ -32,6 +32,7 @@ from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
+from trade_modules.v3.combine import _TRAP_MIN_TRAJECTORY
 from trade_modules.v3.construct import (
     _norm_name,
     _root_of,
@@ -186,14 +187,28 @@ def _screen_buy_candidates(
         except (TypeError, ValueError):
             return float("nan")
 
+    # Banks/REITs run low current ratios + high leverage BY NATURE (deposits/regulatory
+    # capital are the business), so the current-ratio + D/E distress screens are
+    # suppressed for them (matches the taxonomy); short-interest / downgrade / value-trap
+    # screens still apply.
+    _fin_sectors = {"financial services", "real estate"}
+
+    def _sector(t: str) -> str:
+        if "sector" in scored.columns and t in scored.index and pd.notna(scored.at[t, "sector"]):
+            return str(scored.at[t, "sector"])
+        return ""
+
     kept: list[str] = []
     out: list[str] = []
     for t in cand_list:
         si, cr, de = _val(t, "short_interest"), _val(t, "current_ratio"), _val(t, "de")
         am, na, traj = _val(t, "analyst_mom"), _val(t, "n_analysts"), _val(t, "earn_trajectory")
+        is_fin = _sector(t).strip().lower() in _fin_sectors
         squeeze = max_short_interest is not None and pd.notna(si) and si > max_short_interest
-        illiquid = min_current_ratio is not None and pd.notna(cr) and cr < min_current_ratio
-        levered = max_de is not None and pd.notna(de) and de > max_de
+        illiquid = (
+            not is_fin and min_current_ratio is not None and pd.notna(cr) and cr < min_current_ratio
+        )
+        levered = not is_fin and max_de is not None and pd.notna(de) and de > max_de
         downgraded = (
             min_analyst_mom is not None
             and pd.notna(am)
@@ -421,16 +436,43 @@ def build_overlay(
 
     core_set = set(core_list or [])
 
+    # Value-trap = a POSITIVE deterioration signal: forward P/E materially above
+    # trailing (earn_trajectory < 1/1.10 => earnings expected to fall). A held trap is
+    # SOLD even though the eligibility gate marks it ineligible; MISSING data (no
+    # trajectory) is NOT a trap and must never trigger a sell.
+    _traj = (
+        pd.to_numeric(scored["earn_trajectory"], errors="coerce")
+        if (scored is not None and "earn_trajectory" in scored.columns)
+        else pd.Series(dtype=float)
+    )
+
+    def _is_value_trap(t: str) -> bool:
+        if t not in _traj.index:
+            return False
+        v = _traj.loc[t]
+        return bool(pd.notna(v) and float(v) < _TRAP_MIN_TRAJECTORY)
+
+    def _is_unscoreable(t: str) -> bool:
+        """Un-scoreable from MISSING DATA: dataless, NaN conviction, or ineligible.
+        The ABSENCE of a score is not a sell signal — such a name is HELD, not sold."""
+        if t not in conv_all.index:
+            return True  # dataless (absent from scored)
+        if pd.isna(conv_all.loc[t]):
+            return True  # ineligible names carry a NaN conviction
+        if t in elig_mask.index and not bool(elig_mask.loc[t]):
+            return True
+        return False
+
     def _is_weak(t: str) -> bool:
         if protect_core and t in core_set:
             return False  # AI core is the thesis sleeve; never sold when protected
-        if t not in conv_all.index:  # dataless (absent from scored)
-            return True
+        if _is_value_trap(t):
+            return True  # deterioration signal -> SELL (even if otherwise un-scoreable)
+        if _is_unscoreable(t):
+            # FIX (real-money): a data gap is NOT a sell signal. Un-scoreable held
+            # names are HELD-with-flag (surfaced as ``held_unscored``), never dumped.
+            return False
         c = conv_all.loc[t]
-        if pd.isna(c):  # ineligible names have a NaN conviction
-            return True
-        if t in elig_mask.index and not bool(elig_mask.loc[t]):
-            return True
         if sell_negative_noncore and t not in core_set and float(c) < noncore_sell_floor:
             return True  # owner rule: drop clearly-weak non-core names (deadband)
         if not np.isnan(sell_threshold) and float(c) <= sell_threshold:
@@ -440,6 +482,9 @@ def build_overlay(
     sold = [t for t in held if _is_weak(t)]
     sold_set = set(sold)
     kept = [t for t in held if t not in sold_set]
+    # Held names retained ONLY because they are un-scoreable from missing data (not a
+    # value-trap). Surfaced so the owner can manually review, never silently sold.
+    held_unscored = [t for t in kept if _is_unscoreable(t) and not _is_value_trap(t)]
     freed_weight = float(sum(cur[t] for t in sold))
     keep_sum = float(sum(cur[t] for t in kept))
 
@@ -618,6 +663,7 @@ def build_overlay(
         "sold": sold,
         "kept": kept,
         "bought": bought,
+        "held_unscored": held_unscored,
         "screened_out": screened_out,
         "gate": gate_diag,
         "core_floor_applied": core_floor_applied,

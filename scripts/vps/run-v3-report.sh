@@ -36,8 +36,16 @@ git pull --ff-only --quiet 2>/dev/null \
 #    market cap (held names >= $1T — the true giants), NOT a hardcoded ticker list, so
 #    the floor generalizes with the book. $1T (vs the $200B mega tier) = fewer, larger
 #    core names, each with room to run to the 10% cap (banks/mid-mega left to the model).
-V3_FLOOR_CORE=1 V3_MEGA_CORE_MIN_CAP=1e12 V3_NONCORE_SELL_FLOOR=-0.5 V3_CAP_MODE=cap_ordered \
-V3_USD_BLOC_CAP=0.65 V3_VOL_CEILING=0.35 V3_USE_PRICE_STORE=1 \
+# RELAXED MEGA-CAP TIER, ONE MODEL (owner 2026-07-23): the >=$1T giants are the owner's
+# conviction core, held on view — NOT a separate sleeve. They get relaxed rules while
+# staying scored/reported in the single model:
+#   V3_PROTECT_CORE=1  -> never force-sold (relaxed; only an explicit owner sell reduces them)
+#   V3_FLOOR_CORE=1    -> floored at current weight (held, not trimmed by the ERC/vol lever)
+#   V3_CAP_MODE=cap_ordered -> the vol de-gross trims the SMALLEST-cap names first (giants last)
+# DD GUARD now BINDS on the rest: V3_VOL_CEILING 0.35 -> 0.20. When book vol exceeds 20%,
+# the gate de-grosses the NON-giant book first, disciplining risk while the giants run.
+V3_FLOOR_CORE=1 V3_PROTECT_CORE=1 V3_MEGA_CORE_MIN_CAP=1e12 V3_NONCORE_SELL_FLOOR=-0.5 V3_CAP_MODE=cap_ordered \
+V3_USD_BLOC_CAP=0.65 V3_VOL_CEILING=0.20 V3_USE_PRICE_STORE=1 \
   .venv/bin/python scripts/v3_overlay_report.py
 
 # 3) Email the scheduled Factor Snapshot. BODY = the compact Outlook-safe summary

@@ -134,6 +134,47 @@ def _estab_table(sf1: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(out, ignore_index=True).dropna(subset=["stab"]) if out else pd.DataFrame()
 
 
+_SEP_STORE = str(Path("~/.weirdapps-trading/v3_sep_monthly.parquet").expanduser())
+_MIN_SEP_MONTHS = 24  # per-ticker SEP coverage required before it is preferred
+
+
+def _load_sep_matrix():
+    """Month-end SEP split/div-adjusted close as a date×ticker matrix (or None).
+
+    SEP is the TRUE total-return price series (survivorship-clean, incl. delisted);
+    currently US-only + subscription-gated, so it is used where present and the
+    marketcap/shares proxy fills the rest.
+    """
+    if not Path(_SEP_STORE).exists():
+        return None
+    df = pd.read_parquet(_SEP_STORE)
+    if df.empty or not {"date", "ticker", "close"} <= set(df.columns):
+        return None
+    m = df.pivot_table(index="date", columns="ticker", values="close", aggfunc="last")
+    m.index = pd.to_datetime(m.index)
+    return m.sort_index()
+
+
+def _preferred_price(proxy, sep_px, min_months: int = _MIN_SEP_MONTHS):
+    """Return the price matrix used for forward returns.
+
+    Prefer the SEP split/div-adjusted price per-ticker where it has >= ``min_months``
+    of coverage — a TRUE price return, free of the share-count term in the
+    marketcap/shares proxy that mechanically couples the forward return to the
+    net_issuance / asset_growth factors (contaminating their measured IC). Otherwise
+    keep the proxy column. Applied per-ticker WHOLESALE (never mixed within a column)
+    so no split-point return corruption; SEP absent -> proxy unchanged.
+    """
+    if sep_px is None or getattr(sep_px, "empty", True):
+        return proxy
+    sep = sep_px.reindex(index=proxy.index, columns=proxy.columns)
+    price = proxy.copy()
+    covered = sep.notna().sum(axis=0) >= int(min_months)
+    for t in covered[covered].index:
+        price[t] = sep[t]
+    return price
+
+
 def main() -> None:
     if not Path(DAILY_STORE).exists():
         print(f"no DAILY store at {DAILY_STORE} — run v3_daily_update.py first")
@@ -156,6 +197,10 @@ def main() -> None:
         if not f.empty:
             shares.loc[T] = pd.to_numeric(f["sharesbas"], errors="coerce").reindex(mc.columns)
     price = mc / shares.replace(0.0, np.nan)
+    # Prefer TRUE SEP split/div-adjusted returns where covered: the mc/shares proxy's
+    # share term mechanically inflates net_issuance / asset_growth IC. Inert until the
+    # SEP store is backfilled (US-only, subscription-gated) -> proxy elsewhere.
+    price = _preferred_price(price, _load_sep_matrix())
     fwd_mat = price.shift(-1) / price - 1.0
     mret = price.pct_change(fill_method=None)
     mkt = mret.mean(axis=1)

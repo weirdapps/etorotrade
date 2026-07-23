@@ -90,10 +90,10 @@ TAX = [
     # ---- VALUE (incl QUALITY) ----
     (
         "VALUE (incl quality)",
-        "roa/roe",
+        "roe",
         "active",
         13,
-        "t4.01 — leverage-clean profitability level. SECTOR-CONDITIONAL: ROA default, ROE for financials/REITs (one slot; near-identical stats).",
+        "leverage-clean profitability level. NOTE: the engine scores ROE for ALL names; the sector-conditional ROA/ROE split is documented but NOT implemented (ROE-only today).",
     ),
     (
         "VALUE (incl quality)",
@@ -383,10 +383,10 @@ SIZING = (
 )
 CAPS = [
     ("Mega > $200B", "10%"),
-    ("Large $20-200B", "5%"),
+    ("Large $20-200B", "6%"),
     ("Mid $2-20B", "2%"),
-    ("Small $0.3-2B", "0.5%"),
-    ("Micro < $0.3B", "0.25%"),
+    ("Small $1-2B", "0.5%"),
+    ("Micro < $1B", "0.25%"),
 ]
 
 
@@ -455,6 +455,7 @@ code{{background:#f2f3f5;padding:1px 5px;border-radius:4px;font-size:11.5px}}
 <h1>v3 Master Factor Taxonomy — the decision table</h1>
 <div class="sub">{stamp} UTC · live ~$1.1M book · 6 dimensions × every metric × role × weight × 10yr evidence.
 Active (scored) Σ = <b>{tot}%</b>. <b>Weights frozen / earn-in — proposal for sign-off, not executed.</b><br>
+<b>Effective weights:</b> per-metric numbers are the evidence-ranked TARGET; the live engine (combine.py) applies each CLUSTER weight with an EQUAL MEAN of its metrics, so cluster totals match but the per-metric split is approximate, not executed as shown.<br>
 Roles: <span class="b" style="color:#0a7d33;background:#e5f6ea">active</span> scored ·
 <span class="b" style="color:#0a7d33;background:#e5f6ea">active*</span> sector-substitute ·
 <span class="b" style="color:#1d4ed8;background:#e7edfd">gate</span> eligibility screen ·
