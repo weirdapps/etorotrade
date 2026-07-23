@@ -619,6 +619,21 @@ def test_trajectory_guard_excludes_rising_forward_pe_buy():
     assert set(d["bought"]) == {"U01", "U02"}
 
 
+def test_forward_loss_held_name_is_sold_as_trap():
+    """Owner 2026-07-23: a HELD name that flips to a forward loss (PET>0, PEF<=0) trips the
+    value-trap SELL — even though earn_trajectory (PEF/PET) is NaN there (ratio needs PEF>0),
+    and even though its conviction is positive (it would otherwise be KEPT)."""
+    _tks, _convs, sc = _universe20()
+    sc["pe_trailing"] = 20.0
+    sc["pe_forward"] = 15.0
+    sc["earn_trajectory"] = 0.75  # forward-cheaper elsewhere
+    sc.loc["U05", "pe_forward"] = -3.0  # forward LOSS
+    sc.loc["U05", "earn_trajectory"] = np.nan  # ratio can't be computed
+    current = pd.Series({"U05": 0.2, "U19": 0.2})
+    d = build_overlay(sc, current, pd.DataFrame(), max_new=0)["diagnostics"]
+    assert "U05" in d["sold"]  # positive-conviction holding sold purely on the forward loss
+
+
 def test_fund_floor_weakest_first_spares_strong_satellites():
     """The core floor is funded by cutting the WEAKEST-conviction non-core names
     first (to zero if needed); a high-conviction satellite is spared."""

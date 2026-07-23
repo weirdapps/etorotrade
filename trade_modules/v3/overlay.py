@@ -32,7 +32,7 @@ from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
-from trade_modules.v3.combine import _TRAP_MAX_FWD_TTM
+from trade_modules.v3.combine import _TRAP_MAX_FWD_TTM, _fwd_loss_trap
 from trade_modules.v3.construct import (
     _norm_name,
     _root_of,
@@ -445,8 +445,13 @@ def build_overlay(
         if (scored is not None and "earn_trajectory" in scored.columns)
         else pd.Series(dtype=float)
     )
+    # Forward-loss trap (owner 2026-07-23): profitable now but forward earnings expected
+    # non-positive (PET>0, PEF<=0) — a trap the PEF/PET ratio can't express (NaN when PEF<=0).
+    _fwd_loss = _fwd_loss_trap(scored) if scored is not None else pd.Series(dtype=bool)
 
     def _is_value_trap(t: str) -> bool:
+        if t in _fwd_loss.index and bool(_fwd_loss.loc[t]):
+            return True  # profitable -> forward loss: the extreme deterioration case
         if t not in _traj.index:
             return False
         v = _traj.loc[t]
