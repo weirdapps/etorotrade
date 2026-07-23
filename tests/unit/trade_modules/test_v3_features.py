@@ -447,10 +447,11 @@ def test_percent_and_numeric_coercion(tmp_path):
 
 
 def test_earn_trajectory_math(tmp_path):
-    """earn_trajectory = trailing/forward P/E (>1 = forward cheaper = earnings rising)."""
+    """earn_trajectory = forward/trailing P/E (PEF/PET, owner 2026-07-23): <1 = forward
+    cheaper = earnings expected to RISE (direction -1, smaller is better)."""
     feats = _run(tmp_path)
-    assert abs(feats.loc["AAPL", "earn_trajectory"] - 28.5 / 25.0) < 1e-9
-    assert abs(feats.loc["MSFT", "earn_trajectory"] - 35.0 / 30.0) < 1e-9
+    assert abs(feats.loc["AAPL", "earn_trajectory"] - 25.0 / 28.5) < 1e-9
+    assert abs(feats.loc["MSFT", "earn_trajectory"] - 30.0 / 35.0) < 1e-9
 
 
 def test_target_dispersion_math(tmp_path):

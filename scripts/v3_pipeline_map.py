@@ -63,7 +63,7 @@ LABEL = {
     "gp_assets": "Gross profit / assets",
     "sue": "Earnings surprise (SUE)",
     "asset_growth": "Asset growth (CMA)",
-    "earn_trajectory": "Earnings trajectory (PET/PEF)",
+    "earn_trajectory": "Earnings trajectory (PEF/PET)",
 }
 _DIRTXT = {1: "high = good", -1: "low = good"}
 

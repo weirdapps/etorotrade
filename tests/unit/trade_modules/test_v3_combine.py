@@ -116,9 +116,9 @@ def test_no_quote_type_column_means_all_eligible():
 
 
 def test_value_trap_gate_excludes_forward_pe_far_above_trailing():
-    """Owner rule (2026-07-20): forward P/E > 1.10x trailing (earn_trajectory < 1/1.10)
-    = value trap -> INELIGIBLE, so a trap never surfaces as a BUY and a held trap trips
-    the overlay's weak-name SELL. Names at/below the threshold stay eligible."""
+    """Owner rule: forward P/E > 1.10x trailing (earn_trajectory = PEF/PET > 1.10) = value
+    trap -> INELIGIBLE, so a trap never surfaces as a BUY and a held trap trips the overlay's
+    weak-name SELL. Names at/below the threshold stay eligible."""
     idx = ["GOOD", "FLAT", "TRAP"]
     df = _base(idx)
     df["quote_type"] = ["EQUITY", "EQUITY", "EQUITY"]
@@ -127,9 +127,9 @@ def test_value_trap_gate_excludes_forward_pe_far_above_trailing():
     df["roe"] = [30.0, 20.0, 25.0]
     df["mom_12_1"] = [0.20, 0.15, 0.10]
     df["realized_vol"] = [0.20, 0.22, 0.25]
-    # earn_trajectory = PET/PEF: GOOD 1.11 (forward cheaper), FLAT 1.0 (=trailing, not a
-    # trap), TRAP 3.2/46 = 0.07 (forward 14x trailing = earnings collapsing).
-    df["earn_trajectory"] = [1.11, 1.0, 3.2 / 46.0]
+    # earn_trajectory = PEF/PET: GOOD 0.90 (forward cheaper), FLAT 1.0 (=trailing, not a
+    # trap), TRAP 46/3.2 = 14.4 (forward 14x trailing = earnings collapsing).
+    df["earn_trajectory"] = [0.90, 1.0, 46.0 / 3.2]
 
     scores = compute_scores(df, sector_neutral=False)
 
@@ -372,20 +372,20 @@ def test_growth_cluster_registered_direction_positive():
     ]
 
 
-def test_trajectory_cluster_registered_direction_positive():
-    """Earnings-trajectory (PET/PEF) is a scored cluster: high ratio = forward cheaper =
-    earnings expected to rise, DIRECTION +1. Recovers the PET->PEF info dropped when
-    pe_forward left scoring; strongest survivorship-clean signal (beta-neutral t 2.17)."""
+def test_trajectory_cluster_registered_direction_negative():
+    """Earnings-trajectory (PEF/PET, owner 2026-07-23): LOW ratio = forward cheaper =
+    earnings expected to rise, DIRECTION -1 (smaller is better). Inverted from the old
+    PET/PEF so "< 1 is good"; strongest survivorship-clean signal (beta-neutral t 2.17)."""
     from trade_modules.v3.combine import CLUSTERS, DIRECTION
 
     assert CLUSTERS["trajectory_z"] == ["earn_trajectory"]
-    assert DIRECTION["earn_trajectory"] == +1
+    assert DIRECTION["earn_trajectory"] == -1
 
 
 def test_trajectory_z_rising_earnings_ranks_above_falling():
-    """High PET/PEF (earnings rising) ranks above a falling-earnings peer (kept, +1)."""
+    """Low PEF/PET (earnings rising, forward cheaper) ranks above a falling-earnings peer."""
     df = _base(["RISING", "FLAT", "FALLING"])
-    df["earn_trajectory"] = [2.0, 1.0, 0.5]  # PET/PEF: >1 rising, <1 falling
+    df["earn_trajectory"] = [0.5, 1.0, 2.0]  # PEF/PET: <1 rising (fwd cheaper), >1 falling
     scores = compute_scores(df, sector_neutral=False)
     assert scores.loc["RISING", "trajectory_z"] > scores.loc["FLAT", "trajectory_z"]
     assert scores.loc["FLAT", "trajectory_z"] > scores.loc["FALLING", "trajectory_z"]
@@ -488,20 +488,14 @@ def test_backward_compat_none_equals_explicit_default_weights():
     df["roe"] = [40.0, 25.0, 15.0, 5.0]
     df["pct_52w_high"] = [0.30, 0.10, -0.05, -0.20]
 
+    from trade_modules.v3.combine import CLUSTER_WEIGHTS
+
     default = compute_scores(df, sector_neutral=False)
     explicit = compute_scores(
         df,
         sector_neutral=False,
-        cluster_weights={
-            "value": 0.16,
-            "quality": 0.42,
-            "momentum": 0.14,
-            "growth": 0.12,
-            "pead": 0.06,
-            "trajectory": 0.05,
-            "strength": 0.05,
-            "lowvol": 0.00,
-        },
+        # the default expressed with short keys — reproduces None exactly (drift-proof).
+        cluster_weights={c[:-2]: w for c, w in CLUSTER_WEIGHTS.items()},
     )
     assert np.allclose(
         default["conviction"].to_numpy(dtype=float),
@@ -575,18 +569,20 @@ def test_quality_is_roe_fcf_gp_assets():
             assert dead not in members, f"{dead} must not be scored in quality"
 
 
-def test_master_taxonomy_weights_2026_07_21():
-    """Master-taxonomy cluster weights (owner-locked 2026-07-21): quality-led (absorbs
-    net_issuance t2.95), low-vol -> 0 (beta/realized_vol moved to SIZING, not scored alpha),
-    value = P/S+P/B+pe_forward, growth = earn_growth+earn_stability above the analyst earn-in
-    sleeve, PEAD + trajectory retained. Value+Quality within the 0.60 cap; sum = 1."""
+def test_master_taxonomy_weights_2026_07_23():
+    """Owner taxonomy (2026-07-23), DERIVED from METRIC_WEIGHTS: quality-led 0.25 (ROE the
+    0.10 lead), SUE + PEF/PET the raised expectation signals (0.15 each), analyst_mom /
+    momentum / growth 0.10, value 0.15, low-vol -> 0 (sizing). V+Q within the 0.60 cap; Σ=1."""
     from trade_modules.v3.combine import CLUSTER_WEIGHTS as w
 
     assert w["quality_z"] == max(w.values()), "quality is the evidence leader"
-    assert w["pead_z"] > 0 and w["trajectory_z"] > 0, "PEAD + trajectory participate"
+    assert w["quality_z"] == pytest.approx(0.25)
+    assert w["pead_z"] == pytest.approx(0.15) and w["trajectory_z"] == pytest.approx(0.15)
+    assert w["momentum_z"] == pytest.approx(0.10) and w["strength_z"] == pytest.approx(0.10)
+    assert w["growth_z"] == pytest.approx(0.10) and w["value_z"] == pytest.approx(0.15)
     assert w["lowvol_z"] == 0.0, "low-vol -> 0 (moved to sizing, not alpha)"
     assert (w["value_z"] + w["quality_z"]) <= 0.60 + 1e-9, "value+quality within the 0.60 cap"
-    assert w["growth_z"] > w["strength_z"], "growth satellite above the analyst earn-in sleeve"
+    assert sum(w.values()) == pytest.approx(1.0)
     assert abs(sum(w.values()) - 1.0) < 1e-9
 
 

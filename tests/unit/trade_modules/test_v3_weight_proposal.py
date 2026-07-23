@@ -16,19 +16,11 @@ def test_no_data_returns_prior():
         assert p[c] == pytest.approx(PRIOR[c])
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Real (pre-existing) inconsistency surfaced by the 2026-07-23 review: the deployed "
-        "CLUSTER_WEIGHTS put quality at 0.42, above the adaptive mechanism's 0.30 cap (and "
-        "several small clusters below its 0.10 floor), so the deployed prior is NOT "
-        "guardrail-valid and does not round-trip. This is the quality-over-concentration "
-        "finding; it resolves when the factor-set / cap decision is made — not a stale test."
-    ),
-    strict=True,
-)
 def test_real_cluster_weights_roundtrip_at_zero_data():
     # The deployed best-bet prior must be guardrail-valid: at n=0 the mechanism returns
-    # it unchanged (so deploying it == the mechanism's current proposal).
+    # it unchanged (so deploying it == the mechanism's current proposal). Resolved by the
+    # 2026-07-23 owner taxonomy: quality 0.42->0.25 (<= the 0.30 cap) and no cluster below
+    # its floor, so the deployed prior now round-trips exactly (was xfail'd before the fix).
     from trade_modules.v3.combine import CLUSTER_WEIGHTS
 
     p = propose_weights(dict(CLUSTER_WEIGHTS), ic={}, n={})
