@@ -208,13 +208,17 @@ def main() -> None:
                 zcols[feat] = z
                 _append_part(parts, feat, date, z, fwd, fwd_n, sec)
 
-        # earnings trajectory = trailing/forward P/E (>1 = forward cheaper = earnings
-        # expected to RISE; <1 = falling = value-trap). Recovers the PET->PEF info that
-        # was dropped when pe_forward left scoring; high is good (+1).
+        # earnings trajectory = forward/trailing P/E (PEF/PET, owner 2026-07-23): LOW =
+        # forward cheaper = earnings expected to RISE; high = value-trap. DIRECTION -1
+        # (smaller is better). The z is IDENTICAL to the old PET/PEF (reciprocal + sign
+        # cancel in rank-z), so the measured IC/t is unchanged — this only matches the
+        # engine's expression faithfully.
         if "PET" in panel.columns and "PEF" in panel.columns:
             pet, pef = _num(panel["PET"]), _num(panel["PEF"])
-            traj = (pet / pef).where((pet > 0) & (pef > 0))
-            ztraj = _sector_demean(_rank_z(traj), sec.reindex(traj.index))
+            traj = (pef / pet).where((pet > 0) & (pef > 0))
+            ztraj = _sector_demean(
+                _rank_z(traj) * DIRECTION["earn_trajectory"], sec.reindex(traj.index)
+            )
             zcols["earn_trajectory"] = ztraj
             _append_part(parts, "earn_trajectory", date, ztraj, fwd, fwd_n, sec)
 
@@ -339,7 +343,7 @@ _CLUSTER_LABEL = {
     "quality_z": "Quality",
     "momentum_z": "Momentum",
     "pead_z": "PEAD (earnings surprise)",
-    "trajectory_z": "Trajectory (PET/PEF)",
+    "trajectory_z": "Trajectory (PEF/PET)",
     "lowvol_z": "Low-vol",
     "strength_z": "Strength (analyst revisions)",
     "growth_z": "Growth",
@@ -387,7 +391,7 @@ _METRIC_DESC = {
     "ps_sector": "price ÷ sales — value for unprofitable / growth names",
     "peg": "P/E ÷ earnings growth — growth-adjusted value",
     "pe_forward": "price ÷ next-12m expected earnings",
-    "earn_trajectory": "trailing-P/E ÷ forward-P/E — >1 = earnings expected to RISE (value-trap guard)",
+    "earn_trajectory": "forward-P/E ÷ trailing-P/E — <1 = earnings expected to RISE (value-trap guard)",
     "roe": "net income ÷ shareholders' equity — return on equity",
     "roa": "net income ÷ total assets — return on assets",
     "gross_margin": "gross profit ÷ revenue",

@@ -54,10 +54,10 @@ DIRECTION = {
     # earnings surprise / PEAD + investment (2026-07-19)
     "sue": +1,  # standardized unexpected earnings (post-earnings drift; high is good)
     "asset_growth": -1,  # CMA / investment (low is good) — monitored, not scored
-    # earnings trajectory (2026-07-20): trailing/forward P/E ratio (high = forward cheaper
-    # = earnings expected to RISE; low = value-trap). The distinct PET->PEF information
-    # lost when raw pe_forward was pruned. Strongest survivorship-clean signal we found.
-    "earn_trajectory": +1,
+    # earnings trajectory (2026-07-23, owner: PEF/PET) = forward/trailing P/E ratio (LOW =
+    # forward cheaper = earnings expected to RISE; high = value-trap). Renamed+inverted from
+    # PET/PEF so "smaller is better" -> DIRECTION -1. Strongest survivorship-clean signal.
+    "earn_trajectory": -1,
     # net share issuance (2026-07-21): dilution bad / buyback good (Pontiff-Woodgate).
     "net_issuance": -1,
     # earnings stability (2026-07-21): low earnings coefficient-of-variation = QMJ 'safety'.
@@ -93,12 +93,12 @@ CLUSTERS = {
     # signal (beta-neutral IC t 2.06, hit 68%) + robust literature (Bernard-Thomas).
     # SUE = seasonal-random-walk standardized unexpected earnings, from SF1 actuals.
     "pead_z": ["sue"],
-    # Earnings trajectory (2026-07-20): PET/PEF = trailing/forward P/E ratio. Recovers
-    # the forward-looking information dropped when raw pe_forward was pruned (the LEVEL
-    # was a near-dup of trailing, zero IC; the SPREAD is not). Best clean signal on the
-    # panel: beta-neutral forward IC t 2.17, hit 80%, incremental to value+growth (FM
-    # t 1.71). Panel-only (Sharadar has no forward estimates) -> earn-in via the adaptive
-    # mechanism as forward IC accrues.
+    # Earnings trajectory (owner 2026-07-23): PEF/PET = forward/trailing P/E ratio (LOW =
+    # forward cheaper = earnings expected to RISE; DIRECTION -1). Recovers the forward-looking
+    # information dropped when raw pe_forward was pruned (the LEVEL was a near-dup of trailing,
+    # zero IC; the SPREAD is not). Best clean signal on the panel: beta-neutral forward IC
+    # t 2.17, hit 80%, incremental to value+growth (FM t 1.71). Panel-only (Sharadar has no
+    # forward estimates) -> earn-in via the adaptive mechanism as forward IC accrues.
     "trajectory_z": ["earn_trajectory"],
 }
 
@@ -146,42 +146,56 @@ VALUE_WEIGHT_MULT = {"A": 1.0, "B": 1.0, "C": 0.5}
 # Every metric that can appear in a value recipe needs a metric-z computed.
 _VALUE_CANDIDATES = sorted({m for r in VALUE_GROUP_RECIPES.values() for m in r})
 
-# FIX-NOW 2026-07-18 (D14/D6b/D11/D7): equal-risk core, NO discretionary tilt, and
-# NO Value+Quality cap-as-floor. Core (value/quality/momentum/lowvol) equal; growth a
-# reduced satellite; strength (analyst_mom only) a small cap. Sum = 1.0. Weight
-# ESTIMATION is frozen (no MVO/IC-fit on the ~5-mo panel — forecast-combination puzzle);
-# the ic_weights path stays available for the later sizing tier. (True equal-VOL
-# standardization of the cluster z's is a fast-follow refinement; this sets the
-# equal-risk nominal shares and removes the 0.55 VQ floor.)
-# BEST-BET PRIOR 2026-07-19 (grounded in our survivorship-clean backtest + literature,
-# Bayesian-anchored). Quality-led (GP/assets = best clean IC + Novy-Marx); value +
-# momentum held as durable decades-premia (regime-weak now, not chased-dropped); PEAD
-# added (best clean signal + robust); low-vol trimmed 0.21->0.10 (our clean data showed
-# its standalone alpha was a beta artifact -> risk-diversifier only); growth trimmed
-# (short-leg-of-value). CMA + accruals EXCLUDED (no clean alpha). The adaptive shrinkage
-# mechanism (v3/weight_proposal.py) proposes drift toward measured forward IC as data accrues.
-# 2026-07-20: earnings-trajectory (PET/PEF) added at 0.10 — the strongest clean signal on
-# the panel (beta-neutral t 2.17, hit 80%, incremental to value+growth). Funded by trimming
-# value/momentum 0.20->0.18, growth 0.08->0.05, strength 0.07->0.05, quality 0.25->0.24.
-# 2026-07-20 (C): analyst_mom (strength_z) upweighted 0.05->0.08 — β-neutral forward IC
-# t 2.36 on the panel, the 2nd-strongest clean signal after trajectory; kept modest (it is
-# a single noisy metric: raw IC ~0, hit 50%). Funded by growth 0.05->0.03 (theory-weak) +
-# low-vol 0.10->0.09 (risk-diversifier, not alpha). Upside/EXR stay MONITOR (zero β-alpha,
-# t -0.15) — a negative-upside BUY is often a right contrarian bet (see capitulation study).
-# 2026-07-21 (owner review): cluster weights re-derived as the SUM of the locked per-metric
-# weights per cluster (master taxonomy). Quality absorbs net_issuance (t2.95) + is the
-# strongest sleeve; value = P/S+P/B+pe_forward; growth = earn_growth+earn_stability; low-vol
-# → 0 (beta/realized_vol moved to SIZING, not alpha). Within-cluster is still ~equal-mean here
-# (a first-look approximation of the 13/13/9/7-type per-metric weights).
+# ---------------------------------------------------------------------------
+# Owner taxonomy (2026-07-23): per-metric conviction weights are the SINGLE SOURCE OF
+# TRUTH. Every scored metric carries an explicit GLOBAL weight here; the cluster weights
+# below are DERIVED as the sum of their members' weights, and the intra-cluster split (see
+# compute_scores) is these weights renormalized over the members PRESENT for a row. This
+# replaces the old equal-mean-within-cluster approximation, so a declared weight (e.g. ROE
+# at 0.10 = 2x the other quality metrics) is what the engine ACTUALLY applies.
+#
+# Value is the one COMPOSITE cluster: it carries a single cluster weight (_VALUE_WEIGHT) and
+# its internal split is sector-conditional (VALUE_GROUP_RECIPES), so it is not listed per
+# metric here. Low-vol (beta/realized_vol) is SIZING-only -> weight 0 (BAB: the low-vol
+# premium is a beta artifact — size on it, do not score alpha on it).
+#
+# History: quality-led best-bet prior (2026-07-19/21; GP/assets + net_issuance + PEAD +
+# trajectory the survivorship-clean leaders, low-vol -> sizing). 2026-07-23 owner rebalance:
+# quality 0.42->0.25 (ROE 0.10 kept as the quality lead, 2x the FCF/GP/net_issuance 0.05
+# each); SUE + PEF/PET raised to 0.15 (the two most robust expectation signals); analyst_mom
+# 0.10, momentum 0.10, growth 0.10, value 0.15. The adaptive shrinkage mechanism
+# (v3/weight_proposal.py) proposes drift toward measured forward IC as data accrues; these
+# remain a PRIOR, applied only by human decision.
+# ---------------------------------------------------------------------------
+METRIC_WEIGHTS: dict[str, float] = {
+    # quality (0.25): ROE leads at 2x the others
+    "roe": 0.10,
+    "fcf": 0.05,
+    "gp_assets": 0.05,
+    "net_issuance": 0.05,
+    # growth (0.10)
+    "earn_growth": 0.05,
+    "earn_stability": 0.05,
+    # momentum (0.10)
+    "pct_52w_high": 0.10,
+    # PEAD / earnings surprise (0.15)
+    "sue": 0.15,
+    # earnings trajectory PEF/PET (0.15)
+    "earn_trajectory": 0.15,
+    # analyst momentum (0.10)
+    "analyst_mom": 0.10,
+}
+_VALUE_WEIGHT = 0.15  # the composite value cluster (sector-conditional recipe)
+
+# Cluster weights are DERIVED: value = _VALUE_WEIGHT; every other cluster = the sum of its
+# members' METRIC_WEIGHTS (metrics absent from METRIC_WEIGHTS contribute 0 -> low-vol = 0).
 CLUSTER_WEIGHTS = {
-    "value_z": 0.16,
-    "quality_z": 0.42,
-    "momentum_z": 0.14,
-    "growth_z": 0.12,
-    "pead_z": 0.06,
-    "trajectory_z": 0.05,
-    "strength_z": 0.05,
-    "lowvol_z": 0.00,
+    cluster: (
+        _VALUE_WEIGHT
+        if cluster == "value_z"
+        else round(sum(METRIC_WEIGHTS.get(m, 0.0) for m in members), 10)
+    )
+    for cluster, members in CLUSTERS.items()
 }
 
 # The Value+Quality joint weight is capped here regardless of the weighting scheme.
@@ -307,14 +321,13 @@ _ELIG_CLUSTERS = [
 ]
 _MIN_CLUSTERS = 3
 
-# Value-trap gate (2026-07-20, owner rule): a forward P/E materially above trailing means
-# earnings are expected to FALL (a value trap / cyclical peak) — the trailing-cheap look is
-# a mirage. earn_trajectory = PET/PEF, so "forward > 1.10x trailing" is earn_trajectory <
-# 1/1.10. Trap names are made INELIGIBLE: they never surface as a new BUY, and a held trap
-# trips the overlay's weak-name SELL — so a collapsing-earnings name is never recommended
-# as attractive. Names with a missing PET or PEF (NaN trajectory) are never gated.
-_TRAP_MAX_FWD_TTM = 1.10
-_TRAP_MIN_TRAJECTORY = 1.0 / _TRAP_MAX_FWD_TTM
+# Value-trap gate (owner rule): a forward P/E materially above trailing means earnings are
+# expected to FALL (a value trap / cyclical peak) — the trailing-cheap look is a mirage.
+# earn_trajectory = PEF/PET, so "forward > 1.10x trailing" is earn_trajectory > 1.10. Trap
+# names are made INELIGIBLE: they never surface as a new BUY, and a held trap trips the
+# overlay's weak-name SELL — so a collapsing-earnings name is never recommended as attractive.
+# Names with a missing PET or PEF (NaN trajectory) are never gated.
+_TRAP_MAX_FWD_TTM = 1.10  # forward P/E may not exceed 1.10x trailing (= PEF/PET ceiling)
 
 
 def _rank_z(s: pd.Series) -> pd.Series:
@@ -427,10 +440,10 @@ def _eligibility(out: pd.DataFrame) -> pd.Series:
             ok &= pd.to_numeric(out[col], errors="coerce").notna()
     clusters_present = out[_ELIG_CLUSTERS].notna().sum(axis=1)
     ok &= clusters_present >= _MIN_CLUSTERS
-    # Value-trap gate: forward P/E > 1.10x trailing (earn_trajectory below 1/1.10).
+    # Value-trap gate: forward P/E > 1.10x trailing (earn_trajectory = PEF/PET above 1.10).
     if "earn_trajectory" in out.columns:
         traj = pd.to_numeric(out["earn_trajectory"], errors="coerce")
-        ok &= ~(traj < _TRAP_MIN_TRAJECTORY)  # NaN trajectory (missing PET/PEF) never gated
+        ok &= ~(traj > _TRAP_MAX_FWD_TTM)  # NaN trajectory (missing PET/PEF) never gated
     return ok.fillna(False).astype(bool)
 
 
@@ -480,12 +493,24 @@ def compute_scores(
             z = _sector_demean(z, sector)
         out[f"{m}_z"] = z
 
-    # Non-value clusters: cluster z = mean of member metric-z, skipping NaN.
+    # Non-value clusters: cluster z = METRIC_WEIGHTS-weighted mean of member metric-z,
+    # renormalized over the members PRESENT for each row (a missing metric is never a
+    # penalty; equal weights reproduce the plain mean). This is what makes the declared
+    # per-metric weights — e.g. ROE at 2x the other quality metrics — actually apply.
     for cluster, members in CLUSTERS.items():
         if cluster == "value_z":
             continue
         zcols = [f"{m}_z" for m in members if f"{m}_z" in out.columns]
-        out[cluster] = out[zcols].mean(axis=1, skipna=True) if zcols else np.nan
+        if not zcols:
+            out[cluster] = np.nan
+            continue
+        ws = np.array([METRIC_WEIGHTS.get(c[:-2], 1.0) for c in zcols], dtype=float)
+        sub = out[zcols]
+        wmat = pd.DataFrame(np.tile(ws, (len(sub), 1)), index=sub.index, columns=zcols).where(
+            sub.notna()
+        )
+        wsum = wmat.sum(axis=1)
+        out[cluster] = (sub * wmat).sum(axis=1) / wsum.where(wsum > 0)
 
     # Value cluster: sector-conditional recipe (banks->P/B, REITs->cash-flow,
     # tech->sales) instead of one uniform P/E + EV/EBITDA mean.

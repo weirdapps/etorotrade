@@ -50,7 +50,7 @@ from scripts.v3_full_report import (  # noqa: E402  (pure helpers, reused)
 from scripts.v3_portfolio import trend_regime  # noqa: E402  (pure, unit-tested)
 from trade_modules.riskfirst.fx import USD_BLOC, currency_of  # noqa: E402
 from trade_modules.v3.actions import build_actions  # noqa: E402
-from trade_modules.v3.combine import compute_scores  # noqa: E402
+from trade_modules.v3.combine import CLUSTER_WEIGHTS, compute_scores  # noqa: E402
 from trade_modules.v3.conditioning import resolve_deployment  # noqa: E402
 from trade_modules.v3.construct import mega_core_by_cap, region_of  # noqa: E402
 from trade_modules.v3.features import enrich_features  # noqa: E402
@@ -68,19 +68,11 @@ ETORO_CSV = "yahoofinance/output/etoro.csv"
 _OUT_DIR = os.path.expanduser(os.environ.get("V3_OUT_DIR", "~/Downloads"))
 PREVIEW_OUT = os.path.join(_OUT_DIR, "v3_overlay_preview.html")
 
-# 2026-07-21 (owner review): locked master-taxonomy cluster weights (sum of the per-metric
-# weights per cluster). Quality-led (absorbs net_issuance), value = P/S+P/B+pe_forward,
-# growth = earn_growth+earn_stability, low-vol → 0 (beta/realized_vol are SIZING, not alpha).
-BALANCED_WEIGHTS: dict[str, float] = {
-    "value": 0.16,
-    "quality": 0.42,
-    "momentum": 0.14,
-    "growth": 0.12,
-    "pead": 0.06,
-    "trajectory": 0.05,
-    "strength": 0.05,
-    "lowvol": 0.00,
-}
+# Owner taxonomy (2026-07-23): the LIVE cluster weights are DERIVED from the single source of
+# truth in combine.METRIC_WEIGHTS (via CLUSTER_WEIGHTS), expressed with short keys for the
+# overlay's explicit cluster_weights arg. Deriving here (not re-hardcoding) keeps the live
+# report in lockstep with the engine and the per-metric taxonomy — it can never drift.
+BALANCED_WEIGHTS: dict[str, float] = {c[:-2]: w for c, w in CLUSTER_WEIGHTS.items()}
 
 # The mega-cap "core" is derived at RUNTIME from market cap (>= the $200B mega tier)
 # via mega_core_by_cap() — NOT a hardcoded ticker list. Any holding qualifies for the

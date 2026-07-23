@@ -38,7 +38,7 @@ from scripts.v3_full_report import (  # noqa: E402
     resolve_current_weights,
 )
 from scripts.v3_portfolio import trend_regime  # noqa: E402
-from trade_modules.v3.combine import compute_scores  # noqa: E402
+from trade_modules.v3.combine import CLUSTER_WEIGHTS, compute_scores  # noqa: E402
 from trade_modules.v3.conditioning import resolve_deployment  # noqa: E402
 from trade_modules.v3.features import enrich_features  # noqa: E402
 from trade_modules.v3.fetch import robust_fetch_prices  # noqa: E402
@@ -49,14 +49,9 @@ PORTFOLIO_CSV = "yahoofinance/output/portfolio.csv"
 BUY_CSV = "yahoofinance/output/buy.csv"
 ETORO_CSV = "yahoofinance/output/etoro.csv"
 
-BALANCED_WEIGHTS: dict[str, float] = {
-    "value": 0.15,
-    "quality": 0.25,
-    "momentum": 0.25,
-    "growth": 0.15,
-    "lowvol": 0.12,
-    "strength": 0.08,
-}
+# Derived from the engine SSOT (combine.METRIC_WEIGHTS -> CLUSTER_WEIGHTS) so this analysis
+# tool never drifts from the live model (owner taxonomy 2026-07-23).
+BALANCED_WEIGHTS: dict[str, float] = {c[:-2]: w for c, w in CLUSTER_WEIGHTS.items()}
 
 MEGA_CORE: list[str] = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "AVGO", "TSM", "META"]
 

@@ -32,7 +32,7 @@ from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
-from trade_modules.v3.combine import _TRAP_MIN_TRAJECTORY
+from trade_modules.v3.combine import _TRAP_MAX_FWD_TTM
 from trade_modules.v3.construct import (
     _norm_name,
     _root_of,
@@ -157,7 +157,7 @@ def _screen_buy_candidates(
     max_de: float | None,
     min_analyst_mom: float | None = None,
     min_analyst_n: int = 4,
-    min_earn_trajectory: float | None = None,
+    max_earn_trajectory: float | None = None,
 ) -> tuple[list[str], list[str]]:
     """FIX-NOW 2026-07-18 (D4/D8): drop squeeze-risky / distressed names from the BUY
     pool. Applied to buys ONLY — never force-sells a holding.
@@ -170,9 +170,9 @@ def _screen_buy_candidates(
         Street is actively downgrading the name with meaningful coverage (owner
         2026-07-22). Asymmetric: we reject active downgrades but never *require*
         positive coverage (that would anti-select momentum winners);
-      * earn_trajectory (= trailing/forward P/E) < ``min_earn_trajectory`` — forward
-        P/E materially above trailing, i.e. earnings expected to FALL (value-trap tilt;
-        owner 2026-07-22). Use ``1/1.05`` to block a > 1.05x forward/trailing rise.
+      * earn_trajectory (= PEF/PET = forward/trailing P/E) > ``max_earn_trajectory`` —
+        forward P/E materially above trailing, i.e. earnings expected to FALL (value-trap
+        tilt; owner 2026-07-22). Use ``1.05`` to block a > 1.05x forward/trailing rise.
     A criterion whose param is ``None`` is off; an absent column or NaN value never
     excludes (missing data is not treated as a red flag). Returns (kept, screened_out).
     """
@@ -217,7 +217,7 @@ def _screen_buy_candidates(
             and na >= min_analyst_n
         )
         value_trap = (
-            min_earn_trajectory is not None and pd.notna(traj) and traj < min_earn_trajectory
+            max_earn_trajectory is not None and pd.notna(traj) and traj > max_earn_trajectory
         )
         excluded = squeeze or illiquid or levered or downgraded or value_trap
         (out if excluded else kept).append(t)
@@ -357,7 +357,7 @@ def build_overlay(
     max_de: float | None = None,
     min_analyst_mom: float | None = -3.0,  # owner 2026-07-22: veto buys the Street is downgrading
     min_analyst_n: int = 4,  # ...only when coverage is meaningful (>=4 analysts)
-    min_earn_trajectory: float | None = 1.0 / 1.05,  # veto buys w/ fwd P/E > 1.05x trailing
+    max_earn_trajectory: float | None = 1.05,  # veto buys w/ fwd P/E > 1.05x trailing (PEF/PET)
     min_conviction: float | None = None,  # absolute conviction floor for a new buy (owner)
     portfolio_aware: bool = False,  # tilt buy selection toward under-weight sectors/markets
     tier_name_caps: bool = False,
@@ -437,8 +437,8 @@ def build_overlay(
     core_set = set(core_list or [])
 
     # Value-trap = a POSITIVE deterioration signal: forward P/E materially above
-    # trailing (earn_trajectory < 1/1.10 => earnings expected to fall). A held trap is
-    # SOLD even though the eligibility gate marks it ineligible; MISSING data (no
+    # trailing (earn_trajectory = PEF/PET > 1.10 => earnings expected to fall). A held trap
+    # is SOLD even though the eligibility gate marks it ineligible; MISSING data (no
     # trajectory) is NOT a trap and must never trigger a sell.
     _traj = (
         pd.to_numeric(scored["earn_trajectory"], errors="coerce")
@@ -450,7 +450,7 @@ def build_overlay(
         if t not in _traj.index:
             return False
         v = _traj.loc[t]
-        return bool(pd.notna(v) and float(v) < _TRAP_MIN_TRAJECTORY)
+        return bool(pd.notna(v) and float(v) > _TRAP_MAX_FWD_TTM)
 
     def _is_unscoreable(t: str) -> bool:
         """Un-scoreable from MISSING DATA: dataless, NaN conviction, or ineligible.
@@ -509,7 +509,7 @@ def build_overlay(
             max_de=max_de,
             min_analyst_mom=min_analyst_mom,
             min_analyst_n=min_analyst_n,
-            min_earn_trajectory=min_earn_trajectory,
+            max_earn_trajectory=max_earn_trajectory,
         )
         # Owner 2026-07-22: tilt selection toward what the book NEEDS — skip at-cap
         # sectors/markets and re-rank by conviction minus a mild crowding penalty.

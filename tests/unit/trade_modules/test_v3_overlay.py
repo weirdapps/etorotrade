@@ -47,13 +47,13 @@ def test_missing_data_holds_but_value_trap_sells():
     from MISSING DATA (dataless, or ineligible with no value-trap) is HELD-with-flag,
     never auto-sold. Only a POSITIVE trigger sells: a genuinely-eligible bottom-
     percentile conviction, or a value-trap (fwd P/E > 1.10x trailing = earn_trajectory
-    below 1/1.10)."""
+    = PEF/PET above 1.10)."""
     _tks, _convs, sc = _universe20()
     extra = _scored(["INELIG", "TRAP"], [np.nan, np.nan], eligible=[False, False])
     extra["earn_trajectory"] = [
         np.nan,
-        0.80,
-    ]  # INELIG: missing-data; TRAP: earnings expected to fall
+        1.25,
+    ]  # INELIG: missing-data; TRAP: fwd P/E 25% above trailing -> earnings expected to fall
     sc = pd.concat([sc, extra])
     # held: strong keep, eligible-weak (sell), missing-data ineligible (hold),
     # value-trap (sell), dataless/absent from scored (hold).
@@ -605,12 +605,12 @@ def test_portfolio_aware_tiebreaker_prefers_underweight_sector():
 
 
 def test_trajectory_guard_excludes_rising_forward_pe_buy():
-    """A buy whose forward P/E is materially above trailing (earn_trajectory = PET/PEF
-    below ~0.95, i.e. fwd P/E > 1.05x trailing -> earnings expected to fall) is screened;
+    """A buy whose forward P/E is materially above trailing (earn_trajectory = PEF/PET
+    above ~1.05, i.e. fwd P/E > 1.05x trailing -> earnings expected to fall) is screened;
     a positive-trajectory candidate is bought instead."""
     _tks, _convs, sc = _universe20()
     sc["earn_trajectory"] = np.nan
-    sc.loc["U00", "earn_trajectory"] = 0.90  # fwd P/E ~11% above trailing -> value-trap-ish
+    sc.loc["U00", "earn_trajectory"] = 1.10  # fwd P/E ~10% above trailing -> value-trap-ish
     current = pd.Series({"U10": 0.3})
 
     d = build_overlay(sc, current, pd.DataFrame(), max_new=2)["diagnostics"]
