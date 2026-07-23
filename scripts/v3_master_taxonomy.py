@@ -92,28 +92,28 @@ TAX = [
         "VALUE (incl quality)",
         "roe",
         "active",
-        13,
+        10,
         "leverage-clean profitability level. NOTE: the engine scores ROE for ALL names; the sector-conditional ROA/ROE split is documented but NOT implemented (ROE-only today).",
     ),
     (
         "VALUE (incl quality)",
         "gp_assets",
         "active",
-        13,
+        5,
         "t2.98 — the cleanest diversifier (ρ<0.18 to every factor). Novy-Marx quality anchor.",
     ),
     (
         "VALUE (incl quality)",
         "net_issuance",
         "active",
-        9,
+        5,
         "t2.95 — buyback(+)/dilution(−) capital-allocation quality (Pontiff-Woodgate). Bumped above P/S per evidence-order.",
     ),
     (
         "VALUE (incl quality)",
         "fcf",
         "active",
-        7,
+        5,
         "t2.80 — distinct cash-quality channel (ρ 0.26-0.45 vs profitability level).",
     ),
     (
@@ -127,7 +127,7 @@ TAX = [
         "VALUE (incl quality)",
         "pe_forward",
         "active",
-        6,
+        5,
         "OWNER CALL: full scored value factor REPLACING pe_trailing. EARN-IN — 5mo/live only, no 10yr PIT; caveat: analyst-optimism bias (worst for growth names).",
     ),
     (
@@ -200,28 +200,28 @@ TAX = [
         "GROWTH",
         "earn_growth",
         "active",
-        8,
+        5,
         "t2.67 — the scored earnings/growth slot (persistent, fits monthly cadence).",
     ),
     (
         "GROWTH",
         "sue",
         "active",
-        6,
-        "t2.02 — PEAD. Bumped to 6 (owner call). Note: event-trigger — monthly cadence captures only part of the drift.",
+        15,
+        "t2.02 — PEAD. Raised to 15 (owner 2026-07-23). Note: event-trigger — monthly cadence captures only part of the drift.",
     ),
     (
         "GROWTH",
         "trajectory_spread",
         "active",
-        5,
-        "PET/PEF spread, earn-in (5mo/no-PIT) — the forward view scored as a SPREAD (was the strongest clean signal, t2.17).",
+        15,
+        "PEF/PET (forward/trailing P/E; LOWER = earnings rising, DIRECTION -1) — raised to 15 (owner 2026-07-23). Earn-in (5mo/no-PIT); the forward view as a SPREAD, strongest clean signal (t2.17).",
     ),
     (
         "GROWTH",
         "earn_stability",
         "active",
-        4,
+        5,
         "t2.36 — QMJ 'safety' (low earnings coefficient-of-variation). DISTINCT (ρ≤0.18 to all). Borderline/probation.",
     ),
     (
@@ -236,7 +236,7 @@ TAX = [
         "MOMENTUM",
         "pct_52w_high",
         "active",
-        14,
+        10,
         "t3.77 — strongest single momentum (George-Hwang). The ONE momentum slot.",
     ),
     (
@@ -295,8 +295,8 @@ TAX = [
         "EXPECTATIONS",
         "analyst_mom",
         "active",
-        5,
-        "EPS-revision momentum — bumped to 5 (owner call). EARN-IN: no 10yr PIT, KILL on 3mo negative live-IC. yfinance ~5mo git-panel + growing.",
+        10,
+        "EPS-revision momentum — raised to 10 (owner 2026-07-23). EARN-IN: no 10yr PIT, KILL on 3mo negative live-IC. yfinance ~5mo git-panel + growing.",
     ),
     (
         "EXPECTATIONS",
@@ -455,7 +455,7 @@ code{{background:#f2f3f5;padding:1px 5px;border-radius:4px;font-size:11.5px}}
 <h1>v3 Master Factor Taxonomy — the decision table</h1>
 <div class="sub">{stamp} UTC · live ~$1.1M book · 6 dimensions × every metric × role × weight × 10yr evidence.
 Active (scored) Σ = <b>{tot}%</b>. <b>Weights frozen / earn-in — proposal for sign-off, not executed.</b><br>
-<b>Effective weights:</b> per-metric numbers are the evidence-ranked TARGET; the live engine (combine.py) applies each CLUSTER weight with an EQUAL MEAN of its metrics, so cluster totals match but the per-metric split is approximate, not executed as shown.<br>
+<b>Effective weights:</b> the per-metric weights ARE now executed — combine.py applies each metric's weight (METRIC_WEIGHTS) as the intra-cluster split (owner taxonomy 2026-07-23), replacing the old equal-mean approximation. Value is the one composite cluster (sector-conditional P/S · fwd-P/E · P/B recipe).<br>
 Roles: <span class="b" style="color:#0a7d33;background:#e5f6ea">active</span> scored ·
 <span class="b" style="color:#0a7d33;background:#e5f6ea">active*</span> sector-substitute ·
 <span class="b" style="color:#1d4ed8;background:#e7edfd">gate</span> eligibility screen ·

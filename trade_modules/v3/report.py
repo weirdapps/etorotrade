@@ -98,7 +98,7 @@ DISPLAY_GROUPS = [
         ],
     ),
     ("PEAD", [("sue", "SUE")]),
-    ("Trajectory", [("earn_trajectory", "PET/PEF")]),
+    ("Trajectory", [("earn_trajectory", "PEF/PET")]),
     ("Low-vol", [("beta", "Beta"), ("realized_vol", "Realized Vol")]),
     ("Strength", [("short_interest", "Short Int"), ("target_dispersion", "Target Disp")]),
     (
