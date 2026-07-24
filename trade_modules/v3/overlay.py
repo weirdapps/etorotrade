@@ -30,7 +30,7 @@ import pandas as pd
 
 from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
-from trade_modules.riskfirst.fx import currency_of
+from trade_modules.riskfirst.fx import USD_BLOC, currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
 from trade_modules.v3.combine import _TRAP_MAX_FWD_TTM, _fwd_loss_trap, _value_trap_gate
 from trade_modules.v3.construct import (
@@ -693,11 +693,15 @@ def build_overlay(
             # row/col. The core-floor block builds the same `pos`, but only when the floor
             # fires; recompute here so redeploy never NameErrors on the no-floor path.
             pos = {t: i for i, t in enumerate(target_names)}
-            caps_ser = (
+            # Per-name headroom on the ABSOLUTE ``cap * gross_target`` basis, matching the
+            # gate (risk_gate uses ``name_cap * g_target``). Passing the raw FRACTION as an
+            # absolute weight cap under-counted a name's true headroom at the target gross.
+            _name_cap_fracs = (
                 pd.Series(_tiered_name_caps(scored, target_names), index=target_names)
                 if tier_name_caps and scored is not None
                 else pd.Series(float(name_cap), index=target_names)
             )
+            caps_ser = _name_cap_fracs * float(gross_target)
             elig_names = [
                 t for t in final.index if t in caps_ser.index and bool(elig_mask.get(t, False))
             ]
@@ -715,6 +719,43 @@ def build_overlay(
                 covm = cov[np.ix_(ix, ix)]
                 base = final.reindex(names_v).to_numpy()
                 delta = trial.reindex(names_v).to_numpy() - base
+
+                # --- Sector + USD-bloc caps (closed-form scale, applied FIRST) ------- #
+                # These caps are ABSOLUTE fraction-of-gross thresholds (risk_gate: cap *
+                # gross). A bloc's exposure and the total gross are BOTH linear in the
+                # increment scale ``a``, so the max feasible ``a`` solving
+                #   e + a*d <= c*(g + a*gd)   (e,g = base bloc/total; d,gd = delta bloc/total)
+                # is closed-form: coef = d - c*gd; ``a <= (c*g - e)/coef`` when coef > 0,
+                # else the bloc share is non-increasing in ``a`` (no upper limit). Scaling
+                # the whole increment by the MIN such ``a`` over every distinct sector and
+                # the USD bloc keeps all of them within cap. delta stays >= 0 (never reduces
+                # a core-floored name), and scaling delta down only RELAXES the caps, so the
+                # later vol bisection can only keep the point cap-feasible.
+                g = float(base.sum())
+                gd = float(delta.sum())
+
+                def _cap_alpha(mask: np.ndarray, cap: float | None) -> float:
+                    if cap is None or not bool(mask.any()):
+                        return 1.0
+                    e = float(base[mask].sum())
+                    d = float(delta[mask].sum())
+                    coef = d - float(cap) * gd
+                    if coef > 1e-12:
+                        return max(0.0, (float(cap) * g - e) / coef)
+                    return 1.0  # bloc share non-increasing in ``a`` -> no upper limit
+
+                alpha_caps = 1.0
+                _sec_labels_v = _sector_labels(names_v, scored)
+                for _lab in set(_sec_labels_v):
+                    _m = np.array([s == _lab for s in _sec_labels_v], dtype=bool)
+                    alpha_caps = min(alpha_caps, _cap_alpha(_m, sector_cap))
+                _bloc_m = np.array([currency_of(t) in USD_BLOC for t in names_v], dtype=bool)
+                alpha_caps = min(alpha_caps, _cap_alpha(_bloc_m, usd_bloc_cap))
+                delta = min(1.0, max(0.0, alpha_caps)) * delta
+
+                # --- Vol ceiling (bisection on the ALREADY caps-scaled increment) --- #
+                # ``vol_ceiling is None`` is defensive-only: the gate rejects a None ceiling
+                # upstream (`None + tol` -> TypeError), so this branch is never taken live.
                 if vol_ceiling is not None and portfolio_vol(base + delta, covm) > float(
                     vol_ceiling
                 ):
