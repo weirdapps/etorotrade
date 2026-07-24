@@ -342,7 +342,7 @@ def _fund_floor_weakest_first(
 
 
 def _distribute_to_headroom(
-    weights: pd.Series, conviction: pd.Series, caps: pd.Series, gap: float
+    weights: pd.Series, conviction: pd.Series, caps: pd.Series, gap: float | None
 ) -> pd.Series:
     """Distribute ``gap`` across ``weights``' names proportional to positive conviction,
     each bounded by its per-name cap headroom (``caps - weights``). Weight that spills

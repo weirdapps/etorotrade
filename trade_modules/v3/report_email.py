@@ -780,6 +780,7 @@ def render_summary(
     gen = _esc(meta.get("generated_utc", ""))
     date = _esc(meta.get("date", ""))
     dep = _pct1((portfolio or {}).get("gross"))
+    cash = _pct1((portfolio or {}).get("cash"))
     vol = _pct1(diag.get("vol_after"))
 
     head = (
@@ -793,7 +794,7 @@ def render_summary(
         f'Regime <b style="color:{INK};">{regime}</b> &middot; '
         f'<b style="color:{BULL};">{c.get("BUY", 0)}</b> buy &middot; {keep} keep &middot; '
         f'<b style="color:{BEAR};">{c.get("SELL", 0)}</b> sell &middot; '
-        f'deployment <b style="color:{INK};">{dep}</b> &middot; vol {vol}</div>'
+        f'deployment <b style="color:{INK};">{dep}</b> &middot; cash {cash} &middot; vol {vol}</div>'
         f'<div style="font-family:{FONT};font-size:11px;color:{MUTED};margin-top:3px;">{gen}</div>'
     )
 
