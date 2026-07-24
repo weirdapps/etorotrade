@@ -779,7 +779,7 @@ def render_summary(
     regime = _esc(str(meta.get("regime", "")).upper())
     gen = _esc(meta.get("generated_utc", ""))
     date = _esc(meta.get("date", ""))
-    dep = _pct1(diag.get("gross_after"))
+    dep = _pct1((portfolio or {}).get("gross"))
     vol = _pct1(diag.get("vol_after"))
 
     head = (
