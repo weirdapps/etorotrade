@@ -208,6 +208,12 @@ class ConfigManager:
         # via `yf.Ticker(sub).fast_info.last_price`).
         self.data_fetch_substitutions = {
             "LYXGRE.DE": "GRE.PA",  # Amundi MSCI Greece UCITS ETF — Xetra fails on yfinance, Paris listing works
+            # LSE GDR (USD) depositary lines: Yahoo's ``.L`` symbol carries only ~5 recent bars,
+            # but the International Order Book ``.IL`` line (same USD instrument) has full history
+            # (~2y), so mom_12_1 / realized_vol can be computed. Verified 2026-07-24 (SMSN.IL /
+            # KAP.IL both return ~507 bars vs 5 for .L).
+            "SMSN.L": "SMSN.IL",  # Samsung Electronics GDR (USD) — London IOB has full history
+            "KAP.L": "KAP.IL",  # Kazatomprom GDR (USD) — London IOB has full history
         }
 
         # US Ticker -> Original Exchange Ticker mappings

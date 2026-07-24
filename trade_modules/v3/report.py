@@ -191,6 +191,16 @@ def _znum(z) -> str:
     return "·" if _isnan(z) else f"{z:+.2f}"
 
 
+def _conv_or_reason(conv, reason) -> tuple[str, str]:
+    """(text, color) for a conviction/score cell: the numeric conviction when scored, else the
+    ineligibility reason token (TRAP / NO-HIST / ETF / NO DATA) in muted ink so an excluded name
+    reads as *why* it has no score rather than a bare, ambiguous dash (owner 2026-07-24)."""
+    if not _isnan(conv):
+        return f"{conv:+.2f}", _z_color(conv)
+    token = "" if _isnan(reason) else str(reason).strip()
+    return (_esc(token) if token else "·"), MUTED
+
+
 def _heat_bg(z) -> str:
     """RGBA tint for a heatmap cell: bull-green (pos) / bear-red (neg), the
     opacity ramping with |z| (clamped at ``_Z_HEAT``). Same two hues as the
@@ -395,7 +405,7 @@ def _overview(scores: pd.DataFrame, conv_scale: float) -> str:
         rank_s = "–" if _isnan(rank) else str(int(rank))
         sector_s = _esc(r.get("sector", "")) or "–"
         name_s = _esc(r.get("name", ""))
-        conv_s = "·" if _isnan(conv) else f"{conv:+.2f}"
+        conv_s, conv_color = _conv_or_reason(conv, r.get("inelig_reason"))
         cells = "".join(_heat_cell(lbl, r.get(k, np.nan)) for k, lbl in CLUSTER_CELLS)
         rows.append(
             '<div class="hm-row">'
@@ -404,7 +414,7 @@ def _overview(scores: pd.DataFrame, conv_scale: float) -> str:
             f'<span class="hm-tkr">{_esc(tkr)}</span>'
             f'<span class="hm-sector">{sector_s}</span>'
             f'<span class="hm-name">{name_s}</span>'
-            f'<span class="hm-conv" style="color:{_z_color(conv)};">{conv_s}</span>'
+            f'<span class="hm-conv" style="color:{conv_color};">{conv_s}</span>'
             f'<span class="hm-barcell">{_bar(conv, conv_scale, "meter")}</span>'
             f'<div class="hm-cells">{cells}</div>'
             "</div>"
@@ -550,7 +560,7 @@ def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> st
     )
     desc_html = f'<div class="desc">{_esc(desc_text)}</div>' if desc_text else ""
     price = _fmt("price", row.get("price", np.nan))
-    conv_txt = "·" if _isnan(conv) else f"{conv:+.2f}"
+    conv_txt, conv_color = _conv_or_reason(conv, row.get("inelig_reason"))
     rank_txt = "n/a" if _isnan(rank) else f"#{int(rank)}"
     tilt_label, tilt_cls = _tilt(conv, is_port)
     pf_tag = '<span class="pf-tag" title="Portfolio holding">PF</span>' if is_port else ""
@@ -570,7 +580,7 @@ def _card(tkr: str, row: pd.Series, cols, conv_scale: float, delay: float) -> st
         f'<div class="price-block"><div class="vk">Price</div>'
         f'<div class="price">{price}</div></div>'
         f'<div class="conv-block">'
-        f'<div class="conv" style="color:{_z_color(conv)};">{conv_txt}</div>'
+        f'<div class="conv" style="color:{conv_color};">{conv_txt}</div>'
         f'<div class="conv-l">Conviction · {rank_txt}</div>'
         f'<div class="tilt {tilt_cls}">{tilt_label}</div>'
         f"</div>"

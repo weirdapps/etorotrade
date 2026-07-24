@@ -345,6 +345,12 @@ class TestDisplayAndDataFetch:
         assert get_data_fetch_ticker("LYXGRE.DE") == "GRE.PA"
         assert get_data_fetch_ticker("JD.US") == "9618.HK"  # ADR override wins over the .US strip
 
+    def test_get_data_fetch_ticker_lse_gdr_iob_substitution(self):
+        """LSE GDR (USD) depositary lines: the ``.L`` symbol carries ~5 bars on Yahoo, so the
+        full-history International Order Book ``.IL`` line is substituted (owner 2026-07-24)."""
+        assert get_data_fetch_ticker("SMSN.L") == "SMSN.IL"  # Samsung GDR
+        assert get_data_fetch_ticker("KAP.L") == "KAP.IL"  # Kazatomprom GDR
+
 
 class TestDualListedDetection:
     """Test cases for dual-listed stock detection."""
