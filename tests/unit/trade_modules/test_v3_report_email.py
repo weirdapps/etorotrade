@@ -289,3 +289,16 @@ def test_heatmap_handles_na_rank_and_conviction():
     s.loc["CCC", "conviction"] = NAN
     html = rem.render_email_report(s, _meta(), portfolio=_view(), actions=_actions())
     assert isinstance(html, str) and "Conviction heatmap" in html
+
+
+def test_heatmap_shows_inelig_reason_token():
+    """An ineligible held name shows its reason token (TRAP / NO-HIST / ETF) in the Conv
+    column instead of a bare dot, so the reader can tell WHY it has no score (owner
+    2026-07-24)."""
+    s = _scores().copy()
+    s["rank"] = s["rank"].astype("Int64")
+    s.loc["CCC", "rank"] = pd.NA
+    s.loc["CCC", "conviction"] = NAN
+    s["inelig_reason"] = ["", "", "TRAP"]  # CCC is a held, ineligible value-trap
+    html = rem.render_email_report(s, _meta(), portfolio=_view(), actions=_actions())
+    assert ">TRAP<" in html  # reason token rendered in the Conv cell, not a bare dot

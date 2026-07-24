@@ -191,3 +191,22 @@ def test_live_fundamentals_factors(tmp_path):
     assert not math.isnan(out.loc["AAA", "sue"])  # >=6 quarters -> SUE computable
     assert math.isnan(out.loc["ZZZ", "gp_assets"])  # not in store -> NaN (graceful)
     assert math.isnan(out.loc["ZZZ", "sue"])
+
+
+def test_live_fundamentals_class_share_alias(tmp_path):
+    """Sharadar SF1 keys Alphabet only under GOOGL, but the eToro universe carries GOOG.
+    live_fundamentals_factors must resolve the class-share alias (GOOG -> GOOGL) so GOOG
+    inherits GOOGL's filings, and return them under the ORIGINAL ticker key (GOOG)."""
+    from trade_modules.v3.fundamentals_store import append_records
+
+    store = str(tmp_path / "f.parquet")
+    rows = [
+        {"ticker": "GOOGL", "datekey": dk, "reportperiod": dk, "assets": 400.0, "gp": 60.0}
+        for dk in ("2025-03-15", "2025-06-15", "2025-09-15", "2025-12-15")
+    ]
+    append_records(pd.DataFrame(rows), store_path=store)
+
+    out = live_fundamentals_factors(["GOOG"], store_path=store)
+    # GOOG resolves to GOOGL's filings, returned under the GOOG key.
+    assert list(out.index) == ["GOOG"]
+    assert out.loc["GOOG", "gp_assets"] == pytest.approx(0.15)  # 60 / 400

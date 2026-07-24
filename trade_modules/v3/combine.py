@@ -349,6 +349,31 @@ def _fwd_loss_trap(out: pd.DataFrame) -> pd.Series:
     return (pet > 0) & (pef <= 0)  # NaN on either side -> False (not a trap)
 
 
+def _value_trap_gate(out: pd.DataFrame, max_fwd_ttm: float = _TRAP_MAX_FWD_TTM) -> pd.Series:
+    """Momentum-corroborated PEF/PET value-trap mask (owner 2026-07-24).
+
+    ``earn_trajectory`` = PEF/PET > ``max_fwd_ttm`` means the forward P/E is materially above
+    trailing — the textbook "earnings expected to fall" value trap. But a GENUINE value trap is
+    cheap-looking AND falling: when 12-1 price momentum is POSITIVE the name is a rising winner,
+    and a low trailing P/E on a rising winner is far more likely a one-off trailing-EPS boost
+    (e.g. a GAAP investment gain) than collapsing earnings. Flagging such a name is a false
+    positive (GOOG: trailing EPS inflated by investment gains -> trailing P/E ~16 vs a real ~26
+    -> spurious PEF/PET 1.35 despite +86% 12-1 momentum). So the trap fires only when momentum
+    does NOT corroborate — positive ``mom_12_1`` clears the flag. NaN trajectory (missing
+    PET/PEF) is never gated; NaN momentum never CLEARS the flag (safe default: only a KNOWN
+    rising price rescues a name). This mask is the single source of truth for the PEF/PET trap
+    across the eligibility gate, the held-trap SELL and the new-buy veto.
+    """
+    if "earn_trajectory" not in out.columns:
+        return pd.Series(False, index=out.index)
+    traj = pd.to_numeric(out["earn_trajectory"], errors="coerce")
+    trap = traj > max_fwd_ttm
+    if "mom_12_1" in out.columns:
+        mom = pd.to_numeric(out["mom_12_1"], errors="coerce")
+        trap &= ~(mom > 0)  # a KNOWN rising price clears the trap; NaN momentum does not
+    return trap.fillna(False).astype(bool)
+
+
 def _rank_z(s: pd.Series) -> pd.Series:
     """Rank-normal (van der Waerden) cross-sectional score.
 
@@ -459,14 +484,49 @@ def _eligibility(out: pd.DataFrame) -> pd.Series:
             ok &= pd.to_numeric(out[col], errors="coerce").notna()
     clusters_present = out[_ELIG_CLUSTERS].notna().sum(axis=1)
     ok &= clusters_present >= _MIN_CLUSTERS
-    # Value-trap gate: forward P/E > 1.10x trailing (earn_trajectory = PEF/PET above 1.10).
-    if "earn_trajectory" in out.columns:
-        traj = pd.to_numeric(out["earn_trajectory"], errors="coerce")
-        ok &= ~(traj > _TRAP_MAX_FWD_TTM)  # NaN trajectory (missing PET/PEF) never gated
+    # Value-trap gate: forward P/E > 1.10x trailing (earn_trajectory = PEF/PET above 1.10),
+    # momentum-corroborated — a rising winner (positive 12-1 momentum) is NOT gated, since its
+    # low trailing P/E is a one-off-gain artifact, not collapsing earnings (see _value_trap_gate).
+    ok &= ~_value_trap_gate(out, _TRAP_MAX_FWD_TTM)
     # Forward-loss trap: profitable now but forward earnings expected NON-positive (owner
-    # 2026-07-23) — the ratio is NaN there, so gate on the raw PET>0 & PEF<=0 signs.
+    # 2026-07-23) — the ratio is NaN there, so gate on the raw PET>0 & PEF<=0 signs. NOT
+    # momentum-guarded: a company heading into a loss is a real risk regardless of price action.
     ok &= ~_fwd_loss_trap(out)
     return ok.fillna(False).astype(bool)
+
+
+def _inelig_reason(out: pd.DataFrame, eligible: pd.Series) -> pd.Series:
+    """Short reason WHY each ineligible name is excluded, so the report can show a token
+    (TRAP / NO-HIST / ETF / NO DATA) in place of a bare dash. Eligible names -> "".
+
+    Mirrors :func:`_eligibility`'s checks and reports the FIRST that fails in gate order:
+    non-equity -> ``ETF``; missing price or 12-1 momentum / realized-vol history ->
+    ``NO-HIST``; fewer than the minimum populated factor clusters -> ``NO DATA``; a
+    (momentum-corroborated) PEF/PET value trap or a forward-loss trap -> ``TRAP``.
+    """
+    idx = out.index
+    reason = pd.Series("", index=idx, dtype="object")
+    if "quote_type" not in out.columns:
+        return reason  # abstract combiner frames: all eligible, no reason
+    inelig = ~eligible.reindex(idx, fill_value=False).astype(bool)
+
+    def _set(mask: pd.Series, label: str) -> None:
+        # Only label ineligible names still unlabeled -> first failing check (gate order) wins.
+        target = mask.reindex(idx, fill_value=False).astype(bool) & inelig & (reason == "")
+        reason.loc[target] = label
+
+    qt = out["quote_type"].astype("string").str.upper()
+    _set(~qt.eq("EQUITY").fillna(False), "ETF")
+    if "price" in out.columns:
+        price = pd.to_numeric(out["price"], errors="coerce")
+        _set(~(price.notna() & (price > 0)), "NO-HIST")
+    for col in ("mom_12_1", "realized_vol"):
+        if col in out.columns:
+            _set(pd.to_numeric(out[col], errors="coerce").isna(), "NO-HIST")
+    _set(out[_ELIG_CLUSTERS].notna().sum(axis=1) < _MIN_CLUSTERS, "NO DATA")
+    _set(_value_trap_gate(out, _TRAP_MAX_FWD_TTM), "TRAP")
+    _set(_fwd_loss_trap(out), "TRAP")
+    return reason
 
 
 def compute_scores(
@@ -571,6 +631,9 @@ def compute_scores(
     # is the eligible equity universe only.
     eligible = _eligibility(out)
     out["eligible"] = eligible
+    # Display: WHY each ineligible name is excluded (TRAP / NO-HIST / ETF / NO DATA), so the
+    # report shows a reason token instead of a bare dash. Eligible names carry "".
+    out["inelig_reason"] = _inelig_reason(out, eligible)
     out["conviction"] = _z_plain(conv_raw.where(eligible))
     out["rank"] = out["conviction"].rank(ascending=False, method="min").astype("Int64")
     return out
