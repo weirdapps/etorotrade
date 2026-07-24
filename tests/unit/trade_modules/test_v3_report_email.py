@@ -162,6 +162,8 @@ def _actions() -> list:
 def _view() -> dict:
     return {
         "gross": 0.89,  # model (~0.75) + managed (~0.14) — true total invested
+        "cash": 0.11,  # 1 - gross
+        "managed_weight": 0.14,
         "diagnostics": {
             "gate": {
                 "gross_after": 0.84,
@@ -183,6 +185,7 @@ def test_render_summary_is_compact_and_outlook_safe():
     assert "RISK_ON" in html
     assert "buy" in html and "sell" in html
     assert "89" in html  # deployment portfolio["gross"] 0.89 -> 89.0% (model + managed)
+    assert "cash 11" in html  # explicit cash line: portfolio["cash"] 0.11 -> 11.0%
     # Action rows carry ticker + action.
     assert "AAA" in html and "BUY" in html
     assert "BBB" in html and "SELL" in html
