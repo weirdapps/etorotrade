@@ -175,6 +175,18 @@ def test_overview_blank_cell_for_nan_cluster():
     assert "hm-cell nan" in html
 
 
+def test_overview_shows_inelig_reason_token():
+    """An ineligible name shows its reason token (TRAP / NO-HIST / ETF) in the heatmap Conv
+    column instead of a bare dot, so the reader can see WHY it has no score (owner 2026-07-24)."""
+    scores = _scores()
+    scores["conviction"] = scores["conviction"].astype(float)
+    scores.loc["ZZZ", "conviction"] = np.nan
+    scores["inelig_reason"] = ""
+    scores.loc["ZZZ", "inelig_reason"] = "NO-HIST"
+    html = render_report(scores, _meta())
+    assert "NO-HIST" in html  # reason token replaces the bare dot in ZZZ's Conv cell
+
+
 def test_render_curates_candidate_cards_and_notes_count():
     scores = _many_scores(n=34, n_port=4)
     html = render_report(scores, {"regime": "NEUTRAL"}, max_long_cards=5, max_avoid_cards=3)

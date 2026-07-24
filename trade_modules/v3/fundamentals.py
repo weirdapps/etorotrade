@@ -152,13 +152,21 @@ def factor_panel(fasof: pd.DataFrame, fprior: pd.DataFrame, price: pd.Series) ->
     )
 
 
+# Dual-class alias: Sharadar SF1 keys some US names under ONE share class while the eToro
+# universe carries the OTHER. Map the eToro ticker -> the SF1 store key so a name still inherits
+# its (share-class-identical) fundamentals. Alphabet: SF1 files only GOOGL; eToro carries GOOG.
+# Extend as more dual-class cases surface (results are always returned under the eToro key).
+_SF1_TICKER_ALIAS = {"GOOG": "GOOGL"}
+
+
 def live_fundamentals_factors(tickers, *, store_path: str | None = None) -> pd.DataFrame:
     """Latest-filing GP/assets + SUE per ticker from the PIT SF1 store, for LIVE scoring.
 
     'Live' = the most recent available filing per ticker. Tickers absent from the store
     (non-US / no filing) get NaN so the quality / PEAD clusters degrade gracefully.
     NaN-safe if the store is missing/empty. Returns a frame indexed by ticker with
-    columns ``gp_assets`` and ``sue``.
+    columns ``gp_assets`` and ``sue``. Dual-class names are resolved via ``_SF1_TICKER_ALIAS``
+    (e.g. GOOG reads GOOGL's filings) but the result stays keyed by the original ticker.
     """
     from trade_modules.v3.fundamentals_store import STORE_PATH, read_asof, read_history
 
@@ -168,18 +176,27 @@ def live_fundamentals_factors(tickers, *, store_path: str | None = None) -> pd.D
     for c in ("gp_assets", "sue", "net_issuance", "earn_stability"):
         out[c] = pd.Series(index=idx, dtype=float)
 
-    fasof = read_asof(list(idx), "2099-12-31", store_path=sp)  # latest filing per ticker
+    # Read the store under the (possibly aliased) SF1 key, then map values back onto the
+    # ORIGINAL eToro tickers via ``_back`` (positional reindex over the per-name store keys).
+    store_keys = [_SF1_TICKER_ALIAS.get(t, t) for t in idx]
+    want = list(dict.fromkeys(store_keys))
+
+    def _back(s: pd.Series) -> pd.Series:
+        """Series indexed by SF1 store ticker -> values realigned onto the original ``idx``."""
+        return pd.Series(s.reindex(store_keys).to_numpy(), index=idx)
+
+    fasof = read_asof(want, "2099-12-31", store_path=sp)  # latest filing per ticker
     if not fasof.empty:
         gp = pd.to_numeric(fasof.get("gp"), errors="coerce")
         assets = pd.to_numeric(fasof.get("assets"), errors="coerce")
-        out["gp_assets"] = (gp / assets).where(assets != 0).reindex(idx)
+        out["gp_assets"] = _back((gp / assets).where(assets != 0))
 
-    hist = read_history(list(idx), "2099-12-31", store_path=sp)
+    hist = read_history(want, "2099-12-31", store_path=sp)
     if not hist.empty:
         h = hist.sort_values("datekey")
-        out["sue"] = pd.to_numeric(
-            h.groupby("ticker")["eps"].apply(srw_sue), errors="coerce"
-        ).reindex(idx)
+        out["sue"] = _back(
+            pd.to_numeric(h.groupby("ticker")["eps"].apply(srw_sue), errors="coerce")
+        )
 
         def _net_iss(s) -> float:  # YoY change in shares outstanding (dilution + / buyback -)
             v = pd.to_numeric(pd.Series(s), errors="coerce").dropna()
@@ -194,10 +211,10 @@ def live_fundamentals_factors(tickers, *, store_path: str | None = None) -> pd.D
             m = abs(float(v.mean()))
             return float(-(v.std() / (m + 1e-6)))
 
-        out["net_issuance"] = pd.to_numeric(
-            h.groupby("ticker")["sharesbas"].apply(_net_iss), errors="coerce"
-        ).reindex(idx)
-        out["earn_stability"] = pd.to_numeric(
-            h.groupby("ticker")["eps"].apply(_estab), errors="coerce"
-        ).reindex(idx)
+        out["net_issuance"] = _back(
+            pd.to_numeric(h.groupby("ticker")["sharesbas"].apply(_net_iss), errors="coerce")
+        )
+        out["earn_stability"] = _back(
+            pd.to_numeric(h.groupby("ticker")["eps"].apply(_estab), errors="coerce")
+        )
     return out
