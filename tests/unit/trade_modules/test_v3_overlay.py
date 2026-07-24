@@ -68,6 +68,26 @@ def test_missing_data_holds_but_value_trap_sells():
     assert set(d.get("held_unscored", [])) >= {"INELIG", "MISS"}  # surfaced for manual review
 
 
+def test_value_trap_sell_cleared_by_positive_momentum():
+    """Owner 2026-07-24: the held-trap SELL is momentum-corroborated. A held name with forward
+    P/E far above trailing (earn_trajectory > 1.10) but POSITIVE 12-1 momentum is a rising winner
+    (its low trailing P/E is a one-off-gain artifact, not collapsing earnings) -> HELD, not sold.
+    A falling trap (negative momentum) is still sold."""
+    _tks, _convs, sc = _universe20()
+    extra = _scored(["RISING", "FALLING"], [np.nan, np.nan], eligible=[False, False])
+    extra["earn_trajectory"] = [1.35, 1.35]  # both: forward P/E 35% above trailing
+    extra["mom_12_1"] = [0.86, -0.12]  # RISING winner vs FALLING
+    sc = pd.concat([sc, extra])
+    current = pd.Series({"U00": 0.2, "RISING": 0.2, "FALLING": 0.2})
+
+    res = build_overlay(sc, current, pd.DataFrame(), max_new=0)
+    d, w = res["diagnostics"], res["weights"]
+
+    assert "FALLING" in d["sold"]  # falling trap -> sold
+    assert "RISING" not in d["sold"]  # rising winner cleared the trap -> not sold
+    assert "RISING" in d["kept"] and float(w.get("RISING", 0.0)) > 0.0  # held-with-flag
+
+
 def test_buy_screen_suppresses_current_ratio_and_de_for_financials():
     """Banks/REITs run low current ratios and high leverage BY NATURE (deposits are the
     business), so the current-ratio + D/E distress screens must be suppressed for them

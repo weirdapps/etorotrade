@@ -32,7 +32,7 @@ from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
 from trade_modules.riskfirst.fx import currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
-from trade_modules.v3.combine import _TRAP_MAX_FWD_TTM, _fwd_loss_trap
+from trade_modules.v3.combine import _TRAP_MAX_FWD_TTM, _fwd_loss_trap, _value_trap_gate
 from trade_modules.v3.construct import (
     _norm_name,
     _root_of,
@@ -170,9 +170,12 @@ def _screen_buy_candidates(
         Street is actively downgrading the name with meaningful coverage (owner
         2026-07-22). Asymmetric: we reject active downgrades but never *require*
         positive coverage (that would anti-select momentum winners);
-      * earn_trajectory (= PEF/PET = forward/trailing P/E) > ``max_earn_trajectory`` —
-        forward P/E materially above trailing, i.e. earnings expected to FALL (value-trap
-        tilt; owner 2026-07-22). Use ``1.05`` to block a > 1.05x forward/trailing rise.
+      * earn_trajectory (= PEF/PET = forward/trailing P/E) > ``max_earn_trajectory`` AND the
+        name is NOT a rising winner (12-1 momentum not positive) — forward P/E materially above
+        trailing means earnings expected to FALL (value-trap tilt; owner 2026-07-22), but a
+        positive-momentum name's low trailing P/E is a one-off-gain artifact, not collapsing
+        earnings, so it is not vetoed (momentum corroboration, owner 2026-07-24). Use ``1.05``
+        to block a > 1.05x forward/trailing rise.
     A criterion whose param is ``None`` is off; an absent column or NaN value never
     excludes (missing data is not treated as a red flag). Returns (kept, screened_out).
     """
@@ -216,8 +219,15 @@ def _screen_buy_candidates(
             and pd.notna(na)
             and na >= min_analyst_n
         )
+        mom = _val(t, "mom_12_1")
         value_trap = (
-            max_earn_trajectory is not None and pd.notna(traj) and traj > max_earn_trajectory
+            max_earn_trajectory is not None
+            and pd.notna(traj)
+            and traj > max_earn_trajectory
+            # Momentum-corroborated (owner 2026-07-24): a rising winner (positive 12-1 momentum)
+            # is not a value trap — its low trailing P/E is a one-off-gain artifact, not a
+            # collapsing-earnings signal. Only veto when the price is NOT rising.
+            and not (pd.notna(mom) and mom > 0)
         )
         excluded = squeeze or illiquid or levered or downgraded or value_trap
         (out if excluded else kept).append(t)
@@ -436,26 +446,24 @@ def build_overlay(
 
     core_set = set(core_list or [])
 
-    # Value-trap = a POSITIVE deterioration signal: forward P/E materially above
-    # trailing (earn_trajectory = PEF/PET > 1.10 => earnings expected to fall). A held trap
-    # is SOLD even though the eligibility gate marks it ineligible; MISSING data (no
+    # Value-trap = a POSITIVE deterioration signal: forward P/E materially above trailing
+    # (earn_trajectory = PEF/PET > 1.10 => earnings expected to fall) AND the price is not
+    # rising (momentum-corroborated, owner 2026-07-24 — a rising winner's low trailing P/E is a
+    # one-off-gain artifact, not collapsing earnings; see combine._value_trap_gate). A held
+    # trap is SOLD even though the eligibility gate marks it ineligible; MISSING data (no
     # trajectory) is NOT a trap and must never trigger a sell.
-    _traj = (
-        pd.to_numeric(scored["earn_trajectory"], errors="coerce")
-        if (scored is not None and "earn_trajectory" in scored.columns)
-        else pd.Series(dtype=float)
+    _traj_trap = (
+        _value_trap_gate(scored, _TRAP_MAX_FWD_TTM) if scored is not None else pd.Series(dtype=bool)
     )
     # Forward-loss trap (owner 2026-07-23): profitable now but forward earnings expected
     # non-positive (PET>0, PEF<=0) — a trap the PEF/PET ratio can't express (NaN when PEF<=0).
+    # NOT momentum-guarded: a company heading into a loss is a real risk regardless of price.
     _fwd_loss = _fwd_loss_trap(scored) if scored is not None else pd.Series(dtype=bool)
 
     def _is_value_trap(t: str) -> bool:
         if t in _fwd_loss.index and bool(_fwd_loss.loc[t]):
             return True  # profitable -> forward loss: the extreme deterioration case
-        if t not in _traj.index:
-            return False
-        v = _traj.loc[t]
-        return bool(pd.notna(v) and float(v) > _TRAP_MAX_FWD_TTM)
+        return bool(t in _traj_trap.index and bool(_traj_trap.loc[t]))
 
     def _is_unscoreable(t: str) -> bool:
         """Un-scoreable from MISSING DATA: dataless, NaN conviction, or ineligible.

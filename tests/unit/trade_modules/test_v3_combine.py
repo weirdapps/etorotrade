@@ -118,14 +118,16 @@ def test_no_quote_type_column_means_all_eligible():
 def test_value_trap_gate_excludes_forward_pe_far_above_trailing():
     """Owner rule: forward P/E > 1.10x trailing (earn_trajectory = PEF/PET > 1.10) = value
     trap -> INELIGIBLE, so a trap never surfaces as a BUY and a held trap trips the overlay's
-    weak-name SELL. Names at/below the threshold stay eligible."""
+    weak-name SELL. Names at/below the threshold stay eligible. The trap requires the price to
+    NOT be rising (non-positive 12-1 momentum), so TRAP here has negative momentum — a genuine
+    cheap-and-falling name (see test_value_trap_gate_cleared_by_positive_momentum)."""
     idx = ["GOOD", "FLAT", "TRAP"]
     df = _base(idx)
     df["quote_type"] = ["EQUITY", "EQUITY", "EQUITY"]
     df["price"] = [100.0, 50.0, 80.0]
     df["pe_trailing"] = [10.0, 15.0, 3.2]
     df["roe"] = [30.0, 20.0, 25.0]
-    df["mom_12_1"] = [0.20, 0.15, 0.10]
+    df["mom_12_1"] = [0.20, 0.15, -0.10]  # TRAP is falling -> the trap flag fires
     df["realized_vol"] = [0.20, 0.22, 0.25]
     # earn_trajectory = PEF/PET: GOOD 0.90 (forward cheaper), FLAT 1.0 (=trailing, not a
     # trap), TRAP 46/3.2 = 14.4 (forward 14x trailing = earnings collapsing).
@@ -138,6 +140,70 @@ def test_value_trap_gate_excludes_forward_pe_far_above_trailing():
     assert bool(scores.loc["TRAP", "eligible"]) is False
     assert pd.isna(scores.loc["TRAP", "conviction"])
     assert pd.isna(scores.loc["TRAP", "rank"])
+
+
+def test_value_trap_gate_cleared_by_positive_momentum():
+    """Owner 2026-07-24: a genuine value trap is cheap-looking AND falling. A name whose
+    forward P/E is far above trailing (earn_trajectory > 1.10) but whose 12-1 momentum is
+    POSITIVE is a rising winner whose low trailing P/E is a one-off-gain artifact (e.g. GOOG:
+    trailing EPS inflated by GAAP investment gains -> trailing P/E distorted low -> spurious
+    PEF/PET 1.35). Positive momentum CLEARS the trap; negative or absent momentum keeps it."""
+    idx = ["RISING", "FALLING", "UNKNOWN_MOM"]
+    df = _base(idx)
+    df["quote_type"] = ["EQUITY"] * 3
+    df["price"] = [100.0, 80.0, 90.0]
+    df["roe"] = [30.0, 25.0, 20.0]
+    df["realized_vol"] = [0.30, 0.25, 0.28]
+    df["pe_trailing"] = [16.0, 7.6, 10.0]
+    df["earn_trajectory"] = [1.35, 1.17, 1.30]  # all forward P/E > 1.10x trailing
+    df["mom_12_1"] = [0.86, -0.12, np.nan]  # rising winner / falling / unknown
+
+    s = compute_scores(df, sector_neutral=False)
+
+    assert bool(s.loc["RISING", "eligible"]) is True  # +momentum clears the false-positive
+    assert bool(s.loc["FALLING", "eligible"]) is False  # -momentum keeps the trap
+    assert bool(s.loc["UNKNOWN_MOM", "eligible"]) is False  # NaN momentum never clears
+
+
+def test_value_trap_gate_helper_momentum_corroboration():
+    """Unit test the momentum-corroborated trap mask directly."""
+    from trade_modules.v3.combine import _value_trap_gate
+
+    df = pd.DataFrame(
+        {
+            "earn_trajectory": [1.35, 1.35, 1.05, np.nan, 1.35],
+            "mom_12_1": [-0.10, 0.86, -0.50, -0.20, np.nan],
+        },
+        index=["FALLING_TRAP", "RISING_CLEARED", "BELOW_THRESH", "NAN_TRAJ", "NAN_MOM"],
+    )
+    trap = _value_trap_gate(df, 1.10)
+    assert bool(trap.loc["FALLING_TRAP"]) is True  # >1.10 and falling -> trap
+    assert bool(trap.loc["RISING_CLEARED"]) is False  # >1.10 but rising -> cleared
+    assert bool(trap.loc["BELOW_THRESH"]) is False  # <=1.10 -> never a trap
+    assert bool(trap.loc["NAN_TRAJ"]) is False  # missing trajectory -> not gated
+    assert bool(trap.loc["NAN_MOM"]) is True  # >1.10, momentum unknown -> stays flagged
+
+
+def test_inelig_reason_labels_each_exclusion():
+    """compute_scores tags WHY each ineligible name is excluded (``inelig_reason``) so the
+    report can show TRAP / NO-HIST / ETF instead of a bare dash. Eligible names carry ''."""
+    idx = ["EQOK", "ETF1", "NOHIST", "TRAP1"]
+    df = _base(idx)
+    df["quote_type"] = ["EQUITY", "ETF", "EQUITY", "EQUITY"]
+    df["price"] = [100.0, 200.0, 50.0, 80.0]
+    df["roe"] = [30.0, 25.0, 20.0, 25.0]
+    df["pe_forward"] = [10.0, 15.0, 12.0, 11.0]
+    df["realized_vol"] = [0.20, 0.22, np.nan, 0.25]  # NOHIST is missing realized_vol
+    df["mom_12_1"] = [0.20, 0.15, np.nan, -0.10]  # NOHIST missing mom; TRAP1 is falling
+    df["pe_trailing"] = [10.0, 15.0, 12.0, 3.2]
+    df["earn_trajectory"] = [0.90, 1.0, np.nan, 46.0 / 3.2]  # TRAP1 = 14.4 > 1.10
+
+    s = compute_scores(df, sector_neutral=False)
+
+    assert s.loc["EQOK", "inelig_reason"] == ""  # eligible -> no reason
+    assert s.loc["ETF1", "inelig_reason"] == "ETF"  # non-equity
+    assert s.loc["NOHIST", "inelig_reason"] == "NO-HIST"  # missing price history
+    assert s.loc["TRAP1", "inelig_reason"] == "TRAP"  # value-trap (falling)
 
 
 def test_negative_pe_forward_not_scored_as_cheap():

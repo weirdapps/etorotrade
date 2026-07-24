@@ -110,6 +110,16 @@ def _tone(v) -> str:
     return BULL if v > 0 else (BEAR if v < 0 else INK2)
 
 
+def _conv_or_reason(conv, reason) -> tuple[str, str]:
+    """(text, color) for a conviction/score cell: the numeric conviction when scored, else the
+    ineligibility reason token (TRAP / NO-HIST / ETF / NO DATA) in muted ink so an excluded name
+    reads as *why* it has no score rather than a bare, ambiguous dash (owner 2026-07-24)."""
+    if not _nan(conv):
+        return f"{conv:+.2f}", _tone(conv)
+    token = "" if reason is None or _nan(reason) else str(reason).strip()
+    return (_esc(token) if token else "·"), MUTED
+
+
 def _get(row, key):
     try:
         val = row[key]
@@ -493,9 +503,11 @@ def _heatmap_section(scores, max_rows: int = 120) -> str:
         + _th("Rank", "right")
         + "</tr>"
     )
+    has_reason = "inelig_reason" in shown.columns
     body = []
     for tkr, r in shown.iterrows():
         conv, rank = r.get("conviction"), r.get("rank")
+        conv_txt, conv_color = _conv_or_reason(conv, r.get("inelig_reason") if has_reason else None)
         pf = (
             f' <span style="color:{ACCENT};font-size:8px;font-weight:700;">PF</span>'
             if bool(r.get("is_portfolio"))
@@ -510,7 +522,7 @@ def _heatmap_section(scores, max_rows: int = 120) -> str:
             f'<tr><td style="font-family:{MONO};font-size:10.5px;font-weight:700;color:{INK};'
             f'padding:4px 8px 4px 0;white-space:nowrap;">{_esc(str(tkr))}{pf}</td>{cells}'
             f'<td align="right" style="font-family:{MONO};font-size:10px;font-weight:700;'
-            f'color:{_tone(conv)};padding:4px 0 4px 8px;">{"·" if _nan(conv) else f"{conv:+.2f}"}</td>'
+            f'color:{conv_color};padding:4px 0 4px 8px;">{conv_txt}</td>'
             f'<td align="right" style="font-family:{MONO};font-size:9.5px;color:{MUTED};'
             f'padding:4px 0 4px 6px;">{"" if _nan(rank) else "#" + str(int(rank))}</td></tr>'
         )
