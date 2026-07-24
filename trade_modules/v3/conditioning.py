@@ -11,12 +11,12 @@ from __future__ import annotations
 # Regime → base deployment fraction
 # ---------------------------------------------------------------------------
 
-# Fraction of capital deployed by market regime (band 78-98%).
+# Fraction of capital deployed by market regime (band 75-92%).
 # This is the SINGLE SOURCE OF TRUTH — imported back into v3_portfolio.py.
 DEPLOYMENT_BY_REGIME: dict[str, float] = {
-    "risk_off": 0.78,
-    "neutral": 0.88,
-    "risk_on": 0.98,
+    "risk_off": 0.80,  # 20% cash — the debate's confirmed-risk-off band (15-25%)
+    "neutral": 0.87,  # 13% cash
+    "risk_on": 0.89,  # 11% cash — deliberate buffer for a copied book near highs
 }
 
 _UNKNOWN_DEPLOYMENT = DEPLOYMENT_BY_REGIME["neutral"]
@@ -75,7 +75,7 @@ def resolve_deployment(
     polymarket_signal: float | None = None,
     *,
     max_pm_tilt: float = 0.0,
-    band: tuple[float, float] = (0.78, 0.98),
+    band: tuple[float, float] = (0.75, 0.92),
 ) -> tuple[float, dict]:
     """Resolve the final deployment fraction and emit a diagnostic dict.
 
