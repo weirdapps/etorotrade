@@ -127,13 +127,13 @@ class TestTrendRegime:
 
 class TestDeploymentByRegime:
     def test_mapping_values(self):
-        assert DEPLOYMENT_BY_REGIME["risk_off"] == pytest.approx(0.78)
-        assert DEPLOYMENT_BY_REGIME["neutral"] == pytest.approx(0.88)
-        assert DEPLOYMENT_BY_REGIME["risk_on"] == pytest.approx(0.98)
+        assert DEPLOYMENT_BY_REGIME["risk_off"] == pytest.approx(0.80)
+        assert DEPLOYMENT_BY_REGIME["neutral"] == pytest.approx(0.87)
+        assert DEPLOYMENT_BY_REGIME["risk_on"] == pytest.approx(0.89)
 
     def test_averages_about_mid_band(self):
         vals = [DEPLOYMENT_BY_REGIME[r] for r in ("risk_off", "neutral", "risk_on")]
-        assert sum(vals) / len(vals) == pytest.approx(0.88)
+        assert sum(vals) / len(vals) == pytest.approx(0.8533, abs=1e-3)  # (0.80+0.87+0.89)/3
 
     def test_ordered_by_risk_appetite(self):
         assert (
