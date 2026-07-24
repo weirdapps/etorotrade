@@ -341,6 +341,38 @@ def _fund_floor_weakest_first(
     return out
 
 
+def _distribute_to_headroom(
+    weights: pd.Series, conviction: pd.Series, caps: pd.Series, gap: float
+) -> pd.Series:
+    """Distribute ``gap`` across ``weights``' names proportional to positive conviction,
+    each bounded by its per-name cap headroom (``caps - weights``). Weight that spills
+    off a name hitting its cap is re-distributed to those with remaining headroom, so
+    the whole gap is placed unless every name is capped. Any unplaceable remainder is
+    left unplaced (the caller treats it as residual cash). Pure; no vol/sector logic."""
+    w = weights.astype(float).copy()
+    if gap is None or gap <= 1e-12:
+        return w
+    names = list(w.index)
+    conv = conviction.reindex(names).astype(float).clip(lower=0.0).fillna(0.0)
+    cap = caps.reindex(names).astype(float)
+    remaining = float(gap)
+    for _ in range(64):  # each pass fills >=1 name to cap or exhausts the gap -> converges
+        head = (cap - w).clip(lower=0.0)
+        active = (head > 1e-12) & (conv > 0.0)
+        wsum = float(conv[active].sum())
+        if remaining <= 1e-12 or not bool(active.any()) or wsum <= 0.0:
+            break
+        alloc = pd.Series(0.0, index=names)
+        alloc[active] = remaining * (conv[active] / wsum)
+        alloc = pd.concat([alloc, head], axis=1).min(axis=1)  # clip each to its headroom
+        placed = float(alloc.sum())
+        if placed <= 1e-12:
+            break
+        w = w + alloc
+        remaining -= placed
+    return w
+
+
 def build_overlay(
     scored: pd.DataFrame,
     current_weights,
