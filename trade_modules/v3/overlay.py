@@ -673,6 +673,69 @@ def build_overlay(
         final = pd.Series(dtype=float)
         gate_diag = {}
 
+    # Redeploy-to-target (owner 2026-07-24): make cash DELIBERATE, not an under-absorption
+    # residual. If the gated + floored book sits BELOW gross_target and vol headroom exists,
+    # top up held + bought ELIGIBLE names (conviction-weighted, per-name-cap bounded via
+    # _distribute_to_headroom), then bisection-scale the increment so the vol ceiling is never
+    # breached. Any gap that still can't be placed stays cash and is REPORTED. The gate's
+    # DE-gross (excess -> cash) path is untouched; this only up-grosses within per-name caps.
+    redeploy_diag = {
+        "gap": 0.0,
+        "deployed_before": float(final.sum()) if len(final) else 0.0,
+        "deployed_after": float(final.sum()) if len(final) else 0.0,
+        "residual_cash": 0.0,
+    }
+    if len(final) and gross_target is not None:
+        deployed = float(final.sum())
+        gap = float(gross_target) - deployed
+        if gap > 1e-4:
+            # cov is ordered by target_names, so this maps each in-book ticker to its cov
+            # row/col. The core-floor block builds the same `pos`, but only when the floor
+            # fires; recompute here so redeploy never NameErrors on the no-floor path.
+            pos = {t: i for i, t in enumerate(target_names)}
+            caps_ser = (
+                pd.Series(_tiered_name_caps(scored, target_names), index=target_names)
+                if tier_name_caps and scored is not None
+                else pd.Series(float(name_cap), index=target_names)
+            )
+            elig_names = [
+                t for t in final.index if t in caps_ser.index and bool(elig_mask.get(t, False))
+            ]
+            if elig_names:
+                boosted = _distribute_to_headroom(
+                    final.reindex(elig_names),
+                    conv_all.reindex(elig_names),
+                    caps_ser.reindex(elig_names),
+                    gap,
+                )
+                trial = final.copy()
+                trial.loc[elig_names] = boosted
+                names_v = [t for t in trial.index if t in pos]
+                ix = [pos[t] for t in names_v]
+                covm = cov[np.ix_(ix, ix)]
+                base = final.reindex(names_v).to_numpy()
+                delta = trial.reindex(names_v).to_numpy() - base
+                if vol_ceiling is not None and portfolio_vol(base + delta, covm) > float(
+                    vol_ceiling
+                ):
+                    lo, hi = 0.0, 1.0
+                    for _ in range(40):  # bisection: largest step with vol <= ceiling
+                        mid = 0.5 * (lo + hi)
+                        if portfolio_vol(base + mid * delta, covm) <= float(vol_ceiling):
+                            lo = mid
+                        else:
+                            hi = mid
+                    delta = lo * delta
+                final = pd.Series(base + delta, index=names_v)
+                final = final[final > 1e-12]
+            deployed_after = float(final.sum())
+            redeploy_diag = {
+                "gap": gap,
+                "deployed_before": deployed,
+                "deployed_after": deployed_after,
+                "residual_cash": max(0.0, float(gross_target) - deployed_after),
+            }
+
     # Turnover = sum(|Δw|)/2 over the union of tickers (reported, not capped).
     idx = final.index.union(cur.index)
     turnover = 0.5 * float(
@@ -712,6 +775,7 @@ def build_overlay(
         "screened_out": screened_out,
         "gate": gate_diag,
         "core_floor_applied": core_floor_applied,
+        "redeploy": redeploy_diag,
     }
 
     if core_list is not None:

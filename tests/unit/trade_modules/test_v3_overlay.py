@@ -715,3 +715,50 @@ def test_distribute_to_headroom_leaves_unplaceable_gap():
     caps = pd.Series({"A": 0.10, "B": 0.10})
     out = _distribute_to_headroom(w, conv, caps, gap=0.50)  # only 0.02 placeable
     assert out.sum() == pytest.approx(0.20)  # 0.18 + 0.02; rest unplaced
+
+
+# --------------------------------------------------------------------------- #
+# Redeploy-to-target — deliberate cash, not an under-absorption residual
+# --------------------------------------------------------------------------- #
+
+
+def test_build_overlay_redeploys_to_target_instead_of_cash():
+    """Under-absorption fix: when small tier-capped buys can't fill the budget, the
+    freed weight is redeployed into held eligible names (up to caps) so the book hits
+    gross_target, rather than pooling as cash."""
+    _tks, _convs, sc = _universe20()
+    sc["cap"] = 5e11  # all large-cap so tiered caps give ample per-name headroom
+    current = pd.Series({"U00": 0.30, "U01": 0.30})  # 60% held, strong names
+    # vol_ceiling=5.0 (non-binding): the risk gate does arithmetic on vol_ceiling and
+    # rejects None (`None + tol` -> TypeError, pre-existing), so a large finite ceiling
+    # expresses "vol is not the constraint here" the way the other overlay tests do.
+    res = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=2,
+        gross_target=0.90,
+        tier_name_caps=False,
+        name_cap=0.60,
+        vol_ceiling=5.0,
+    )
+    d, w = res["diagnostics"], res["weights"]
+    assert float(w.sum()) == pytest.approx(0.90, abs=0.02)  # hit the target
+    assert d["redeploy"]["deployed_after"] >= d["redeploy"]["deployed_before"]
+
+
+def test_build_overlay_redeploy_respects_vol_ceiling():
+    """Redeploy never breaches the vol ceiling — residual stays cash and is reported."""
+    _tks, _convs, sc = _universe20()
+    current = pd.Series({"U00": 0.20})
+    res = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,
+        gross_target=0.95,
+        vol_ceiling=0.01,
+    )  # a 1% ceiling is unreachable at 95% gross -> cannot fully redeploy
+    w = res["weights"]
+    assert float(w.sum()) <= 0.95 + 1e-6
+    assert res["diagnostics"]["redeploy"]["residual_cash"] >= 0.0
