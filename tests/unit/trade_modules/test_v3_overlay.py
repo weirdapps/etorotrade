@@ -679,3 +679,39 @@ def test_fund_floor_weakest_first_treats_nan_conviction_as_weakest():
 
     assert abs(out["NANC"] - 0.02) < 1e-9  # NaN cut first
     assert out["STRONG"] == 0.05  # spared
+
+
+def test_distribute_to_headroom_fills_by_conviction_up_to_caps():
+    from trade_modules.v3.overlay import _distribute_to_headroom
+
+    w = pd.Series({"A": 0.05, "B": 0.05, "C": 0.05})
+    conv = pd.Series({"A": 2.0, "B": 1.0, "C": -1.0})  # C disliked -> gets nothing
+    caps = pd.Series({"A": 0.10, "B": 0.10, "C": 0.10})
+    out = _distribute_to_headroom(w, conv, caps, gap=0.06)
+    # 0.06 split 2:1 by conviction between A and B; C untouched.
+    assert out["A"] == pytest.approx(0.09)
+    assert out["B"] == pytest.approx(0.07)
+    assert out["C"] == pytest.approx(0.05)
+    assert out.sum() == pytest.approx(w.sum() + 0.06)
+
+
+def test_distribute_to_headroom_spills_capped_weight_to_others():
+    from trade_modules.v3.overlay import _distribute_to_headroom
+
+    w = pd.Series({"A": 0.08, "B": 0.02})
+    conv = pd.Series({"A": 3.0, "B": 1.0})  # A favored but near its cap
+    caps = pd.Series({"A": 0.10, "B": 0.10})
+    out = _distribute_to_headroom(w, conv, caps, gap=0.06)
+    # A can only take 0.02 (to its 0.10 cap); the remaining 0.04 spills to B.
+    assert out["A"] == pytest.approx(0.10)
+    assert out["B"] == pytest.approx(0.06)
+
+
+def test_distribute_to_headroom_leaves_unplaceable_gap():
+    from trade_modules.v3.overlay import _distribute_to_headroom
+
+    w = pd.Series({"A": 0.09, "B": 0.09})
+    conv = pd.Series({"A": 1.0, "B": 1.0})
+    caps = pd.Series({"A": 0.10, "B": 0.10})
+    out = _distribute_to_headroom(w, conv, caps, gap=0.50)  # only 0.02 placeable
+    assert out.sum() == pytest.approx(0.20)  # 0.18 + 0.02; rest unplaced
