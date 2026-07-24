@@ -272,7 +272,7 @@ def overlay_portfolio_view(
                 sector_exp[key] = sector_exp.get(key, 0.0) + w
 
     cvar_dep = gate.get("cvar_after")
-    cvar_rb = float(cvar_dep) / gross if (cvar_dep is not None and gross > 0) else None
+    cvar_rb = float(cvar_dep) / model_gross if (cvar_dep is not None and model_gross > 0) else None
     odiag = overlay["diagnostics"]
     region_exp = odiag.get("region_exposures") or {}
     max_region = odiag.get("max_region")
