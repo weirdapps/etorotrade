@@ -465,6 +465,23 @@ def write_preview(out: str = PREVIEW_OUT) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _canonicalize_keys(keys: list[str], csv_index) -> list[str]:
+    """Map eToro venue-suffixed holding keys to their etoro.csv-canonical form.
+
+    The eToro account + portfolio.csv carry US listings with a ``.US`` suffix (``T.US``),
+    while etoro.csv + the price store use the bare Yahoo ticker (``T``). Reconciling the
+    held/candidate keys to the CSV form (via ``features._resolve_csv_keys`` — exact key
+    wins, else a unique-underlying-root match; ambiguous/absent roots stay unchanged) makes
+    the held book, the enrichment universe, the price store and the display all agree, so a
+    name is never split across sources (``T.US`` would otherwise miss the store -> be
+    live-fetched every run -> risk a throughput '-' on a yfinance throttle). Owner 2026-07-24.
+    """
+    from trade_modules.v3.features import _resolve_csv_keys  # noqa: PLC0415
+
+    cmap = _resolve_csv_keys(csv_index, [str(k) for k in keys])
+    return [cmap.get(str(k), str(k)) for k in keys]
+
+
 def main() -> None:
     # --- Universe: two-stage scoring (BUILD ④ + production runtime) ---
     from trade_modules.v3.constants import MIN_FACTOR_COVERAGE
@@ -474,6 +491,12 @@ def main() -> None:
 
     port = _read_tickers(PORTFOLIO_CSV)
     buy = _read_tickers(BUY_CSV)
+    # Normalize eToro venue-suffix holding keys (e.g. T.US) to their etoro.csv-canonical
+    # form (T) so the held book, enrichment universe, price store and display all agree.
+    # eToro account/portfolio use T.US; etoro.csv + the price store use bare T (owner 2026-07-24).
+    _csv_keys = pd.read_csv(ETORO_CSV, usecols=["TKR"])["TKR"].dropna().astype(str).tolist()
+    port = _canonicalize_keys(port, _csv_keys)
+    buy = _canonicalize_keys(buy, _csv_keys)
     port_set = set(port)
     sector_map = load_offline_sector_map()
     # Pre-rank the FULL coverage-gated universe network-free, then fully enrich only
@@ -568,6 +591,17 @@ def main() -> None:
     # --- Current book (live account anchors the overlay; else equal-split) ---
     account_weights, nav, present = load_account_json()
     current_weights, approx = resolve_current_weights(port, account_weights, present)
+    # Re-key live holdings to the canonical CSV form too (T.US -> T), matching the universe.
+    _cw_map = dict(
+        zip(
+            current_weights.index,
+            _canonicalize_keys(list(current_weights.index), _csv_keys),
+            strict=True,
+        )
+    )
+    current_weights = current_weights.rename(index=_cw_map)
+    if current_weights.index.duplicated().any():
+        current_weights = current_weights.groupby(level=0).sum()
     if present:
         print(f"current book: live account ({len(current_weights)} names, nav={nav})")
     else:
