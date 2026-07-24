@@ -620,7 +620,7 @@ def _exec_summary_line(meta: dict, portfolio, actions, conditioning) -> str:
         items.append(f"{_esc(regime.upper())} regime")
     if portfolio is not None:
         items.append(
-            f"{_pct0(portfolio.get('gross'))} deployed / {_pct0(portfolio.get('cash'))} cash"
+            f"{_pct0(portfolio.get('gross'))} deployed (incl. managed) / {_pct0(portfolio.get('cash'))} cash"
         )
     elif cond.get("final_deployment") is not None:
         items.append(f"{_pct0(cond.get('final_deployment'))} deployment")

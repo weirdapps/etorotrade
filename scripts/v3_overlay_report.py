@@ -234,17 +234,25 @@ def _compute_allocations(positions: dict, scores: pd.DataFrame) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def overlay_portfolio_view(overlay: dict, scored: pd.DataFrame) -> dict:
+def overlay_portfolio_view(
+    overlay: dict, scored: pd.DataFrame, managed_weight: float = 0.0
+) -> dict:
     """Adapt a ``build_overlay`` result into the dict shape ``render_report`` reads.
 
     ``build_overlay`` returns ``{weights, diagnostics}``; the report's exec panel
     expects a ``build_portfolio``-style dict (gross / cash / usd_bloc /
     sector_exposures / diagnostics with a ``gate`` block). This fills those from
     the gated book + gate diagnostics so the same template renders the overlay.
+
+    ``managed_weight`` is the NAV fraction held in owner-managed sleeves (GLD /
+    UVXY / LYXGRE) that the model does not touch.  Including it here makes the
+    reported ``gross`` reflect the TRUE total invested (model + managed) so the
+    headline cash figure is not artificially inflated.
     """
     weights = overlay["weights"]
     gate = overlay["diagnostics"].get("gate") or {}
-    gross = float(weights.sum()) if len(weights) else 0.0
+    model_gross = float(weights.sum()) if len(weights) else 0.0
+    gross = model_gross + float(managed_weight)
     # NAV-basis absolute USD weight; the caps tile converts to book-basis (/gross) to
     # rank it alongside name/sector/region (I2 is fixed at the tile, one place).
     usd_bloc = float(sum(float(w) for t, w in weights.items() if currency_of(t) in USD_BLOC))
@@ -271,6 +279,8 @@ def overlay_portfolio_view(overlay: dict, scored: pd.DataFrame) -> dict:
     return {
         "weights": weights,
         "gross": gross,
+        "model_gross": model_gross,
+        "managed_weight": float(managed_weight),
         "cash": max(0.0, 1.0 - gross),
         "usd_bloc": usd_bloc,
         "sector_exposures": sector_exp,
@@ -611,6 +621,7 @@ def main() -> None:
     #     sells nor re-deploys their capital; deployment shrinks by their weight. ---
     managed_upper = {s.upper() for s in _MANAGED_SLEEVES}
     held_managed = [t for t in current_weights.index if str(t).upper() in managed_upper]
+    managed_weight: float = 0.0
     if held_managed:
         managed_weight = float(sum(float(current_weights[t]) for t in held_managed))
         current_weights = current_weights.drop(index=held_managed)
@@ -661,7 +672,7 @@ def main() -> None:
         min_conviction=_MIN_CONVICTION,
         portfolio_aware=_PORTFOLIO_AWARE,
     )
-    view = overlay_portfolio_view(overlay, scores)
+    view = overlay_portfolio_view(overlay, scores, managed_weight=managed_weight)
     actions = build_actions(overlay["weights"], current_weights, scores, nav=nav)
     # Attach live P/L from the eToro account snapshot to held names (P/L $ / % / value).
     _positions = load_account_positions()
