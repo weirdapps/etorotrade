@@ -14,7 +14,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from trade_modules.v3.overlay import build_overlay
+from trade_modules.riskfirst.construct import portfolio_vol
+from trade_modules.riskfirst.fx import USD_BLOC, currency_of
+from trade_modules.v3.overlay import _beta_array, _cov_matrix, build_overlay
 
 _SECTORS = ["Tech", "Health", "Financials", "Energy", "Industrials"]
 
@@ -679,3 +681,230 @@ def test_fund_floor_weakest_first_treats_nan_conviction_as_weakest():
 
     assert abs(out["NANC"] - 0.02) < 1e-9  # NaN cut first
     assert out["STRONG"] == 0.05  # spared
+
+
+def test_distribute_to_headroom_fills_by_conviction_up_to_caps():
+    from trade_modules.v3.overlay import _distribute_to_headroom
+
+    w = pd.Series({"A": 0.05, "B": 0.05, "C": 0.05})
+    conv = pd.Series({"A": 2.0, "B": 1.0, "C": -1.0})  # C disliked -> gets nothing
+    caps = pd.Series({"A": 0.10, "B": 0.10, "C": 0.10})
+    out = _distribute_to_headroom(w, conv, caps, gap=0.06)
+    # 0.06 split 2:1 by conviction between A and B; C untouched.
+    assert out["A"] == pytest.approx(0.09)
+    assert out["B"] == pytest.approx(0.07)
+    assert out["C"] == pytest.approx(0.05)
+    assert out.sum() == pytest.approx(w.sum() + 0.06)
+
+
+def test_distribute_to_headroom_spills_capped_weight_to_others():
+    from trade_modules.v3.overlay import _distribute_to_headroom
+
+    w = pd.Series({"A": 0.08, "B": 0.02})
+    conv = pd.Series({"A": 3.0, "B": 1.0})  # A favored but near its cap
+    caps = pd.Series({"A": 0.10, "B": 0.10})
+    out = _distribute_to_headroom(w, conv, caps, gap=0.06)
+    # A can only take 0.02 (to its 0.10 cap); the remaining 0.04 spills to B.
+    assert out["A"] == pytest.approx(0.10)
+    assert out["B"] == pytest.approx(0.06)
+
+
+def test_distribute_to_headroom_leaves_unplaceable_gap():
+    from trade_modules.v3.overlay import _distribute_to_headroom
+
+    w = pd.Series({"A": 0.09, "B": 0.09})
+    conv = pd.Series({"A": 1.0, "B": 1.0})
+    caps = pd.Series({"A": 0.10, "B": 0.10})
+    out = _distribute_to_headroom(w, conv, caps, gap=0.50)  # only 0.02 placeable
+    assert out.sum() == pytest.approx(0.20)  # 0.18 + 0.02; rest unplaced
+
+
+# --------------------------------------------------------------------------- #
+# Redeploy-to-target — deliberate cash, not an under-absorption residual
+# --------------------------------------------------------------------------- #
+
+
+def test_build_overlay_redeploys_to_target_instead_of_cash():
+    """Under-absorption fix: freed/unfunded budget is redeployed into held eligible
+    names (up to caps) so the book hits gross_target, rather than pooling as cash.
+
+    A clean gap is created with ``max_new=0`` and ``gross_target`` above the kept
+    weight (keep_sum 0.60 -> target 0.90), so the 0.30 fill comes purely from
+    redeploy. ``_universe20`` is entirely USD, so ``usd_bloc_cap`` is set to 1.0
+    here: the redeploy now ENFORCES the USD-bloc cap, and the default 0.60 would
+    correctly refuse to refill an already-100%-USD book (that enforcement is covered
+    by ``test_build_overlay_redeploy_respects_usd_bloc_cap``). ``sector_cap=0.99``
+    and ``vol_ceiling=5.0`` keep sector/vol non-binding so redeploy fills to target.
+    """
+    _tks, _convs, sc = _universe20()
+    sc["cap"] = 5e11  # all large-cap so tiered caps give ample per-name headroom
+    current = pd.Series({"U00": 0.30, "U01": 0.30})  # 60% held, strong names
+    # vol_ceiling=5.0 (non-binding): the risk gate does arithmetic on vol_ceiling and
+    # rejects None (`None + tol` -> TypeError, pre-existing), so a large finite ceiling
+    # expresses "vol is not the constraint here" the way the other overlay tests do.
+    res = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,
+        gross_target=0.90,
+        tier_name_caps=False,
+        name_cap=0.60,
+        sector_cap=0.99,
+        usd_bloc_cap=1.0,
+        vol_ceiling=5.0,
+    )
+    d, w = res["diagnostics"], res["weights"]
+    assert float(w.sum()) == pytest.approx(0.90, abs=0.02)  # hit the target
+    assert d["redeploy"]["deployed_after"] > d["redeploy"]["deployed_before"]  # redeploy filled
+
+
+def test_build_overlay_redeploy_respects_vol_ceiling():
+    """Redeploy never breaches the vol ceiling — residual stays cash and is reported.
+
+    Caps are set non-binding (single USD name -> sector/USD are 100% of gross, so
+    ``sector_cap`` / ``usd_bloc_cap`` must be 1.0 to impose no limit) so the VOL
+    ceiling is the constraint the redeploy has to respect here.
+    """
+    _tks, _convs, sc = _universe20()
+    current = pd.Series({"U00": 0.20})
+    res = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,
+        gross_target=0.95,
+        sector_cap=1.0,
+        usd_bloc_cap=1.0,
+        vol_ceiling=0.01,
+    )  # a 1% ceiling is unreachable at 95% gross -> cannot fully redeploy
+    w = res["weights"]
+    assert float(w.sum()) <= 0.95 + 1e-6
+    assert res["diagnostics"]["redeploy"]["residual_cash"] >= 0.0
+
+
+# --------------------------------------------------------------------------- #
+# Redeploy respects sector / USD-bloc caps (owner 2026-07-24) + vol
+# --------------------------------------------------------------------------- #
+
+
+def _mixed_book(sectors, currencies, convs, weights):
+    """Build (scored, current) for a redeploy-cap test. ``currencies`` picks a bare
+    (USD) ticker or a ``.DE`` (EUR) suffix per held name; six low-conviction eligible
+    fillers pin the sell percentile well below the held convictions so nothing sells.
+    """
+    held = [(f"H{i}.DE" if c == "EUR" else f"H{i}") for i, c in enumerate(currencies)]
+    fill = [f"F{i:02d}" for i in range(6)]
+    tickers = held + fill
+    all_convs = list(convs) + [-1.0] * len(fill)
+    all_sectors = list(sectors) + [_SECTORS[i % 5] for i in range(len(fill))]
+    sc = _scored(tickers, all_convs, sectors=all_sectors)
+    current = pd.Series(dict(zip(held, weights, strict=True)))
+    return sc, current, held
+
+
+def _sector_fracs(weights, scored):
+    """Per-sector exposure as a fraction of gross, from output weights."""
+    gross = float(weights.sum())
+    out: dict[str, float] = {}
+    for t, w in weights.items():
+        lab = str(scored.loc[t, "sector"])
+        out[lab] = out.get(lab, 0.0) + float(w) / gross
+    return out
+
+
+def test_build_overlay_redeploy_respects_sector_cap():
+    """Redeploy must NOT push any sector above ``sector_cap``. Two high-conviction
+    Tech names + mid-conviction Health/Energy names: uncapped conviction-weighted
+    fill would drive Tech to ~44% of gross, over the 40% cap. The closed-form cap
+    scale throttles the whole increment so Tech lands exactly at the cap; the rest
+    of the gap stays cash.
+    """
+    sc, current, _held = _mixed_book(
+        sectors=["Tech", "Tech", "Health", "Health", "Energy", "Energy"],
+        currencies=["USD"] * 6,
+        convs=[3.0, 3.0, 1.5, 1.5, 1.5, 1.5],
+        weights=[0.05] * 6,
+    )
+    res = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,
+        gross_target=0.90,
+        tier_name_caps=False,
+        name_cap=0.60,
+        sector_cap=0.40,
+        usd_bloc_cap=1.0,  # all-USD book: 1.0 keeps the bloc cap from binding here
+        vol_ceiling=5.0,
+    )
+    d, w = res["diagnostics"], res["weights"]
+    fracs = _sector_fracs(w, sc)
+    assert max(fracs.values()) <= 0.40 + 1e-9  # invariant: no sector over its cap
+    assert fracs["Tech"] == pytest.approx(0.40, abs=1e-6)  # the cap actually bound
+    assert d["redeploy"]["deployed_after"] > d["redeploy"]["deployed_before"]  # partial fill
+
+
+def test_build_overlay_redeploy_respects_usd_bloc_cap():
+    """Redeploy must NOT push the USD bloc above ``usd_bloc_cap``. One high-conviction
+    USD name (base 25% of gross) + two EUR names: uncapped fill would drive the USD
+    bloc to ~52% of gross, over the 50% cap. The closed-form scale throttles the
+    increment so the USD bloc lands exactly at the cap.
+    """
+    sc, current, held = _mixed_book(
+        sectors=["Tech", "Health", "Energy"],
+        currencies=["USD", "EUR", "EUR"],
+        convs=[3.0, 1.0, 1.0],
+        weights=[0.05, 0.075, 0.075],
+    )
+    res = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,
+        gross_target=0.90,
+        tier_name_caps=False,
+        name_cap=0.80,
+        sector_cap=0.99,  # distinct sectors: keep sector from binding
+        usd_bloc_cap=0.50,
+        vol_ceiling=5.0,
+    )
+    d, w = res["diagnostics"], res["weights"]
+    gross = float(w.sum())
+    usd = sum(float(v) for t, v in w.items() if currency_of(t) in USD_BLOC)
+    assert usd / gross <= 0.50 + 1e-9  # invariant: USD bloc within cap
+    assert usd / gross == pytest.approx(0.50, abs=1e-6)  # the cap actually bound
+    assert d["redeploy"]["deployed_after"] > d["redeploy"]["deployed_before"]  # partial fill
+
+
+def test_build_overlay_redeploy_respects_vol_ceiling_partial_fill():
+    """With a MILDLY-binding vol ceiling and non-binding caps, the redeploy output
+    respects the vol ceiling AND still partially fills (deployed_after > before).
+    Covariance is reconstructed via the SAME single-factor path the overlay uses.
+    """
+    sc, current, _held = _mixed_book(
+        sectors=["Tech", "Health", "Energy"],
+        currencies=["USD", "USD", "USD"],
+        convs=[2.0, 1.9, 1.8],
+        weights=[0.10, 0.10, 0.10],
+    )
+    vol_ceiling = 0.15
+    res = build_overlay(
+        sc,
+        current,
+        pd.DataFrame(),
+        max_new=0,
+        gross_target=0.90,
+        tier_name_caps=False,
+        name_cap=0.95,
+        sector_cap=1.0,
+        usd_bloc_cap=1.0,
+        vol_ceiling=vol_ceiling,
+    )
+    d, w = res["diagnostics"], res["weights"]
+    names = list(w.index)
+    betas_arr = _beta_array(names, sc, None)
+    cov = _cov_matrix(pd.DataFrame(), names, betas_arr)
+    assert portfolio_vol(w.to_numpy(), cov) <= vol_ceiling + 1e-6  # vol respected
+    assert d["redeploy"]["deployed_after"] > d["redeploy"]["deployed_before"]  # partial fill
+    assert d["redeploy"]["deployed_after"] < 0.90  # vol prevents a full fill

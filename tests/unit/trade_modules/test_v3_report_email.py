@@ -161,6 +161,7 @@ def _actions() -> list:
 
 def _view() -> dict:
     return {
+        "gross": 0.89,  # model (~0.75) + managed (~0.14) — true total invested
         "diagnostics": {
             "gate": {
                 "gross_after": 0.84,
@@ -172,7 +173,7 @@ def _view() -> dict:
                 "min_effective_bets": 10,
                 "usd_bloc": 0.68,
             }
-        }
+        },
     }
 
 
@@ -181,7 +182,7 @@ def test_render_summary_is_compact_and_outlook_safe():
     # Header: regime + counts + deployment.
     assert "RISK_ON" in html
     assert "buy" in html and "sell" in html
-    assert "84" in html  # deployment gross_after 0.84 -> 84.0%
+    assert "89" in html  # deployment portfolio["gross"] 0.89 -> 89.0% (model + managed)
     # Action rows carry ticker + action.
     assert "AAA" in html and "BUY" in html
     assert "BBB" in html and "SELL" in html

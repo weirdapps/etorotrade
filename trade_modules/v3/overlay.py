@@ -30,7 +30,7 @@ import pandas as pd
 
 from trade_modules.riskfirst.construct import portfolio_vol
 from trade_modules.riskfirst.covariance import single_factor_cov
-from trade_modules.riskfirst.fx import currency_of
+from trade_modules.riskfirst.fx import USD_BLOC, currency_of
 from trade_modules.riskfirst.prices import daily_returns, shrunk_cov
 from trade_modules.v3.combine import _TRAP_MAX_FWD_TTM, _fwd_loss_trap, _value_trap_gate
 from trade_modules.v3.construct import (
@@ -341,6 +341,38 @@ def _fund_floor_weakest_first(
     return out
 
 
+def _distribute_to_headroom(
+    weights: pd.Series, conviction: pd.Series, caps: pd.Series, gap: float
+) -> pd.Series:
+    """Distribute ``gap`` across ``weights``' names proportional to positive conviction,
+    each bounded by its per-name cap headroom (``caps - weights``). Weight that spills
+    off a name hitting its cap is re-distributed to those with remaining headroom, so
+    the whole gap is placed unless every name is capped. Any unplaceable remainder is
+    left unplaced (the caller treats it as residual cash). Pure; no vol/sector logic."""
+    w = weights.astype(float).copy()
+    if gap is None or gap <= 1e-12:
+        return w
+    names = list(w.index)
+    conv = conviction.reindex(names).astype(float).clip(lower=0.0).fillna(0.0)
+    cap = caps.reindex(names).astype(float)
+    remaining = float(gap)
+    for _ in range(64):  # each pass fills >=1 name to cap or exhausts the gap -> converges
+        head = (cap - w).clip(lower=0.0)
+        active = (head > 1e-12) & (conv > 0.0)
+        wsum = float(conv[active].sum())
+        if remaining <= 1e-12 or not bool(active.any()) or wsum <= 0.0:
+            break
+        alloc = pd.Series(0.0, index=names)
+        alloc[active] = remaining * (conv[active] / wsum)
+        alloc = pd.concat([alloc, head], axis=1).min(axis=1)  # clip each to its headroom
+        placed = float(alloc.sum())
+        if placed <= 1e-12:
+            break
+        w = w + alloc
+        remaining -= placed
+    return w
+
+
 def build_overlay(
     scored: pd.DataFrame,
     current_weights,
@@ -641,6 +673,110 @@ def build_overlay(
         final = pd.Series(dtype=float)
         gate_diag = {}
 
+    # Redeploy-to-target (owner 2026-07-24): make cash DELIBERATE, not an under-absorption
+    # residual. If the gated + floored book sits BELOW gross_target and vol headroom exists,
+    # top up held + bought ELIGIBLE names (conviction-weighted, per-name-cap bounded via
+    # _distribute_to_headroom), then bisection-scale the increment so the vol ceiling is never
+    # breached. Any gap that still can't be placed stays cash and is REPORTED. The gate's
+    # DE-gross (excess -> cash) path is untouched; this only up-grosses within per-name caps.
+    redeploy_diag = {
+        "gap": 0.0,
+        "deployed_before": float(final.sum()) if len(final) else 0.0,
+        "deployed_after": float(final.sum()) if len(final) else 0.0,
+        "residual_cash": 0.0,
+    }
+    if len(final) and gross_target is not None:
+        deployed = float(final.sum())
+        gap = float(gross_target) - deployed
+        if gap > 1e-4:
+            # cov is ordered by target_names, so this maps each in-book ticker to its cov
+            # row/col. The core-floor block builds the same `pos`, but only when the floor
+            # fires; recompute here so redeploy never NameErrors on the no-floor path.
+            pos = {t: i for i, t in enumerate(target_names)}
+            # Per-name headroom on the ABSOLUTE ``cap * gross_target`` basis, matching the
+            # gate (risk_gate uses ``name_cap * g_target``). Passing the raw FRACTION as an
+            # absolute weight cap under-counted a name's true headroom at the target gross.
+            _name_cap_fracs = (
+                pd.Series(_tiered_name_caps(scored, target_names), index=target_names)
+                if tier_name_caps and scored is not None
+                else pd.Series(float(name_cap), index=target_names)
+            )
+            caps_ser = _name_cap_fracs * float(gross_target)
+            elig_names = [
+                t for t in final.index if t in caps_ser.index and bool(elig_mask.get(t, False))
+            ]
+            if elig_names:
+                boosted = _distribute_to_headroom(
+                    final.reindex(elig_names),
+                    conv_all.reindex(elig_names),
+                    caps_ser.reindex(elig_names),
+                    gap,
+                )
+                trial = final.copy()
+                trial.loc[elig_names] = boosted
+                names_v = [t for t in trial.index if t in pos]
+                ix = [pos[t] for t in names_v]
+                covm = cov[np.ix_(ix, ix)]
+                base = final.reindex(names_v).to_numpy()
+                delta = trial.reindex(names_v).to_numpy() - base
+
+                # --- Sector + USD-bloc caps (closed-form scale, applied FIRST) ------- #
+                # These caps are ABSOLUTE fraction-of-gross thresholds (risk_gate: cap *
+                # gross). A bloc's exposure and the total gross are BOTH linear in the
+                # increment scale ``a``, so the max feasible ``a`` solving
+                #   e + a*d <= c*(g + a*gd)   (e,g = base bloc/total; d,gd = delta bloc/total)
+                # is closed-form: coef = d - c*gd; ``a <= (c*g - e)/coef`` when coef > 0,
+                # else the bloc share is non-increasing in ``a`` (no upper limit). Scaling
+                # the whole increment by the MIN such ``a`` over every distinct sector and
+                # the USD bloc keeps all of them within cap. delta stays >= 0 (never reduces
+                # a core-floored name), and scaling delta down only RELAXES the caps, so the
+                # later vol bisection can only keep the point cap-feasible.
+                g = float(base.sum())
+                gd = float(delta.sum())
+
+                def _cap_alpha(mask: np.ndarray, cap: float | None) -> float:
+                    if cap is None or not bool(mask.any()):
+                        return 1.0
+                    e = float(base[mask].sum())
+                    d = float(delta[mask].sum())
+                    coef = d - float(cap) * gd
+                    if coef > 1e-12:
+                        return max(0.0, (float(cap) * g - e) / coef)
+                    return 1.0  # bloc share non-increasing in ``a`` -> no upper limit
+
+                alpha_caps = 1.0
+                _sec_labels_v = _sector_labels(names_v, scored)
+                for _lab in set(_sec_labels_v):
+                    _m = np.array([s == _lab for s in _sec_labels_v], dtype=bool)
+                    alpha_caps = min(alpha_caps, _cap_alpha(_m, sector_cap))
+                _bloc_m = np.array([currency_of(t) in USD_BLOC for t in names_v], dtype=bool)
+                alpha_caps = min(alpha_caps, _cap_alpha(_bloc_m, usd_bloc_cap))
+                delta = min(1.0, max(0.0, alpha_caps)) * delta
+
+                # --- Vol ceiling (bisection on the ALREADY caps-scaled increment) --- #
+                # ``vol_ceiling is None`` is defensive-only: the gate rejects a None ceiling
+                # upstream (`None + tol` -> TypeError), so this branch is never taken live.
+                if vol_ceiling is not None and portfolio_vol(base + delta, covm) > float(
+                    vol_ceiling
+                ):
+                    lo, hi = 0.0, 1.0
+                    for _ in range(40):  # bisection: largest step with vol <= ceiling
+                        mid = 0.5 * (lo + hi)
+                        if portfolio_vol(base + mid * delta, covm) <= float(vol_ceiling):
+                            lo = mid
+                        else:
+                            hi = mid
+                    delta = lo * delta
+                final = pd.Series(base + delta, index=names_v)
+                final = final[final > 1e-12]
+            deployed_after = float(final.sum())
+            redeploy_diag = {
+                "gap": gap,
+                "deployed_before": deployed,
+                "deployed_after": deployed_after,
+                "residual_cash": max(0.0, float(gross_target) - deployed_after),
+            }
+
     # Turnover = sum(|Δw|)/2 over the union of tickers (reported, not capped).
     idx = final.index.union(cur.index)
     turnover = 0.5 * float(
@@ -680,6 +816,7 @@ def build_overlay(
         "screened_out": screened_out,
         "gate": gate_diag,
         "core_floor_applied": core_floor_applied,
+        "redeploy": redeploy_diag,
     }
 
     if core_list is not None:

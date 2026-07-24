@@ -1,12 +1,18 @@
-"""TDD — overlay holding-key canonicalization.
+"""TDD — overlay holding-key canonicalization + managed-sleeve gross reporting.
 
 eToro carries US listings with a ``.US`` suffix in the account + portfolio.csv (T.US),
 while etoro.csv + the price store use the bare Yahoo ticker (T). The overlay normalizes
 held/candidate keys to the etoro.csv-canonical form so the book, universe, price store
 and display all agree (owner 2026-07-24).
+
+Task 4: overlay_portfolio_view gains a ``managed_weight`` param so the reported
+``gross`` includes held-out managed sleeves (GLD/UVXY/LYXGRE) and ``cash`` reflects
+the true un-invested portion (owner 2026-07-24).
 """
 
 from __future__ import annotations
+
+import pytest
 
 from scripts.v3_overlay_report import _canonicalize_keys
 
@@ -34,3 +40,32 @@ def test_ambiguous_root_left_unresolved():
     # Two CSV keys share the root "T" -> ambiguous -> a held "T.EUR" is not remapped.
     out = _canonicalize_keys(["T.EUR"], ["T", "T.L"])
     assert out == ["T.EUR"]
+
+
+# ---------------------------------------------------------------------------
+# Task 4: overlay_portfolio_view gross includes managed sleeves
+# ---------------------------------------------------------------------------
+
+
+def test_overlay_portfolio_view_gross_includes_managed_sleeves():
+    import pandas as pd
+
+    from scripts.v3_overlay_report import overlay_portfolio_view
+
+    overlay = {"weights": pd.Series({"AAA": 0.40, "BBB": 0.35}), "diagnostics": {}}
+    view = overlay_portfolio_view(overlay, None, managed_weight=0.14)
+    assert view["model_gross"] == pytest.approx(0.75)
+    assert view["gross"] == pytest.approx(0.89)  # 0.75 model + 0.14 managed
+    assert view["cash"] == pytest.approx(0.11)
+    assert view["managed_weight"] == pytest.approx(0.14)
+
+
+def test_overlay_portfolio_view_defaults_managed_zero():
+    import pandas as pd
+
+    from scripts.v3_overlay_report import overlay_portfolio_view
+
+    overlay = {"weights": pd.Series({"AAA": 0.40}), "diagnostics": {}}
+    view = overlay_portfolio_view(overlay, None)  # default managed_weight=0.0
+    assert view["gross"] == pytest.approx(0.40)
+    assert view["managed_weight"] == pytest.approx(0.0)
