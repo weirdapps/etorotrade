@@ -25,7 +25,7 @@ _UNKNOWN_DEPLOYMENT = DEPLOYMENT_BY_REGIME["neutral"]
 def regime_deployment(regime: str) -> float:
     """Return the base deployment fraction for a regime string.
 
-    Unknown / missing regime labels fall back to neutral (0.88).
+    Unknown / missing regime labels fall back to neutral (0.87).
 
     Args:
         regime: One of ``"risk_off"``, ``"neutral"``, ``"risk_on"``.

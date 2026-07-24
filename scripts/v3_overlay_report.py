@@ -307,9 +307,9 @@ def _print_console_summary(diag: dict, actions: list, gross_target: float) -> No
     )
     print(f"turnover: {diag['turnover']:.1%}  freed: {diag['freed_weight']:.1%}")
     print(
-        f"deployment: {gross_target:.0%}  vol: {vol_after:.1%}"
+        f"model deployment: {gross_target:.0%}  vol: {vol_after:.1%}"
         if vol_after is not None
-        else f"deployment: {gross_target:.0%}"
+        else f"model deployment: {gross_target:.0%}"
     )
     print(
         f"thresholds: sell<= {diag['sell_threshold']:.3f}  buy>= {diag['buy_threshold']:.3f}"
