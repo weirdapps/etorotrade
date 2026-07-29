@@ -199,14 +199,24 @@ def calculate_analyst_momentum(yticker) -> dict[str, Any]:
         if recommendations_df is None or len(recommendations_df) < 2:
             return result  # Need at least 2 months of data
 
-        # Sort by date and get rows
-        sorted_df = recommendations_df.sort_index()
+        # yfinance returns recommendations NEWEST-FIRST with a 'period' column
+        # ('0m' = current month, then '-1m','-2m','-3m') on a RangeIndex whose row 0 is the
+        # current month. The old code took ``sort_index().iloc[-1]`` as "latest" — but that is
+        # the OLDEST row (-3m), so it compared -3m vs -1m: sign-INVERTED and the wrong window,
+        # never even reading the true current month. Select by the 'period' LABEL (with a
+        # newest-first positional fallback) so row order can't fool the comparison.
+        df = recommendations_df
+        period_col = df["period"].astype(str) if "period" in df.columns else None
 
-        # Get latest and approximately 3 months ago (or earliest available)
-        latest = sorted_df.iloc[-1]
-        # Try to get 3 months ago, otherwise use earliest
-        past_idx = max(0, len(sorted_df) - 3)
-        past = sorted_df.iloc[past_idx]
+        def _row_for(label: str, fallback_pos: int):
+            if period_col is not None:
+                match = df[period_col == label]
+                if len(match):
+                    return match.iloc[0]
+            return df.iloc[fallback_pos]
+
+        latest = _row_for("0m", 0)  # current month (newest-first -> row 0)
+        past = _row_for("-3m", -1)  # ~3 months ago (fallback: oldest row present)
 
         # Calculate buy percentages
         def calc_buy_pct(row):
