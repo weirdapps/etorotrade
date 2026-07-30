@@ -11,7 +11,6 @@ invert the comparison.
 """
 
 import pandas as pd
-import pytest
 
 from yahoofinance.api.providers.async_modules.recommendations_parser import (
     calculate_analyst_momentum,
@@ -38,22 +37,25 @@ _INVE_ROWS = [
 ]
 
 
-def test_momentum_is_current_minus_three_months_ago():
+def test_momentum_is_net_buy_side_analyst_count_change():
+    # analyst_momentum is now a signed COUNT: net change in buy-side analysts
+    # (strongBuy+buy) over 3 months. INVE-B.ST 0m buy=1 vs -3m buy=2 -> -1 (one net
+    # analyst dropped their buy). Bounded by coverage; no longer a percentage-point value.
     res = calculate_analyst_momentum(_FakeTicker(_rec(_INVE_ROWS)))
-    # 0m 20.0% - (-3m) 33.3% = -13.3 (bearish). The OLD bug returned +16.7 (bullish).
-    assert res["analyst_momentum"] == pytest.approx(-13.3, abs=0.1)
-    assert res["analyst_momentum"] < 0  # sign must reflect the real (bearish) trend
+    assert res["analyst_momentum"] == -1
+    assert isinstance(res["analyst_momentum"], int)
+    assert res["analyst_momentum"] < 0  # sign reflects the real (bearish) trend
 
 
-def test_momentum_bullish_when_buy_share_rises():
+def test_momentum_bullish_when_buy_side_count_rises():
     rows = [
-        {"period": "0m", "strongBuy": 3, "buy": 3, "hold": 2, "sell": 0, "strongSell": 0},  # 75%
+        {"period": "0m", "strongBuy": 3, "buy": 3, "hold": 2, "sell": 0, "strongSell": 0},  # buy=6
         {"period": "-1m", "strongBuy": 2, "buy": 2, "hold": 4, "sell": 0, "strongSell": 0},
         {"period": "-2m", "strongBuy": 1, "buy": 2, "hold": 5, "sell": 0, "strongSell": 0},
-        {"period": "-3m", "strongBuy": 0, "buy": 2, "hold": 6, "sell": 0, "strongSell": 0},  # 25%
+        {"period": "-3m", "strongBuy": 0, "buy": 2, "hold": 6, "sell": 0, "strongSell": 0},  # buy=2
     ]
     res = calculate_analyst_momentum(_FakeTicker(_rec(rows)))
-    assert res["analyst_momentum"] == pytest.approx(50.0, abs=0.1)  # 75 - 25
+    assert res["analyst_momentum"] == 4  # 6 - 2 net analysts turned buy-side
 
 
 def test_momentum_is_row_order_invariant():
@@ -61,14 +63,12 @@ def test_momentum_is_row_order_invariant():
     forward = calculate_analyst_momentum(_FakeTicker(_rec(_INVE_ROWS)))
     shuffled = _rec(list(reversed(_INVE_ROWS)))  # oldest-first
     reverse = calculate_analyst_momentum(_FakeTicker(shuffled))
-    assert (
-        forward["analyst_momentum"] == reverse["analyst_momentum"] == pytest.approx(-13.3, abs=0.1)
-    )
+    assert forward["analyst_momentum"] == reverse["analyst_momentum"] == -1
 
 
 def test_momentum_falls_back_to_oldest_when_3m_missing():
     rows = [
-        {"period": "0m", "strongBuy": 0, "buy": 1, "hold": 3, "sell": 0, "strongSell": 0},  # 25%
+        {"period": "0m", "strongBuy": 0, "buy": 1, "hold": 3, "sell": 0, "strongSell": 0},  # buy=1
         {"period": "-1m", "strongBuy": 0, "buy": 2, "hold": 2, "sell": 0, "strongSell": 0},
         {
             "period": "-2m",
@@ -77,10 +77,10 @@ def test_momentum_falls_back_to_oldest_when_3m_missing():
             "hold": 1,
             "sell": 0,
             "strongSell": 0,
-        },  # 75% (oldest)
+        },  # buy=3 (oldest)
     ]
     res = calculate_analyst_momentum(_FakeTicker(_rec(rows)))
-    assert res["analyst_momentum"] == pytest.approx(-50.0, abs=0.1)  # 25 - 75 (oldest present)
+    assert res["analyst_momentum"] == -2  # 1 - 3 (oldest present)
 
 
 def test_momentum_none_with_insufficient_data():

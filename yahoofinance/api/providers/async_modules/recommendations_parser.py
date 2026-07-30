@@ -198,7 +198,8 @@ def calculate_analyst_momentum(yticker) -> dict[str, Any]:
 
     Returns:
         Dictionary with:
-        - analyst_momentum: Change in buy% over 3 months (positive = upgrading)
+        - analyst_momentum: NET change in the buy-side analyst count (strongBuy+buy)
+          over ~3 months, as a signed integer (positive = analysts turning buy-side).
         - analyst_count_trend: "increasing", "stable", or "decreasing"
     """
     result: dict[str, Any] = {"analyst_momentum": None, "analyst_count_trend": None}
@@ -227,24 +228,22 @@ def calculate_analyst_momentum(yticker) -> dict[str, Any]:
         latest = _row_for("0m", 0)  # current month (newest-first -> row 0)
         past = _row_for("-3m", -1)  # ~3 months ago (fallback: oldest row present)
 
-        # Calculate buy percentages
-        def calc_buy_pct(row):
-            total = (
-                row.get("strongBuy", 0)
-                + row.get("buy", 0)
-                + row.get("hold", 0)
-                + row.get("sell", 0)
-                + row.get("strongSell", 0)
+        # analyst_momentum = NET change in the number of buy-side analysts (strongBuy+buy)
+        # over ~3 months, as a signed integer (owner 2026-07-30). A COUNT of analysts who
+        # moved to/from a buy rating — bounded by coverage and directly interpretable —
+        # replaces the old buy-% percentage-point change, which was coarse/lumpy on thin
+        # coverage (~20pp per analyst over 5-6 analysts) and read nonsensically next to the
+        # analyst count (a "-13" beside 5 analysts). Requires coverage in BOTH periods.
+        def _tot(row):
+            return sum(
+                (row.get(k, 0) or 0) for k in ("strongBuy", "buy", "hold", "sell", "strongSell")
             )
-            if total == 0:
-                return None
-            return ((row.get("strongBuy", 0) + row.get("buy", 0)) / total) * 100
 
-        current_pct = calc_buy_pct(latest)
-        past_pct = calc_buy_pct(past)
+        def _buy(row):
+            return (row.get("strongBuy", 0) or 0) + (row.get("buy", 0) or 0)
 
-        if current_pct is not None and past_pct is not None:
-            result["analyst_momentum"] = round(current_pct - past_pct, 1)
+        if _tot(latest) > 0 and _tot(past) > 0:
+            result["analyst_momentum"] = int(_buy(latest) - _buy(past))
 
         # Calculate count trend
         current_count = sum(
