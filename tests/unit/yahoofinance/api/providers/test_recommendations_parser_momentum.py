@@ -86,3 +86,69 @@ def test_momentum_falls_back_to_oldest_when_3m_missing():
 def test_momentum_none_with_insufficient_data():
     res = calculate_analyst_momentum(_FakeTicker(_rec(_INVE_ROWS[:1])))
     assert res["analyst_momentum"] is None
+
+
+# --------------------------------------------------------------------------- #
+# parse_analyst_recommendations: buy_pct + coverage count must read the CURRENT
+# period. Sibling of the momentum bug — the `.recommendations` frame is newest-first
+# over a RangeIndex, so `index.max()` returned the OLDEST '-3m' snapshot, making
+# buy_percentage / total_ratings / analyst_count ~3 months stale (2026-07-30).
+# --------------------------------------------------------------------------- #
+
+from yahoofinance.api.providers.async_modules.recommendations_parser import (  # noqa: E402
+    parse_analyst_recommendations,
+)
+
+
+def test_parse_reads_current_period_not_oldest():
+    """buy_percentage + coverage count come from the '0m' (current) row, not the '-3m' row."""
+    rows = [
+        {
+            "period": "0m",
+            "strongBuy": 5,
+            "buy": 3,
+            "hold": 2,
+            "sell": 0,
+            "strongSell": 0,
+        },  # 80%, n=10
+        {"period": "-1m", "strongBuy": 1, "buy": 1, "hold": 5, "sell": 1, "strongSell": 0},
+        {"period": "-2m", "strongBuy": 0, "buy": 1, "hold": 3, "sell": 1, "strongSell": 0},
+        {
+            "period": "-3m",
+            "strongBuy": 0,
+            "buy": 1,
+            "hold": 2,
+            "sell": 0,
+            "strongSell": 0,
+        },  # 33%, n=3 (old bug)
+    ]
+    res = parse_analyst_recommendations({}, _FakeTicker(_rec(rows)))
+    assert res["buy_percentage"] == 80  # current 0m period, NOT 33 (the old index.max()='-3m' bug)
+    assert res["total_ratings"] == 10  # coverage count from the current period (was 3)
+    assert res["analyst_count"] == 10
+
+
+def test_parse_current_period_is_row_order_invariant():
+    """Selecting the current period by its 'period' label is invariant to DataFrame row order."""
+    rows = [
+        {
+            "period": "-3m",
+            "strongBuy": 0,
+            "buy": 1,
+            "hold": 2,
+            "sell": 0,
+            "strongSell": 0,
+        },  # oldest FIRST
+        {"period": "-2m", "strongBuy": 0, "buy": 1, "hold": 3, "sell": 1, "strongSell": 0},
+        {"period": "-1m", "strongBuy": 1, "buy": 1, "hold": 5, "sell": 1, "strongSell": 0},
+        {
+            "period": "0m",
+            "strongBuy": 5,
+            "buy": 3,
+            "hold": 2,
+            "sell": 0,
+            "strongSell": 0,
+        },  # current LAST
+    ]
+    res = parse_analyst_recommendations({}, _FakeTicker(_rec(rows)))
+    assert res["buy_percentage"] == 80 and res["total_ratings"] == 10

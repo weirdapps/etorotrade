@@ -77,9 +77,18 @@ def parse_analyst_recommendations(ticker_info: dict[str, Any], yticker) -> dict[
         recommendations_df = getattr(yticker, "recommendations", None)
         if recommendations_df is not None and not recommendations_df.empty:
             try:
-                # Get the most recent recommendations
-                latest_date = recommendations_df.index.max()
-                latest_recs = recommendations_df.loc[latest_date]
+                # Get the CURRENT-period recommendations. yfinance returns this DataFrame
+                # NEWEST-FIRST with a 'period' column ('0m' = current month, '-1m'..'-3m') over a
+                # plain RangeIndex (0..3). ``index.max()`` therefore selected row 3 = the OLDEST
+                # ('-3m') snapshot, so buy_percentage AND the coverage count (analyst_count /
+                # total_ratings) were read ~3 months stale — the same defect class as the analyst-
+                # momentum bug fixed in PR #203. Select the '0m' row by its period label, falling
+                # back to the first (newest) row when the label is absent.
+                if "period" in recommendations_df.columns:
+                    _cur = recommendations_df[recommendations_df["period"].astype(str) == "0m"]
+                    latest_recs = _cur.iloc[0] if not _cur.empty else recommendations_df.iloc[0]
+                else:
+                    latest_recs = recommendations_df.iloc[0]
 
                 # Extract counts
                 strong_buy = int(latest_recs.get("strongBuy", 0))
