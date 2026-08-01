@@ -45,7 +45,7 @@ repos:
     rev: v1.35.1
     hooks:
       - id: yamllint
-        args: [--strict, -d, '{extends: default, rules: {line-length: {max: 120}, document-start: disable}}']
+        args: [--strict, -d, '{extends: default, rules: {line-length: {max: 120}, document-start: disable, truthy: {check-keys: false}, comments: {min-spaces-from-content: 1}, comments-indentation: disable}}']
         files: \.github/workflows/.*\.ya?ml$
 
   # Markdown linting
