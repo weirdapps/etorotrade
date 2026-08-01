@@ -73,6 +73,38 @@ def record(ticker: str, raw_info: dict[str, Any] | None) -> None:
         _DUMP_REGISTERED = True
 
 
+def merge_snapshots(
+    snapshot_dir: str,
+    output: str | None = None,
+    pattern: str = "info_snapshot_shard_*.parquet",
+) -> int:
+    """Merge per-shard snapshot parquets (the CI market scan is sharded) into one file.
+
+    Concatenate every ``info_snapshot_shard_*.parquet`` under ``snapshot_dir`` and dedupe
+    on ticker (newest wins). Returns the merged ticker count; 0 (no file written) when no
+    shard snapshots are found. Never raises.
+    """
+    import glob
+
+    try:
+        paths = sorted(glob.glob(os.path.join(snapshot_dir, pattern)))
+        frames = []
+        for p in paths:
+            try:
+                frames.append(pd.read_parquet(p))
+            except Exception:  # noqa: BLE001 - skip a corrupt shard, keep the rest
+                continue
+        if not frames:
+            return 0
+        df = pd.concat(frames, ignore_index=True).drop_duplicates(subset=["ticker"], keep="last")
+        out = os.path.abspath(output or SNAPSHOT_PATH)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        df.to_parquet(out, index=False)
+        return len(df)
+    except Exception:  # noqa: BLE001 - best-effort; a merge failure just means no snapshot
+        return 0
+
+
 def dump(path: str | None = None) -> int:
     """Write the accumulated snapshot to a tidy parquet (one row per ticker). Returns the
     number of tickers written; 0 (and no file) when nothing was recorded. Never raises."""

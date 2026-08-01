@@ -57,6 +57,12 @@ jobs:
           python trade.py -o e
           mv yahoofinance/output/etoro.csv "etoro_shard_${SHARD_INDEX}.csv"
           echo "Shard ${SHARD_INDEX} complete: $(wc -l < etoro_shard_${SHARD_INDEX}.csv) lines"
+          # Byproduct: the .info snapshot the build emitted for this shard's tickers
+          # (dumped at process exit by yahoofinance/data/info_snapshot.py). Non-fatal.
+          mv yahoofinance/output/etoro_info_snapshot.parquet \
+            "info_snapshot_shard_${SHARD_INDEX}.parquet" 2>/dev/null \
+            && echo "Snapshot shard ${SHARD_INDEX} emitted" \
+            || echo "No .info snapshot for shard ${SHARD_INDEX} (ok — consumer falls back)"
 
       - name: Upload shard output
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -65,6 +71,14 @@ jobs:
           path: etoro_shard_${{ matrix.shard }}.csv
           retention-days: 1
           if-no-files-found: error
+
+      - name: Upload shard .info snapshot (byproduct — non-fatal)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: etoro-info-shard-${{ matrix.shard }}
+          path: info_snapshot_shard_${{ matrix.shard }}.parquet
+          retention-days: 1
+          if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
   # Stage 2 — merge shard slices into etoro.csv, refresh portfolio, derive
@@ -109,6 +123,33 @@ jobs:
           echo "Merging shard slices..."
           python scripts/merge_shards.py --shard-dir shards --output yahoofinance/output/etoro.csv
           echo "Merge complete: $(wc -l < yahoofinance/output/etoro.csv) lines"
+
+      # --- .info snapshot (byproduct): merge the per-shard snapshots into one artifact
+      # the plessas-trading-stack VPS pulls via `gh run download`, so the single .info
+      # sweep here feeds the stack's info store too (no second .info fetch on the VPS).
+      # Entirely non-fatal — a missing/failed snapshot never blocks the signals build.
+      - name: Download shard .info snapshots
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: etoro-info-shard-*
+          path: info-shards
+          merge-multiple: true
+
+      - name: Merge .info snapshots
+        continue-on-error: true
+        run: |
+          python -c "from yahoofinance.data.info_snapshot import merge_snapshots as m; \
+            print('merged snapshot tickers:', m('info-shards', 'yahoofinance/output/etoro_info_snapshot.parquet'))"
+
+      - name: Upload merged .info snapshot (byproduct — non-fatal)
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: etoro-info-snapshot
+          path: yahoofinance/output/etoro_info_snapshot.parquet
+          retention-days: 2
+          if-no-files-found: warn
 
       - name: Download fresh portfolio from eToro
         env:
