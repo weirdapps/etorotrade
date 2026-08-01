@@ -236,17 +236,6 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 )
                 ticker_info = {}
 
-            # Byproduct (non-fatal): record the raw .info fields the plessas-trading-stack
-            # info store needs, so this single .info sweep feeds BOTH etoro.csv and the
-            # stack's info snapshot — no second .info fetch downstream. Fully guarded: this
-            # must never affect the etoro.csv build.
-            try:
-                from ...data.info_snapshot import record as _record_info_snapshot
-
-                _record_info_snapshot(ticker, ticker_info)
-            except Exception:  # noqa: BLE001
-                pass
-
             info: dict[str, Any] = {"symbol": ticker, "ticker": ticker}
 
             # Extract key fields
