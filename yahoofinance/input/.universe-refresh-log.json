@@ -1,31 +1,20 @@
 {
-  "timestamp": "2026-07-26T21:57:10.975321+00:00",
-  "total_count": 13025,
-  "new_count": 11,
-  "removed_count": 10,
+  "timestamp": "2026-08-02T21:53:27.625605+00:00",
+  "total_count": 13029,
+  "new_count": 7,
+  "removed_count": 3,
   "sample_new": [
-    "AASU.PA",
-    "BXBL",
-    "CIGL",
-    "CYNCA.ST",
-    "GRSD",
-    "MEDS",
-    "MF",
-    "NIKI",
-    "OGG",
-    "SLAIY",
-    "VIP"
+    "ADIG",
+    "APMD",
+    "CELDB.AX",
+    "GVHGF",
+    "JMKE",
+    "REF",
+    "TONT"
   ],
   "sample_removed": [
-    "APM",
-    "FGMC",
-    "GAMB",
-    "GREE",
-    "ODV",
-    "SLAI",
-    "UBXG",
-    "VESTUM.ST",
-    "WGRX",
-    "YOOV"
+    "CEL.AX",
+    "GRAF",
+    "GV"
   ]
 }
