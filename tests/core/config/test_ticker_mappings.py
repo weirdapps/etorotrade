@@ -141,11 +141,11 @@ class TestTickerNormalization:
             ("NOVO-B.CO", "NVO"),
             ("novo-b.co", "NVO"),  # Case insensitive
             ("SAN.PA", "SNY"),
-            ("9618.HK", "JD.US"),  # Based on actual reverse mapping
+            ("9618.HK", "JD"),  # JD/JD.US both map to 9618.HK; reverse prefers dot-less JD
             ("9988.HK", "BABA"),
             ("GOOG", "GOOGL"),  # Based on actual reverse mapping
             ("ASML.NV", "ASML"),
-            ("SHEL.L", "RDS.B"),  # Based on actual reverse mapping (last one wins)
+            ("SHEL.L", "SHEL"),  # SHEL/RDS.A/RDS.B all map to SHEL.L; reverse prefers live SHEL
         ]
 
         for input_ticker, expected_us in test_cases:
@@ -411,8 +411,11 @@ class TestIntegration:
             display = get_display_ticker(ticker)
             fetch = get_data_fetch_ticker(ticker)
 
-            # For now, all should return the same normalized ticker
-            assert normalized == display == fetch
+            # Display is the eToro / home-exchange form and must equal the normalized ticker.
+            # The data-fetch symbol MAY differ by design (e.g. ASML -> display ASML.NV but
+            # fetch ASML.AS, since Yahoo 404s on the .NV form).
+            assert normalized == display
+            assert fetch  # resolves to a non-empty Yahoo symbol
 
     def test_equivalence_symmetry(self):
         """Test that ticker equivalence is symmetric."""

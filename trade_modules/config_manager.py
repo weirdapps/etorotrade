@@ -15,7 +15,19 @@ from .yaml_config_loader import YamlConfigLoader
 # eToro/Bloomberg exchange suffix -> Yahoo Finance suffix, applied in get_data_fetch_ticker
 # (Yahoo 404s on the eToro form; verified via live probes). .DH (Gulf) is intentionally
 # absent — Yahoo uses numeric codes there, so it needs per-name data_fetch_substitutions.
-_YAHOO_SUFFIX_MAP = {"NV": "AS", "IM": "MI", "LN": "L", "CH": "SW"}
+# NOTE: keep in sync with scripts/refresh_etoro_universe._SUFFIX_REMAP (the universe-build
+# normalizer). The two diverging is what left held Swiss (.ZU) lines fetching dead: eToro
+# uses .ZU for its CBOE-EU Swiss book (Roche ROP.ZU, Novartis NOVN.ZU), which Yahoo carries
+# under .SW.
+_YAHOO_SUFFIX_MAP = {
+    "NV": "AS",
+    "IM": "MI",
+    "LN": "L",
+    "CH": "SW",
+    "ZU": "SW",
+    "ASX": "AX",
+    "LSB": "LS",
+}
 # Currency / price-unit lines eToro appends (e.g. MSFT.EUR, KSP.L.GBX) -> stripped before fetch.
 _CURRENCY_SUFFIXES = {"EUR", "USD", "GBP", "GBX"}
 # US class-share letters -> Yahoo dash form (BRK.B -> BRK-B).
@@ -214,6 +226,9 @@ class ConfigManager:
             # KAP.IL both return ~507 bars vs 5 for .L).
             "SMSN.L": "SMSN.IL",  # Samsung Electronics GDR (USD) — London IOB has full history
             "KAP.L": "KAP.IL",  # Kazatomprom GDR (USD) — London IOB has full history
+            # Nordic share-class lines: eToro base is un-hyphenated (INVEB), Yahoo hyphenates
+            # the class letter (INVE-B.ST). A pure stem change, so a suffix rule can't express it.
+            "INVEB.ST": "INVE-B.ST",  # Investor AB ser. B
         }
 
         # US Ticker -> Original Exchange Ticker mappings
@@ -253,8 +268,15 @@ class ConfigManager:
             (".AS", ".NV"),  # Euronext Amsterdam: Yahoo Finance uses .AS, eToro uses .NV
         ]
 
-        # Reverse mapping: Original Exchange Ticker -> US Ticker
-        self.reverse_mappings = {v: k for k, v in self.dual_listed_mappings.items()}
+        # Reverse mapping: Original Exchange Ticker -> US Ticker.
+        # Several US tickers can map to one home listing (SHEL, RDS.A, RDS.B -> SHEL.L;
+        # JD, JD.US -> 9618.HK). A naive dict inversion keeps the LAST one (a dead RDS.B /
+        # JD.US), so prefer the dot-less US ticker (SHEL over RDS.A, JD over JD.US).
+        self.reverse_mappings = {}
+        for _us, _home in self.dual_listed_mappings.items():
+            _cur = self.reverse_mappings.get(_home)
+            if _cur is None or ("." in _cur and "." not in _us):
+                self.reverse_mappings[_home] = _us
 
         # Set of all tickers that have dual listings (for quick lookup)
         self.dual_listed_tickers = set(self.dual_listed_mappings.keys()) | set(
@@ -443,12 +465,13 @@ class ConfigManager:
                 if suf in _CLASS_SHARE_LETTERS and "." not in stem:
                     return stem + "-" + suf
 
-        # For data fetching, we might want to use US tickers when available
-        # as they often have better data coverage, but we'll normalize the results
+        # Normalize to the canonical (home-exchange) form. That form may itself carry an
+        # eToro display suffix that Yahoo 404s on (ASML -> ASML.NV), so re-resolve it once
+        # through this same function to reach a live Yahoo symbol (ASML -> ASML.NV -> ASML.AS).
+        # get_normalized_ticker is idempotent on home tickers, so this recurses at most once.
         normalized = self.get_normalized_ticker(ticker)
-
-        # For now, prefer the normalized ticker, but this can be customized
-        # based on data quality preferences per ticker
+        if normalized and normalized != tu:
+            return self.get_data_fetch_ticker(normalized)
         return normalized
 
     def get_ticker_geography(self, ticker: str) -> str:
@@ -475,7 +498,26 @@ class ConfigManager:
             return "HK"
         elif normalized_ticker.endswith(".L"):
             return "UK"
-        elif normalized_ticker.endswith((".PA", ".DE", ".NV", ".MI", ".BR")):
+        elif normalized_ticker.endswith(
+            # Continental Europe + Nordics + Switzerland (eToro .ZU / Yahoo .SW).
+            (
+                ".PA",
+                ".DE",
+                ".NV",
+                ".AS",
+                ".MI",
+                ".BR",
+                ".MC",
+                ".LS",
+                ".VI",
+                ".SW",
+                ".ZU",
+                ".ST",
+                ".OL",
+                ".CO",
+                ".HE",
+            )
+        ):
             return "EU"
         elif normalized_ticker.endswith(".T"):
             return "JP"
