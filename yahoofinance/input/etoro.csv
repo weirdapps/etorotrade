@@ -90,7 +90,7 @@ IWP,iShares Russell Mid-Cap Growth ETF,NYSE
 IEI,iShares 3-7 Year Treasury Bond ETF ,Nasdaq
 GSLC,Goldman Sachs ActiveBeta U.S. Large Cap Equity ETF,NYSE
 VGIT,Vanguard Intermediate-Term Treasury Index Fund,Nasdaq
-MGK,Vanguard Mega Cap Growth Index Fund,NYSE
+MGK,Vanguard Morningstar Mega Cap Growth ETF,NYSE
 IWV,iShares Russell 3000 ETF,NYSE
 SCZ,iShares MSCI EAFE Small-Cap ETF,Nasdaq
 EFG,iShares MSCI EAFE Growth ETF,CBOE
@@ -2072,13 +2072,13 @@ UDOW,ProShares UltraPro Dow30,NYSE
 UPRO,ProShares UltraPro S&P 500,NYSE
 USL,United States 12 Month Oil Fund LP,NYSE
 UVXY,ProShares Ultra VIX Short-Term Futures ETF,CBOE
-VB,Vanguard Small-Cap ETF,NYSE
-VBK,Vanguard Small-Cap Growth ETF,NYSE
-VBR,Vanguard Small-Cap Value ETF,NYSE
+VB,Vanguard Morningstar Small-Cap ETF,NYSE
+VBK,Vanguard Morningstar Small-Cap Growth ETF,NYSE
+VBR,Vanguard Morningstar Small-Cap Value ETF,NYSE
 VFH,Vanguard Financials ETF,NYSE
 VHT,Vanguard Health Care ETF,NYSE
 VIG,Vanguard Dividend Appreciation ETF,NYSE
-VO,Vanguard Mid-Cap ETF,NYSE
+VO,Vanguard Morningstar Mid-Cap ETF,NYSE
 VOOG,Vanguard S&P 500 Growth ETF,NYSE
 VOOV,Vanguard S&P 500 Value ETF,NYSE
 VOX,Vanguard Communication Services ETF,NYSE
@@ -2734,7 +2734,7 @@ RDS.A,Royal Dutch Shell A (ADR),NYSE
 NVS,Novartis ADR,NYSE
 BHP,BHP Group Ltd ADR,NYSE
 AVGO,Broadcom Inc,Nasdaq
-VTI,Vanguard Total Stock Market ETF,NYSE
+VTI,Vanguard Morningstar Total Stock Market ETF,NYSE
 VOO,Vanguard S&P 500 ETF,NYSE
 AZN,AstraZeneca PLC ADR,Nasdaq
 RIO,Rio Tinto PLC ADR,NYSE
@@ -2754,7 +2754,7 @@ SLB,SLB Ltd,NYSE
 TMUS,T-Mobile Us Inc,Nasdaq
 CCI,Crown Castle International,NYSE
 OXY,Occidental Petroleum Corp,NYSE
-VTV,Vanguard Value ETF,NYSE
+VTV,Vanguard Morningstar Value ETF,NYSE
 PLD,Prologis Inc,NYSE
 NOW,ServiceNow Inc,NYSE
 DELL,Dell Technologies Inc C,NYSE
@@ -2763,7 +2763,7 @@ WDAY,Workday Inc A,Nasdaq
 ADI,Analog Devices Inc,Nasdaq
 EW,Edwards Lifesciences Corp,NYSE
 PRU,Prudential Financial Inc,NYSE
-VUG,Vanguard Growth ETF,NYSE
+VUG,Vanguard Morningstar Growth ETF,NYSE
 EQIX,Equinix Inc,Nasdaq
 IWD,iShares Russell 1000 Value ETF,NYSE
 PSA,Public Storage,NYSE
@@ -2954,7 +2954,7 @@ PDD,PDD Holdings Inc - ADR,Nasdaq
 WB,Weibo Corp-ADR,Nasdaq
 BILI,Bilibili-ADR,Nasdaq
 NIO,Nio Inc.-ADR,NYSE
-VOE,Vanguard Mid-Cap Value ETF,NYSE
+VOE,Vanguard Morningstar Mid-Cap Value ETF,NYSE
 IWS,iShares Russell Mid-Cap Value ETF,NYSE
 IJJ,iShares S&P Mid-Cap 400 Value ETF,NYSE
 MUB,iShares National Muni Bond ETF,NYSE
@@ -4489,7 +4489,7 @@ PRDO,Perdoceo Education Corporation,Nasdaq
 MCRI,Monarch Casino & Resort Inc,Nasdaq
 ICHR,Ichor Holdings Ltd,Nasdaq
 BF.A,Brown Forman Corporation,NYSE
-TRIN,Trinity Capital Inc,Nasdaq
+TRIN,Trinity Capital Inc,NYSE
 ASPN,Aspen Aerogels Inc,NYSE
 OSG,Octave Specialty Group Inc,NYSE
 INTT,inTEST Corporation,NYSE
@@ -5328,7 +5328,7 @@ CIR,Circor Intl,NYSE
 GRBK,Green Brick Partners Inc,NYSE
 OBDC,Blue Owl Capital Corporation,NYSE
 VRTV,Veritiv Corporation,NYSE
-TGLS,Tecnoglass Inc,NYSE
+TGLS,Tecnoglass Holdings Inc,NYSE
 UEC,Uranium Energy Corp,NYSE
 SMPL,The Simply Good Foods Company,Nasdaq
 CBT,Cabot Corporation,NYSE
@@ -6663,7 +6663,7 @@ IHE,Ishares Us Pharmaceuticals E,NYSE
 IYT,Ishares Us Transportation Et,CBOE
 IGV,Ishares Expanded Tech-Softwa,CBOE
 LCTX,Lineage Cell Therapeutics In,NYSE
-QBTS,D-Wave Quantum Inc,NYSE
+QBTS,D-Wave Quantum Inc,Nasdaq
 TMC,Tmc The Metals Co Inc,Nasdaq
 AKBA,Akebia Therapeutics Inc,Nasdaq
 PRPL,Purple Innovation Inc,Nasdaq
@@ -6997,7 +6997,7 @@ XPS.L,Xps Pensions Group Plc,LSE
 GKP.L,Gulf Keystone Petroleum Ld,LSE
 FP.L,Fondul Proprietatea Sa/Fund,LSE
 DORMANT11232,Dormant11232,LSE
-VLX.L,Volex Plc,LSE AIM
+VLX.L,Volex Plc,LSE
 LGLD.L,Lg Electronics Inc-Gdr Regs,LSE
 AEZD.L,Al Ezz Steel Rebars Sae-Gdr,LSE
 ADMR.L,Admiral Acquisition Ltd,LSE
@@ -10430,8 +10430,12 @@ MEGU.DE,Amundi MSCI USA Mega Cap UCITS ETF Acc,Xetra ETFs
 WEBB.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
 HUKX.L,HSBC FTSE 100 UCITS ETF,LSE
 FSFL.L,Foresight Solar Fund Ltd,LSE
+APMD, Apnimed Inc,Nasdaq
 CSQR,"Csquare, Inc",NYSE
 STDN,"Standard Nuclear, Inc",NYSE
+JMKE,Jersey Mike’s Subs Inc,NYSE
+REF,Reformation Inc,NYSE
+ADIG,ADI Global Distribution Inc,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
 BITA,iShares Bitcoin Premium Income ETF,Nasdaq
 QQQM,Invesco Nasdaq 100 ETF,Nasdaq
@@ -10579,7 +10583,7 @@ EOL.AX,Energy One Ltd,ASX
 AMI.AX,Aurelia Metals Ltd,ASX
 AZY.AX,Antipa Minerals Ltd,ASX
 SRL.AX,Sunrise Energy Metals Ltd,ASX
-CEL.AX,Challenger Gold Ltd,ASX
+CELDB.AX,Challenger Gold Ltd,ASX
 ACF.AX,Acrow Ltd,ASX
 GEM.AX,G8 Education Ltd,ASX
 INR.AX,ioneer Ltd,ASX
@@ -12146,7 +12150,7 @@ AEON,AEON Biopharma Inc,NYSE
 TLSI,TriSalus Life Sciences Inc,Nasdaq
 IDAI,T Stamp Inc,Nasdaq
 MDAI,Spectral AI Inc,Nasdaq
-NVVE,Nuvve Holding Corp,Nasdaq
+NVVE,Nuvve Holding Corp,OTC Markets
 COYA,Coya Therapeutics Inc,Nasdaq
 GDEV,GDEV Inc,Nasdaq
 RMCO,Royalty Management Holding Corp,Nasdaq
@@ -12281,7 +12285,7 @@ PRE,Prenetics Global Ltd,Nasdaq
 IOBTQ,IO Biotech Inc,Nasdaq
 NRSN,NeuroSense Therapeutics Ltd,Nasdaq
 SVRN,OceanPal Inc,Nasdaq
-TVGN,Tevogen Bio Holdings Inc,Nasdaq
+TVGN,Tevogen Inc,Nasdaq
 CYCU,Cycurion Inc,Nasdaq
 SATL,Satellogic Inc,Nasdaq
 HOUR,Hour Loop Inc,Nasdaq
@@ -12314,13 +12318,13 @@ THCH,TH International Ltd,Nasdaq
 NVX,Novonix Ltd,Nasdaq
 CSAI,Cloudastructure Inc,Nasdaq
 RAYA,Erayak Power Solution Group Inc,Nasdaq
-VSTD,Vestand Inc,Nasdaq
+VSTD,Vestand Inc,OTC Markets
 DRM1051945,Drm1051945,Nasdaq
 LBGJ,Li Bang International Corp Inc,Nasdaq
 MF,MindForge Inc,Nasdaq
 NEXR,Nexera Technologies Ltd,Nasdaq
 ASBP,Aspire Biopharma Holdings Inc,Nasdaq
-GV,Visionary Holdings Inc,Nasdaq
+GVHGF,Visionary Holdings Inc,Nasdaq
 OKYO,OKYO Pharma Ltd,Nasdaq
 SVRE,SaverOne 2014 Ltd,Nasdaq
 EPSM,Epsium Enterprise Ltd,Nasdaq
@@ -12576,7 +12580,7 @@ CLIK,Click Holdings Ltd/BVI,Nasdaq
 SPAI,Safe Pro Group Inc,Nasdaq
 RFAI,RF Acquisition Corp II,Nasdaq
 FERG,Ferguson Enterprises Inc,NYSE
-GRAF,Graf Global Corp,NYSE
+TONT,Graf Global Corp,NYSE
 BLIV,Belive Holdings,Nasdaq
 MGRT,Mega Fortune Co Ltd,Nasdaq
 CSHR,CoinShares PLC,Nasdaq
