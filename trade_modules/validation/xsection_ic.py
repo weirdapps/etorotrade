@@ -227,7 +227,12 @@ def incremental_ic(
     raw_ic = float(np.mean(raw_list))
     incr_arr = np.array(incr_list, dtype=float)
     incremental = float(np.mean(incr_arr))
-    ratio = (incremental / raw_ic) if raw_ic != 0.0 else None
+    # Guard on a magnitude floor, not `!= 0.0`. raw_ic is a mean of Spearman
+    # rhos so it is bounded by 1 and an absolute floor is the right scale; an
+    # exact-zero test lets a raw_ic of, say, 1e-300 through and the ratio then
+    # explodes into a meaningless number rather than being reported as None.
+    # 1e-8 matches _SIGMA_REL_EPS in harness.py and the degeneracy test above.
+    ratio = (incremental / raw_ic) if abs(raw_ic) > 1e-8 else None
     return {
         "raw_ic": raw_ic,
         "incremental_ic": incremental,
