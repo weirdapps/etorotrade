@@ -26,7 +26,7 @@ dependencies = [
     "pandas>=2.0.3,<3.0.0",
     "numpy>=2.2.6,<3.0.0",
     "matplotlib>=3.4.0,<4.0.0",
-    "yfinance==1.5.1",
+    "yfinance==1.5.2",
     "lxml>=5.0.0",  # required by yfinance.Ticker.earnings_dates (undeclared upstream dep)
     "yahooquery>=2.3.7",
     "requests>=2.25.0,<3.0.0",
