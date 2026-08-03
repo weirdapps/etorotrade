@@ -6,30 +6,16 @@ permissions:
   pull-requests: write
 
 jobs:
-  dependabot:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
-    steps:
-      - name: Get Dependabot metadata
-        id: meta
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98  # v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Enable auto-merge for safe updates
-        # Auto-merge github-actions patch/minor/grouped ONLY. pip is EXCLUDED on purpose:
-        # this repo's dependency source of truth is poetry.lock, but pip-Dependabot edits
-        # the DERIVED requirements-*-lock.txt WITHOUT updating poetry.lock, so auto-merging
-        # a pip PR corrupts lockfile-sync (poetry.lock vs requirements drift). Python deps
-        # are updated the correct way via poetry (deps-refresh.yml monthly + manual
-        # `poetry update` + relock); pip-Dependabot PRs stay open for SECURITY VISIBILITY
-        # and require poetry-correct handling. Major bumps also still need manual review.
-        if: |
-          !startsWith(github.event.pull_request.head.ref, 'dependabot/pip/') && (
-          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
-          steps.meta.outputs.update-type == 'version-update:semver-minor' ||
-          steps.meta.outputs.update-type == 'version-update:semver-patchminor' ||
-          steps.meta.outputs.dependency-group != '')
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  auto-merge:
+    # Shared implementation. Native `gh pr merge --auto` cannot work here
+    # (branch protection is a paid feature on private repos, and
+    # allow_auto_merge silently no-ops), so the reusable polls this PR's own
+    # checks and merges once they are green. Majors stay open for review.
+    uses: weirdapps/shared-workflows/.github/workflows/dependabot-auto-merge.yml@main
+    with:
+      # pip is excluded deliberately. This repo's source of truth is
+      # poetry.lock, but pip-Dependabot edits only the DERIVED
+      # requirements-*-lock.txt and leaves poetry.lock stale, so auto-merging a
+      # pip PR desyncs the two. Python deps are updated via poetry plus
+      # scripts/dev/relock.sh. Those PRs stay open for security visibility.
+      exclude_branch_prefixes: "dependabot/pip/"
