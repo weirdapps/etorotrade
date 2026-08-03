@@ -30,8 +30,10 @@ jobs:
           version: "2.4.0"
           plugins: "poetry-plugin-export==1.10.0"
 
+      # --regenerate is required: plain `poetry lock` keeps already-locked
+      # packages pinned, so it would never actually refresh anything.
       - name: Refresh lockfile
-        run: scripts/dev/relock.sh
+        run: scripts/dev/relock.sh --regenerate
 
       - name: Validate (install + tests)
         run: |
