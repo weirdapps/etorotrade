@@ -11,7 +11,9 @@ jobs:
     # (branch protection is a paid feature on private repos, and
     # allow_auto_merge silently no-ops), so the reusable polls this PR's own
     # checks and merges once they are green. Majors stay open for review.
-    uses: weirdapps/shared-workflows/.github/workflows/dependabot-auto-merge.yml@main
+    # weirdapps/shared-workflows dependabot-auto-merge.yml @main as of 2026-08-03
+    # yamllint disable-line rule:line-length
+    uses: weirdapps/shared-workflows/.github/workflows/dependabot-auto-merge.yml@1cdc75d954fa1d60ef35937b21fccde923f42f9e
     with:
       # pip is excluded deliberately. This repo's source of truth is
       # poetry.lock, but pip-Dependabot edits only the DERIVED
