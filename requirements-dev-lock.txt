@@ -3015,9 +3015,9 @@ types-pyyaml==6.0.12.20260724 ; python_version >= "3.10" and python_version < "4
 types-requests==2.33.0.20260712 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:2141b67ab534a5c5cd2dac5034f2a35f42e699c5bf185eee608c5246a069d7fb \
     --hash=sha256:de027e28c171d3da529689cbfa023b0b4eab188c8dfa22fd834eebd2cee6e7bb
-types-setuptools==83.0.0.20260724 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:eed1a91e1ed9d8ec9f3e71908e5bb17272e41e0852d37d1485ecd9cd33165e1a \
-    --hash=sha256:fe2801176b667f1e8209f8571b0839ca6c34318d743825aeacf3f29970c8d46f
+types-setuptools==83.0.0.20260807 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:1ed1a446914afe91658868a8fe8806d1e34ba89f8c3bf8926c7165a428b117a6 \
+    --hash=sha256:a3b07bc820b397a64f660bbbef5b3738296cac619a0b1ccab261b9ce9325f9b2
 types-tabulate==0.10.0.20260508 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:8e51f159e8b24976849706ae2ed1dc9adba8ebbd080b17e494ebb66a8cc92c74 \
     --hash=sha256:b1e1a2d0456fbd655a71690b09a7aaeffdf2978d32049184ea436492aa51d20a
