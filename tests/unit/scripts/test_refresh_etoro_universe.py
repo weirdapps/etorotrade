@@ -28,6 +28,11 @@ get_credentials = refresh_etoro_universe.get_credentials
 main = refresh_etoro_universe.main
 MIN_INSTRUMENTS_THRESHOLD = refresh_etoro_universe.MIN_INSTRUMENTS_THRESHOLD
 INSTRUMENTS_URL = refresh_etoro_universe.INSTRUMENTS_URL
+is_junk_symbol = refresh_etoro_universe.is_junk_symbol
+bloomberg_shape = refresh_etoro_universe.bloomberg_shape
+audit_symbols = refresh_etoro_universe.audit_symbols
+report_audit = refresh_etoro_universe.report_audit
+_UNKNOWN_SUFFIX_FAIL_THRESHOLD = refresh_etoro_universe._UNKNOWN_SUFFIX_FAIL_THRESHOLD
 
 FIXTURE_PATH = Path(__file__).parents[2] / "fixtures" / "etoro_bulk_sample.json"
 
@@ -105,6 +110,22 @@ class TestNormalizeSymbol:
 
     def test_lsb_remapped_to_ls(self):
         assert normalize_symbol("CA366.LSB") == "CA366.LS"
+
+    def test_ch_is_a_china_adr_and_is_stripped_not_remapped(self):
+        """``.CH`` is eToro's marker for a Chinese ADR on NYSE/Nasdaq, so the bare US ticker
+        IS the listing. It is NOT Switzerland — eToro spells Zurich ``.ZU`` (see the test
+        above) and Yahoo spells it ``.SW``.
+
+        Until 2026-08-11 this generator had no ``.CH`` rule at all, so the seven affected
+        names reached ``yahoofinance/input/etoro.csv`` still suffixed (QIHU.CH, JMEI.CH,
+        CYOU.CH, QUNR.CH, TCOM.CH, ATHM.CH, GSOL.CH), where ConfigManager's own table then
+        mapped them to ``.SW`` — a Swiss symbol that does not exist for any of them.
+        """
+        assert normalize_symbol("TCOM.CH") == "TCOM"  # Trip.com Group ADR, Nasdaq
+        assert normalize_symbol("ATHM.CH") == "ATHM"  # Autohome ADR, NYSE
+        assert normalize_symbol("qunr.ch") == "QUNR"  # case-insensitive, like .US above
+        # ...and the real Swiss path is untouched
+        assert normalize_symbol("NESN.ZU") == "NESN.SW"
 
     def test_drops_delisted(self):
         assert normalize_symbol("BLMZ.DELISTED") is None
@@ -230,9 +251,27 @@ class TestFetchAllInstruments:
     def test_success_filters_stocks_and_etfs(self):
         api_response = {
             "instrumentDisplayDatas": [
-                {"instrumentID": 1, "symbolFull": "EURUSD", "instrumentDisplayName": "EUR/USD", "instrumentTypeID": 1, "exchangeID": 1},
-                {"instrumentID": 1001, "symbolFull": "AAPL", "instrumentDisplayName": "Apple", "instrumentTypeID": 5, "exchangeID": 4},
-                {"instrumentID": 2001, "symbolFull": "SPY", "instrumentDisplayName": "SPDR S&P 500", "instrumentTypeID": 6, "exchangeID": 4},
+                {
+                    "instrumentID": 1,
+                    "symbolFull": "EURUSD",
+                    "instrumentDisplayName": "EUR/USD",
+                    "instrumentTypeID": 1,
+                    "exchangeID": 1,
+                },
+                {
+                    "instrumentID": 1001,
+                    "symbolFull": "AAPL",
+                    "instrumentDisplayName": "Apple",
+                    "instrumentTypeID": 5,
+                    "exchangeID": 4,
+                },
+                {
+                    "instrumentID": 2001,
+                    "symbolFull": "SPY",
+                    "instrumentDisplayName": "SPDR S&P 500",
+                    "instrumentTypeID": 6,
+                    "exchangeID": 4,
+                },
             ]
         }
         with patch.object(refresh_etoro_universe.requests, "get") as mock_get:
@@ -260,9 +299,20 @@ class TestFetchAllInstruments:
     def test_retries_on_500(self):
         responses = [
             MagicMock(status_code=500, text="boom"),
-            MagicMock(status_code=200, json=lambda: {"instrumentDisplayDatas": [
-                {"instrumentID": 1, "symbolFull": "X", "instrumentDisplayName": "X", "instrumentTypeID": 5, "exchangeID": 4},
-            ]}),
+            MagicMock(
+                status_code=200,
+                json=lambda: {
+                    "instrumentDisplayDatas": [
+                        {
+                            "instrumentID": 1,
+                            "symbolFull": "X",
+                            "instrumentDisplayName": "X",
+                            "instrumentTypeID": 5,
+                            "exchangeID": 4,
+                        },
+                    ]
+                },
+            ),
         ]
         with (
             patch.object(refresh_etoro_universe.requests, "get") as mock_get,
@@ -365,9 +415,7 @@ class TestMain:
         def fake_fetch(api_key, user_key, **kw):
             return padded_items
 
-        with patch.object(
-            refresh_etoro_universe, "fetch_all_instruments", side_effect=fake_fetch
-        ):
+        with patch.object(refresh_etoro_universe, "fetch_all_instruments", side_effect=fake_fetch):
             exit_code = main(output_csv_path=str(output_csv), delta_log_path=str(log_path))
 
         assert exit_code == 0
@@ -395,9 +443,7 @@ class TestMain:
         monkeypatch.setenv("ETORO_USER_KEY", "test-user")
 
         def fake_fetch(*args, **kwargs):
-            return [
-                {"symbol": "X", "displayName": "X", "exchangeName": "N"}
-            ] * 10
+            return [{"symbol": "X", "displayName": "X", "exchangeName": "N"}] * 10
 
         with patch.object(refresh_etoro_universe, "fetch_all_instruments", side_effect=fake_fetch):
             exit_code = main(
@@ -420,3 +466,272 @@ class TestMain:
 
     def test_min_threshold_is_1000(self):
         assert MIN_INSTRUMENTS_THRESHOLD == 1000
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-11 suffix audit. Every case below was measured against the live eToro
+# catalogue or probed against Yahoo before being written down; the bar counts in
+# the docstrings are 1-month `yf.download` results from that date.
+# ---------------------------------------------------------------------------
+
+
+class TestVenueSuffixRemaps:
+    """eToro's spelling of an exchange -> Yahoo's spelling of the same exchange."""
+
+    def test_bloomberg_milan_and_london_codes(self):
+        """.IM/.LN were remapped at FETCH time but not here, so the universe carried the
+        eToro spelling. Probed: 28IA.IM 0 bars / 28IA.MI 22; SHLD.LN 0 / SHLD.L 22."""
+        assert normalize_symbol("28IA.IM") == "28IA.MI"
+        assert normalize_symbol("SHLD.LN") == "SHLD.L"
+
+    def test_existing_venue_remaps_still_hold(self):
+        assert normalize_symbol("XYZ.ASX") == "XYZ.AX"
+        assert normalize_symbol("NESN.ZU") == "NESN.SW"
+        assert normalize_symbol("HAVAS.NV") == "HAVAS.AS"
+        assert normalize_symbol("CA366.LSB") == "CA366.LS"
+
+
+class TestHongKongPadsBothWays:
+    """The pad was one-sided (`len(base) > 4`), so only 5-digit codes were touched and every
+    short code stayed unfetchable. Probed: 3.HK 0 bars / 0003.HK 21; 288.HK 0 / 0288.HK 21."""
+
+    def test_short_codes_are_padded(self):
+        assert normalize_symbol("3.HK") == "0003.HK"  # Hong Kong & China Gas
+        assert normalize_symbol("12.HK") == "0012.HK"  # Henderson Land
+        assert normalize_symbol("288.HK") == "0288.HK"  # WH Group
+
+    def test_long_codes_still_trimmed_and_4_digit_untouched(self):
+        assert normalize_symbol("00175.HK") == "0175.HK"
+        assert normalize_symbol("0700.HK") == "0700.HK"
+        assert normalize_symbol("9988.HK") == "9988.HK"
+
+    def test_non_numeric_hk_stem_is_left_alone(self):
+        """zfill must not be applied to a non-numeric stem."""
+        assert normalize_symbol("ANT.HK") == "ANT.HK"
+
+
+class TestDoubledDotIsCollapsedNotStripped:
+    """YU..L is eToro writing an LSE TIDM that ends in a period. Probed: YU.L and RE.L both
+    return 22 bars and neither collides with an existing row."""
+
+    def test_collapse(self):
+        assert normalize_symbol("YU..L") == "YU.L"
+        assert normalize_symbol("RE..L") == "RE.L"
+
+    def test_never_stripped_to_the_bare_stem(self):
+        """FA..L -> FA and IX..L -> IX would merge into unrelated US tickers."""
+        assert normalize_symbol("FA..L") == "FA.L"
+        assert normalize_symbol("IX..L") == "IX.L"
+
+
+class TestJunkSymbolCatchesWhatSuffixRulesCannot:
+    def test_cvr_marker_on_the_stem_side_of_the_dot(self):
+        """_is_junk_suffix reads only after the last dot, so it caught US.CVR1 and missed
+        CVR.THS — the same marker on the other side."""
+        assert normalize_symbol("CVR.THS") is None
+        assert normalize_symbol("CVR.AVDL") is None
+        assert normalize_symbol("US.CVR1") is None
+
+    def test_short_numeric_suffix(self):
+        """The old rule required len > 3, so WRTS.APRN.15 slipped through.
+
+        Asserted on ``_is_junk_suffix`` DIRECTLY and on a stem that is not itself junk. Going
+        through normalize_symbol("WRTS.APRN.15") passes either way, because WRTS is in
+        _JUNK_STEMS and short-circuits first — a mutation reinstating `len(s) > 3` survived
+        that version of this test, which is the definition of a test passing for the wrong
+        reason.
+        """
+        assert refresh_etoro_universe._is_junk_suffix(".15")
+        assert refresh_etoro_universe._is_junk_suffix(".20")
+        assert refresh_etoro_universe._is_junk_suffix(".999")
+        assert refresh_etoro_universe._is_junk_suffix(".15255")
+        assert normalize_symbol("AAPL.15") is None  # stem is NOT junk; only the rule saves it
+        assert normalize_symbol("WRTS.APRN.15") is None
+
+    def test_space_delimited_placeholders(self):
+        for sym in ("LSE CVR", "MTN DUMMY CVR", "CEPU ESCROW ASSET", "OSLO CVR1", "ETOR 4 C40"):
+            assert is_junk_symbol(sym), sym
+
+    def test_lifecycle_markers_in_all_four_spellings(self):
+        for sym in ("SNDK_OLD", "BMPS-OLD", "MRK.DE_OLD", "STJ.L OLD"):
+            assert is_junk_symbol(sym), sym
+
+    def test_old_marker_never_matches_a_real_ticker(self):
+        """\\bOLD$ cannot fire inside a word — GOLD is not a lifecycle marker."""
+        assert not is_junk_symbol("GOLD")
+        assert not is_junk_symbol("GOLD.L")
+
+    def test_dormant_and_drm_placeholders(self):
+        assert is_junk_symbol("DORMANT11232")
+        assert is_junk_symbol("DRM.14731")
+
+    def test_xetra_duplicate_artifacts(self):
+        assert normalize_symbol("CEBP.DE11") is None
+        assert normalize_symbol("IQQ6.D11") is None
+        assert normalize_symbol("ICGB.DE22") is None
+
+
+class TestCorporateActionPlaceholderPredicate:
+    """The company==stem conjunction is LOAD-BEARING. Measured on the live universe file: the
+    conjunction selects 63 junk rows, a bare ^CA\\d+ prefix rule selects 71 — the eight extra
+    are real companies."""
+
+    def test_placeholder_is_dropped(self):
+        assert is_junk_symbol("CA141.L", "CA141")
+        assert is_junk_symbol("CA307.OL", "CA307")
+
+    def test_real_companies_sharing_the_prefix_survive(self):
+        assert not is_junk_symbol("CA21", "Royal Dutch  Shell")
+        assert not is_junk_symbol("CA8", "Meredith Holdings Corp.")
+        assert not is_junk_symbol("CA12908", "Everfuel A/S")
+        assert not is_junk_symbol("CA1.DE", "Circus SE")
+
+
+class TestScandinavianHyphenIsVenueSpecific:
+    """Stockholm and Copenhagen hyphenate a share-class letter; Helsinki and Oslo do NOT.
+    Probed 2026-08-11: KESKOA.HE 21 bars / KESKO-A.HE 0 · ODFB.OL 21 / ODF-B.OL 0 ·
+    ASSA-B.ST 21 / ASSAB.ST 0 (the control that keeps .ST in the set)."""
+
+    def _syms(self, rows):
+        return {r["symbol"] for r in fix_share_classes(rows)}
+
+    def test_helsinki_is_not_hyphenated(self):
+        rows = [
+            {"symbol": "KESKOA.HE", "company": "Kesko Oyj", "exchange": "Helsinki"},
+            {"symbol": "KESKOB.HE", "company": "Kesko Oyj B", "exchange": "Helsinki"},
+        ]
+        assert self._syms(rows) == {"KESKOA.HE", "KESKOB.HE"}
+
+    def test_oslo_is_not_hyphenated(self):
+        rows = [
+            {"symbol": "VENDA.OL", "company": "Vend Marketplaces ASA", "exchange": "Oslo"},
+            {"symbol": "VENDB.OL", "company": "Vend Marketplaces ASA", "exchange": "Oslo"},
+        ]
+        assert self._syms(rows) == {"VENDA.OL", "VENDB.OL"}
+
+    def test_stockholm_and_copenhagen_still_are(self):
+        rows = [
+            {"symbol": "ASSAA.ST", "company": "ASSA ABLOY ser. A", "exchange": "Stockholm"},
+            {"symbol": "ASSAB.ST", "company": "ASSA ABLOY ser. B", "exchange": "Stockholm"},
+            {"symbol": "NOVOA.CO", "company": "Novo Nordisk A", "exchange": "Copenhagen"},
+            {"symbol": "NOVOB.CO", "company": "Novo Nordisk B", "exchange": "Copenhagen"},
+        ]
+        assert self._syms(rows) == {"ASSA-A.ST", "ASSA-B.ST", "NOVO-A.CO", "NOVO-B.CO"}
+
+
+class TestSuffixAudit:
+    """The guard the module was missing. A suffix in none of the ruling sets used to be written
+    to the universe in silence — that is how .CH stayed mis-mapped for months."""
+
+    def _row(self, sym, company="X Corp", exchange="Nasdaq"):
+        return {"symbol": sym, "company": company, "exchange": exchange}
+
+    def test_ruled_suffixes_are_silent(self):
+        rows = [
+            self._row(s)
+            for s in (
+                "AAPL",
+                "VOD.L",
+                "SAP.DE",
+                "RRL.ASX",
+                "NOVN.ZU",
+                "TCOM.CH",
+                "AAPL.EUR",
+                "STX.US",
+                "CVR.THS",
+                "BRK.B",
+            )
+        ]
+        unknown, _ = audit_symbols(rows)
+        assert unknown == {}
+
+    def test_an_unruled_suffix_is_reported(self):
+        rows = [self._row("ABC.XYZ")]
+        unknown, _ = audit_symbols(rows)
+        assert list(unknown) == [".XYZ"]
+        assert unknown[".XYZ"] == ["ABC.XYZ"]
+
+    def test_below_threshold_warns_but_does_not_abort(self):
+        rows = [self._row(f"A{i}.XYZ") for i in range(_UNKNOWN_SUFFIX_FAIL_THRESHOLD - 1)]
+        unknown, review = audit_symbols(rows)
+        assert report_audit(unknown, review) is False
+
+    def test_at_threshold_aborts(self):
+        """A new exchange arrives in bulk. That must stop the refresh, not scroll past."""
+        rows = [self._row(f"A{i}.XYZ") for i in range(_UNKNOWN_SUFFIX_FAIL_THRESHOLD)]
+        unknown, review = audit_symbols(rows)
+        assert report_audit(unknown, review) is True
+
+    def test_the_dot_ch_regression_would_now_be_caught(self):
+        """The whole point. Strip .CH out of the ruling sets and the audit must shout."""
+        original = refresh_etoro_universe._STRIP_SUFFIXES
+        refresh_etoro_universe._STRIP_SUFFIXES = (".US",)
+        try:
+            rows = [self._row(s) for s in ("TCOM.CH", "ATHM.CH", "QUNR.CH")]
+            unknown, review = audit_symbols(rows)
+            assert ".CH" in unknown
+            assert report_audit(unknown, review) is True
+        finally:
+            refresh_etoro_universe._STRIP_SUFFIXES = original
+
+    def test_junk_never_reaches_the_audit(self):
+        unknown, review = audit_symbols([self._row("DORMANT11232"), self._row("LSE CVR")])
+        assert unknown == {}
+        assert review == {}
+
+    def test_bloomberg_form_is_reviewed_not_dropped_and_not_unknown(self):
+        """SRT3 GY is Sartorius Vorzug — a real security in Bloomberg notation. It needs a
+        per-venue remap, which is a reviewed decision, so it warns rather than vanishing."""
+        assert bloomberg_shape("SRT3 GY")
+        assert bloomberg_shape("HAWK US")
+        assert not bloomberg_shape("MTN DUMMY CVR")
+        unknown, review = audit_symbols([self._row("SRT3 GY", "SARTORIUS AG-VORZUG", "FRA")])
+        assert unknown == {}
+        assert any("bloomberg" in k for k in review)
+
+    def test_bare_symbol_on_a_non_us_venue_is_reviewed(self):
+        """A bare symbol means a US listing. When eToro says the venue is London, passthrough
+        would aim a US ticker at a foreign company — report it, never guess."""
+        _, review = audit_symbols([self._row("SJNK", "SPDR Bloomberg Short Term", "LSE")])
+        assert any("non-US venue" in k for k in review)
+
+    def test_bare_us_symbols_are_not_reviewed(self):
+        for venue in ("Nasdaq", "NYSE", "CBOE", "Chicago Board Options Exchange", "OTC Markets"):
+            _, review = audit_symbols([self._row("AAPL", "Apple Inc", venue)])
+            assert review == {}, venue
+
+
+class TestCurrencyLineShapeDecidesStripVsDrop:
+    """Both shapes exist in the live file and they need opposite handling."""
+
+    def test_venue_qualified_stem_is_stripped_and_recovered(self):
+        """GLB.L.GBX / KSP.L.GBX have NO bare GLB.L / KSP.L row, so stripping the pence unit
+        is the only thing that produces the London listing at all."""
+        assert normalize_symbol("GLB.L.GBX", "Glanbia Plc") == "GLB.L"
+        assert normalize_symbol("KSP.L.GBX", "Kingspan Group Plc") == "KSP.L"
+
+    def test_bare_stem_is_dropped_not_collided(self):
+        """All ten .EUR rows are Frankfurt duplicates of a Nasdaq row that already exists.
+        Stripping would collide, and dedupe could keep the one labelled FRA."""
+        assert normalize_symbol("AAPL.EUR", "Apple") is None
+        assert normalize_symbol("NVDA.EUR", "NVIDIA Corporation") is None
+
+    def test_a_currency_word_inside_a_real_ticker_is_untouched(self):
+        assert normalize_symbol("EURO.L", "Euromoney") == "EURO.L"
+        assert normalize_symbol("IEUR", "iShares Core MSCI Europe") == "IEUR"
+
+
+class TestPlaceholderCodesBeyondTheCAFamily:
+    """The row's NAME is its own internal code. Same shape as CA141, different prefixes."""
+
+    def test_ipo_and_ca_ops_placeholders_are_dropped(self):
+        assert normalize_symbol("IPO56.L", "IPO56") is None
+        assert normalize_symbol("IPO100.L", "IPO100") is None
+        assert normalize_symbol("IPO108.AX", "IPO108") is None
+        assert normalize_symbol("CA.OPS31.L", "CA.Ops31") is None
+        assert normalize_symbol("IPO1", "IPO1") is None
+
+    def test_ip_group_is_not_a_placeholder(self):
+        """IPO.L is IP Group PLC. A prefix rule on the SYMBOL would delete it; the rule keys
+        on the company name being the code, so it survives."""
+        assert normalize_symbol("IPO.L", "IP Group PLC") == "IPO.L"

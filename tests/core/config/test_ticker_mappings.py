@@ -321,7 +321,10 @@ class TestDisplayAndDataFetch:
             ("SBMO.NV", "SBMO.AS"),  # Euronext Amsterdam (eToro .NV -> Yahoo .AS)
             ("28IA.IM", "28IA.MI"),  # Milan (Bloomberg .IM -> Yahoo .MI)
             ("SHLD.LN", "SHLD.L"),  # London (Bloomberg .LN -> Yahoo .L)
-            ("QUNR.CH", "QUNR.SW"),  # Switzerland (Bloomberg .CH -> Yahoo .SW)
+            ("NOVN.ZU", "NOVN.SW"),  # Switzerland (eToro .ZU -> Yahoo .SW) — see note below
+            ("ROP.ZU", "ROP.SW"),  # Roche; .ZU was missing entirely and 404'd
+            ("RRL.ASX", "RRL.AX"),  # Sydney (eToro .ASX -> Yahoo .AX)
+            ("BCP.LSB", "BCP.LS"),  # Euronext Lisbon (eToro .LSB -> Yahoo .LS)
             ("MSFT.EUR", "MSFT"),  # currency line stripped
             ("KSP.L.GBX", "KSP.L"),  # pence line stripped, exchange suffix kept
             ("BRK.B", "BRK-B"),  # US class share -> dash form
@@ -337,6 +340,44 @@ class TestDisplayAndDataFetch:
         for inp, exp in cases:
             assert get_data_fetch_ticker(inp) == exp, (
                 f"{inp} -> {get_data_fetch_ticker(inp)} (want {exp})"
+            )
+
+    def test_dot_ch_is_a_china_adr_not_switzerland(self):
+        """``.CH`` was mapped to Zurich/``.SW`` and this test asserted it, labelled
+        "Switzerland", using QUNR — which is Qunar Cayman Islands on Nasdaq.
+
+        Every ``.CH`` row in ``yahoofinance/input/etoro.csv`` is a Chinese company on NYSE or
+        Nasdaq: QIHU (Qihoo 360, NYSE), JMEI (Jumei, NYSE), CYOU (ChangYou, Nasdaq), QUNR
+        (Nasdaq), TCOM (Trip.com ADR, Nasdaq), ATHM (Autohome ADR, NYSE), GSOL (Global Sources,
+        Nasdaq). Switzerland in that same file is ``.SW`` on exchange SIX (NESN.SW, ROP.SW,
+        ABBN.SW), and eToro spells it ``.ZU``. So the old rule could only ever fire on Chinese
+        ADRs, and it sent every one of them to a Swiss symbol that does not exist — which is
+        why it survived: the names it would have been right about never reached it.
+        """
+        assert get_data_fetch_ticker("TCOM.CH") == "TCOM"  # Trip.com ADR, Nasdaq
+        assert get_data_fetch_ticker("ATHM.CH") == "ATHM"  # Autohome ADR, NYSE
+        assert get_data_fetch_ticker("QUNR.CH") == "QUNR"  # was QUNR.SW
+
+    def test_get_data_fetch_ticker_strips_wrapper_suffixes(self):
+        """eToro sells session products over a listing. They are not listings and Yahoo does
+        not index them, so they resolve to the security underneath."""
+        assert get_data_fetch_ticker("RSG.RTH") == "RSG"  # "Regular Trading Hours"
+        assert get_data_fetch_ticker("AAPL.24-7") == "AAPL"  # 24/7 session
+        assert get_data_fetch_ticker("AMC.EXT") == "AMC"  # extended hours
+        assert get_data_fetch_ticker("JD.CH") == "9618.HK"  # wrapper off, ADR map still applies
+
+    def test_a_different_security_is_never_folded_into_its_underlying(self):
+        """The wrapper rule above is deliberately NOT extended to these. A contingent value
+        right, a warrant, a right and a preferred line each have their own payoff; collapsing
+        them onto the common stock would overstate a position in the underlying."""
+        for sym, base in [
+            ("ACLX.CVR", "ACLX"),
+            ("BBBY.WS", "BBBY"),
+            ("ABMD.RIGHT", "ABMD"),
+            ("JAGX.PFD", "JAGX"),
+        ]:
+            assert get_data_fetch_ticker(sym) != get_data_fetch_ticker(base), (
+                f"{sym} must not resolve to {base}: different security, same underlying"
             )
 
     def test_get_data_fetch_ticker_specials_still_honored(self):
