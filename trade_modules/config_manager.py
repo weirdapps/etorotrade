@@ -12,10 +12,47 @@ from typing import Any
 
 from .yaml_config_loader import YamlConfigLoader
 
-# eToro/Bloomberg exchange suffix -> Yahoo Finance suffix, applied in get_data_fetch_ticker
-# (Yahoo 404s on the eToro form; verified via live probes). .DH (Gulf) is intentionally
+# eToro/Bloomberg spelling of an EXCHANGE -> Yahoo Finance's spelling of the SAME exchange,
+# applied in get_data_fetch_ticker (Yahoo 404s on the eToro form). .DH (Gulf) is intentionally
 # absent — Yahoo uses numeric codes there, so it needs per-name data_fetch_substitutions.
-_YAHOO_SUFFIX_MAP = {"NV": "AS", "IM": "MI", "LN": "L", "CH": "SW"}
+#
+# Audited against yahoofinance/input/etoro.csv, which carries an `exchange` column, so every
+# rule below is checkable from data in this repo rather than from recollection.
+_YAHOO_SUFFIX_MAP = {
+    "NV": "AS",  # Euronext Amsterdam
+    "IM": "MI",  # Borsa Italiana (Bloomberg code)
+    "LN": "L",  # London (Bloomberg code)
+    "ZU": "SW",  # SIX Swiss Exchange — eToro's spelling of Zurich
+    "ASX": "AX",  # Sydney — eToro uses three letters, Yahoo two
+    "LSB": "LS",  # Euronext Lisbon
+}
+
+# ".CH" USED TO BE IN THE TABLE ABOVE, MAPPED TO "SW" AND LABELLED SWITZERLAND. IT IS NOT.
+# Every .CH row in yahoofinance/input/etoro.csv is a Chinese company listed on NYSE or Nasdaq:
+#   QIHU.CH  Qihoo 360 Technology     NYSE      TCOM.CH  Trip.com Group Ltd-ADR   Nasdaq
+#   JMEI.CH  Jumei Intl Holdings      NYSE      ATHM.CH  Autohome-ADR             NYSE
+#   CYOU.CH  ChangYou.com             Nasdaq    GSOL.CH  Global Sources           Nasdaq
+#   QUNR.CH  Qunar Cayman Islands     Nasdaq
+# Switzerland in that same file is .SW on exchange SIX (NESN.SW Nestle, ROP.SW Roche, ABBN.SW
+# ABB), and eToro spells it .ZU. So the rule could only ever fire on Chinese ADRs, and it sent
+# every one to a Swiss symbol that does not exist. It survived because the names it would have
+# been right about never reached it — a mapping that only fires on the rows it is wrong about
+# looks correct indefinitely. .CH now lives in _WRAPPER_SUFFIXES, where stripping it yields the
+# real Nasdaq/NYSE line (TCOM.CH -> TCOM).
+#
+# Suffixes that mark a WRAPPER OVER a listing rather than a listing: strip, then re-resolve the
+# stem so ADR overrides and class-share rules still apply (JD.CH -> JD -> 9618.HK).
+#   US     eToro's US-listing marker; Yahoo uses the bare ticker (T.US -> T)
+#   CH     a China ADR on NYSE/Nasdaq — the ADR itself IS the US line
+#   RTH    eToro "Regular Trading Hours" session product (RSG.RTH -> RSG)
+#   24-7   eToro 24/7 session product (AAPL.24-7 "Apple 24/7")
+#   EXT    eToro extended-hours product
+# NOT here, deliberately: .CVR (contingent value rights), .WS (warrants), .RIGHT, .PFD
+# (preferred), .CALL1/.PUT1 (options). Those hang off a base ticker too, which makes stripping
+# them tempting and wrong — each is a different security with its own payoff, and folding one
+# into the common stock would overstate a position in the underlying.
+_WRAPPER_SUFFIXES = {"US", "CH", "RTH", "24-7", "EXT"}
+
 # Currency / price-unit lines eToro appends (e.g. MSFT.EUR, KSP.L.GBX) -> stripped before fetch.
 _CURRENCY_SUFFIXES = {"EUR", "USD", "GBP", "GBX"}
 # US class-share letters -> Yahoo dash form (BRK.B -> BRK-B).
@@ -429,14 +466,16 @@ class ConfigManager:
                 #    (MSFT.EUR → MSFT ; KSP.L.GBX → KSP.L).
                 if suf in _CURRENCY_SUFFIXES:
                     return self.get_data_fetch_ticker(stem)
-                # 1b. eToro .US US-listing marker: Yahoo uses the BARE US ticker (T.US → T,
-                #     AAPL.US → AAPL). Re-resolve the stem so a US class share still gets its
-                #     dash form (BRK.B.US → BRK.B → BRK-B). ADR overrides that map a .US line
-                #     to a foreign primary (e.g. JD.US → 9618.HK) win above via
+                # 1b. eToro wrapper marker over a listing: Yahoo indexes the listing underneath
+                #     (T.US → T, AAPL.US → AAPL, TCOM.CH → TCOM, RSG.RTH → RSG). Re-resolve the
+                #     stem so a US class share still gets its dash form (BRK.B.US → BRK.B →
+                #     BRK-B) and the ADR map still applies (JD.CH → JD → 9618.HK). ADR overrides
+                #     that map a .US line to a foreign primary win above via
                 #     data_fetch_substitutions, so they never reach this strip.
-                if suf == "US":
+                if suf in _WRAPPER_SUFFIXES:
                     return self.get_data_fetch_ticker(stem)
-                # 2. exchange-suffix remap (.NV→.AS, .IM→.MI, .LN→.L, .CH→.SW).
+                # 2. exchange-suffix remap (.NV→.AS, .IM→.MI, .LN→.L, .ZU→.SW, .ASX→.AX,
+                #    .LSB→.LS).
                 if suf in _YAHOO_SUFFIX_MAP:
                     return stem + "." + _YAHOO_SUFFIX_MAP[suf]
                 # 3. US class share (single letter, no further exchange suffix): BRK.B → BRK-B.
