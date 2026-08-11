@@ -8,6 +8,7 @@ All tests use temp files and mocks — no network or filesystem side-effects.
 """
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -653,6 +654,14 @@ class TestConstants:
 # ============================================================
 
 
+# check_kill_theses expires any thesis whose committee_date is older than
+# KILL_THESIS_DEFAULT_EXPIRY_DAYS, and expired theses are never evaluated for
+# triggers. A hardcoded committee date therefore silently rots these tests once
+# the window elapses, so anchor on "recent" instead. Mirrors _RECENT_DATE in
+# tests/unit/trade_modules/test_kill_thesis.py.
+_RECENT_DATE = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+
 class TestCustomKillTheses:
     """Tests for CIO Legacy D2: machine-checkable kill thesis conditions."""
 
@@ -685,7 +694,7 @@ class TestCustomKillTheses:
                 ],
             }
         ]
-        log_kill_theses("2026-05-13", theses, log_path=log_file)
+        log_kill_theses(_RECENT_DATE, theses, log_path=log_file)
 
         data = json.loads(log_file.read_text())
         assert len(data) == 1
@@ -710,7 +719,7 @@ class TestCustomKillTheses:
                 ],
             }
         ]
-        log_kill_theses("2026-05-13", theses, log_path=log_file)
+        log_kill_theses(_RECENT_DATE, theses, log_path=log_file)
 
         # Create mock portfolio CSV with EG=3 (below threshold)
         portfolio_csv = tmp_path / "portfolio.csv"
@@ -746,7 +755,7 @@ class TestCustomKillTheses:
                 ],
             }
         ]
-        log_kill_theses("2026-05-13", theses, log_path=log_file)
+        log_kill_theses(_RECENT_DATE, theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
         portfolio_csv.write_text(
@@ -781,7 +790,7 @@ class TestCustomKillTheses:
                 ],
             }
         ]
-        log_kill_theses("2026-05-13", theses, log_path=log_file)
+        log_kill_theses(_RECENT_DATE, theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
         portfolio_csv.write_text(
@@ -814,7 +823,7 @@ class TestCustomKillTheses:
                 # No conditions field
             }
         ]
-        log_kill_theses("2026-05-13", theses, log_path=log_file)
+        log_kill_theses(_RECENT_DATE, theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
         portfolio_csv.write_text(
@@ -846,7 +855,7 @@ class TestCustomKillTheses:
                 "conditions": ["VIX > 30", "EG < 5", "macro regime degrades"],
             }
         ]
-        log_kill_theses("2026-05-13", theses, log_path=log_file)
+        log_kill_theses(_RECENT_DATE, theses, log_path=log_file)
 
         portfolio_csv = tmp_path / "portfolio.csv"
         portfolio_csv.write_text(
