@@ -77,6 +77,30 @@ TICKER_RE = re.compile(r"\$([A-Z][A-Z0-9]+(?:\.[A-Z]+)?)")
 PCT_RE = re.compile(r"([+-]\d+\.?\d*)%")
 PRICE_RE = re.compile(r"\$(\d[\d,]*\.?\d*)")
 
+# Directional language attached to a $TICKER. A verb carries no digits, so it is
+# invisible to the numeric checks above and has to be priced separately.
+# Only unambiguous movement words: "higher", "lower", "gains" also describe rates,
+# yields and sectors, and a false positive here blocks the day's post.
+DIRECTION_DOWN_RE = re.compile(
+    r"\b(sank|sinks?|sunk|fell|falls?|slid|slides?|slipped|slips|slumped|slump|"
+    r"dropped|drops|tumbled|tumbles|plunged|plunges|plummeted|declined|declines|"
+    r"retreated|retreats|cratered|skidded|sold off|sell-?off)\b",
+    re.IGNORECASE,
+)
+DIRECTION_UP_RE = re.compile(
+    r"\b(rose|rises?|jumped|jumps|surged|surges|soared|soars|climbed|climbs|"
+    r"rallied|rally|spiked|spikes|popped|advanced|advances|rocketed|ripped)\b",
+    re.IGNORECASE,
+)
+
+# Sentence end = terminator followed by whitespace, so "$LYXGRE.DE" and "3.21%"
+# stay intact while "$NVDA. Gold rose" does not leak "rose" onto $NVDA.
+SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s|\n")
+
+DIRECTION_FLAT_BAND = 0.5  # below this the name is flat: loose wording, not an inversion
+DIRECTION_LOOKBACK = 45
+DIRECTION_LOOKAHEAD = 60
+
 # Map display names in post text to yfinance tickers for instrument-aware validation
 DISPLAY_TO_TICKER = {
     "dax": "^GDAXI",
@@ -224,6 +248,78 @@ def extract_tickers(text: str) -> list[str]:
     return list(set(TICKER_RE.findall(text)))
 
 
+def extract_directional_claims(text: str) -> list[dict]:
+    """Find every $TICKER carrying a direction word in its own sentence.
+
+    The nearest direction word wins, so "The selloff in $TEAM" and "$TEAM sank"
+    both resolve, while a word one sentence away does not attach.
+    """
+    claims = []
+    for m in TICKER_RE.finditer(text):
+        before = SENTENCE_SPLIT_RE.split(text[max(0, m.start() - DIRECTION_LOOKBACK) : m.start()])[
+            -1
+        ]
+        after = SENTENCE_SPLIT_RE.split(text[m.end() : m.end() + DIRECTION_LOOKAHEAD])[0]
+
+        nearest = None  # (distance, direction, word)
+        for direction, pattern in (("down", DIRECTION_DOWN_RE), ("up", DIRECTION_UP_RE)):
+            for w in pattern.finditer(before):
+                dist = len(before) - w.end()
+                if nearest is None or dist < nearest[0]:
+                    nearest = (dist, direction, w.group(0))
+            for w in pattern.finditer(after):
+                if nearest is None or w.start() < nearest[0]:
+                    nearest = (w.start(), direction, w.group(0))
+
+        if nearest is None:
+            continue
+        claims.append(
+            {
+                "ticker": m.group(1).upper(),
+                "direction": nearest[1],
+                "word": nearest[2],
+                "context": _context_window(text, m.start(), 60),
+            }
+        )
+    return claims
+
+
+def move_from_quote(info: dict) -> float | None:
+    """Percent move a midday reader sees: the extended session when one is
+    trading, otherwise the regular session.
+
+    Ordering matters. Atlassian was -2.78% in its regular session and +32.16%
+    pre-market on the same calendar day (2026-08-07); the regular figure would
+    have confirmed a claim that was already stale.
+    """
+    for key in ("preMarketChangePercent", "postMarketChangePercent", "regularMarketChangePercent"):
+        value = info.get(key)
+        if value is not None:
+            return float(value)
+    return None
+
+
+def fetch_quote_moves(tickers: list[str]) -> dict[str, float]:
+    """Live move per ticker. Anything unresolvable is omitted, never guessed:
+    a Yahoo outage must not block the day's brief."""
+    if not tickers:
+        return {}
+    try:
+        import yfinance as yf
+    except ImportError:
+        return {}
+
+    moves = {}
+    for ticker in tickers:
+        try:
+            move = move_from_quote(yf.Ticker(ticker).info)
+        except Exception:
+            continue
+        if move is not None:
+            moves[ticker.upper()] = move
+    return moves
+
+
 def load_etoro_tickers() -> set[str]:
     if not ETORO_CSV.exists():
         return set()
@@ -237,7 +333,7 @@ def load_etoro_tickers() -> set[str]:
     return tickers
 
 
-def validate(post_text: str, snapshot: dict) -> dict:
+def validate(post_text: str, snapshot: dict, quote_moves: dict | None = None) -> dict:
     instruments = snapshot.get("instruments", {})
 
     all_pcts = []
@@ -276,16 +372,35 @@ def validate(post_text: str, snapshot: dict) -> dict:
             if t.upper() not in etoro_universe:
                 ticker_errors.append(t)
 
-    passed = not pct_errors and not price_errors and not ticker_errors
+    direction_errors = []
+    directions_unchecked: list[str] = []
+    directions_checked = 0
+    if quote_moves is not None:
+        for claim in extract_directional_claims(post_text):
+            actual = quote_moves.get(claim["ticker"])
+            if actual is None:
+                if claim["ticker"] not in directions_unchecked:
+                    directions_unchecked.append(claim["ticker"])
+                continue
+            directions_checked += 1
+            if abs(actual) < DIRECTION_FLAT_BAND:
+                continue
+            if ("up" if actual > 0 else "down") != claim["direction"]:
+                direction_errors.append({**claim, "actual_pct": actual})
+
+    passed = not pct_errors and not price_errors and not ticker_errors and not direction_errors
 
     return {
         "passed": passed,
         "market_pcts_checked": len(extract_market_percentages(post_text)),
         "market_prices_checked": len(extract_market_prices(post_text)),
         "tickers_checked": len(tickers_in_post),
+        "directions_checked": directions_checked,
         "pct_errors": pct_errors,
         "price_errors": price_errors,
         "ticker_errors": ticker_errors,
+        "direction_errors": direction_errors,
+        "directions_unchecked": directions_unchecked,
     }
 
 
@@ -307,14 +422,19 @@ def main() -> int:
     post_text = post_path.read_text()
     snapshot = json.loads(snap_path.read_text())
 
-    result = validate(post_text, snapshot)
+    claim_tickers = sorted({c["ticker"] for c in extract_directional_claims(post_text)})
+    result = validate(post_text, snapshot, quote_moves=fetch_quote_moves(claim_tickers))
 
     if result["passed"]:
         print(
             f"PASS: {result['market_pcts_checked']} percentages, "
             f"{result['market_prices_checked']} prices, "
-            f"{result['tickers_checked']} tickers verified"
+            f"{result['tickers_checked']} tickers, "
+            f"{result['directions_checked']} directions verified"
         )
+        if result["directions_unchecked"]:
+            unchecked = ", ".join(result["directions_unchecked"])
+            print(f"Note: no quote for {unchecked}, direction unchecked")
         return 0
 
     print("FAIL: unverified claims found\n")
@@ -328,11 +448,21 @@ def main() -> int:
             print(f"  {e['raw']:>10s}  ...{e['context'].strip()}...")
     if result["ticker_errors"]:
         print(f"\nTickers not in eToro universe: {', '.join(result['ticker_errors'])}")
+    if result["direction_errors"]:
+        print("\nDirectional claims contradicted by live quotes:")
+        for e in result["direction_errors"]:
+            actual = e["actual_pct"]
+            print(
+                f'  ${e["ticker"]} described as "{e["word"]}" but is '
+                f"{actual:+.2f}% right now (extended session vs previous close)"
+            )
+            print(f"      ...{e['context'].strip()}...")
 
     print(
         f"\nSummary: {len(result['pct_errors'])} bad pcts, "
         f"{len(result['price_errors'])} bad prices, "
-        f"{len(result['ticker_errors'])} bad tickers"
+        f"{len(result['ticker_errors'])} bad tickers, "
+        f"{len(result['direction_errors'])} inverted directions"
     )
     return 1
 

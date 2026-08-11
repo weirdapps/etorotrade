@@ -137,6 +137,83 @@ class TestSnapshotMatchingStillWorks:
         assert result["pct_errors"], "Invented index move should be flagged"
 
 
+class TestDirectionalClaims:
+    """Regression context (2026-08-07): the brief published "$TEAM sank as profit
+    fears outran AI enthusiasm" while Atlassian was +32% pre-market on earnings.
+
+    The claim was paraphrased from a stale Google News headline describing the
+    previous session. Nothing in the pipeline held a TEAM price (the snapshot
+    carries 20 macro instruments only), and the validator checked numbers, so a
+    directional verb carrying no digits passed unexamined.
+    """
+
+    def test_sank_when_stock_rose_is_rejected(self, vb, snapshot):
+        text = "$TEAM sank as profit fears outran AI enthusiasm. $NVDA."
+        result = vb.validate(text, snapshot, quote_moves={"TEAM": 32.16})
+        assert [e["ticker"] for e in result["direction_errors"]] == ["TEAM"]
+        assert result["direction_errors"][0]["actual_pct"] == 32.16
+        assert not result["passed"]
+
+    def test_sank_when_stock_fell_is_accepted(self, vb, snapshot):
+        text = "$TEAM sank as profit fears outran AI enthusiasm."
+        result = vb.validate(text, snapshot, quote_moves={"TEAM": -2.78})
+        assert not result["direction_errors"]
+
+    def test_noun_form_before_ticker_is_detected(self, vb, snapshot):
+        text = "The selloff in $TEAM continued into a second session."
+        result = vb.validate(text, snapshot, quote_moves={"TEAM": 32.16})
+        assert [e["ticker"] for e in result["direction_errors"]] == ["TEAM"]
+
+    def test_flat_move_is_not_an_inversion(self, vb, snapshot):
+        # Imprecise wording on a 0.2% move is not a factual inversion.
+        text = "$TEAM slipped in quiet trade."
+        result = vb.validate(text, snapshot, quote_moves={"TEAM": 0.2})
+        assert not result["direction_errors"]
+
+    def test_ticker_without_direction_word_is_skipped(self, vb, snapshot):
+        text = "AI capex is being rebuilt in silicon. $NVDA $TEAM."
+        result = vb.validate(text, snapshot, quote_moves={"NVDA": -8.0, "TEAM": 32.16})
+        assert not result["direction_errors"]
+
+    def test_direction_word_in_next_sentence_does_not_attach(self, vb, snapshot):
+        text = "AI capex is being rebuilt in silicon. $NVDA. Gold rose to a record."
+        result = vb.validate(text, snapshot, quote_moves={"NVDA": -8.0})
+        assert not result["direction_errors"]
+
+    def test_missing_quote_does_not_block_the_post(self, vb, snapshot):
+        # yfinance being unavailable must not kill the day's brief.
+        text = "$TEAM sank as profit fears outran AI enthusiasm."
+        result = vb.validate(text, snapshot, quote_moves={})
+        assert not result["direction_errors"]
+
+    def test_unchecked_tickers_are_reported(self, vb, snapshot):
+        text = "$TEAM sank as profit fears outran AI enthusiasm."
+        result = vb.validate(text, snapshot, quote_moves={})
+        assert result["directions_unchecked"] == ["TEAM"]
+
+
+class TestQuoteMoveSelection:
+    """The inverted claim traced to a session mismatch: Atlassian was -2.78% in
+    Thursday's regular session and +32.16% in Friday's pre-market after earnings.
+    A midday-Athens brief describes the extended session, not the last close."""
+
+    def test_premarket_move_is_preferred_over_regular_session(self, vb):
+        info = {"preMarketChangePercent": 32.16, "regularMarketChangePercent": -2.78}
+        assert vb.move_from_quote(info) == 32.16
+
+    def test_postmarket_move_is_preferred_over_regular_session(self, vb):
+        info = {"postMarketChangePercent": -6.4, "regularMarketChangePercent": 1.1}
+        assert vb.move_from_quote(info) == -6.4
+
+    def test_regular_move_used_when_no_extended_session(self, vb):
+        # European names trade during an Athens midday post, no pre/post session.
+        info = {"preMarketChangePercent": None, "regularMarketChangePercent": 1.5}
+        assert vb.move_from_quote(info) == 1.5
+
+    def test_returns_none_when_quote_is_empty(self, vb):
+        assert vb.move_from_quote({}) is None
+
+
 class TestRealWorldDraft:
     """The 2026-05-12 brief that triggered this fix should now pass."""
 

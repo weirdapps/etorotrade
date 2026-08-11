@@ -1466,7 +1466,7 @@ SY1.DE,Symrise,FRA
 RRTL.DE,RTL Group,FRA
 SOW.DE,Software,FRA
 SAZ.DE,STADA,FRA
-DEQ.DE,Deutsche Euroshop,FRA
+DEQ.DE,Deutsche EuroShop SE,FRA
 HLE.DE,Hella,FRA
 HLAG.DE,Hapag-Lloyd,FRA
 ZIL2.DE,ElringKlinger,FRA
@@ -1822,7 +1822,7 @@ BEAN.SW,Belimo Holding AG,SIX
 UBSGE.SW,UBS Group AG,SIX
 LISN.SW,Chocoladefabriken Lindt & Spruengli AG,SIX
 SQN.SW,Swissquote Group Holding SA,SIX
-CA238.SW,CA238,SIX
+SMG.SW,SMG Swiss Marketplace Group AG,SIX
 CA239.SW,CA239,SIX
 CA240.SW,CA240,SIX
 CA241.SW,CA241,SIX
@@ -6668,7 +6668,7 @@ TMC,Tmc The Metals Co Inc,Nasdaq
 AKBA,Akebia Therapeutics Inc,Nasdaq
 PRPL,Purple Innovation Inc,Nasdaq
 PIII,P3 Health Partners Inc,Nasdaq
-TOI,Oncology Institute Inc/The,Nasdaq
+STLN,Starling Oncology Inc,Nasdaq
 IMUX,Immunic Inc,Nasdaq
 NOTE,Fiscalnote Holdings Inc,NYSE
 BKSY,Blacksky Technology Inc,NYSE
@@ -9952,7 +9952,7 @@ PICS,PicS N.V.,Nasdaq
 EQPT,EquipmentShare.com Inc,Nasdaq
 AERO,Aeromexico Group,NYSE
 MICC,MAGNUM ICE CREAM CO BV,NYSE
-AXIA.PC,Axia Energia-ADR,NYSE
+AXICY,Axia Energia-ADR,OTC Markets
 BTGO,"BitGo Holdings, Inc",NYSE
 OPENL,Warrant of Opendoor Technologies Inc,Nasdaq
 OPENZ,Warrant of Opendoor Technologies Inc,Nasdaq
@@ -10431,11 +10431,18 @@ WEBB.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
 HUKX.L,HSBC FTSE 100 UCITS ETF,LSE
 FSFL.L,Foresight Solar Fund Ltd,LSE
 APMD, Apnimed Inc,Nasdaq
+VOGX,Vogenx,Nasdaq
+BRVE,"Braveheart Bio, Inc.",Nasdaq
+ATTO,"Attovia Therapeutics, Inc.",Nasdaq
+SCTX,Scribe Therapeutics Inc,Nasdaq
+BLSM,"BlossomHill Therapeutics, Inc",Nasdaq
+LTGO,"Latigo Biotherapeutics, Inc",Nasdaq
 CSQR,"Csquare, Inc",NYSE
 STDN,"Standard Nuclear, Inc",NYSE
 JMKE,Jersey Mike’s Subs Inc,NYSE
 REF,Reformation Inc,NYSE
 ADIG,ADI Global Distribution Inc,NYSE
+IMC,IMC Rare Earths Ltd,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
 BITA,iShares Bitcoin Premium Income ETF,Nasdaq
 QQQM,Invesco Nasdaq 100 ETF,Nasdaq
@@ -10489,7 +10496,7 @@ IDLV,Invesco S&P International Developed Low Volatility ETF,NYSE
 FLEE,Franklin FTSE Europe ETF,NYSE
 WDIV,State Street SPDR S&P Global Dividend ETF,NYSE
 CHIQ,Global X MSCI China Consumer Discretionary ETF,NYSE
-KEMQ,KraneShares Emerging Markets Consumer Technology Index ETF,NYSE
+KEMQ,KraneShares Public-Private Emerging Markets Internet and Technology ETF,NYSE
 ASEA,Global X FTSE Southeast Asia ETF,NYSE
 SMOG,VanEck Low Carbon Energy ETF,NYSE
 SEMI,Columbia Select Technology ETF,NYSE
@@ -10499,6 +10506,7 @@ FLAX,Franklin FTSE Asia ex Japan ETF,NYSE
 HMWA.L,HSBC MSCI WORLD UCITS ETF,LSE
 HSTE.L,HSBC Hang Seng Tech UCITS ETF,LSE
 HNSC.L,HSBC Nasdaq Global Semiconductor UCITS ETF,LSE
+VWRA.L,Vanguard FTSE All-World UCITS ETF,LSE
 BOC.AX,Bougainville Copper Ltd,ASX
 KCN.AX,Kingsgate Consolidated Ltd,ASX
 HZN.AX,Horizon Oil Ltd,ASX
@@ -10583,7 +10591,7 @@ EOL.AX,Energy One Ltd,ASX
 AMI.AX,Aurelia Metals Ltd,ASX
 AZY.AX,Antipa Minerals Ltd,ASX
 SRL.AX,Sunrise Energy Metals Ltd,ASX
-CELDB.AX,Challenger Gold Ltd,ASX
+CEL.AX,Challenger Gold Ltd,ASX
 ACF.AX,Acrow Ltd,ASX
 GEM.AX,G8 Education Ltd,ASX
 INR.AX,ioneer Ltd,ASX
@@ -11449,7 +11457,7 @@ LGO,Largo Inc,Nasdaq
 NCTY,The9 Ltd,Nasdaq
 ARL,American Realty Investors Inc,NYSE
 MNDO,Mind CTI Ltd,Nasdaq
-PSTV,Plus Therapeutics Inc,Nasdaq
+CNSY,Cerenome Inc,Nasdaq
 PCB,PCB Bancorp,Nasdaq
 OESX,Orion Energy Systems Inc,Nasdaq
 WNEB,Western New England Bancorp Inc,Nasdaq
@@ -11853,7 +11861,7 @@ GRDX,GridAI Technologies Corp,Nasdaq
 YTRA,Yatra Online Inc,Nasdaq
 MYSZ,My Size Inc,Nasdaq
 PAVM,PAVmed Inc,Nasdaq
-WORX,SCWorx Corp,Nasdaq
+WORXD,SCWorx Corp,Nasdaq
 ARDT,Ardent Health Inc,NYSE
 APLM,Apollomics Inc,Nasdaq
 TUSK,Mammoth Energy Services Inc,Nasdaq
@@ -12125,7 +12133,7 @@ FNUC,Frontier Nuclear and Minerals Inc,Nasdaq
 RSVR,Reservoir Media Inc,Nasdaq
 TAOX,Tao Synergies Inc,Nasdaq
 BON,Bon Natural Life Ltd,Nasdaq
-BNZI,Banzai International Inc,Nasdaq
+PARA,Banzai International Inc,Nasdaq
 IFBD,Infobird Co Ltd,Nasdaq
 SABS,SAB Biotherapeutics Inc,Nasdaq
 MBBC,Marathon Bancorp Inc,Nasdaq
@@ -12276,7 +12284,7 @@ BJDX,Bluejay Diagnostics Inc,Nasdaq
 NMRA,Neumora Therapeutics Inc,Nasdaq
 QUCY,Quantum Cyber NV,Nasdaq
 LVLU,Lulu's Fashion Lounge Holdings Inc,Nasdaq
-VSEE,VSee Health Inc,Nasdaq
+VSEE,VSee Health Inc,OTC Markets
 JUNS,Jupiter Neurosciences Inc,Nasdaq
 TSAT,Telesat Corp,Nasdaq
 LASE,Laser Photonics Corp,Nasdaq
@@ -12324,7 +12332,7 @@ LBGJ,Li Bang International Corp Inc,Nasdaq
 MF,MindForge Inc,Nasdaq
 NEXR,Nexera Technologies Ltd,Nasdaq
 ASBP,Aspire Biopharma Holdings Inc,Nasdaq
-GVHGF,Visionary Holdings Inc,Nasdaq
+GVHGF,Visionary Holdings Inc,OTC Markets
 OKYO,OKYO Pharma Ltd,Nasdaq
 SVRE,SaverOne 2014 Ltd,Nasdaq
 EPSM,Epsium Enterprise Ltd,Nasdaq
@@ -12457,7 +12465,7 @@ NCL,Northann Corp,NYSE
 ATGL,Alpha Technology Group Ltd,Nasdaq
 SELXF,Semilux International Ltd,OTC Markets
 DDC,DDC Enterprise Ltd,NYSE
-KVAC,Keen Vision Acquisition Corp,Nasdaq
+KVACF,Keen Vision Acquisition Corp,OTC Markets
 ANL,Adlai Nortye Ltd,Nasdaq
 RMSG,Real Messenger Corp,Nasdaq
 NAMI,Jinxin Technology Holding Co,Nasdaq
@@ -12543,7 +12551,7 @@ SNT,Senstar Technologies Corp,Nasdaq
 COOT,Australian Oilseeds Holdings Ltd,Nasdaq
 LPA,Logistic Properties Of The Americas,NYSE
 RITR,Reitar Logtech Holdings Ltd,Nasdaq
-LSH,Lakeside Holding Ltd,Nasdaq
+QNME,Quanome Technologies Inc,Nasdaq
 ZOOZ,ZOOZ Strategy Ltd,Nasdaq
 UMAC,Unusual Machines Inc /US,NYSE
 BKHA,Black Hawk Acquisition Corp,Nasdaq
