@@ -37,7 +37,7 @@ us_mega:
     min_trailing_pe: 0.5
     max_trailing_pe: 90
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 8  # Reduced from 12 - MEGA caps are well-covered even with fewer analysts
     min_analysts_earnings: 5  # Lower threshold for Type E ratings (post-earnings, more relevant)
     min_price_targets: 6  # Reduced from 8
@@ -62,7 +62,6 @@ us_mega:
     min_forward_pe: 80
     min_trailing_pe: 170
     min_peg: 5.5
-    min_short_interest: 4
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 50
@@ -81,7 +80,7 @@ us_large:
     min_trailing_pe: 0.5
     max_trailing_pe: 85
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 3.5  # Increased from 2.25 - research shows SI only predictive for distressed stocks
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 8  # Reduced from 10 - quality coverage exists with 8+ analysts
     min_analysts_earnings: 5  # Lowered from 6 - adds TMO ($204B, 100% buy, 22% upside)
     min_price_targets: 5  # Reduced from 6
@@ -105,7 +104,6 @@ us_large:
     min_forward_pe: 75
     min_trailing_pe: 180
     min_peg: 5.5
-    min_short_interest: 4.25
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 50
@@ -124,7 +122,7 @@ us_mid:
     min_trailing_pe: 0.5
     max_trailing_pe: 80
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2.5
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 8
     min_price_targets: 5
     min_roe: 10.0
@@ -146,7 +144,6 @@ us_mid:
     min_forward_pe: 70
     min_trailing_pe: 190
     min_peg: 5.5
-    min_short_interest: 4.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 45
@@ -164,7 +161,7 @@ us_small:
     min_trailing_pe: 0.5
     max_trailing_pe: 75
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2.75
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 6
     min_price_targets: 4
     min_roe: 10.0
@@ -186,7 +183,6 @@ us_small:
     min_forward_pe: 65
     min_trailing_pe: 200
     min_peg: 5.5
-    min_short_interest: 4.75
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 40
@@ -204,7 +200,7 @@ us_micro:
     min_trailing_pe: 0.5
     max_trailing_pe: 70
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 3
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 6
     min_price_targets: 4
     min_roe: 10.0
@@ -225,7 +221,6 @@ us_micro:
     min_forward_pe: 60
     min_trailing_pe: 210
     min_peg: 5.5
-    min_short_interest: 5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 35
@@ -243,7 +238,7 @@ eu_mega:
     min_trailing_pe: 0.5
     max_trailing_pe: 90
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 6  # Reduced from 10 - EU has fewer analysts but quality coverage
     min_analysts_earnings: 4  # Lower threshold for Type E ratings (post-earnings, more relevant)
     min_price_targets: 4  # Reduced from 6
@@ -267,7 +262,6 @@ eu_mega:
     min_forward_pe: 80
     min_trailing_pe: 150
     min_peg: 5.5
-    min_short_interest: 4
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 50
@@ -285,7 +279,7 @@ eu_large:
     min_trailing_pe: 0.5
     max_trailing_pe: 85
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 3.5  # Increased from 2.25 - research shows SI only predictive for distressed stocks
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 6  # Reduced from 8 - EU has fewer analysts but quality coverage
     min_analysts_earnings: 4  # Lower threshold for Type E ratings (post-earnings, more relevant)
     min_price_targets: 4  # Reduced from 5
@@ -309,7 +303,6 @@ eu_large:
     min_forward_pe: 75
     min_trailing_pe: 160
     min_peg: 5.5
-    min_short_interest: 4.25
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 50
@@ -327,7 +320,7 @@ eu_mid:
     min_trailing_pe: 0.5
     max_trailing_pe: 80
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2.5
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 8
     min_price_targets: 5
     min_roe: 8.0
@@ -349,7 +342,6 @@ eu_mid:
     min_forward_pe: 70
     min_trailing_pe: 170
     min_peg: 5.5
-    min_short_interest: 4.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 45
@@ -368,7 +360,7 @@ eu_small:
     min_trailing_pe: 0.5
     max_trailing_pe: 75
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2.75
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 6
     min_price_targets: 4
     min_roe: 8.0
@@ -390,7 +382,6 @@ eu_small:
     min_forward_pe: 65
     min_trailing_pe: 180
     min_peg: 5.5
-    min_short_interest: 4.75
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 40
@@ -408,7 +399,7 @@ eu_micro:
     min_trailing_pe: 0.5
     max_trailing_pe: 70
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 3
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 6
     min_price_targets: 4
     min_roe: 10.0
@@ -428,7 +419,6 @@ eu_micro:
     min_forward_pe: 60
     min_trailing_pe: 190
     min_peg: 5.5
-    min_short_interest: 5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 35
@@ -447,7 +437,7 @@ hk_mega:
     min_trailing_pe: 0.5
     max_trailing_pe: 90
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 15
     min_price_targets: 8
     min_roe: 10.0
@@ -469,7 +459,6 @@ hk_mega:
     min_forward_pe: 80
     min_trailing_pe: 140
     min_peg: 5.5
-    min_short_interest: 4
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 45
@@ -488,7 +477,7 @@ hk_large:
     min_trailing_pe: 0.5
     max_trailing_pe: 85
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2.25
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 12
     min_price_targets: 6
     min_roe: 10.0
@@ -510,7 +499,6 @@ hk_large:
     min_forward_pe: 75
     min_trailing_pe: 150
     min_peg: 5.5
-    min_short_interest: 4.25
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 45
@@ -529,7 +517,7 @@ hk_mid:
     min_trailing_pe: 0.5
     max_trailing_pe: 80
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2.5
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 10
     min_price_targets: 5
     min_roe: 10.0
@@ -551,7 +539,6 @@ hk_mid:
     min_forward_pe: 70
     min_trailing_pe: 160
     min_peg: 5.5
-    min_short_interest: 4.5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 40
@@ -570,7 +557,7 @@ hk_small:
     min_trailing_pe: 0.5
     max_trailing_pe: 75
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 2.75
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 8
     min_price_targets: 4
     min_roe: 12.0
@@ -592,7 +579,6 @@ hk_small:
     min_forward_pe: 65
     min_trailing_pe: 170
     min_peg: 5.5
-    min_short_interest: 4.75
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 35
@@ -610,7 +596,7 @@ hk_micro:
     min_trailing_pe: 0.5
     max_trailing_pe: 70
     max_peg: 3.5  # Restored CIO v35.1 — T+30 study ρ=+0.111 (PREDICTIVE), high ceiling to preserve growth premium
-    max_short_interest: 3
+    max_short_interest: 8.0  # US/default anchor (p67). Per-market: regional_adjustments
     min_analysts: 8
     min_price_targets: 4
     min_roe: 12.0
@@ -630,7 +616,6 @@ hk_micro:
     min_forward_pe: 60
     min_trailing_pe: 180
     min_peg: 5.5
-    min_short_interest: 5
     min_roe: 5.0
     max_debt_equity: 250.0
     max_pct_from_52w_high: 30
@@ -648,10 +633,23 @@ regional_adjustments:
   hong_kong:
     # HK has highest hit rate - slightly more favorable
     suffixes: ['.HK']
+    # p67 of the HK SFC distribution — the SAME percentile as the US 8.0 anchor, which is
+    # what "same strictness, different number" means. 2.0 sat at HK's 25th percentile
+    # (median 3.80), so the old shared number rejected ~70% of HK names on a
+    # measurement-basis artefact rather than on signal.
+    max_short_interest: 4.68
   japan:
     # Japanese market specific
     buy_pct_discount: -5        # Lower coverage threshold
     suffixes: ['.T']
+    # 0.0 IS NOT A PLACEHOLDER. The operator is strict (>), so this PASSES a name at exactly
+    # 0.00 and vetoes one at 0.6 — it asks whether a REPORTABLE short position exists, and
+    # 176 of 226 TSE names pass. Japan discloses only positions >= 0.5%, PER SELLER, so 78%
+    # of names are exactly 0.00 and the rest >= 0.5% with nothing in between: every threshold
+    # in the open interval (0, 0.5) vetoes the identical names, making 0.0 the only distinct
+    # choice there. The US p67 asked of Japan lands inside the mass of zeros — you cannot
+    # reject 33% of a market where only 22% of names carry a value.
+    max_short_interest: 0.0
   us:
     # Baseline - no adjustment
     adjustments: none
