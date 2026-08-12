@@ -90,6 +90,62 @@ class TradeConfig:
                 return yaml_thresholds
         return cls.TIER_THRESHOLDS
 
+    # ------------------------------------------------------------------------------------
+    # SHORT INTEREST: why there are four numbers and not one, and why Japan's is 0.0
+    # ------------------------------------------------------------------------------------
+    # `max_short_interest` used to be a single 2.0 (2.5 in `portfolio`) applied to every
+    # market. Four regulators measure short interest four different ways, so one number was
+    # four different strictnesses. Where 2.0 sat in each source's own distribution, measured
+    # 2026-08-12:
+    #
+    #     US live (yfinance, % of float)       n=2,333   7th percentile   median 7.00
+    #     US FINRA (% of shares outstanding)   n=95      42nd             median 2.28
+    #     HK SFC                               n=107     25th             median 3.80
+    #     JP JPX                               n=17      76th             median 1.17
+    #
+    # Rows 1 and 2 are the clean natural experiment: SAME market, SAME days, 3x apart, purely
+    # because one is percent-of-float and the other a percent-of-outstanding lower bound. If
+    # the measurement basis moves the number 3x inside one market, then comparing HK's 3.80 to
+    # JP's 1.17 says nothing about which market is more shorted. The single 2.0 vetoed 92% of
+    # US-live names and 24% of Japanese ones.
+    #
+    # THE ANCHOR IS ABSOLUTE, THE REST ARE THE SAME PERCENTILE OF THEIR OWN DISTRIBUTION —
+    # same strictness, three different numbers (owner's instruction, 2026-08-11):
+    #
+    #     US / default  8.0   owner's anchor, p67, just above the 7.00 median   23% rejected
+    #     HK            4.68  p67 of the HK distribution                        29% rejected
+    #     JP            0.0   see below                                         23% rejected
+    #     EU / other    default — 19 of 5,473 names have data; inert whatever you set
+    #
+    # The single 2.0 gave 65% / 70% / 5%.
+    #
+    # *** JP: 0.0 IS NOT A PLACEHOLDER. READ THIS BEFORE "FIXING" IT. ***
+    # The operator is strict (`row_si > threshold`), so 0.0 passes a name at exactly 0.00 and
+    # vetoes one at 0.6 — it excludes names that HAVE a reportable short position, not every
+    # Japanese name (176 of 226 pass). It is 0.0 because no other number exists in that range:
+    # Japan discloses only positions of 0.5% or more, PER SELLER, so 78% of TSE names are
+    # exactly 0.00 and the rest are >= 0.5%, with nothing in between. Every threshold in the
+    # open interval (0, 0.5) vetoes the identical 50 names.
+    # The percentile map also degenerates there: the US p67, asked of Japan, lands inside the
+    # mass of zeros — you cannot reject 33% of a market where only 22% of names have a value.
+    # So Japan gets a CATEGORICAL test (does a reportable position exist?) rather than a level.
+    # In the US the median name is 7% shorted, so existence carries no information and a level
+    # is required; in Japan only 22% have any, so existence IS the signal.
+    # Known weakness, stated rather than papered over: the 0.5% floor is per seller, so four
+    # sellers at 0.4% each is 1.6% short and reports nothing. The JP gate therefore errs toward
+    # NOT excluding — the same safe direction the FINRA lower bound argues for. Buying a higher
+    # J-Quants tier does not fix it; the floor is a Cabinet Office ordinance, not a vendor limit.
+    #
+    # The sector override at `max_short_interest_buy` (REIT-like, "often shorted for yield")
+    # still replaces the SCALAR only, so it applies to the US/default leg and the HK/JP entries
+    # continue to govern their own markets. That is intended: the tolerance was reasoned about
+    # in a US context.
+    #
+    # `min_short_interest` (the sell trigger) was REMOVED here, not re-calibrated — see the
+    # deletion note at the enforcement site in analysis/signals.py for the three pieces of
+    # evidence and the buy/sell asymmetry argument.
+    # ------------------------------------------------------------------------------------
+
     # Option-specific trading thresholds
     THRESHOLDS: ClassVar[dict[str, dict[str, dict[str, Any]]]] = {
         # Portfolio Analysis (option: p)
@@ -104,7 +160,8 @@ class TradeConfig:
                 "min_trailing_pe": 0.5,
                 "max_trailing_pe": 80.0,
                 "max_peg": 2.5,
-                "max_short_interest": 2.5,
+                "max_short_interest": 8.0,  # US / default
+                "max_short_interest_by_market": {"HK": 4.68, "JP": 0.0},
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -112,7 +169,6 @@ class TradeConfig:
                 "max_upside": 5.0,
                 "min_buy_percentage": 65.0,
                 "max_forward_pe": 65.0,
-                "min_short_interest": 3.0,
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
@@ -137,7 +193,8 @@ class TradeConfig:
                 "min_trailing_pe": 0.5,
                 "max_trailing_pe": 75.0,
                 "max_peg": 2.0,
-                "max_short_interest": 2.0,
+                "max_short_interest": 8.0,  # US / default
+                "max_short_interest_by_market": {"HK": 4.68, "JP": 0.0},
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -145,7 +202,6 @@ class TradeConfig:
                 "max_upside": 8.0,
                 "min_buy_percentage": 60.0,
                 "max_forward_pe": 65.0,
-                "min_short_interest": 3.0,
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
@@ -163,7 +219,8 @@ class TradeConfig:
                 "min_trailing_pe": 0.5,
                 "max_trailing_pe": 85.0,
                 "max_peg": 2.5,
-                "max_short_interest": 2.0,
+                "max_short_interest": 8.0,  # US / default
+                "max_short_interest_by_market": {"HK": 4.68, "JP": 0.0},
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -171,7 +228,6 @@ class TradeConfig:
                 "max_upside": 5.0,
                 "min_buy_percentage": 50.0,
                 "max_forward_pe": 65.0,
-                "min_short_interest": 3.0,
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
@@ -189,7 +245,8 @@ class TradeConfig:
                 "min_trailing_pe": 0.5,
                 "max_trailing_pe": 60.0,
                 "max_peg": 2.0,
-                "max_short_interest": 2.0,
+                "max_short_interest": 8.0,  # US / default
+                "max_short_interest_by_market": {"HK": 4.68, "JP": 0.0},
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -197,7 +254,6 @@ class TradeConfig:
                 "max_upside": 12.0,
                 "min_buy_percentage": 70.0,
                 "max_forward_pe": 65.0,
-                "min_short_interest": 3.0,
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
@@ -215,7 +271,8 @@ class TradeConfig:
                 "min_trailing_pe": 0.5,
                 "max_trailing_pe": 80.0,
                 "max_peg": 2.5,
-                "max_short_interest": 2.5,
+                "max_short_interest": 8.0,  # US / default
+                "max_short_interest_by_market": {"HK": 4.68, "JP": 0.0},
                 "min_roe": 8.0,  # Return on Equity minimum (%)
                 "max_debt_equity": 200.0,  # Debt-to-Equity maximum (%)
             },
@@ -223,7 +280,6 @@ class TradeConfig:
                 "max_upside": 5.0,
                 "min_buy_percentage": 65.0,
                 "max_forward_pe": 65.0,
-                "min_short_interest": 3.0,
                 "min_beta": 3.0,
                 "min_roe": 5.0,  # SELL if ROE drops below 5%
                 "max_debt_equity": 250.0,  # SELL if DE exceeds 250%
@@ -1021,7 +1077,11 @@ class TradeConfig:
                     "min_trailing_pe": 0.5,  # Minimum trailing PE
                     "max_trailing_pe": 85.0,  # Higher trailing PE allowed for stability
                     "max_peg": 2.5,  # PEG requirement
-                    "max_short_interest": 2.0,  # Short interest tolerance
+                    "max_short_interest": 8.0,  # US / default
+                    "max_short_interest_by_market": {
+                        "HK": 4.68,
+                        "JP": 0.0,
+                    },  # Short interest tolerance
                 }
             elif new_tier == "mid":
                 return {
@@ -1034,7 +1094,11 @@ class TradeConfig:
                     "min_trailing_pe": 0.5,  # Standard trailing PE minimum
                     "max_trailing_pe": 75.0,  # Standard trailing PE limit
                     "max_peg": 2.0,  # Standard PEG requirement
-                    "max_short_interest": 2.0,  # Standard short interest
+                    "max_short_interest": 8.0,  # US / default
+                    "max_short_interest_by_market": {
+                        "HK": 4.68,
+                        "JP": 0.0,
+                    },  # Standard short interest
                 }
             else:  # small
                 return {
@@ -1047,7 +1111,11 @@ class TradeConfig:
                     "min_trailing_pe": 0.5,  # Standard trailing PE minimum
                     "max_trailing_pe": 60.0,  # Lower trailing PE limit
                     "max_peg": 1.5,  # Stricter PEG for small caps
-                    "max_short_interest": 1.5,  # Lower short interest tolerance
+                    "max_short_interest": 8.0,  # US / default
+                    "max_short_interest_by_market": {
+                        "HK": 4.68,
+                        "JP": 0.0,
+                    },  # Lower short interest tolerance
                 }
         elif action == "sell":
             if new_tier == "large":
@@ -1055,7 +1123,6 @@ class TradeConfig:
                     "max_upside": 8.0,  # Modest upside trigger for large caps
                     "min_buy_percentage": 60.0,  # Lower consensus for sell
                     "max_forward_pe": 70.0,  # Higher PE tolerance for value
-                    "min_short_interest": 3.5,  # Higher short interest tolerance
                     "min_beta": 3.5,  # Higher beta for sell
                 }
             elif new_tier == "mid":
@@ -1063,7 +1130,6 @@ class TradeConfig:
                     "max_upside": 5.0,  # Lower upside trigger for growth
                     "min_buy_percentage": 65.0,  # Standard sell consensus
                     "max_forward_pe": 65.0,  # Standard PE limit
-                    "min_short_interest": 3.0,  # Standard short interest
                     "min_beta": 3.0,  # Standard beta for sell
                 }
             else:  # small
@@ -1071,7 +1137,6 @@ class TradeConfig:
                     "max_upside": 3.0,  # Very low upside trigger for speculation
                     "min_buy_percentage": 70.0,  # Higher consensus needed for sell
                     "max_forward_pe": 50.0,  # Lower PE tolerance
-                    "min_short_interest": 2.5,  # Lower short interest tolerance
                     "min_beta": 2.5,  # Lower beta for sell
                 }
 

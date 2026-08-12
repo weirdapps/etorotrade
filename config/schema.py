@@ -51,7 +51,13 @@ class BuyCriteria(BaseModel):
     # Other constraints
     max_peg: float | None = Field(ge=0, default=None, description="Maximum PEG ratio")
     max_short_interest: float | None = Field(
-        ge=0, default=None, description="Maximum short interest %"
+        ge=0, default=None, description="Maximum short interest % (US / default anchor)"
+    )
+    # Per-market overrides, because four regulators measure short interest four different ways
+    # and one number is therefore four different strictnesses. See the block above THRESHOLDS
+    # in trade_modules/trade_config.py for the distributions and for why JP is 0.0.
+    max_short_interest_by_market: dict[str, float] | None = Field(
+        default=None, description="Per-market short interest ceilings, e.g. {'HK': 4.68, 'JP': 0.0}"
     )
 
     # Analyst requirements
@@ -88,9 +94,9 @@ class SellCriteria(BaseModel):
 
     # Other constraints
     min_peg: float | None = Field(ge=0, default=None, description="Minimum PEG ratio for sell")
-    min_short_interest: float | None = Field(
-        ge=0, default=None, description="Minimum short interest % for sell"
-    )
+    # min_short_interest REMOVED 2026-08-12. It forced an unconditional sell on short interest
+    # alone; the discrete form of this factor was already deprecated once for penalising winners
+    # (synthesis.py V37). See the deletion note in trade_modules/analysis/signals.py.
 
     # Financial health
     min_roe: float | None = Field(default=None, description="Minimum ROE % for sell")

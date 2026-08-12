@@ -440,6 +440,73 @@ def evaluate_momentum_track(
     return {"qualified": True, "reason": "momentum_track", "dampened": False}
 
 
+def si_market_ceilings(yaml_config=None) -> dict[str, float]:
+    """``{'.HK': 4.68, '.T': 0.0}`` — the per-market short-interest ceilings.
+
+    THE SUFFIXES ARE NOT RE-DECLARED HERE. ``config.yaml``'s ``regional_adjustments`` already
+    owns the suffix -> market mapping (it is what drives Japan's ``buy_pct_discount`` and
+    Europe's ``dividend_bonus``), so the ceiling lives beside the suffix list that defines the
+    market. A private copy of that table in this module would be the sixth copy of one mapping
+    in this estate, which is the exact failure the 2026-08-11 suffix audit spent a day undoing.
+
+    Returns an empty dict when the config is unavailable, which makes the per-market layer
+    inert and leaves the scalar default in force — never a veto.
+    """
+    out: dict[str, float] = {}
+    # Accepts the loader OR a plain dict: production passes `get_yaml_config()`, which is a
+    # YamlConfigLoader, while tests pass the parsed mapping. Anything else leaves the map empty.
+    cfg = yaml_config
+    if cfg is not None and not isinstance(cfg, dict) and hasattr(cfg, "load_config"):
+        try:
+            cfg = cfg.load_config()
+        except Exception:
+            return out
+    if not isinstance(cfg, dict):
+        return out
+    regions = cfg.get("regional_adjustments") or {}
+    for region in regions.values():
+        if not isinstance(region, dict):
+            continue
+        ceiling = region.get("max_short_interest")
+        if ceiling is None:
+            continue
+        for suffix in region.get("suffixes") or []:
+            out[str(suffix).upper()] = float(ceiling)
+    return out
+
+
+def resolve_max_short_interest(
+    ticker: str, buy_criteria: dict, market_ceilings: dict | None = None
+) -> float | None:
+    """The short-interest ceiling that applies to THIS ticker's market.
+
+    ONE NUMBER WAS NEVER ONE GATE. Four regulators measure short interest four different ways,
+    so a single `max_short_interest` meant four different strictnesses. Where 2.0 sat in each
+    source's own distribution, measured 2026-08-12:
+
+        US live (yfinance, % of float)       n=2,333   7th percentile   median 7.00
+        US FINRA (% of shares outstanding)   n=95      42nd             median 2.28
+        HK SFC                               n=107     25th             median 3.80
+        JP JPX                               n=17      76th             median 1.17
+
+    Rows 1 and 2 are the clean natural experiment: SAME market, SAME days, 3x apart, purely
+    because one is percent-of-float and the other a percent-of-outstanding lower bound. If the
+    measurement basis moves the number 3x within one market, then comparing HK's 3.80 against
+    JP's 1.17 says nothing at all about which market is more shorted.
+
+    Returns None when no ceiling is configured, so the caller skips the gate entirely.
+    """
+    ceiling = buy_criteria.get("max_short_interest")
+    overrides = dict(market_ceilings or {})
+    overrides.update(buy_criteria.get("max_short_interest_by_market") or {})
+    if not overrides:
+        return ceiling
+    t = str(ticker or "").strip().upper()
+    if "." not in t:
+        return ceiling
+    return overrides.get("." + t.rpartition(".")[2], ceiling)
+
+
 def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.Series:
     """Vectorized calculation of trading actions for improved performance.
 
@@ -470,6 +537,9 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
     from trade_modules.yaml_config_loader import get_yaml_config
 
     yaml_config = get_yaml_config()
+    # Per-market short-interest ceilings, read from regional_adjustments so the suffix table
+    # is declared in exactly one place. Empty when the YAML is absent -> the scalar governs.
+    _si_ceilings = si_market_ceilings(yaml_config)
 
     # Use YAML config thresholds if available, otherwise fallback to defaults
     universal_thresholds = config.get_universal_thresholds()
@@ -1489,12 +1559,31 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                         f"Ticker {ticker}: SELL TRIGGER - PEG {row_peg:.2f} > {sell_criteria['max_peg']:.2f}"
                     )
 
-            if "min_short_interest" in sell_criteria and not pd.isna(row_si):
-                if row_si > sell_criteria.get("min_short_interest"):
-                    sell_conditions.append("high_short_interest")
-                    logger.debug(
-                        f"Ticker {ticker}: SELL TRIGGER - short interest {row_si:.1f}% > {sell_criteria['min_short_interest']:.1f}%"
-                    )
+            # `min_short_interest` REMOVED 2026-08-12, not re-calibrated. It appended
+            # "high_short_interest" to sell_conditions, and the marker below is
+            # `if any(sell_conditions)`, so high short interest ALONE forced a sell.
+            #
+            # Deleted on this codebase's own evidence, all three pointing the same way:
+            #   * the CONTINUOUS form works — empirical_factor rho = -0.111 over n=32,589, the
+            #     largest |rho| of the four factors, above momentum's +0.103;
+            #   * the DISCRETE form was already tried and killed — synthesis.py's V37
+            #     deprecations, "short_interest_weakness  # n=32  penalized winners", removed
+            #     2026-05-16 for demoting names that went on to win;
+            #   * the factor is NOT monotone — high SI is simultaneously the bear case and the
+            #     squeeze setup, which is why synthesis.py already makes it conditional on
+            #     tech_signal and fund_score. An absolute threshold can only express a monotone
+            #     rule, so it necessarily gets one of the two regimes wrong.
+            #
+            # Asymmetry with the buy veto above, which is why they are treated differently: a
+            # buy veto forgoes one opportunity out of thousands, while a sell trigger forces a
+            # REALISED transaction — spread, tax, and the destruction of a researched position.
+            # A factor whose discrete form already has a losing track record does not clear that.
+            #
+            # Short interest still reaches sell decisions, through the market-scoped z-score in
+            # empirical_factor (weight -0.80) and the conditional S1 modifier in synthesis. The
+            # 20% eligibility gate in combine.py stays too: its justification is mechanical
+            # (borrow cost, recall risk), not alpha, which is why it survives as an absolute
+            # level where 3.0 does not.
 
             if "min_beta" in sell_criteria and not pd.isna(row_beta):
                 if row_beta > sell_criteria.get("min_beta"):
@@ -1767,8 +1856,14 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             if row_peg > buy_criteria.get("max_peg"):
                 is_buy_candidate = False
 
+        # Per-market ceiling (see resolve_max_short_interest for why one number cannot serve
+        # four regulators). The `not pd.isna` skip is deliberate and must stay: a percentile of
+        # an unknown is unknown, and an absent value has to remain a free pass rather than
+        # become a veto. Only 30% of US survivors carry SI at all, so turning NaN into a
+        # rejection would convert this from a short-interest gate into a data-coverage gate.
         if "max_short_interest" in buy_criteria and not pd.isna(row_si):
-            if row_si > buy_criteria.get("max_short_interest"):
+            si_ceiling = resolve_max_short_interest(ticker, buy_criteria, _si_ceilings)
+            if si_ceiling is not None and row_si > si_ceiling:
                 is_buy_candidate = False
 
         # ROE and DE BUY criteria (with sector adjustments)
