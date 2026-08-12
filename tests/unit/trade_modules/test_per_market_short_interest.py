@@ -161,11 +161,22 @@ class TestBuyVetoEndToEnd:
     def test_nan_is_a_free_pass_in_every_market(self, ticker):
         """A percentile of an unknown is unknown. An absent value must never become a veto —
         the US gate is already substantially a filter on data COVERAGE (only 30% of survivors
-        have SI at all, and 65% of those are killed), and this keeps it from getting worse."""
+        carry SI at all, and 65% of those are killed), and this keeps it from getting worse.
+
+        Asserted as an EQUIVALENCE, not an absolute action: this fixture reaches the live
+        provider, so the action it lands on depends on data that moves. The property that
+        matters is that the SI gate contributes nothing when the value is absent, i.e. NaN
+        behaves exactly like a value under the ceiling. 0.0 is under every market's ceiling
+        (0.0 > 0.0 is False), so it is the right comparand everywhere.
+        """
         from trade_modules.analysis.signals import calculate_action_vectorized
 
-        out, _, _ = calculate_action_vectorized(self._frame(ticker, np.nan), "market")
-        assert out.iloc[0] == "B"
+        absent, _, _ = calculate_action_vectorized(self._frame(ticker, np.nan), "market")
+        passing, _, _ = calculate_action_vectorized(self._frame(ticker, 0.0), "market")
+        assert absent.iloc[0] == passing.iloc[0], (
+            f"{ticker}: absent SI gave {absent.iloc[0]}, a passing SI gave {passing.iloc[0]} — "
+            "the gate is treating an unknown differently from a known-good value"
+        )
 
 
 class TestSellTriggerIsGone:
