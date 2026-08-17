@@ -35,8 +35,12 @@ EXPORT_PATHS = (
 # `packaging==26.3 ; python_version >= "3.10" ...` at the start of a line.
 PIN_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)")
 BLOCK_SPLIT_RE = re.compile(r"(?m)^(?=\[\[package\]\])")
+BLOCK_START_RE = re.compile(r"(?m)^\[\[package\]\]")
 BLOCK_NAME_RE = re.compile(r'\[\[package\]\]\nname = "([^"]+)"')
 BLOCK_VERSION_RE = re.compile(r'(?m)^version = "([^"]+)"')
+# A top-level table that is not a package block or one of its `[package.*]`
+# sub-tables, i.e. the `[extras]` / `[metadata]` trailer at the end of the file.
+TRAILER_RE = re.compile(r"(?m)^\[(?!\[)(?!package[.\]])")
 
 
 def normalize(name: str) -> str:
@@ -66,14 +70,33 @@ def exported_pins() -> dict[str, str]:
     return pins
 
 
+def split_trailer(lock_text: str) -> tuple[str, str]:
+    """Split off the `[extras]` / `[metadata]` tables that follow the last package.
+
+    poetry.lock keeps those top-level tables AFTER the final `[[package]]` block,
+    so BLOCK_SPLIT_RE folds them into that package's segment. Dropping the
+    alphabetically-last package (e.g. yfinance) would then delete `[metadata]`
+    too and `poetry lock` aborts with "The lock file does not have a metadata
+    entry".
+    """
+    starts = [match.start() for match in BLOCK_START_RE.finditer(lock_text)]
+    if not starts:
+        return lock_text, ""
+    trailer = TRAILER_RE.search(lock_text, starts[-1])
+    if trailer is None:
+        return lock_text, ""
+    return lock_text[: trailer.start()], lock_text[trailer.start() :]
+
+
 def drop_blocks(lock_text: str, names: set[str]) -> str:
+    body, trailer = split_trailer(lock_text)
     kept = []
-    for block in BLOCK_SPLIT_RE.split(lock_text):
+    for block in BLOCK_SPLIT_RE.split(body):
         name_match = BLOCK_NAME_RE.match(block)
         if name_match and normalize(name_match.group(1)) in names:
             continue
         kept.append(block)
-    return "".join(kept)
+    return "".join(kept) + trailer
 
 
 def main() -> int:
