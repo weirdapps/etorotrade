@@ -91,7 +91,189 @@ class TestProcessEToroPortfolioData:
         assert len(result) == 1
         assert result[0]["numPositions"] == 2
         assert result[0]["totalInvestmentPct"] == pytest.approx(15.0)
-        assert result[0]["totalNetProfit"] == pytest.approx(150.0)
+        # netProfit is a per-lot percentage, so the holding's contribution to
+        # portfolio return is (100%*10% + 50%*5%) = 12.5pp of NAV.
+        assert result[0]["totalNetProfit"] == pytest.approx(12.5)
+
+    def test_net_profit_is_contribution_in_nav_points(self):
+        """totalNetProfit is the holding's contribution to portfolio return.
+
+        eToro exposes no currency amount on the public portfolio endpoint, so
+        the only honest absolute figure is percentage points of NAV:
+        lot return times lot weight.
+        """
+        from yahoofinance.data.download import _process_etoro_portfolio_data
+
+        portfolio = {
+            "positions": [
+                {
+                    "instrumentId": 1,
+                    "investmentPct": 1.8487,
+                    "netProfit": -16.37,
+                    "openRate": 33.62,
+                    "openTimestamp": "2026-06-26",
+                    "isBuy": True,
+                    "leverage": 1,
+                }
+            ]
+        }
+        metadata = {1: {"symbolFull": "ETOR", "instrumentDisplayName": "eToro Group"}}
+
+        result = _process_etoro_portfolio_data(portfolio, metadata, "test_run")
+
+        # -16.37% on 1.8487% of NAV = -0.3026pp of NAV
+        assert result[0]["totalNetProfit"] == pytest.approx(-0.303, abs=0.001)
+        assert result[0]["totalNetProfitPct"] == pytest.approx(-16.37, abs=0.01)
+
+    def test_net_profit_contributions_sum_to_portfolio_return(self):
+        """Contributions are additive: they sum to the book's total return."""
+        from yahoofinance.data.download import _process_etoro_portfolio_data
+
+        # Two holdings, 40% and 60% of a fully invested book, +10% and -5%.
+        # Portfolio return = 0.4*10 + 0.6*-5 = +1.0pp
+        portfolio = {
+            "positions": [
+                {
+                    "instrumentId": 1,
+                    "investmentPct": 40.0,
+                    "netProfit": 10.0,
+                    "openRate": 100.0,
+                    "openTimestamp": "2024-01-01",
+                    "isBuy": True,
+                    "leverage": 1,
+                },
+                {
+                    "instrumentId": 2,
+                    "investmentPct": 60.0,
+                    "netProfit": -5.0,
+                    "openRate": 200.0,
+                    "openTimestamp": "2024-01-01",
+                    "isBuy": True,
+                    "leverage": 1,
+                },
+            ]
+        }
+        metadata = {
+            1: {"symbolFull": "AAA", "instrumentDisplayName": "A"},
+            2: {"symbolFull": "BBB", "instrumentDisplayName": "B"},
+        }
+
+        result = _process_etoro_portfolio_data(portfolio, metadata, "test_run")
+
+        assert sum(r["totalNetProfit"] for r in result) == pytest.approx(1.0, abs=0.001)
+
+    def test_net_profit_and_pct_stay_consistent(self):
+        """pct must equal contribution scaled back up by the holding's weight."""
+        from yahoofinance.data.download import _process_etoro_portfolio_data
+
+        portfolio = {
+            "positions": [
+                {
+                    "instrumentId": 1,
+                    "investmentPct": w,
+                    "netProfit": p,
+                    "openRate": 100.0,
+                    "openTimestamp": "2024-01-01",
+                    "isBuy": True,
+                    "leverage": 1,
+                }
+                for w, p in ((10.0, 20.0), (30.0, -4.0))
+            ]
+        }
+        metadata = {1: {"symbolFull": "AAPL", "instrumentDisplayName": "Apple"}}
+
+        row = _process_etoro_portfolio_data(portfolio, metadata, "test_run")[0]
+
+        assert row["totalNetProfitPct"] == pytest.approx(
+            row["totalNetProfit"] * 100 / row["totalInvestmentPct"], abs=0.01
+        )
+
+    def test_net_profit_pct_of_single_position_is_the_position_return(self):
+        """A single lot's return must pass through unchanged.
+
+        eToro returns `netProfit` as a per-lot percentage return, so a lone
+        position holding -12.675% must report -12.675%, not that figure
+        divided by the position's share of the account.
+        """
+        from yahoofinance.data.download import _process_etoro_portfolio_data
+
+        portfolio = {
+            "positions": [
+                {
+                    "instrumentId": 123,
+                    "investmentPct": 0.4625,
+                    "netProfit": -12.675,
+                    "openRate": 32.53,
+                    "openTimestamp": "2026-08-17",
+                    "isBuy": True,
+                    "leverage": 1,
+                }
+            ]
+        }
+        metadata = {123: {"symbolFull": "DTE.DE", "instrumentDisplayName": "Deutsche Telekom"}}
+
+        result = _process_etoro_portfolio_data(portfolio, metadata, "test_run")
+
+        assert result[0]["totalNetProfitPct"] == pytest.approx(-12.675, abs=0.01)
+
+    def test_net_profit_pct_of_grouped_positions_is_investment_weighted(self):
+        """Lot returns aggregate as an investment-weighted mean, not a sum.
+
+        Summing per-lot percentages inflates without bound as lots accumulate,
+        which is how a 23-lot holding came to report a +480% return.
+        """
+        from yahoofinance.data.download import _process_etoro_portfolio_data
+
+        portfolio = {
+            "positions": [
+                {
+                    "instrumentId": 123,
+                    "investmentPct": 10.0,
+                    "netProfit": 20.0,
+                    "openRate": 50.0,
+                    "openTimestamp": "2024-01-01",
+                    "isBuy": True,
+                    "leverage": 1,
+                },
+                {
+                    "instrumentId": 123,
+                    "investmentPct": 30.0,
+                    "netProfit": -4.0,
+                    "openRate": 55.0,
+                    "openTimestamp": "2024-01-02",
+                    "isBuy": True,
+                    "leverage": 1,
+                },
+            ]
+        }
+        metadata = {123: {"symbolFull": "AAPL", "instrumentDisplayName": "Apple Inc."}}
+
+        result = _process_etoro_portfolio_data(portfolio, metadata, "test_run")
+
+        # (10*20 + 30*-4) / 40 = +2.0
+        assert result[0]["totalNetProfitPct"] == pytest.approx(2.0, abs=0.01)
+
+    def test_net_profit_pct_never_exceeds_the_widest_lot_return(self):
+        """The aggregate must sit inside the range of its constituent lots."""
+        from yahoofinance.data.download import _process_etoro_portfolio_data
+
+        lots = [
+            {
+                "instrumentId": 123,
+                "investmentPct": 0.5,
+                "netProfit": profit,
+                "openRate": 100.0,
+                "openTimestamp": "2024-01-01",
+                "isBuy": True,
+                "leverage": 1,
+            }
+            for profit in (12.0, 8.0, 15.0, 9.0, 11.0)
+        ]
+        metadata = {123: {"symbolFull": "NVDA", "instrumentDisplayName": "NVIDIA"}}
+
+        result = _process_etoro_portfolio_data({"positions": lots}, metadata, "test_run")
+
+        assert 8.0 <= result[0]["totalNetProfitPct"] <= 15.0
 
 
 class TestSaveEToroPortfolioCsv:

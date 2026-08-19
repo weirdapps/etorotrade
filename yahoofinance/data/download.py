@@ -907,7 +907,6 @@ def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
         # Calculate aggregated values
         num_positions = len(symbol_positions)
         total_investment_pct = sum(p["position"].get("investmentPct", 0) for p in symbol_positions)
-        total_net_profit = sum(p["position"].get("netProfit", 0) for p in symbol_positions)
 
         # Calculate weighted average open rate
         weighted_open_rate = 0
@@ -919,6 +918,21 @@ def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
                 )
                 / total_investment_pct
             )
+
+        # eToro reports netProfit per lot as a percentage return, and the public
+        # portfolio endpoint carries no currency amount at all. Weighting each
+        # lot's return by its share of NAV gives the holding's contribution to
+        # portfolio return in percentage points, which is additive across the
+        # book; dividing that back out by the holding's own weight recovers the
+        # holding's own return. Summing raw lot percentages does neither.
+        weighted_net_profit = sum(
+            p["position"].get("netProfit", 0) * p["position"].get("investmentPct", 0)
+            for p in symbol_positions
+        )
+        total_net_profit = weighted_net_profit / 100
+        weighted_net_profit_pct = (
+            weighted_net_profit / total_investment_pct if total_investment_pct > 0 else 0
+        )
 
         # Get earliest open timestamp
         earliest_open = min(p["position"].get("openTimestamp", "") for p in symbol_positions)
@@ -946,9 +960,7 @@ def _process_etoro_portfolio_data(portfolio: dict, metadata: dict, run_id: str):
             "totalInvestmentPct": round(total_investment_pct, 6),
             "avgOpenRate": round(weighted_open_rate, 4),
             "totalNetProfit": round(total_net_profit, 3),
-            "totalNetProfitPct": round(
-                (total_net_profit / total_investment_pct) if total_investment_pct > 0 else 0, 3
-            ),
+            "totalNetProfitPct": round(weighted_net_profit_pct, 3),
             "earliestOpenTimestamp": earliest_open,
             "isBuy": all_buy,
             "leverage": leverage,
@@ -1009,9 +1021,10 @@ def _save_etoro_portfolio_csv(data: list, output_path: str, run_id: str):
 
     # Print compact summary
     total_investment = sum(row["totalInvestmentPct"] for row in data)
-    total_profit = sum(row["totalNetProfit"] for row in data)
+    # Contributions are additive, so the book's return is just their sum.
+    total_profit_pp = sum(row["totalNetProfit"] for row in data)
     print(
-        f"\n✅ Portfolio saved: {len(data)} symbols | Investment: {total_investment:.1f}% | Net P&L: ${total_profit:,.0f}"
+        f"\n✅ Portfolio saved: {len(data)} symbols | Investment: {total_investment:.1f}% | Net P&L: {total_profit_pp:+.2f}pp of NAV"
     )
 
 
