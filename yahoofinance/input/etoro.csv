@@ -175,7 +175,7 @@ ALB,Albemarle Corporation,NYSE
 ENS,EnerSys,NYSE
 APHA,Aphria Inc.,OTC Markets
 1810.HK,Xiaomi Corp,HKEX
-NHX,Neighborhood Intelligence Inc,Nasdaq
+NXH,Neighborhood Intelligence Inc,Nasdaq
 TLRY,Tilray Brands Inc,Nasdaq
 LYFT,LYFT Inc,Nasdaq
 PINS,Pinterest Inc,NYSE
@@ -2681,7 +2681,7 @@ AMTD,TD Ameritrade Holding Corp,Nasdaq
 PAYX,Paychex Inc,Nasdaq
 SIRI,Sirius XM Holdings Inc,Nasdaq
 AVB,AvalonBay Communities Inc,NYSE
-EQR,Equity Residential,NYSE
+VMRK,Vivmark Residential,NYSE
 TEAM,Atlassian Corp PLC A,Nasdaq
 BKR,Baker Hughes Company,NYSE
 DLR,Digital Realty Trust Inc,NYSE
@@ -6636,7 +6636,7 @@ RMNI,Rimini Street Inc,Nasdaq
 BDTX,Black Diamond Therapeutics I,Nasdaq
 NOTVQ,Inotiv Inc,OTC Markets
 GTHX,G1 Therapeutics Inc,Nasdaq
-ALURD,Allurion Technologies Inc,NYSE
+ALUR,Allurion Technologies Inc,NYSE
 SLX.AX,Silex Systems Ltd,ASX
 CKPT,Checkpoint Therapeutics Inc,Nasdaq
 CDZI,Cadiz Inc,Nasdaq
@@ -8161,7 +8161,7 @@ HMU.DE,HMS Bergbau AG,FRA
 ENGL.DE,Digital Invest eV AG,FRA
 BXT.DE,BioNxt Solutions Inc,FRA
 FF24.DE,Fast Finance 24 Holding AG,FRA
-INW.DE,GBS Software AG,FRA
+1GBS.DE,GBS Software AG,FRA
 7GG.DE,SMG Technology Acceleration SE,FRA
 TLIK.DE,Teles AG,FRA
 MAK.DE,MATERNUS-Kliniken-AG,FRA
@@ -10252,6 +10252,7 @@ REF,Reformation Inc,NYSE
 ADIG,ADI Global Distribution Inc,NYSE
 IMC,IMC Rare Earths Ltd,NYSE
 FOIL,Londian Wason New Energy Tech Inc,NYSE
+LYNX,Lyntris Inc,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
 BITA,iShares Bitcoin Premium Income ETF,Nasdaq
 QQQM,Invesco Nasdaq 100 ETF,Nasdaq
@@ -11679,7 +11680,7 @@ BYSI,Beyondspring Inc,Nasdaq
 NDRA,ENDRA Life Sciences Inc,Nasdaq
 MATH,Metalpha Technology Holding Ltd,Nasdaq
 FMST,Foremost Clean Energy Ltd,Nasdaq
-GGRP,Glimpse Group Inc/The,Nasdaq
+GGRP,Brightline Interactive Inc,Nasdaq
 VIVO,VivoPower PLC,Nasdaq
 AQB,AquaBounty Technologies Inc,Nasdaq
 MBIO,Mustang Bio Inc,Nasdaq
@@ -12083,7 +12084,7 @@ LUCD,Lucid Diagnostics Inc,Nasdaq
 CLDI,Calidi Biotherapeutics Inc,NYSE
 NSTS,NSTS Bancorp Inc,Nasdaq
 ZEO,Zeo Energy Corp,Nasdaq
-FTRK,Fast Track Group,Nasdaq
+FTRK,Fast Track Group,OTC Markets
 MSAI,MultiSensor AI Holdings Inc,Nasdaq
 BJDX,Bluejay Diagnostics Inc,Nasdaq
 NMRA,Neumora Therapeutics Inc,Nasdaq
@@ -12270,7 +12271,7 @@ ATGL,Alpha Technology Group Ltd,Nasdaq
 SELXF,Semilux International Ltd,OTC Markets
 DDC,DDC Enterprise Ltd,NYSE
 KVACF,Keen Vision Acquisition Corp,OTC Markets
-ANL,Adlai Nortye Ltd,Nasdaq
+ANL,Adlai Nortye Group Ltd,Nasdaq
 RMSG,Real Messenger Corp,Nasdaq
 NAMI,Jinxin Technology Holding Co,Nasdaq
 LIMN,Liminatus Pharma Inc,Nasdaq
