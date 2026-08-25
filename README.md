@@ -331,7 +331,7 @@ A `Dockerfile` is provided for containerised runs.
 
 ## Security
 
-See [SECURITY.md](SECURITY.md). Do not open a public issue for a vulnerability; email `plessas@nbg.gr`.
+See [SECURITY.md](SECURITY.md). Do not open a public issue for a vulnerability; report it privately through this repository's **Security** tab (**Report a vulnerability**).
 
 ## License
 
