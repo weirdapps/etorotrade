@@ -1315,14 +1315,14 @@ def generate_report_html(
                 ).fetchone()
 
                 _cb_path = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
-                _cb_level = "NORMAL"
+                _cb_level = "UNKNOWN"
                 _cb_dd = 0.0
                 if _cb_path.exists():
                     import json as _json2
 
                     with open(_cb_path) as _cbf:
                         _cb = _json2.load(_cbf)
-                    _cb_level = _cb.get("level", "NORMAL")
+                    _cb_level = _cb.get("level", "UNKNOWN")
                     _cb_dd = _cb.get("drawdown_pct", 0)
 
                 _eq_val_db = _eq_latest["equity_usd"] if _eq_latest else 0
@@ -5767,12 +5767,12 @@ def generate_report_html_v2(
                     "SELECT cumulative_return_pct FROM equity_daily WHERE date >= date('now', '-30 days') ORDER BY date LIMIT 1"
                 ).fetchone()
                 _cb_path = Path.home() / ".weirdapps-trading" / "portfolio" / "circuit_breaker.json"
-                _cb_level = "NORMAL"
+                _cb_level = "UNKNOWN"
                 _cb_dd = 0.0
                 if _cb_path.exists():
                     with open(_cb_path) as _cbf:
                         _cb_data = json.load(_cbf)
-                    _cb_level = _cb_data.get("level", "NORMAL")
+                    _cb_level = _cb_data.get("level", "UNKNOWN")
                     _cb_dd = _cb_data.get("drawdown_pct", 0)
                 if _eq_latest:
                     _twr = _eq_latest["cumulative_return_pct"] or 0
