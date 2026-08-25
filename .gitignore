@@ -232,3 +232,11 @@ uv.lock
 # Stops the recurring UU merge conflict between daily-signals (server) and local writers.
 yahoofinance/output/portfolio.csv
 .playwright-mcp/
+
+# Secrets. A bare `.env` line does not cover `.env.bak-*`, `.env.local` or
+# `.env.production`; a rotation script.s timestamped backup was staged into a
+# public repo through exactly that gap. Keep the rule in the repo rather than
+# in a global ignore file, which is machine-local and protects neither a fresh
+# clone nor CI nor the VPS copy.
+.env.*
+!.env.example
