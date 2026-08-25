@@ -3088,9 +3088,9 @@ truststore==0.10.4 ; python_version >= "3.10" and python_version < "4.0" \
 typer==0.25.1 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89 \
     --hash=sha256:9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc
-types-pyyaml==6.0.12.20260724 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:3c1ce1bb73cd5ec02e90390c2b1f00e810d241d8825fd73ff359696839271b6b \
-    --hash=sha256:d57db930a4b2efbc57cf430ec8882765d246929432fa253092f383902329a453
+types-pyyaml==6.0.12.20260815 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:28764110c9cf35846e733da32d8d734df7473c5dde9ef67c3b7332ec0e819858 \
+    --hash=sha256:6f332212b7e191f3afd5016a713c510b6340593b7ebec573c7d5d20aa5386d3b
 types-requests==2.33.0.20260712 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:2141b67ab534a5c5cd2dac5034f2a35f42e699c5bf185eee608c5246a069d7fb \
     --hash=sha256:de027e28c171d3da529689cbfa023b0b4eab188c8dfa22fd834eebd2cee6e7bb
