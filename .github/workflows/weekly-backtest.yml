@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           token: ${{ secrets.PUSH_PAT }}
 
@@ -73,7 +73,8 @@ jobs:
           print(f'BUY T+7: {h.get(\"buy_hit_rate_t7\")}% (n={h.get(\"buy_count_t7\")})')
           print(f'SELL T+7: {h.get(\"sell_hit_rate_t7\")}% (n={h.get(\"sell_count_t7\")})')
           if status == 'no_data':
-              print('NOTE: signal backtest had no data this run — workflow continues for downstream calibration phases.')
+              print('NOTE: signal backtest had no data this run. Downstream '
+                    'calibration phases continue.')
           "
 
       - name: Configure Git

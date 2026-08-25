@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [main, master, develop]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   schedule:
     # Run nightly at 2 AM UTC for integration tests
     - cron: '0 2 * * *'
@@ -22,142 +22,148 @@ jobs:
         python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip dependencies
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('requirements-dev-lock.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-py${{ matrix.python-version }}-
+      - name: Cache pip dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-py${{ matrix.python-version }}-${{ hashFiles('requirements-dev-lock.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-py${{ matrix.python-version }}-
 
-    # Install from a CHECKED-IN, pinned + SHA256-hashed lockfile so SonarCloud's
-    # static analysis can verify the contents (S8544) and pip's `--only-binary
-    # :all:` blocks setup-script execution from sdists (S8541).
-    - name: Install dependencies (production + dev)
-      run: |
-        pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
+      # Install from a CHECKED-IN, pinned + SHA256-hashed lockfile so SonarCloud's
+      # static analysis can verify the contents (S8544) and pip's `--only-binary
+      # :all:` blocks setup-script execution from sdists (S8541).
+      - name: Install dependencies (production + dev)
+        run: |
+          pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
-    - name: Security check with bandit
-      continue-on-error: true
-      run: |
-        bandit -r yahoofinance/ trade_modules/ -f json -o bandit-report.json
-        echo "Security scan completed. Check artifacts for details."
+      - name: Security check with bandit
+        continue-on-error: true
+        run: |
+          bandit -r yahoofinance/ trade_modules/ -f json -o bandit-report.json
+          echo "Security scan completed. Check artifacts for details."
 
-    - name: Safety check for vulnerabilities
-      continue-on-error: true
-      run: safety check
+      - name: Safety check for vulnerabilities
+        continue-on-error: true
+        run: safety check
 
-    - name: Lint with flake8
-      run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings. Line length is relaxed to 120
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+      - name: Lint with flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings. Line length is relaxed to 120
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
 
-    - name: Type check with mypy
-      continue-on-error: true
-      run: mypy yahoofinance/ trade_modules/ --ignore-missing-imports --no-strict-optional
+      - name: Type check with mypy
+        continue-on-error: true
+        run: mypy yahoofinance/ trade_modules/ --ignore-missing-imports --no-strict-optional
 
-    - name: Run tests with pytest
-      run: |
-        pytest tests/ \
-          --cov=yahoofinance \
-          --cov=trade_modules \
-          --cov-report=xml \
-          --cov-report=html \
-          --cov-report=term \
-          --cov-fail-under=58 \
-          --maxfail=40 \
-          --ignore=tests/integration/ \
-          --ignore=tests/e2e/ \
-          -v
+      - name: Run tests with pytest
+        run: |
+          pytest tests/ \
+            --cov=yahoofinance \
+            --cov=trade_modules \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term \
+            --cov-fail-under=58 \
+            --maxfail=40 \
+            --ignore=tests/integration/ \
+            --ignore=tests/e2e/ \
+            -v
 
-    - name: Run performance benchmarks
-      run: |
-        if [ -d "tests/benchmarks" ]; then
-          echo "Running performance benchmarks..."
-          pytest tests/benchmarks/ --tb=short -v || echo "Benchmarks completed with warnings"
-        else
-          echo "No benchmark tests found (tests/benchmarks/ does not exist)"
-        fi
+      - name: Run performance benchmarks
+        run: |
+          if [ -d "tests/benchmarks" ]; then
+            echo "Running performance benchmarks..."
+            pytest tests/benchmarks/ --tb=short -v || echo "Benchmarks completed with warnings"
+          else
+            echo "No benchmark tests found (tests/benchmarks/ does not exist)"
+          fi
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
 
-    - name: Archive test results
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-      if: always()
-      with:
-        name: test-results-${{ matrix.python-version }}
-        path: |
-          htmlcov/
-          bandit-report.json
-          coverage.xml
+      - name: Archive test results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: |
+            htmlcov/
+            bandit-report.json
+            coverage.xml
 
   integration:
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 30
     # Run on main/master pushes OR nightly schedule
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'schedule'
+    if: >-
+      (github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      github.event_name == 'schedule'
 
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-      with:
-        python-version: 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.11
 
-    - name: Install dependencies (production + dev)
-      run: |
-        pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
+      - name: Install dependencies (production + dev)
+        run: |
+          pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
-    - name: Run integration tests
-      continue-on-error: true  # Don't block CI on integration test failures (API rate limits, etc.)
-      run: |
-        pytest tests/integration/ -v --maxfail=3
+      - name: Run integration tests
+        continue-on-error: true  # Don't block CI on integration test failures (API rate limits, etc.)
+        run: |
+          pytest tests/integration/ -v --maxfail=3
 
   yfinance-compat:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'schedule' || github.event_name == 'pull_request'
+    if: >-
+      (github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      github.event_name == 'schedule' || github.event_name == 'pull_request'
 
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-      with:
-        python-version: 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.11
 
-    # Install production deps + the minimal `smoketest` extra (pytest +
-    # pytest-rerunfailures only). Keeping these out of `dev` preserves the
-    # "production-only" intent of this job: undeclared upstream transitives
-    # surface immediately, and the install path stays hashed end-to-end.
-    - name: Install production deps + smoketest
-      run: |
-        pip install --only-binary :all: --require-hashes -r requirements-smoketest-lock.txt
+      # Install production deps + the minimal `smoketest` extra (pytest +
+      # pytest-rerunfailures only). Keeping these out of `dev` preserves the
+      # "production-only" intent of this job: undeclared upstream transitives
+      # surface immediately, and the install path stays hashed end-to-end.
+      - name: Install production deps + smoketest
+        run: |
+          pip install --only-binary :all: --require-hashes -r requirements-smoketest-lock.txt
 
-    # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
-    # isn't installed in this minimal job and the smoke test doesn't need coverage.
-    - name: Run yfinance API surface smoke test
-      run: |
-        pytest tests/integration/test_yfinance_compat.py \
-          -v --no-header -o addopts= \
-          --reruns 2 --reruns-delay 30
+      # Override pytest.ini's addopts (--cov=yahoofinance) since pytest-cov
+      # isn't installed in this minimal job and the smoke test doesn't need coverage.
+      - name: Run yfinance API surface smoke test
+        run: |
+          pytest tests/integration/test_yfinance_compat.py \
+            -v --no-header -o addopts= \
+            --reruns 2 --reruns-delay 30
 
   quality-gates:
     runs-on: ubuntu-latest
@@ -165,123 +171,124 @@ jobs:
     timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-      with:
-        python-version: 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.11
 
-    - name: Install dependencies (production + dev, fully hashed)
-      run: |
-        pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
+      - name: Install dependencies (production + dev, fully hashed)
+        run: |
+          pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
-    - name: Check code complexity
-      continue-on-error: true
-      run: |
-        echo "Checking cyclomatic complexity..."
-        radon cc yahoofinance/ trade_modules/ --min=B --show-complexity --average
-        echo ""
-        echo "Checking maintainability index..."
-        radon mi yahoofinance/ trade_modules/ --min=B --show
+      - name: Check code complexity
+        continue-on-error: true
+        run: |
+          echo "Checking cyclomatic complexity..."
+          radon cc yahoofinance/ trade_modules/ --min=B --show-complexity --average
+          echo ""
+          echo "Checking maintainability index..."
+          radon mi yahoofinance/ trade_modules/ --min=B --show
 
-    - name: Check for TODO/FIXME comments
-      run: |
-        echo "Checking for TODO/FIXME comments..."
-        grep -r "TODO\|FIXME\|HACK\|XXX" yahoofinance/ trade_modules/ --include="*.py" || echo "No TODO/FIXME comments found"
+      - name: Check for TODO/FIXME comments
+        run: |
+          echo "Checking for TODO/FIXME comments..."
+          grep -r "TODO\|FIXME\|HACK\|XXX" yahoofinance/ trade_modules/ \
+            --include="*.py" || echo "No TODO/FIXME comments found"
 
-    - name: Check for unused imports
-      continue-on-error: true
-      run: |
-        echo "Checking for unused imports..."
-        autoflake \
-          --check \
-          --remove-all-unused-imports \
-          --remove-unused-variables \
-          --recursive \
-          --exclude '__init__.py' \
-          yahoofinance/ trade_modules/
+      - name: Check for unused imports
+        continue-on-error: true
+        run: |
+          echo "Checking for unused imports..."
+          autoflake \
+            --check \
+            --remove-all-unused-imports \
+            --remove-unused-variables \
+            --recursive \
+            --exclude '__init__.py' \
+            yahoofinance/ trade_modules/
 
-    - name: Detect hardcoded secrets
-      run: |
-        echo "Scanning for hardcoded secrets..."
-        detect-secrets scan \
-          --all-files \
-          --exclude-files '.git/*' \
-          --exclude-files 'tests/fixtures/*' \
-          --exclude-files '.vscode/*' \
-          --exclude-files 'htmlcov/*' \
-          > .secrets.baseline || true
+      - name: Detect hardcoded secrets
+        run: |
+          echo "Scanning for hardcoded secrets..."
+          detect-secrets scan \
+            --all-files \
+            --exclude-files '.git/*' \
+            --exclude-files 'tests/fixtures/*' \
+            --exclude-files '.vscode/*' \
+            --exclude-files 'htmlcov/*' \
+            > .secrets.baseline || true
 
-        if [ -f .secrets.baseline ]; then
-          SECRET_COUNT=$(grep -c '"filename":' .secrets.baseline || echo "0")
-          if [ "$SECRET_COUNT" -gt "0" ]; then
-            echo "Found $SECRET_COUNT potential secrets (review recommended)"
-          else
-            echo "No hardcoded secrets detected"
+          if [ -f .secrets.baseline ]; then
+            SECRET_COUNT=$(grep -c '"filename":' .secrets.baseline || echo "0")
+            if [ "$SECRET_COUNT" -gt "0" ]; then
+              echo "Found $SECRET_COUNT potential secrets (review recommended)"
+            else
+              echo "No hardcoded secrets detected"
+            fi
           fi
-        fi
 
-    - name: Validate imports and dependencies
-      run: |
-        python -c "
-        import sys
-        import importlib
-        modules = ['yahoofinance', 'trade_modules']
-        for module in modules:
-            try:
-                importlib.import_module(module)
-                print(f'{module} imports successfully')
-            except Exception as e:
-                print(f'{module} import failed: {e}')
-                sys.exit(1)
-        "
+      - name: Validate imports and dependencies
+        run: |
+          python -c "
+          import sys
+          import importlib
+          modules = ['yahoofinance', 'trade_modules']
+          for module in modules:
+              try:
+                  importlib.import_module(module)
+                  print(f'{module} imports successfully')
+              except Exception as e:
+                  print(f'{module} import failed: {e}')
+                  sys.exit(1)
+          "
 
   lockfile-sync:
     name: lockfile sync
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-      with:
-        python-version: 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.11
 
-    - name: Install Poetry
-      uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
-      with:
-        version: '2.4.0'
-        plugins: 'poetry-plugin-export==1.10.0'
+      - name: Install Poetry
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
+        with:
+          version: '2.4.0'
+          plugins: 'poetry-plugin-export==1.10.0'
 
-    - name: Verify poetry.lock matches pyproject.toml
-      run: |
-        if ! poetry check --lock --no-interaction; then
-          echo "::error::poetry.lock is out of sync with pyproject.toml"
-          echo "Run locally: poetry lock"
-          exit 1
-        fi
-
-    - name: Verify committed requirements-*-lock.txt match poetry.lock
-      run: |
-        # Re-export each requirements file to /tmp and diff against the
-        # committed copy. Drift means a developer ran `poetry lock` without
-        # running `scripts/dev/relock.sh` to regenerate the committed exports.
-        set -e
-        check_drift() {
-          local committed=$1
-          local fresh="/tmp/$1"
-          shift
-          poetry export "$@" -f requirements.txt -o "$fresh"
-          if ! diff -q "$fresh" "$committed" > /dev/null; then
-            echo "::error::$committed is out of sync with poetry.lock"
-            echo "Run locally: scripts/dev/relock.sh"
-            diff "$fresh" "$committed" | head -30
+      - name: Verify poetry.lock matches pyproject.toml
+        run: |
+          if ! poetry check --lock --no-interaction; then
+            echo "::error::poetry.lock is out of sync with pyproject.toml"
+            echo "Run locally: poetry lock"
             exit 1
           fi
-        }
-        check_drift requirements-lock.txt --only main
-        check_drift requirements-dev-lock.txt --extras dev
-        check_drift requirements-smoketest-lock.txt --extras smoketest
-        echo "All committed requirements files in sync with poetry.lock."
+
+      - name: Verify committed requirements-*-lock.txt match poetry.lock
+        run: |
+          # Re-export each requirements file to /tmp and diff against the
+          # committed copy. Drift means a developer ran `poetry lock` without
+          # running `scripts/dev/relock.sh` to regenerate the committed exports.
+          set -e
+          check_drift() {
+            local committed=$1
+            local fresh="/tmp/$1"
+            shift
+            poetry export "$@" -f requirements.txt -o "$fresh"
+            if ! diff -q "$fresh" "$committed" > /dev/null; then
+              echo "::error::$committed is out of sync with poetry.lock"
+              echo "Run locally: scripts/dev/relock.sh"
+              diff "$fresh" "$committed" | head -30
+              exit 1
+            fi
+          }
+          check_drift requirements-lock.txt --only main
+          check_drift requirements-dev-lock.txt --extras dev
+          check_drift requirements-smoketest-lock.txt --extras smoketest
+          echo "All committed requirements files in sync with poetry.lock."

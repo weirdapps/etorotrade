@@ -48,7 +48,7 @@ jobs:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       - name: Checkout base (trusted — never the PR head)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           token: ${{ secrets.PUSH_PAT }}
 
