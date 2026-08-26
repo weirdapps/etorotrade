@@ -264,6 +264,7 @@ class TestFetchAllInstruments:
                     "instrumentDisplayName": "Apple",
                     "instrumentTypeID": 5,
                     "exchangeID": 4,
+                    "distributionType": 5,
                 },
                 {
                     "instrumentID": 2001,
@@ -271,6 +272,7 @@ class TestFetchAllInstruments:
                     "instrumentDisplayName": "SPDR S&P 500",
                     "instrumentTypeID": 6,
                     "exchangeID": 4,
+                    "distributionType": 5,
                 },
             ]
         }
@@ -309,6 +311,7 @@ class TestFetchAllInstruments:
                             "instrumentDisplayName": "X",
                             "instrumentTypeID": 5,
                             "exchangeID": 4,
+                            "distributionType": 5,
                         },
                     ]
                 },
@@ -735,3 +738,105 @@ class TestPlaceholderCodesBeyondTheCAFamily:
         """IPO.L is IP Group PLC. A prefix rule on the SYMBOL would delete it; the rule keys
         on the company name being the code, so it survives."""
         assert normalize_symbol("IPO.L", "IP Group PLC") == "IPO.L"
+
+
+class TestOpenableFilter:
+    """eToro's ``/market-data/instruments`` returns everything it DISPLAYS, which is a superset
+    of what it will let an account OPEN. Measured 2026-08-26: 2,555 of 14,332 stocks+ETFs are a
+    close-only block — holdable and sellable, not buyable — and they are indistinguishable by
+    symbol, name or exchange. They reached the model as BUY recommendations that could not be
+    placed; three of one day's ten buys were dead this way.
+
+    ``distributionType`` separates them cleanly. Validated against eToro's own account-eligibility
+    endpoint at n=400: ``None`` -> 199/200 answered ``allow_open=False``; ``5`` -> 162/200 True.
+    """
+
+    def test_the_marker_is_the_KEYS_ABSENCE_not_its_value(self):
+        """Measured on the live payload: the close-only block OMITS ``distributionType``; every
+        openable row carries it as 5. The first version of this function tested the VALUE and
+        dropped nothing at all, because ``dict.get`` reports absent and null identically."""
+        assert refresh_etoro_universe.is_openable({"distributionType": 5}) is True
+        assert refresh_etoro_universe.is_openable({}) is False
+        assert refresh_etoro_universe.is_openable({"symbolFull": "ACL.ASX"}) is False
+
+    def test_an_UNRECOGNISED_value_is_kept(self):
+        """It asks whether eToro said anything at all, so a third value appearing tomorrow reads
+        as openable rather than silently shrinking the universe."""
+        assert refresh_etoro_universe.is_openable({"distributionType": 7}) is True
+        assert refresh_etoro_universe.is_openable({"distributionType": "whatever"}) is True
+
+    def test_an_explicit_NULL_is_still_openable_and_that_is_deliberate(self):
+        """eToro does not currently send null — it omits the key. If it ever starts, that is a
+        NEW shape nobody has measured, and the permissive direction is the safe one: the
+        fail-closed control is the per-order broker refusal, not this generator."""
+        assert refresh_etoro_universe.is_openable({"distributionType": None}) is True
+
+    def test_fetch_drops_the_close_only_rows(self):
+        api_response = {
+            "instrumentDisplayDatas": [
+                {
+                    "instrumentID": 1001,
+                    "symbolFull": "AAPL",
+                    "instrumentDisplayName": "Apple",
+                    "instrumentTypeID": 5,
+                    "exchangeID": 4,
+                    "distributionType": 5,
+                },
+                {
+                    "instrumentID": 1001690,
+                    "symbolFull": "ACL.ASX",
+                    "instrumentDisplayName": "Australian Clinical Labs",
+                    "instrumentTypeID": 5,
+                    "exchangeID": 31,
+                },  # no distributionType: the real shape
+            ]
+        }
+        with patch.object(refresh_etoro_universe.requests, "get") as mock_get:
+            mock_get.return_value = MagicMock(status_code=200, json=lambda: api_response)
+            result = fetch_all_instruments("api", "user")
+        assert [r["symbol"] for r in result] == ["AAPL"], (
+            "ACL.ASX is real, listed and displayed — and eToro answered allow_open=False for it"
+        )
+
+    def test_it_REFUSES_rather_than_writing_an_empty_universe(self):
+        """If every row fails the test, the field changed meaning — eToro did not delist its
+        whole catalogue. Raising keeps the last good CSV on disk."""
+        api_response = {
+            "instrumentDisplayDatas": [
+                {
+                    "instrumentID": i,
+                    "symbolFull": f"X{i}",
+                    "instrumentDisplayName": "x",
+                    "instrumentTypeID": 5,
+                    "exchangeID": 4,
+                }
+                for i in range(5)
+            ]
+        }
+        with patch.object(refresh_etoro_universe.requests, "get") as mock_get:
+            mock_get.return_value = MagicMock(status_code=200, json=lambda: api_response)
+            with pytest.raises(RuntimeError, match="excluded ALL"):
+                fetch_all_instruments("api", "user")
+
+    def test_it_REFUSES_an_implausibly_large_drop(self):
+        """~18% is the measured shape. A ceiling catches the field inverting, which would gut the
+        universe without emptying it — the failure a floor on the absolute count cannot see."""
+        # A PLAUSIBLE CATALOGUE SIZE, because the ceiling is a ratio and a ratio of two rows
+        # is noise. `MIN_INSTRUMENTS_THRESHOLD` is what refuses a payload smaller than this.
+        rows = [
+            {
+                "instrumentID": i,
+                "symbolFull": f"X{i}",
+                "instrumentDisplayName": "x",
+                "instrumentTypeID": 5,
+                "exchangeID": 4,
+                **({} if i < 900 else {"distributionType": 5}),
+            }
+            for i in range(1000)
+        ]
+        with patch.object(refresh_etoro_universe.requests, "get") as mock_get:
+            mock_get.return_value = MagicMock(
+                status_code=200, json=lambda: {"instrumentDisplayDatas": rows}
+            )
+            with pytest.raises(RuntimeError, match="above the"):
+                fetch_all_instruments("api", "user")

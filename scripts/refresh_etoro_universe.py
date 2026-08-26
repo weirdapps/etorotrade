@@ -28,6 +28,41 @@ STOCK_TYPE_ID = 5
 ETF_TYPE_ID = 6
 MIN_INSTRUMENTS_THRESHOLD = 1000
 
+#: How much of the typed catalogue the openable filter may remove before it is treated as a
+#: payload change rather than a market fact. Measured 2026-08-26: 2,555 of 14,332 = **17.8%**.
+#: A ceiling rather than an equality because eToro adds and retires lines continuously; what it
+#: catches is the field going away entirely, which would silently gut the universe.
+_MAX_OPENABLE_DROP_FRACTION = 0.40
+
+
+def is_openable(item: dict) -> bool:
+    """Will eToro let an account OPEN a position in this instrument?
+
+    **THE MARKER IS THE KEY'S ABSENCE, NOT ITS VALUE**, and getting that backwards is easy: on
+    the live payload the close-only block simply omits ``distributionType``, while every openable
+    row carries it as ``5``. Measured on the 2026-08-26 catalogue, and it is a clean partition:
+
+        key present : 11,777 of 11,777 rows below instrumentID 1,000,000
+        key absent  :  2,555 of  2,555 rows at or above it
+
+    ``dict.get`` COLLAPSES ABSENT AND NULL and reports both as ``None``, which is exactly how the
+    first version of this function came to test the value and drop nothing at all. A dry run
+    against the live payload is what caught it; ``"key" in item`` is the only form that answers
+    the question actually being asked.
+
+    Validated against eToro's own account-eligibility endpoint at n=400: rows with no
+    ``distributionType`` answered ``allow_open=False`` 199 times out of 200, rows with it
+    answered ``True`` 162 of 200 (the rest are per-account bars, which are a different layer's
+    problem). See :func:`fetch_all_instruments`.
+
+    A NEW VALUE WOULD BE KEPT. This asks whether eToro said anything at all, so a third
+    ``distributionType`` appearing tomorrow reads as openable rather than silently shrinking the
+    universe. The catastrophic case — eToro dropping the field for everyone — is caught by the
+    refusal in :func:`fetch_all_instruments` rather than by guessing here.
+    """
+    return "distributionType" in item
+
+
 EXCHANGE_NAMES: dict[int, str] = {
     2: "NYSE",
     4: "Nasdaq",
@@ -553,8 +588,34 @@ def fetch_all_instruments(
 ) -> list[dict]:
     """Fetch all instruments from the market-data API (single call, no pagination).
 
-    Filters to Stocks (type 5) and ETFs (type 6), then maps fields to the
-    format expected by the rest of the pipeline.
+    Filters to Stocks (type 5) and ETFs (type 6) AND to instruments eToro will let an account
+    OPEN, then maps fields to the format expected by the rest of the pipeline.
+
+    **THE TYPE FILTER ALONE LET IN 2,555 INSTRUMENTS NOBODY CAN BUY** (2026-08-26). This endpoint
+    returns everything eToro DISPLAYS, which is a superset of what it will open a position in:
+    alongside the tradable catalogue it carries a block of close-only lines — you may hold one
+    and sell it, but you may not open it. They are indistinguishable by symbol, name or exchange.
+
+    Measured against eToro's own account-eligibility endpoint on a sample of 400, and the
+    separation is clean:
+
+        distributionType is None  ->  199 of 200 answered allow_open=FALSE
+        distributionType == 5     ->  162 of 200 answered allow_open=TRUE
+
+    The same partition holds exactly against ``/market-data/search``, which is the endpoint
+    eToro's own order routing uses: 0 of 2,555 of the ``None`` block appear in it, against 10,535
+    of 11,777 of the ``5`` block.
+
+    KEYED ON ``distributionType``, NOT ON THE INSTRUMENT ID. The two agree perfectly today — the
+    ``None`` block is exactly the ids at or above 1,000,000 — but an id range is a coincidence of
+    when eToro created the rows, and it would go wrong the day they renumber. A field that says
+    something is a rule; a number that happens to line up is not.
+
+    RESIDUAL, STATED: about 1 name in 200 of the excluded block DOES answer ``allow_open=True``,
+    so this drops roughly a dozen openable instruments to remove ~2,540 unopenable ones. That is
+    the trade, and it is the right way round — a universe that recommends what cannot be bought
+    costs a human triage on every run, while a dozen missing micro-listings cost nothing
+    measurable in a 10,000-name cross-section.
     """
     last_error: str | None = None
     for attempt in range(1, max_retries + 1):
@@ -569,9 +630,34 @@ def fetch_all_instruments(
             response = requests.get(INSTRUMENTS_URL, headers=headers, timeout=_HTTP_TIMEOUT_SEC)
             if response.status_code == 200:
                 raw = response.json().get("instrumentDisplayDatas", [])
-                filtered = [
+                typed = [
                     i for i in raw if i.get("instrumentTypeID") in (STOCK_TYPE_ID, ETF_TYPE_ID)
                 ]
+                filtered = [i for i in typed if is_openable(i)]
+                dropped = len(typed) - len(filtered)
+                if typed and not filtered:
+                    # THE FIELD STOPPED DISCRIMINATING. Every row failed the openable test, which
+                    # means eToro changed the payload rather than delisting its whole catalogue.
+                    # Refusing here keeps the last good universe on disk; the alternative is an
+                    # empty CSV and a model with nothing to score.
+                    raise RuntimeError(
+                        f"fetch_all_instruments: distributionType excluded ALL {len(typed)} "
+                        f"stocks/ETFs. The field has changed meaning — refusing to write an "
+                        f"empty universe. Inspect the payload before re-running."
+                    )
+                # THE CEILING NEEDS A SAMPLE TO BE A RATIO OF. Below a plausible catalogue
+                # size this says nothing — 1 of 2 is 50% and means nothing at all — and
+                # `MIN_INSTRUMENTS_THRESHOLD` already refuses a payload that small at :754.
+                if (
+                    len(typed) >= MIN_INSTRUMENTS_THRESHOLD
+                    and dropped / len(typed) > _MAX_OPENABLE_DROP_FRACTION
+                ):
+                    raise RuntimeError(
+                        f"fetch_all_instruments: the openable filter dropped {dropped} of "
+                        f"{len(typed)} ({dropped / len(typed):.0%}), above the "
+                        f"{_MAX_OPENABLE_DROP_FRACTION:.0%} ceiling. Expected ~18%. Refusing to "
+                        f"write; inspect the payload."
+                    )
                 items = []
                 for i in filtered:
                     items.append(
