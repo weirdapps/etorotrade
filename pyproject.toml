@@ -29,7 +29,12 @@ dependencies = [
     "yfinance==1.7.0",
     "lxml>=6.1.1",  # yfinance declares lxml>=4.9.0 itself; floor raised to 6.1.1, the value the sibling pts-signals package declares (this repo locks 6.1.2, above it)
     "yahooquery>=2.3.7",
-    "requests>=2.34.2,<3.0.0",
+    # Deliberately UNCAPPED, unlike its pandas/numpy/matplotlib neighbours.
+    # The old <3.0.0 arrived as house style in a6d608b2 with no comment, no
+    # issue and no rationale; it binds nothing (no requests 3.x exists) while
+    # keeping this repo permanently divergent from the pts-* packages, which
+    # declare a bare >=2.34.2. Owner accepted the inconsistency (D1).
+    "requests>=2.34.2",
     "urllib3>=2.7.0",  # CVE-2026-44431/44432: decompression-bomb safeguard bypass in <2.7.0
     "scipy>=1.10.0",
     "pyarrow>=14.0.0",
