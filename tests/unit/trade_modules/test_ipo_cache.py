@@ -246,10 +246,57 @@ class TestFailsOpen:
         c.put("A", datetime(2020, 1, 1))
         assert c.save() is False
 
+    def test_auto_flush_GIVES_UP_on_a_path_that_keeps_failing(self, tmp_path, monkeypatch):
+        # Otherwise a read-only checkout attempts one failed write, and logs one
+        # warning, per ticker for the rest of a 12,808-name scan.
+        monkeypatch.setattr(ipo_cache, "FLUSH_EVERY", 1)
+        attempts = []
+
+        def failing_write(path, entries):
+            attempts.append(path)
+            return False
+
+        monkeypatch.setattr(ipo_cache, "_write_cache_file", failing_write)
+        c = ipo_cache.IpoDateCache(tmp_path / "ro" / "ipo_dates.json")
+        for i in range(50):
+            c.put(f"T{i}", datetime(2020, 1, 1) + timedelta(days=i))
+
+        assert len(attempts) == ipo_cache.MAX_WRITE_FAILURES
+        # An explicit save (the exit flush) still gets one last try.
+        assert c.save() is False
+        assert len(attempts) == ipo_cache.MAX_WRITE_FAILURES + 1
+
+    def test_a_recovered_path_resumes_auto_flushing(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ipo_cache, "FLUSH_EVERY", 1)
+        c = ipo_cache.IpoDateCache(tmp_path / "ipo_dates.json")
+        c._write_failures = ipo_cache.MAX_WRITE_FAILURES - 1
+        c.put("A", datetime(2020, 1, 1))
+
+        assert c._write_failures == 0
+        assert ipo_cache.IpoDateCache(tmp_path / "ipo_dates.json").get("A") == datetime(2020, 1, 1)
+
 
 # --------------------------------------------------------------------------
 # 4. the cache is bounded
 # --------------------------------------------------------------------------
+
+
+class TestTheSuiteCannotSeeTheCommittedFile:
+    """``yahoofinance/input/ipo_dates.json`` is a tracked file with real dates
+    in it. Nothing in the suite may read it (a test would then depend on live
+    market data) or write it (a test run would dirty the repository)."""
+
+    def test_the_autouse_fixture_redirects_every_test(self):
+        # No marker opts out of tests/conftest.py::_isolate_ipo_cache, so this
+        # holds for every test in the suite, including ones not yet written.
+        assert ipo_cache.resolve_cache_path() != ipo_cache.DEFAULT_CACHE_PATH
+        assert ipo_cache.get_cache().path != ipo_cache.DEFAULT_CACHE_PATH
+
+    def test_the_default_path_is_the_committed_one(self):
+        assert ipo_cache.DEFAULT_CACHE_PATH.name == "ipo_dates.json"
+        assert ipo_cache.DEFAULT_CACHE_PATH.parent.name == "input"
+        # Never the legacy directory this estate forbids for new work.
+        assert ".weirdapps-trading" not in str(ipo_cache.DEFAULT_CACHE_PATH)
 
 
 class TestBounded:
