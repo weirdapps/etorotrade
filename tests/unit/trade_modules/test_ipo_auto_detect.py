@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pandas as pd
 
+from trade_modules import ipo_cache
 from trade_modules.analysis import signals
 from trade_modules.analysis.signals import is_recent_ipo
 
@@ -112,7 +113,11 @@ class TestIPOAutoDetect:
         assert mock_ticker_cls.return_value.history.call_count == 1
 
     @patch("yfinance.Ticker")
-    def test_cache_stores_none_on_failure(self, mock_ticker_cls):
+    def test_cache_records_the_failure_as_an_ERROR_state(self, mock_ticker_cls):
+        # The in-memory entry used to be a bare None, which also meant "the
+        # provider has no history". It is now a (state, date) tuple, so the
+        # persistence layer can tell a failure from an empty answer and refuse
+        # to write either one down. See trade_modules/ipo_cache.py.
         mock_ticker_cls.return_value.history.side_effect = Exception("fail")
 
         config = make_config()
@@ -120,12 +125,19 @@ class TestIPOAutoDetect:
 
         is_recent_ipo("FAIL1", yaml_cfg)
         assert "FAIL1" in signals._ipo_date_cache
-        assert signals._ipo_date_cache["FAIL1"] is None
+        assert signals._ipo_date_cache["FAIL1"] == (ipo_cache.PROBE_ERROR, None)
 
         # Second call should return False from cache without calling API
         result = is_recent_ipo("FAIL1", yaml_cfg)
         assert result is False
         assert mock_ticker_cls.return_value.history.call_count == 1
+
+    @patch("yfinance.Ticker")
+    def test_an_empty_history_is_NO_DATA_not_an_error(self, mock_ticker_cls):
+        mock_ticker_cls.return_value.history.return_value = pd.DataFrame()
+
+        assert is_recent_ipo("NODATA1", FakeYamlConfig(make_config())) is False
+        assert signals._ipo_date_cache["NODATA1"] == (ipo_cache.PROBE_NO_DATA, None)
 
     def test_auto_detect_disabled_skips_yfinance(self):
         config = make_config(auto_detect=False)
