@@ -837,25 +837,6 @@ dual_track:
 
 # === CIO REVIEW: NEW CONFIGURATION SECTIONS ===
 
-# Liquidity Filter Configuration (CIO Review S5)
-# Minimum Average Daily Dollar Volume by tier
-liquidity:
-  enabled: true
-  min_adv:
-    MEGA: 50000000      # $50M
-    LARGE: 20000000     # $20M
-    MID: 10000000       # $10M
-    SMALL: 5000000      # $5M
-    MICRO: 2000000      # $2M
-  # Estimated spread costs in basis points (for cost-adjusted returns)
-  spread_bps:
-    MEGA: 2
-    LARGE: 5
-    MID: 10
-    SMALL: 20
-    MICRO: 40
-  etoro_overnight_annual_rate: 0.064
-
 # Conviction-Based Position Sizing (CIO Review E1 + M2)
 conviction_sizing:
   enabled: true

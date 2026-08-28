@@ -3,7 +3,6 @@ Tests for CIO Review Findings Implementation
 
 Tests all 15 findings from the CIO critical review:
 - S2: EXRET weight reduction / orthogonal factors
-- S5: Liquidity filter and cost model
 - M1: Quality override momentum gate
 - M2: VIX regime position sizing
 - M4: Earnings proximity
@@ -21,84 +20,6 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
-
-# ===========================================================================
-# S5: Liquidity Filter Tests
-# ===========================================================================
-class TestLiquidityFilter:
-    """Tests for trade_modules/liquidity_filter.py"""
-
-    def test_check_liquidity_sufficient(self):
-        """Stock with sufficient ADV passes filter."""
-        from trade_modules.liquidity_filter import check_liquidity, invalidate_cache
-
-        invalidate_cache()
-
-        with patch("trade_modules.liquidity_filter._fetch_adv", return_value=100_000_000):
-            result = check_liquidity("AAPL", "MEGA")
-            assert result["passes"] is True
-            assert result["adv"] == 100_000_000
-            assert result["spread_cost_bps"] == pytest.approx(2.0)
-
-    def test_check_liquidity_insufficient(self):
-        """Stock with insufficient ADV fails filter."""
-        from trade_modules.liquidity_filter import check_liquidity, invalidate_cache
-
-        invalidate_cache()
-
-        with patch("trade_modules.liquidity_filter._fetch_adv", return_value=1_000_000):
-            result = check_liquidity("TINY", "SMALL")
-            assert result["passes"] is False
-            assert "below" in result["reason"]
-
-    def test_check_liquidity_unavailable(self):
-        """Stock with unavailable ADV passes by default."""
-        from trade_modules.liquidity_filter import check_liquidity, invalidate_cache
-
-        invalidate_cache()
-
-        with patch("trade_modules.liquidity_filter._fetch_adv", return_value=None):
-            result = check_liquidity("UNKNOWN", "MID")
-            assert result["passes"] is True
-            assert result["reason"] == "adv_unavailable"
-
-    def test_estimate_transaction_cost(self):
-        """Transaction cost estimation includes spread + financing."""
-        from trade_modules.liquidity_filter import estimate_transaction_cost
-
-        costs = estimate_transaction_cost(10000, "MEGA", holding_period_days=90)
-        assert costs["spread_cost"] > 0  # Entry + exit spread
-        assert costs["financing_cost"] > 0  # eToro overnight fees
-        assert costs["total_cost"] == costs["spread_cost"] + costs["financing_cost"]
-        assert costs["total_cost_pct"] > 0
-
-    def test_cost_adjusted_return(self):
-        """Cost-adjusted return subtracts transaction costs."""
-        from trade_modules.liquidity_filter import calculate_cost_adjusted_return
-
-        raw_return = 10.0
-        adjusted = calculate_cost_adjusted_return(raw_return, 10000, "MEGA", 90)
-        assert adjusted < raw_return
-        assert adjusted > 0  # 10% return should exceed costs
-
-    def test_cost_adjusted_return_small_cap(self):
-        """Small cap has higher costs, reducing adjusted return more."""
-        from trade_modules.liquidity_filter import calculate_cost_adjusted_return
-
-        mega_adj = calculate_cost_adjusted_return(10.0, 10000, "MEGA", 90)
-        small_adj = calculate_cost_adjusted_return(10.0, 10000, "SMALL", 90)
-        assert small_adj < mega_adj  # Small caps have higher spread costs
-
-    def test_tier_min_adv_values(self):
-        """Verify ADV thresholds match CIO review specifications."""
-        from trade_modules.liquidity_filter import TIER_MIN_ADV
-
-        assert TIER_MIN_ADV["MEGA"] == 50_000_000
-        assert TIER_MIN_ADV["LARGE"] == 20_000_000
-        assert TIER_MIN_ADV["MID"] == 10_000_000
-        assert TIER_MIN_ADV["SMALL"] == 5_000_000
-        assert TIER_MIN_ADV["MICRO"] == 2_000_000
 
 
 # ===========================================================================
@@ -816,16 +737,6 @@ class TestScoringWeights:
 # ===========================================================================
 class TestConfigYaml:
     """Verify config.yaml has new CIO review sections."""
-
-    def test_config_has_liquidity_section(self):
-        """config.yaml should have liquidity filter config."""
-        import yaml
-
-        with open("config.yaml") as f:
-            config = yaml.safe_load(f)
-        assert "liquidity" in config
-        assert config["liquidity"]["enabled"] is True
-        assert "min_adv" in config["liquidity"]
 
     def test_config_has_conviction_sizing(self):
         """config.yaml should have conviction sizing config."""
