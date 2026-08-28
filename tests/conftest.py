@@ -10,6 +10,8 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
+from trade_modules import ipo_cache
+from trade_modules.signal_tracker import SignalTracker
 from yahoofinance.core.client import YFinanceClient
 from yahoofinance.presentation.console import MarketDisplay
 
@@ -144,9 +146,23 @@ def _mock_signal_tracker(request):
     ):
         yield
         return
+    # patch.object, not patch("dotted.path"), and the difference is not style.
+    # mock.patch resolves a string target with pkgutil.resolve_name on EVERY
+    # __enter__, which walks the dotted name and calls importlib.import_module
+    # on "trade_modules.signal_tracker.SignalTracker" -- a module that does not
+    # exist and never will, since SignalTracker is a class. That failed import
+    # still takes a module lock, and this fixture is autouse, so the suite paid
+    # for ~5,400 doomed imports per run. On CPython 3.11 that is not merely
+    # wasteful: importlib._bootstrap._blocking_on is a flat dict[tid] set at
+    # :107 and del'd in a finally at :123, so a re-entrant acquire() on the same
+    # thread inside that window makes the inner del remove the entry the outer
+    # one still expects, and the outer del raises KeyError: <tid>. 3.12 made
+    # _blocking_on a per-thread list, which is why only 3.11 ever saw it.
+    # Resolving the class once at import time removes the doomed import, and
+    # with it the outer lock the race needs.
     with (
-        patch("trade_modules.signal_tracker.SignalTracker.log_signal", return_value=True),
-        patch("trade_modules.signal_tracker.SignalTracker.log_signals_batch", return_value=0),
+        patch.object(SignalTracker, "log_signal", return_value=True),
+        patch.object(SignalTracker, "log_signals_batch", return_value=0),
     ):
         yield
 
@@ -158,9 +174,12 @@ def _isolate_ipo_cache(tmp_path, monkeypatch):
     The IPO cache flushes at interpreter exit, so without this a test that
     mocks a successful yfinance probe would write its fixture dates into a
     tracked repository file. Each test gets its own empty cache instead.
-    """
-    from trade_modules import ipo_cache
 
+    ``ipo_cache`` is imported at module scope on purpose: an import inside an
+    autouse fixture runs once per test, and this suite already carries a
+    per-test import (``_mock_signal_tracker``'s ``mock.patch`` target
+    resolution) that has been seen to lose an importlib lock race.
+    """
     monkeypatch.setenv(ipo_cache.ENV_CACHE_PATH, str(tmp_path / "ipo_dates.json"))
     ipo_cache.reset_cache()
     yield
