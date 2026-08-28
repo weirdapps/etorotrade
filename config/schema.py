@@ -314,17 +314,6 @@ class EarningsProximityConfig(BaseModel):
     post_earnings_boost_days: int = Field(default=30, ge=1, le=90)
 
 
-class LiquidityConfig(BaseModel):
-    """Liquidity filter and cost model (CIO S5)"""
-
-    model_config = ConfigDict(frozen=True)
-
-    enabled: bool = Field(default=True)
-    min_adv: dict[str, float] = Field(default_factory=dict)
-    spread_bps: dict[str, float] = Field(default_factory=dict)
-    etoro_overnight_annual_rate: float = Field(default=0.064, ge=0)
-
-
 class SectorRotationConfig(BaseModel):
     """Sector rotation detection (CIO M6)"""
 
@@ -838,9 +827,6 @@ class TradingConfig(BaseModel):
     )
     earnings_proximity: EarningsProximityConfig | None = Field(
         default=None, description="Earnings proximity configuration (CIO M4)"
-    )
-    liquidity: LiquidityConfig | None = Field(
-        default=None, description="Liquidity filter and cost model (CIO S5)"
     )
     sector_rotation: SectorRotationConfig | None = Field(
         default=None, description="Sector rotation detection (CIO M6)"
