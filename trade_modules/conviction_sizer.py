@@ -529,7 +529,6 @@ def calculate_market_impact(
     }
 
 
-# Constants shared with liquidity_filter.py
 # eToro daily overnight fee rate (annualized ~6.4% for long positions)
 ETORO_OVERNIGHT_ANNUAL_RATE = 0.064
 
@@ -554,8 +553,8 @@ def estimate_holding_cost_pct(
     - Round-trip spread cost (entry + exit), tier-dependent
     - eToro overnight financing, prorated to holding period
 
-    Uses the same constants as liquidity_filter.py (ETORO_OVERNIGHT_ANNUAL_RATE
-    = 6.4% annualized, TIER_SPREAD_BPS for spread costs).
+    Uses ETORO_OVERNIGHT_ANNUAL_RATE (6.4% annualized) and HOLDING_SPREAD_BPS,
+    both defined in this module.
 
     CIO Review v4 Finding F2: Holding-period-adjusted cost model.
 
