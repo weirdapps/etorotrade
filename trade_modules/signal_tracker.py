@@ -12,6 +12,7 @@ this system enables forward validation of signal quality.
 
 import json
 import logging
+import os
 import re
 import threading
 from datetime import datetime, timedelta
@@ -437,6 +438,44 @@ def get_tracker() -> SignalTracker:
     return _tracker
 
 
+# --- Momentum logging on the CI path ----------------------------------------
+# fetch_momentum_for_ticker() does one yfinance history(period="14mo") call PER
+# TICKER (~0.7s measured; 10.17s of a 46.1s 20-ticker run, ~16 min across a
+# nightly universe scan). The value is recorded, never consumed: the only code
+# that reads the momentum_12_1m column is analysis/composite_score.py, which is
+# shadow-mode and has no production caller, so skipping the fetch cannot move a
+# signal. In CI signal_log.jsonl is destroyed with the runner, so the records
+# the fetch produces there are discarded anyway.
+#
+# Local behaviour is deliberately unchanged -- the records are the point locally.
+# Detected with the same signal the test suite already uses for CI; see
+# tests/unit/trade_modules/test_analysis_engine_coverage.py.
+_MOMENTUM_CI_NOTICE_EMITTED = False
+
+
+def _momentum_logging_disabled() -> bool:
+    """Whether to skip the per-ticker momentum fetch. True only under CI.
+
+    Announces the skip once per process at INFO, so an absent momentum_12_1m
+    column in a CI artifact is never a silent surprise to whoever finds it.
+    """
+    global _MOMENTUM_CI_NOTICE_EMITTED
+
+    if os.environ.get("CI") != "true" and os.environ.get("GITHUB_ACTIONS") != "true":
+        return False
+
+    if not _MOMENTUM_CI_NOTICE_EMITTED:
+        _MOMENTUM_CI_NOTICE_EMITTED = True
+        logger.info(
+            "momentum_12_1m logging disabled: CI detected. The per-ticker yfinance "
+            "history fetch costs ~16 min across a universe scan, and signal_log.jsonl "
+            "is destroyed with the runner, so those records would be discarded. "
+            "No signal output is affected -- the field is recorded, never consumed. "
+            "Local runs still fetch every record; unset CI/GITHUB_ACTIONS to re-enable."
+        )
+    return True
+
+
 def log_signal(
     ticker: str,
     signal: str,
@@ -527,14 +566,16 @@ def log_signal(
     except (ImportError, Exception):
         pass
 
-    # Compute 12-1m momentum factor (Jegadeesh-Titman skip-month)
+    # Compute 12-1m momentum factor (Jegadeesh-Titman skip-month).
+    # Skipped on the CI path only -- see _momentum_logging_disabled().
     momentum_12_1m = None
-    try:
-        from trade_modules.analysis.momentum import fetch_momentum_for_ticker
+    if not _momentum_logging_disabled():
+        try:
+            from trade_modules.analysis.momentum import fetch_momentum_for_ticker
 
-        momentum_12_1m = fetch_momentum_for_ticker(ticker)
-    except (ImportError, Exception):
-        pass
+            momentum_12_1m = fetch_momentum_for_ticker(ticker)
+        except (ImportError, Exception):
+            pass
 
     record = SignalRecord(
         ticker=ticker,
