@@ -93,12 +93,17 @@ class TestEstimateHoldingCostPct:
         assert "total_pct" in result
         assert "holding_period_days" in result
 
-    def test_consistency_with_liquidity_filter(self):
-        """Cost model should use same 6.4% annual rate as liquidity_filter."""
-        from trade_modules.conviction_sizer import ETORO_OVERNIGHT_ANNUAL_RATE as SIZER_RATE
-        from trade_modules.liquidity_filter import ETORO_OVERNIGHT_ANNUAL_RATE
+    def test_overnight_rate_matches_etoro_published_rate(self):
+        """Cost model should use eToro's ~6.4% annualized overnight rate.
 
-        assert SIZER_RATE == ETORO_OVERNIGHT_ANNUAL_RATE
+        This previously cross-checked the same constant in
+        trade_modules/liquidity_filter.py. That module was never wired to any
+        caller and has been deleted, so the expected value is inlined here
+        rather than dropped -- the live constant stays pinned.
+        """
+        from trade_modules.conviction_sizer import ETORO_OVERNIGHT_ANNUAL_RATE
+
+        assert ETORO_OVERNIGHT_ANNUAL_RATE == pytest.approx(0.064)
 
 
 class TestHoldingCostInConvictionSize:
