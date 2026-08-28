@@ -87,6 +87,12 @@ FLUSH_EVERY = 250
 """Write through after this many newly learned dates, so a 5.5h CI shard that
 is killed rather than exiting cleanly still banks most of what it learned."""
 
+MAX_WRITE_FAILURES = 3
+"""Give up on AUTOMATIC write-through after this many consecutive failures. On
+a read-only checkout the alternative is one failed write and one warning per
+ticker for the rest of the scan, which would make a performance change slower
+than the thing it replaced."""
+
 ENV_CACHE_PATH = "ETOROTRADE_IPO_CACHE_PATH"
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -232,6 +238,7 @@ class IpoDateCache:
         self.path = Path(path) if path is not None else resolve_cache_path()
         self._entries: dict[str, datetime] = read_cache_file(self.path)
         self._pending = 0
+        self._write_failures = 0
 
     # -- reads ----------------------------------------------------------
     def get(self, ticker: str) -> datetime | None:
@@ -266,7 +273,11 @@ class IpoDateCache:
             return
         self._entries[ticker] = first_trade_date
         self._pending += 1
-        if self._pending >= FLUSH_EVERY:
+        # Stop auto-flushing once the path has proved unwritable, or a
+        # read-only checkout would attempt (and log) one failed write per
+        # ticker for the rest of the scan. `save()` stays callable, so the
+        # exit flush still gets one last try.
+        if self._pending >= FLUSH_EVERY and self._write_failures < MAX_WRITE_FAILURES:
             self.save()
 
     def save(self) -> bool:
@@ -288,7 +299,9 @@ class IpoDateCache:
         if _write_cache_file(self.path, _cap(merged)):
             self._entries = merged
             self._pending = 0
+            self._write_failures = 0
             return True
+        self._write_failures += 1
         return False
 
 
