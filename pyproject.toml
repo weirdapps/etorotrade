@@ -230,7 +230,6 @@ ignore = [
 "__init__.py" = ["F401"]  # unused imports OK in __init__.py
 "tests/**/*.py" = ["B", "E", "F811"]  # relax rules for tests (incl. decorated-func patching pattern)
 # E402 in older trade_modules — pre-existing pattern of `from X import Y` followed by `import Z` blocks
-"trade_modules/sector_relative_momentum.py" = ["E402"]
 "trade_modules/sector_rotation.py" = ["E402"]
 "trade_modules/trade_engine.py" = ["E402"]
 "yahoofinance/analysis/analyzer_factory.py" = ["E402"]
