@@ -27,7 +27,7 @@ dependencies = [
     "numpy>=2.2.6,<3.0.0",
     "matplotlib>=3.4.0,<4.0.0",
     "yfinance==1.7.0",
-    "lxml>=5.0.0",  # required by yfinance.Ticker.earnings_dates (undeclared upstream dep)
+    "lxml>=5.0.0",  # yfinance declares lxml>=4.9.0 itself; this only raises the floor to 5.x
     "yahooquery>=2.3.7",
     "requests>=2.25.0,<3.0.0",
     "urllib3>=2.7.0",  # CVE-2026-44431/44432: decompression-bomb safeguard bypass in <2.7.0
