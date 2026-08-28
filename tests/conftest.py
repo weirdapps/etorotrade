@@ -151,6 +151,22 @@ def _mock_signal_tracker(request):
         yield
 
 
+@pytest.fixture(autouse=True)
+def _isolate_ipo_cache(tmp_path, monkeypatch):
+    """Keep every test off the committed yahoofinance/input/ipo_dates.json.
+
+    The IPO cache flushes at interpreter exit, so without this a test that
+    mocks a successful yfinance probe would write its fixture dates into a
+    tracked repository file. Each test gets its own empty cache instead.
+    """
+    from trade_modules import ipo_cache
+
+    monkeypatch.setenv(ipo_cache.ENV_CACHE_PATH, str(tmp_path / "ipo_dates.json"))
+    ipo_cache.reset_cache()
+    yield
+    ipo_cache.reset_cache()
+
+
 def pytest_configure(config):
     """
     Configure pytest with custom markers.

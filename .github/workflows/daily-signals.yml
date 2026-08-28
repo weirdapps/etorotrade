@@ -57,12 +57,18 @@ jobs:
           python trade.py -o e
           mv yahoofinance/output/etoro.csv "etoro_shard_${SHARD_INDEX}.csv"
           echo "Shard ${SHARD_INDEX} complete: $(wc -l < etoro_shard_${SHARD_INDEX}.csv) lines"
+          # IPO dates learned by this shard. Shards are contents:read and cannot
+          # push, so they hand the deltas to the merge job, which owns the
+          # committed yahoofinance/input/ipo_dates.json.
+          cp yahoofinance/input/ipo_dates.json "ipo_shard_${SHARD_INDEX}.json"
 
       - name: Upload shard output
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: etoro-shard-${{ matrix.shard }}
-          path: etoro_shard_${{ matrix.shard }}.csv
+          path: |
+            etoro_shard_${{ matrix.shard }}.csv
+            ipo_shard_${{ matrix.shard }}.json
           retention-days: 1
           if-no-files-found: error
 
@@ -109,6 +115,20 @@ jobs:
           echo "Merging shard slices..."
           python scripts/merge_shards.py --shard-dir shards --output yahoofinance/output/etoro.csv
           echo "Merge complete: $(wc -l < yahoofinance/output/etoro.csv) lines"
+
+      # Fold the IPO dates each shard learned back into the committed cache.
+      # An IPO date never changes, so this file only ever grows and a hit
+      # removes a yfinance history(period=max) call from every future scan.
+      # The existing file is one of the inputs, so nothing already known is lost.
+      - name: Merge IPO date caches from shards
+        run: |
+          python -c "
+          from pathlib import Path
+          from trade_modules.ipo_cache import merge_cache_files
+          out = Path('yahoofinance/input/ipo_dates.json')
+          inputs = sorted(Path('shards').glob('ipo_shard_*.json')) + [out]
+          print(f'IPO date cache: {merge_cache_files(inputs, out)} entries from {len(inputs)} files')
+          "
 
       - name: Download fresh portfolio from eToro
         env:
@@ -207,6 +227,9 @@ jobs:
 
           # Add skip list (regenerated after each run)
           git add yahoofinance/input/yfinance_skip.csv || true
+
+          # Add IPO date cache (grows with names the shards resolved this run)
+          git add yahoofinance/input/ipo_dates.json || true
 
           # Add portfolio snapshot for P&L tracking
           git add yahoofinance/snapshots/*.csv || true
