@@ -178,7 +178,6 @@ yahoofinance/data/monitoring/*.json
 **/.DS_Store
 
 # Additional files
-claude.md
 future_improvements.md
 
 # Internal development docs
