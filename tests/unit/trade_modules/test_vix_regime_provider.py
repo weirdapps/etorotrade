@@ -4,10 +4,13 @@ CIO Review v2: Threshold adjustments neutralized. Signal criteria held constant;
 risk is managed through position sizing only. All multipliers are 1.0, all offsets are 0.
 """
 
+import threading
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
 
+from trade_modules import vix_regime_provider as vix_module
 from trade_modules.vix_regime_provider import (
     REGIME_ADJUSTMENTS,
     REGIME_POSITION_MULTIPLIERS,
@@ -15,8 +18,10 @@ from trade_modules.vix_regime_provider import (
     adjust_buy_criteria,
     adjust_sell_criteria,
     get_adjusted_thresholds,
+    get_current_vix,
     get_regime_context,
     get_vix_regime,
+    invalidate_cache,
 )
 
 
@@ -218,3 +223,205 @@ class TestVixRegimeClassification:
     def test_none_defaults_to_normal(self, mock_vix):
         mock_vix.return_value = None
         assert get_vix_regime() == VixRegime.NORMAL
+
+
+class _CountingFetch:
+    """Stand-in for ``_fetch_vix`` that records how often it was called."""
+
+    def __init__(self, *results):
+        self._results = list(results)
+        self.calls = 0
+
+    def __call__(self):
+        self.calls += 1
+        if not self._results:
+            return None
+        if len(self._results) == 1:
+            return self._results[0]
+        return self._results.pop(0)
+
+
+@pytest.fixture(autouse=True)
+def _reset_vix_cache():
+    """Reset the module-level VIX cache around every test in this module.
+
+    The cache is process-global, so without this a real network fetch in one
+    test would silently satisfy the next one (and vice versa).
+    """
+    _clear()
+    yield
+    _clear()
+
+
+def _clear():
+    vix_module._vix_cache = None
+    vix_module._vix_cache_timestamp = None
+    vix_module._vix_last_attempt_timestamp = None
+
+
+class TestVixFetchCaching:
+    """The fetch must be cached on FAILURE as well as on success.
+
+    Regression guard: ``adjust_buy_criteria`` / ``adjust_sell_criteria`` are
+    called once per ticker inside the signal loop, and both reach
+    ``get_current_vix``. Without negative caching, an unreachable or
+    rate-limited quote source turns a whole-universe scoring run into one live
+    network round-trip per name.
+    """
+
+    def test_failed_fetch_is_attempted_only_once(self):
+        """A failing fetch must NOT be retried on every call."""
+        fetch = _CountingFetch(None)
+
+        with patch.object(vix_module, "_fetch_vix", fetch):
+            results = [get_current_vix() for _ in range(25)]
+
+        assert results == [None] * 25, "a failed fetch must not invent a value"
+        assert fetch.calls == 1, (
+            f"expected the failed fetch to be cached and attempted once, "
+            f"but it was attempted {fetch.calls} times in 25 calls"
+        )
+
+    def test_raising_fetch_is_attempted_only_once(self):
+        """An exception from the fetch is also a failure worth caching."""
+
+        calls = []
+
+        def boom():
+            calls.append(1)
+            raise RuntimeError("quote source unreachable")
+
+        with patch.object(vix_module, "_fetch_vix", boom):
+            results = [get_current_vix() for _ in range(10)]
+
+        assert results == [None] * 10
+        assert len(calls) == 1, f"expected 1 attempt, got {len(calls)}"
+
+    def test_negative_cache_expires_and_a_retry_happens(self):
+        """The negative TTL must expire so a transient outage self-heals."""
+        fetch = _CountingFetch(None, 21.5)
+
+        with patch.object(vix_module, "_fetch_vix", fetch):
+            assert get_current_vix() is None
+            assert fetch.calls == 1
+
+            # Age the last attempt past the negative TTL.
+            vix_module._vix_last_attempt_timestamp = datetime.now() - timedelta(
+                minutes=vix_module._VIX_NEGATIVE_TTL_MINUTES + 1
+            )
+
+            assert get_current_vix() == pytest.approx(21.5)
+            assert fetch.calls == 2
+
+    def test_negative_ttl_is_shorter_than_the_positive_ttl(self):
+        """A transient outage must not blind the model for a full success TTL."""
+        assert 0 < vix_module._VIX_NEGATIVE_TTL_MINUTES < vix_module._VIX_CACHE_TTL_MINUTES
+
+    def test_success_after_failure_populates_the_cache_normally(self):
+        """Once a good value lands it is cached on the normal positive TTL."""
+        fetch = _CountingFetch(None, 18.25)
+
+        with patch.object(vix_module, "_fetch_vix", fetch):
+            assert get_current_vix() is None
+            vix_module._vix_last_attempt_timestamp = datetime.now() - timedelta(
+                minutes=vix_module._VIX_NEGATIVE_TTL_MINUTES + 1
+            )
+            assert get_current_vix() == pytest.approx(18.25)
+
+            # Now cached: no further attempts, no matter how many callers.
+            for _ in range(10):
+                assert get_current_vix() == pytest.approx(18.25)
+
+        assert fetch.calls == 2
+
+    def test_successful_fetch_is_cached_for_the_positive_ttl(self):
+        """Unchanged behaviour: a good value is fetched once per positive TTL."""
+        fetch = _CountingFetch(16.0)
+
+        with patch.object(vix_module, "_fetch_vix", fetch):
+            for _ in range(50):
+                assert get_current_vix() == pytest.approx(16.0)
+
+        assert fetch.calls == 1
+
+    def test_positive_ttl_expiry_triggers_a_refetch(self):
+        """Unchanged behaviour: the 30-minute success TTL still expires."""
+        fetch = _CountingFetch(16.0, 24.0)
+
+        with patch.object(vix_module, "_fetch_vix", fetch):
+            assert get_current_vix() == pytest.approx(16.0)
+
+            aged = datetime.now() - timedelta(minutes=vix_module._VIX_CACHE_TTL_MINUTES + 1)
+            vix_module._vix_cache_timestamp = aged
+            vix_module._vix_last_attempt_timestamp = aged
+
+            assert get_current_vix() == pytest.approx(24.0)
+
+        assert fetch.calls == 2
+
+    def test_a_stale_good_value_is_served_when_the_refresh_fails(self):
+        """Judgement call, pinned: prefer a stale VIX over losing the regime.
+
+        Returning ``None`` here would send ``get_vix_regime`` to its
+        ``NORMAL`` default, which is not "no opinion" -- it is an active
+        assertion that volatility is normal, and it would quietly restore
+        position multipliers from 0.50 to 1.00 in exactly the stressed market
+        where the quote source is most likely to be failing. A VIX reading a
+        little past its TTL almost always lands in the same 10-point regime
+        bucket, so serving it is the strictly safer error.
+        """
+        fetch = _CountingFetch(38.0, None)
+
+        with patch.object(vix_module, "_fetch_vix", fetch):
+            assert get_current_vix() == pytest.approx(38.0)
+
+            aged = datetime.now() - timedelta(minutes=vix_module._VIX_CACHE_TTL_MINUTES + 1)
+            vix_module._vix_cache_timestamp = aged
+            vix_module._vix_last_attempt_timestamp = aged
+
+            # The refresh fails; the stale value is served rather than None.
+            assert get_current_vix() == pytest.approx(38.0)
+            assert get_vix_regime() == VixRegime.HIGH
+
+        assert fetch.calls == 2, "the failed refresh must also be negatively cached"
+
+    def test_none_is_returned_when_no_good_value_was_ever_seen(self):
+        """No fabricated fallback: an unavailable VIX stays unavailable."""
+        with patch.object(vix_module, "_fetch_vix", _CountingFetch(None)):
+            assert get_current_vix() is None
+            assert get_vix_regime() == VixRegime.NORMAL
+
+    def test_invalidate_cache_clears_the_negative_backoff_too(self):
+        """Otherwise a forced invalidation is silently ignored after a failure."""
+        fetch = _CountingFetch(None, 19.0)
+
+        with patch.object(vix_module, "_fetch_vix", fetch):
+            assert get_current_vix() is None
+            assert fetch.calls == 1
+
+            invalidate_cache()
+
+            assert get_current_vix() == pytest.approx(19.0)
+            assert fetch.calls == 2
+
+    def test_concurrent_callers_share_a_single_failed_fetch(self):
+        """Thread safety: 16 threads racing a failing fetch attempt it once."""
+        fetch = _CountingFetch(None)
+        results: list[float | None] = []
+        results_lock = threading.Lock()
+
+        def worker():
+            value = get_current_vix()
+            with results_lock:
+                results.append(value)
+
+        with patch.object(vix_module, "_fetch_vix", fetch):
+            threads = [threading.Thread(target=worker) for _ in range(16)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=30)
+
+        assert len(results) == 16
+        assert results == [None] * 16
+        assert fetch.calls == 1, f"expected 1 attempt across 16 threads, got {fetch.calls}"

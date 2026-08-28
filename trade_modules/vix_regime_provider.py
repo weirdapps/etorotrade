@@ -97,11 +97,24 @@ REGIME_POSITION_MULTIPLIERS: dict[VixRegime, float] = {
 }
 
 
-# Cache for VIX data
+# Cache for VIX data.
+#
+# Two timestamps, deliberately: one for the last GOOD value and one for the last
+# ATTEMPT. Caching only success means a failing fetch is retried on every single
+# call, and `get_current_vix` sits behind `adjust_buy_criteria` /
+# `adjust_sell_criteria`, which the signal engine calls once per ticker. With the
+# quote source unreachable or rate-limited that turned a whole-universe scoring
+# run into one live network round-trip per name.
 _vix_cache: float | None = None
-_vix_cache_timestamp: datetime | None = None
+_vix_cache_timestamp: datetime | None = None  # last SUCCESSFUL fetch
+_vix_last_attempt_timestamp: datetime | None = None  # last attempt, success or failure
 _vix_cache_lock = threading.Lock()
 _VIX_CACHE_TTL_MINUTES = 30  # Refresh every 30 minutes (VIX is more volatile)
+# Negative TTL: how long to back off after a FAILED fetch. Deliberately much
+# shorter than the success TTL so a transient outage does not blind the model to
+# VIX for half an hour, but long enough that a scoring pass over thousands of
+# names makes one network attempt rather than thousands.
+_VIX_NEGATIVE_TTL_MINUTES = 5
 
 
 def _fetch_vix() -> float | None:
@@ -122,33 +135,73 @@ def _fetch_vix() -> float | None:
 
 
 def _is_cache_valid() -> bool:
-    """Check if VIX cache is still valid."""
+    """Check if the last SUCCESSFUL VIX fetch is still within its TTL."""
     if _vix_cache_timestamp is None:
         return False
     return datetime.now() - _vix_cache_timestamp < timedelta(minutes=_VIX_CACHE_TTL_MINUTES)
+
+
+def _is_backing_off() -> bool:
+    """Check if a recent failed attempt should suppress another fetch."""
+    if _vix_last_attempt_timestamp is None:
+        return False
+    return datetime.now() - _vix_last_attempt_timestamp < timedelta(
+        minutes=_VIX_NEGATIVE_TTL_MINUTES
+    )
+
+
+def _should_attempt_fetch() -> bool:
+    """Decide whether to hit the network for a fresh VIX reading."""
+    if _is_cache_valid():
+        return False  # Good value, still fresh.
+    return not _is_backing_off()  # Otherwise refetch unless a recent try failed.
 
 
 def get_current_vix() -> float | None:
     """
     Get current VIX level.
 
-    Uses cached value with 30-minute TTL.
+    A successful reading is cached for ``_VIX_CACHE_TTL_MINUTES`` (30). A FAILED
+    fetch is also cached, for the shorter ``_VIX_NEGATIVE_TTL_MINUTES`` (5), so
+    that an unreachable quote source costs one network attempt rather than one
+    per caller.
+
+    When a refresh fails but an older good value exists, that value is served
+    rather than ``None``. This is a deliberate choice and matches the behaviour
+    this function has always had: the regimes are 10-point-wide buckets, so a
+    slightly stale reading almost always classifies identically, whereas
+    ``None`` sends :func:`get_vix_regime` to its ``NORMAL`` default -- an active
+    assertion that volatility is normal, made in exactly the stressed market
+    where a quote source is most likely to be failing.
+
+    No fallback value is ever invented: if no good reading has been obtained,
+    this returns ``None``.
 
     Returns:
         Current VIX level, or None if unavailable
     """
-    global _vix_cache, _vix_cache_timestamp
+    global _vix_cache, _vix_cache_timestamp, _vix_last_attempt_timestamp
 
+    # The lock is held across the fetch on purpose. Concurrent callers then
+    # queue behind a single in-flight request instead of stampeding the quote
+    # source with one request each.
     with _vix_cache_lock:
-        if not _is_cache_valid():
+        if _should_attempt_fetch():
+            _vix_last_attempt_timestamp = datetime.now()
             try:
                 vix = _fetch_vix()
                 if vix is not None:
                     _vix_cache = vix
                     _vix_cache_timestamp = datetime.now()
                     logger.info(f"VIX updated: {vix}")
+                else:
+                    logger.debug(
+                        f"VIX unavailable; not retrying for {_VIX_NEGATIVE_TTL_MINUTES} min"
+                    )
             except Exception as e:
-                logger.warning(f"VIX fetch failed: {e}")
+                logger.warning(
+                    f"VIX fetch failed: {e}; not retrying for {_VIX_NEGATIVE_TTL_MINUTES} min"
+                )
 
         return _vix_cache
 
@@ -409,7 +462,13 @@ def get_regime_status() -> tuple[VixRegime, float, str]:
 
 
 def invalidate_cache() -> None:
-    """Force VIX cache invalidation (for testing)."""
-    global _vix_cache_timestamp
+    """Force VIX cache invalidation (for testing).
+
+    Clears the negative backoff as well as the success TTL -- otherwise a
+    forced invalidation after a failed fetch would be silently ignored until
+    the negative TTL expired.
+    """
+    global _vix_cache_timestamp, _vix_last_attempt_timestamp
     with _vix_cache_lock:
         _vix_cache_timestamp = None
+        _vix_last_attempt_timestamp = None
