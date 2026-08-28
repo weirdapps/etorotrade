@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 # Import from trade_modules
+from trade_modules import ipo_cache
 from trade_modules.trade_config import TradeConfig
 
 # Import tier utilities
@@ -28,7 +29,11 @@ logger = logging.getLogger(__name__)
 # Normalization constants eliminated — np.interp maps each component directly to 0-100
 
 
-# Module-level cache for IPO date lookups from yfinance
+# Per-run cache for IPO date lookups. Values are the ``(state, date)`` tuples
+# returned by ``ipo_cache.probe_first_trade_date``, so a probe that FAILED is
+# distinguishable from one that came back empty and from one that succeeded.
+# All three are remembered for the run (a ticker is probed at most once); only
+# ``found`` reaches disk. See trade_modules/ipo_cache.py for why.
 _ipo_date_cache: dict[str, Any] = {}
 
 
@@ -69,33 +74,37 @@ def is_recent_ipo(ticker: str, yaml_config, grace_period_months: int = 12) -> bo
     if not ipo_config.get("auto_detect", True):
         return False
 
-    # Check module-level cache first
+    # Tier 1: per-run memory. Holds all three probe states, so a name that
+    # failed earlier in this run is not probed again in it.
     if ticker in _ipo_date_cache:
-        cached = _ipo_date_cache[ticker]
+        _, cached = _ipo_date_cache[ticker]
         if cached is None:
             return False
         return cached > cutoff_date
 
-    # Query yfinance for first available trading date
-    try:
-        import yfinance as yf
+    # Tier 2: the persistent cache. An IPO date never changes, so a hit here is
+    # as good as a fetch. A corrupt or missing file reads as empty and we fall
+    # through to the probe.
+    store = ipo_cache.get_cache()
+    known = store.get(ticker)
+    if known is not None:
+        _ipo_date_cache[ticker] = (ipo_cache.PROBE_FOUND, known)
+        return known > cutoff_date
 
-        stock = yf.Ticker(ticker)
-        hist = stock.history(period="max", timeout=5)
-        if hist.empty:
-            _ipo_date_cache[ticker] = None
-            return False
-        first_date = hist.index[0].to_pydatetime().replace(tzinfo=None)
-        _ipo_date_cache[ticker] = first_date
-        if first_date > cutoff_date:
-            logger.info(
-                f"Ticker {ticker}: auto-detected IPO date {first_date.strftime('%Y-%m-%d')}"
-            )
-        return first_date > cutoff_date
-    except Exception as e:
-        logger.debug(f"Ticker {ticker}: failed to auto-detect IPO date: {e}")
-        _ipo_date_cache[ticker] = None
+    # Tier 3: probe the provider.
+    state, first_date = ipo_cache.probe_first_trade_date(ticker)
+    _ipo_date_cache[ticker] = (state, first_date)
+
+    # ONLY a confirmed date is written down. `no_data` and `error` stay in
+    # memory and die with the process, so the next run retries them. Persisting
+    # either would make one transient timeout permanent for that ticker.
+    if state != ipo_cache.PROBE_FOUND or first_date is None:
         return False
+
+    store.put(ticker, first_date)
+    if first_date > cutoff_date:
+        logger.info(f"Ticker {ticker}: auto-detected IPO date {first_date.strftime('%Y-%m-%d')}")
+    return first_date > cutoff_date
 
 
 def calculate_sell_score(
