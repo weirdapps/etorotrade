@@ -62,3 +62,42 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Fail if the server-side analysis failed
+        # The scanner exits 0 the moment the report finishes uploading. Anything
+        # that rejects the analysis afterwards happens in SonarCloud's Compute
+        # Engine, which this job never looked at, so it went green while nothing
+        # was measured. That is how weirdapps_plessas-lab stayed broken from
+        # creation to 2026-08-29 with every run reporting success, and how the
+        # free plan's 50,000-line org ceiling takes every repo down at once
+        # without producing a single red build anywhere.
+        if: steps.check-sonar.outputs.has_token == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          set -euo pipefail
+          report=.scannerwork/report-task.txt
+          if [ ! -f "$report" ]; then
+            echo "::error::$report is missing, so the analysis cannot be confirmed"
+            exit 1
+          fi
+          task_url=$(sed -n 's/^ceTaskUrl=//p' "$report")
+          get() { python3 -c "import json,sys;print(json.load(sys.stdin)['task']$1)"; }
+          for _ in $(seq 1 60); do
+            body=$(curl -sS -u "${SONAR_TOKEN}:" "$task_url" || true)
+            status=$(printf '%s' "$body" | get "['status']" 2>/dev/null || echo RETRY)
+            case "$status" in
+              SUCCESS)
+                echo "Analysis completed server-side."
+                exit 0
+                ;;
+              FAILED|CANCELED)
+                msg=$(printf '%s' "$body" | get ".get('errorMessage','no message')")
+                echo "::error::SonarCloud analysis $status: $msg"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+          echo "::error::Timed out after 5 minutes waiting for the SonarCloud analysis task"
+          exit 1
