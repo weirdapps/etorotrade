@@ -1,27 +1,107 @@
-# Gitleaks configuration for Python projects
-# Minimal config - uses default rules with project-specific exclusions
+# gitleaks configuration for etorotrade
+#
+# This repo is PUBLIC and is wired to a live brokerage account, so the risk here
+# is not only credentials: it is personal position data reaching a public commit.
+# That already happened. Between 2025-02-20 and 2026-09-01 a workflow step copied
+# yahoofinance/input/portfolio.csv into yahoofinance/snapshots/positions_<date>.csv,
+# which .gitignore did not cover, and 118 daily exports of real holdings were
+# published. The rules below make the same class of mistake fail CI instead.
+#
+# Extends gitleaks' default ruleset (AWS / GCP / GitHub / Slack / generic API
+# keys, JWTs, SSH keys) with eToro account fingerprints and author PII.
+#
+# Two enforcement points:
+#   1. Local: pre-commit hook (.pre-commit-config.yaml) - blocks commits
+#   2. CI: secrets-scan job in .github/workflows/ci.yml - blocks pushes and PRs
+#      This one matters most here, because the offending commits were made by
+#      the GitHub Actions bot, which never runs a pre-commit hook.
+#
+# Run manually:  gitleaks detect --config .gitleaks.toml --source .
 
 title = "Gitleaks config"
 
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Allowlist for non-sensitive patterns"
+# --- Position and portfolio exports -----------------------------------------
 
-# Ignore .env.example and similar template files
+[[rules]]
+id = "etoro-position-export-header"
+description = "eToro position export header - a real holdings snapshot must never be committed"
+# The exact column header emitted by trade.py -o p for the eToro position book.
+# Unambiguous, cheap, and it fires on the first line of the file.
+regex = '''symbol,instrumentDisplayName,instrumentId,numPositions,totalInvestmentPct'''
+tags = ["pii", "financial", "etoro-account"]
+
+[[rules]]
+id = "etoro-portfolio-csv-header"
+description = "Portfolio CSV header - personal holdings, private repo only"
+regex = '''(?i)^\s*ticker,\s*shares,\s*(?:avg_?cost|average_?cost|entry_?price)'''
+tags = ["pii", "financial", "etoro-account"]
+
+# --- eToro account identifiers ----------------------------------------------
+
+[[rules]]
+id = "etoro-customer-id"
+description = "Likely eToro Customer ID (CID) field with a realistic non-zero value"
+regex = '''(?i)\b(?:CID|customer_?id|realCID|demoCID|gcid)\b\s*[:=]\s*"?[1-9]\d{5,8}\b'''
+tags = ["pii", "etoro-account"]
+
+[[rules]]
+id = "etoro-position-id"
+description = "Likely eToro Position ID field with a realistic non-zero value"
+regex = '''(?i)\b(?:positionID|position_id)\b\s*[:=]\s*"?[1-9]\d{8,}\b'''
+tags = ["pii", "etoro-account"]
+
+[[rules]]
+id = "etoro-equity-fingerprint-cents"
+description = "Dollar amount with non-zero cents (likely a real account snapshot, not a synthetic mockup)"
+# Round mockups like $100,000.00 are intentionally allowed. RE2 has no negative
+# lookahead, so non-.00 cents are enumerated:
+#   [1-9][0-9] -> first cents digit non-zero (10..99)
+#   [0-9][1-9] -> last cents digit non-zero  (01..09, X1..X9)
+regex = '''\$\d{1,3}(?:,\d{3})+\.(?:[1-9][0-9]|[0-9][1-9])'''
+tags = ["pii", "etoro-account", "fingerprint"]
+
+# --- Author PII --------------------------------------------------------------
+
+[[rules]]
+id = "nbg-corporate-email"
+description = "Employer corporate email - use plessasdimitrios@yahoo.com for OSS attribution"
+regex = '''[\w.+-]+@nbg\.gr\b'''
+tags = ["pii", "personal"]
+
+# --- Allowlist ---------------------------------------------------------------
+
+[[allowlists]]
+description = "Allowlist for non-sensitive patterns"
 paths = [
-  '''\.env\.example$''',
-  '''\.env\.template$''',
-  '''config\.example\.''',
-  '''\.sample$''',
+    # Pre-existing entries, kept verbatim: template and example files.
+    '''\.env\.example$''',
+    '''\.env\.template$''',
+    '''config\.example\.''',
+    '''\.sample$''',
+    # Added with the position-export rules above.
+    '''(?i)\.gitleaks\.toml$''',   # this file documents the patterns
+    '''(?i)CHANGELOG\.md$''',      # version numbers can look like amounts
+    '''(?i)^tests?/''',            # fixtures are synthetic by construction
 ]
 
 # Ignore test fixtures and mock data
 regexes = [
-  '''test_secret_key''',
-  '''mock_api_key''',
-  '''example\.com/api/.*''',
-  '''localhost:.*''',
-  '''127\.0\.0\.1:.*''',
+    '''test_secret_key''',
+    '''mock_api_key''',
+    '''example\.com/api/.*''',
+    '''localhost:.*''',
+    '''127\.0\.0\.1:.*''',
 ]
+
+# Scoped allowlist: silences ONE rule on ONE file rather than globally, so the
+# curl-auth-user rule keeps working everywhere else in the repo.
+# sonarcloud.yml:87 is `curl -sS -u "${SONAR_TOKEN}:"`, a secret passed by
+# reference. The default rule cannot tell that from a literal, and without this
+# the secrets-scan job goes red on any push touching that file.
+[[allowlists]]
+description = "SonarCloud token is passed by reference, not embedded"
+rules = ["curl-auth-user"]
+paths = ['''^\.github/workflows/sonarcloud\.yml$''']

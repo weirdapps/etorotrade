@@ -239,3 +239,7 @@ yahoofinance/output/portfolio.csv
 # clone nor CI nor the VPS copy.
 .env.*
 !.env.example
+
+# Personal position snapshots. NEVER publish: this is a public repo and these
+# are real holdings (symbol, weight, average entry, net P&L, leverage).
+yahoofinance/snapshots/

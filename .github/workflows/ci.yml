@@ -13,6 +13,24 @@ permissions:
   contents: read
 
 jobs:
+  # Runs on every push, including the daily-signals bot's own commits, which is
+  # the point: a pre-commit hook never runs for GitHub Actions. See .gitleaks.toml
+  # for why (118 personal position exports were published before this existed).
+  secrets-scan:
+    name: gitleaks (secret + account-fingerprint scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # gitleaks needs the base commit to scan the push range
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
