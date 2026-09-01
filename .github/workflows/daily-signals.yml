@@ -140,17 +140,12 @@ jobs:
           python trade.py -o p -t n
           echo "Portfolio download complete"
 
-      - name: Capture portfolio snapshot for P&L tracking
-        run: |
-          SNAPSHOT_DIR="yahoofinance/snapshots"
-          mkdir -p "$SNAPSHOT_DIR"
-          DATE=$(date -u +'%Y-%m-%d')
-          if [ -f yahoofinance/input/portfolio.csv ]; then
-            cp yahoofinance/input/portfolio.csv "$SNAPSHOT_DIR/positions_${DATE}.csv"
-            echo "Snapshot saved: $SNAPSHOT_DIR/positions_${DATE}.csv"
-          else
-            echo "WARNING: No input portfolio.csv to snapshot"
-          fi
+      # Portfolio snapshots are NOT captured here. This is a public repo, and the
+      # snapshot is a dated export of real personal positions (symbol, weight,
+      # average entry, net P&L, leverage). Copying it to yahoofinance/snapshots/
+      # sidestepped .gitignore, which only covers yahoofinance/input/portfolio.csv,
+      # and published 118 daily files before it was caught. P&L history belongs in
+      # the private trading stack, not here. See .gitleaks.toml.
 
       - name: Run portfolio signals (trade p)
         run: |
@@ -219,8 +214,11 @@ jobs:
 
       - name: Commit portfolio and signal outputs
         run: |
-          # Add input portfolio (refreshed from eToro)
-          git add yahoofinance/input/portfolio.csv || true
+          # Deliberately NOT added: yahoofinance/input/portfolio.csv and
+          # yahoofinance/snapshots/. Both are real personal positions and this
+          # repo is public. The input file is only safe today because of
+          # .gitignore:170, i.e. a rule in another file; do not reintroduce a
+          # `git add` that depends on it.
 
           # Add output files
           git add yahoofinance/output/*.csv || true
@@ -230,9 +228,6 @@ jobs:
 
           # Add IPO date cache (grows with names the shards resolved this run)
           git add yahoofinance/input/ipo_dates.json || true
-
-          # Add portfolio snapshot for P&L tracking
-          git add yahoofinance/snapshots/*.csv || true
 
           # Only commit if there are changes
           if git diff --staged --quiet; then
