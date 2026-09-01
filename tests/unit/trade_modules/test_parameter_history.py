@@ -5,10 +5,40 @@ save_parameter_history() end-to-end, and get_parameter_history() filtering.
 """
 
 import json
+from datetime import datetime, timedelta
 
 import pytest
 
 import trade_modules.parameter_history as ph
+
+# ---------------------------------------------------------------------------
+# Seed dates for get_parameter_history()
+# ---------------------------------------------------------------------------
+#
+# get_parameter_history() filters on a ROLLING cutoff: it recomputes
+# `datetime.now() - timedelta(days=days)` on every call. So any frozen date
+# literal seeded into a record eventually falls out of the window and the test
+# silently starts asserting on zero rows. That happened on 2026-08-31, when the
+# default days=90 cutoff passed the hardcoded "2026-06-01" seeds and 11 tests in
+# TestGetParameterHistory went red on every Python in the CI matrix at once.
+# Seeds below are therefore expressed as a RELATIONSHIP to now(), never as a
+# literal, so they hold for any "today".
+
+
+def _days_ago(n: int) -> str:
+    """ISO date n days before today, in the same format as the product cutoff."""
+    return (datetime.now() - timedelta(days=n)).strftime("%Y-%m-%d")
+
+
+# Inside the default 90-day window with 80 days of slack, far more than the
+# one-hour wobble a DST shift can introduce into naive now() arithmetic.
+_RECENT = _days_ago(10)
+
+# ~10 years back. Has to straddle both windows the tests exercise: 3560 days
+# OUTSIDE days=90 (so test_date_cutoff still drops it) and 6349 days INSIDE
+# days=9999 (so test_large_days_returns_all still keeps it).
+_ANCIENT = _days_ago(3650)
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -846,8 +876,8 @@ class TestGetParameterHistory:
 
     def test_reads_all_records(self, history_file):
         records = [
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals"},
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "fundamental"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "fundamental"},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history()
@@ -855,8 +885,8 @@ class TestGetParameterHistory:
 
     def test_filter_by_ticker(self, history_file):
         records = [
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals"},
-            {"date": "2026-06-01", "ticker": "MSFT", "source": "signals"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals"},
+            {"date": _RECENT, "ticker": "MSFT", "source": "signals"},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history(ticker="AAPL")
@@ -865,8 +895,8 @@ class TestGetParameterHistory:
 
     def test_filter_by_source(self, history_file):
         records = [
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals"},
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "fundamental"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "fundamental"},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history(source="fundamental")
@@ -875,9 +905,9 @@ class TestGetParameterHistory:
 
     def test_filter_by_ticker_and_source(self, history_file):
         records = [
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals"},
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "fundamental"},
-            {"date": "2026-06-01", "ticker": "MSFT", "source": "signals"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "fundamental"},
+            {"date": _RECENT, "ticker": "MSFT", "source": "signals"},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history(ticker="AAPL", source="signals")
@@ -887,28 +917,31 @@ class TestGetParameterHistory:
 
     def test_date_cutoff(self, history_file):
         records = [
-            {"date": "2020-01-01", "ticker": "AAPL", "source": "signals"},  # very old
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals"},  # recent
+            {"date": _ANCIENT, "ticker": "AAPL", "source": "signals"},  # very old
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals"},  # recent
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history(days=90)
         assert len(result) == 1
-        assert result[0]["date"] == "2026-06-01"
+        assert result[0]["date"] == _RECENT
 
     def test_large_days_returns_all(self, history_file):
         records = [
-            {"date": "2023-01-01", "ticker": "AAPL", "source": "signals"},
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals"},
+            {"date": _ANCIENT, "ticker": "AAPL", "source": "signals"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals"},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history(days=9999)
         assert len(result) == 2
 
     def test_skips_blank_lines(self, history_file):
+        # Kept as raw JSON text rather than dicts because exercising the
+        # raw-line parser is the point of this test. Braces are doubled to
+        # survive the f-string that injects the rolling seed date.
         content = (
-            '{"date": "2026-06-01", "ticker": "AAPL", "source": "signals"}\n'
+            f'{{"date": "{_RECENT}", "ticker": "AAPL", "source": "signals"}}\n'
             "\n"
-            '{"date": "2026-06-01", "ticker": "MSFT", "source": "signals"}\n'
+            f'{{"date": "{_RECENT}", "ticker": "MSFT", "source": "signals"}}\n'
             "   \n"
         )
         history_file.write_text(content)
@@ -916,10 +949,12 @@ class TestGetParameterHistory:
         assert len(result) == 2
 
     def test_skips_invalid_json(self, history_file):
+        # Raw text on purpose (see test_skips_blank_lines): the unparseable
+        # middle line is what is under test, so it cannot be built from a dict.
         content = (
-            '{"date": "2026-06-01", "ticker": "AAPL", "source": "signals"}\n'
+            f'{{"date": "{_RECENT}", "ticker": "AAPL", "source": "signals"}}\n'
             "this is not json\n"
-            '{"date": "2026-06-01", "ticker": "MSFT", "source": "signals"}\n'
+            f'{{"date": "{_RECENT}", "ticker": "MSFT", "source": "signals"}}\n'
         )
         history_file.write_text(content)
         result = ph.get_parameter_history()
@@ -927,8 +962,8 @@ class TestGetParameterHistory:
 
     def test_no_filters_returns_all_recent(self, history_file):
         records = [
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals", "price": 180},
-            {"date": "2026-06-01", "ticker": "MSFT", "source": "risk", "score": 50},
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals", "price": 180},
+            {"date": _RECENT, "ticker": "MSFT", "source": "risk", "score": 50},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history()
@@ -938,7 +973,7 @@ class TestGetParameterHistory:
         """Records without a date field default to '' which is < any cutoff date."""
         records = [
             {"ticker": "AAPL", "source": "signals"},  # no date
-            {"date": "2026-06-01", "ticker": "MSFT", "source": "signals"},
+            {"date": _RECENT, "ticker": "MSFT", "source": "signals"},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history(days=90)
@@ -948,8 +983,8 @@ class TestGetParameterHistory:
 
     def test_ticker_none_returns_all_tickers(self, history_file):
         records = [
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals"},
-            {"date": "2026-06-01", "ticker": "MSFT", "source": "signals"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals"},
+            {"date": _RECENT, "ticker": "MSFT", "source": "signals"},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history(ticker=None)
@@ -957,8 +992,8 @@ class TestGetParameterHistory:
 
     def test_source_none_returns_all_sources(self, history_file):
         records = [
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "signals"},
-            {"date": "2026-06-01", "ticker": "AAPL", "source": "risk"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "signals"},
+            {"date": _RECENT, "ticker": "AAPL", "source": "risk"},
         ]
         self._seed_records(history_file, records)
         result = ph.get_parameter_history(source=None)
@@ -981,8 +1016,11 @@ class TestRoundTrip:
             "AAPL": {"price": 180.0, "signal": "BUY"},
             "MSFT": {"price": 400.0, "signal": "HOLD"},
         }
+        # Rolling, not frozen: this test reads back through get_parameter_history(),
+        # so a literal date here would have aged out of the default 90-day window
+        # in mid-September the same way the TestGetParameterHistory seeds did.
         ph.save_parameter_history(
-            date="2026-06-15",
+            date=_RECENT,
             concordance=concordance,
             portfolio_signals=portfolio_signals,
             fund_report={"stocks": {"AAPL": {"fundamental_score": 80}}},
