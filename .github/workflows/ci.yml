@@ -72,12 +72,16 @@ jobs:
         continue-on-error: true
         run: safety check
 
-      - name: Lint with flake8
-        run: |
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings. Line length is relaxed to 120
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+      # Ruff replaced flake8 here on 2026-09-03. The old step gated only on
+      # E9,F63,F7,F82 (syntax errors and undefined names) and ran everything else
+      # under --exit-zero, so no style or import-order problem could ever fail CI.
+      # Ruff's config lives in [tool.ruff] in pyproject.toml and is the same config
+      # .pre-commit-config.yaml uses, so local and CI now agree.
+      - name: Lint with ruff
+        run: ruff check --output-format=github .
+
+      - name: Check formatting with ruff
+        run: ruff format --check .
 
       - name: Type check with mypy
         continue-on-error: true

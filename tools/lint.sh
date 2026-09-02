@@ -17,27 +17,23 @@ fi
 
 PATHS="yahoofinance trade.py tests"
 
-# Run black
+# Run ruff (formatter; also sorts imports via the "I" rule in ruff check below)
 if [ $FIX_MODE -eq 1 ]; then
-    echo -e "\n${YELLOW}Running black to format code...${NC}"
-    black $PATHS
+    echo -e "\n${YELLOW}Running ruff to format code...${NC}"
+    ruff format $PATHS
 else
-    echo -e "\n${YELLOW}Checking formatting with black...${NC}"
-    black --check $PATHS || { echo -e "${RED}Formatting issues found. Run './tools/lint.sh fix' to fix.${NC}"; exit 1; }
+    echo -e "\n${YELLOW}Checking formatting with ruff...${NC}"
+    ruff format --check $PATHS || { echo -e "${RED}Formatting issues found. Run './tools/lint.sh fix' to fix.${NC}"; exit 1; }
 fi
 
-# Run isort
+# Run ruff check (lint + import order)
 if [ $FIX_MODE -eq 1 ]; then
-    echo -e "\n${YELLOW}Running isort to sort imports...${NC}"
-    isort $PATHS
+    echo -e "\n${YELLOW}Running ruff check --fix...${NC}"
+    ruff check --fix $PATHS
 else
-    echo -e "\n${YELLOW}Checking import sorting with isort...${NC}"
-    isort --check-only $PATHS || { echo -e "${RED}Import sorting issues found. Run './tools/lint.sh fix' to fix.${NC}"; exit 1; }
+    echo -e "\n${YELLOW}Linting with ruff...${NC}"
+    ruff check $PATHS || { echo -e "${RED}Linting issues found. Run './tools/lint.sh fix' to fix what is fixable.${NC}"; exit 1; }
 fi
-
-# Run flake8
-echo -e "\n${YELLOW}Checking code with flake8...${NC}"
-flake8 $PATHS || { echo -e "${RED}Linting issues found. Please fix them manually.${NC}"; exit 1; }
 
 # Run mypy
 echo -e "\n${YELLOW}Checking types with mypy...${NC}"

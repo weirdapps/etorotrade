@@ -79,9 +79,12 @@ dev = [
     "types-setuptools>=80.7.0",
     "types-PyYAML>=6.0.0",
     "types-tabulate>=0.9.0",
-    "black>=22.3.0",
-    "isort>=5.9.0",
-    "flake8>=3.9.0",
+    # black / isort / flake8 removed 2026-09-03 in favour of ruff, which does all three
+    # (ruff format, plus ruff check with "I" selected for import order). Previously ruff
+    # was configured in [tool.ruff] and in .pre-commit-config.yaml but was NOT a dev
+    # dependency, so it never reached CI, and the three tools it replaced each disagreed
+    # with the tree (isort 291 files, black 45) while nothing enforced any of them.
+    "ruff>=0.15.12",
     # Security + quality scanners (in lockfile so CI install gets pinned hashes)
     "safety>=3.7.0",
     # GHSA: cryptography <48.0.1 vuln, pulled transitively via safety->authlib/joserfc.
@@ -130,22 +133,6 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ['py310', 'py311', 'py312']
-include = '\.pyi?$'
-
-[tool.isort]
-profile = "black"
-line_length = 100
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
-lines_after_imports = 2
-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
-
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = false
@@ -191,6 +178,11 @@ ignore_errors = true
 
 [tool.ruff]
 line-length = 100
+# Ruff formats fenced python blocks inside markdown. Left on, `ruff format` rewrites
+# quote styles in illustrative snippets across archived plans and reviews (15 files on
+# first run, against 1 real source file), which would make the CI format gate police
+# documentation prose. Docs are not the formatter's business.
+extend-exclude = ["**/*.md"]
 # Match CI matrix (test job runs Python 3.10). Setting to py311 caused ruff
 # to auto-apply UP017 (datetime.UTC alias) which is 3.11+ only and broke
 # pytest collection on 3.10 runners.
@@ -217,7 +209,6 @@ ignore = [
     "E741",  # ambiguous variable names (`l`, `I`, `O`) — pre-existing
     "B007",  # loop control variable not used — pre-existing in iteration patterns
     "B023",  # function uses loop variable — pre-existing intentional in some closures
-    "UP038", # isinstance(x, (A,B)) — REMOVED in newer ruff; ignore until hook is bumped
     "B027",  # empty methods in ABC without @abstractmethod — pre-existing optional-override pattern
     "B028",  # no stacklevel in warnings.warn — pre-existing, not user-facing libraries
     "F841",  # unused local — pre-existing, often intentional intermediate computations

@@ -19,10 +19,13 @@ echo "Installing dependencies (only-binary, hashed)..."
 pip install --only-binary :all: --upgrade pip
 pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
 
-# Setup pre-commit hooks if config exists
-if [ -f ".config/ci/.pre-commit-config.yaml" ]; then
+# Setup pre-commit hooks. Uses the repo-root config (ruff, mypy, gitleaks, yamllint,
+# markdownlint). This used to point at .config/ci/.pre-commit-config.yaml, a stale 2023
+# copy pinning isort 5.12 / black 23.3 / flake8 6.0, so anyone who ran setup got hooks
+# that fought ruff. That file is gone; the root config is the only one.
+if [ -f ".pre-commit-config.yaml" ]; then
     echo "Installing pre-commit hooks..."
-    pre-commit install --config .config/ci/.pre-commit-config.yaml
+    pre-commit install
 fi
 
 # Copy environment template if needed

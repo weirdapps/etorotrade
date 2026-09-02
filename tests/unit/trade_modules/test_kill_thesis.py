@@ -348,9 +348,7 @@ class TestCheckKillTheses:
     @pytest.fixture(autouse=True)
     def _isolate_concordance(self, tmp_path, monkeypatch):
         """Prevent real concordance.json from contaminating tests."""
-        monkeypatch.setattr(
-            "trade_modules.committee_scorecard._USER_COMMITTEE_DIR", tmp_path
-        )
+        monkeypatch.setattr("trade_modules.committee_scorecard._USER_COMMITTEE_DIR", tmp_path)
 
     def test_no_theses_returns_empty(self, kill_thesis_path, portfolio_csv_path):
         """Returns empty lists when no theses exist."""

@@ -285,11 +285,13 @@ CI runs the suite with `--cov-fail-under=58`.
 ### Linting and formatting
 
 ```bash
-scripts/dev/lint.sh          # black --check + isort --check + flake8 + mypy
-scripts/dev/format.sh        # black + isort auto-format
+scripts/dev/lint.sh          # ruff format --check + ruff check + mypy
+scripts/dev/format.sh        # ruff check --fix + ruff format
 ```
 
-Line length: 100. Enforced formatter and linter: `ruff` (`ruff-format` + `ruff check`, via `.pre-commit-config.yaml`). The legacy `scripts/dev/lint.sh` and `format.sh` still call `black`/`isort`/`flake8`, but they are not CI-gated. Type checker: `mypy` runs in lenient mode and does not gate CI.
+Line length: 100. `ruff` is the only formatter and linter: `ruff format` for layout, `ruff check` for lint including import order (the `I` rule). Config lives in `[tool.ruff]` in `pyproject.toml` and is shared by the dev scripts, `.pre-commit-config.yaml` and CI, so all three agree.
+
+CI gates on both (`ruff check` and `ruff format --check` in `ci.yml`). `black`, `isort` and `flake8` were removed on 2026-09-03: none of them was enforced anywhere, and each disagreed with the tree (isort on 291 files, black on 45) so running the old dev scripts fought ruff. Note that `ruff format` also rewrites python blocks inside markdown, which is why `**/*.md` is in `extend-exclude`. Type checker: `mypy` runs in lenient mode and does not gate CI.
 
 ### Updating dependencies
 
