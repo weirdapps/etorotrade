@@ -70,7 +70,7 @@ yahoofinance/output/        # CSV + HTML reports land here
 - Signal column is `BS` in CSV output: `B`=BUY, `H`=HOLD, `S`=SELL, `I`=INCONCLUSIVE
 - 5-tier market cap system: MEGA (≥$500B), LARGE ($100B–$500B), MID ($10B–$100B), SMALL ($2B–$10B); below $2B → INCONCLUSIVE
 - Regional thresholds: US (baseline), EU (.L/.PA/.AS), HK (.HK)
-- Line length: 100 chars. Type hints on new code. `black` + `isort` + `ruff` for formatting
+- Line length: 100 chars. Type hints on new code. `ruff` is the only formatter and linter (`ruff format` + `ruff check`, import order via the `I` rule); black, isort and flake8 were removed 2026-09-03
 - Thresholds live in `config.yaml` — do not hardcode in callers
 
 ## Known Gotchas
