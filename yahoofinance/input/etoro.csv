@@ -207,7 +207,7 @@ MUV2.DE,Muenchener Rueck AG,FRA
 RWE.DE,RWE AG,FRA
 FME.DE,Fresenius Medical Care AG & Co. KGAA,FRA
 ADS.DE,Adidas AG,FRA
-DHL.DE,Deutsche Post AG,FRA
+DHL.DE,DHL AG,FRA
 FRE.DE,Fresenius SE & Co KGaA,FRA
 HEN3.DE,Henkel AG & Co. KGaA,FRA
 DB1.DE,Deutsche Boerse AG,FRA
@@ -3936,7 +3936,7 @@ HASI,Hannon Armstrong Sustainable Infrastructure Capital Inc,NYSE
 HEXO,HEXO Corp,Nasdaq
 HHH,Howard Hughes Holdings Inc,NYSE
 HIW,Highwoods Properties Inc,NYSE
-HLX,Helix Energy Solutions Group Inc,NYSE
+HOS,Hornbeck Offshore Services Inc,NYSE
 HMY,Harmony Gold Mining Co Ltd-ADR,NYSE
 HP,Helmerich & Payne Inc,NYSE
 HPP,Hudson Pacific Properties Inc,NYSE
@@ -4262,7 +4262,7 @@ NIC.AX,Nickel Industries Limited,ASX
 PDN.AX,Paladin Energy Ltd,ASX
 ORA.AX,Orora Limited,ASX
 HLS.AX,Healius Limited,ASX
-WEB.AX,Webjet Limited,ASX
+WEB.AX,WebBeds Group Ltd,ASX
 BLD.AX,Boral Limited,ASX
 RGN.AX,Region Group,ASX
 PXA.AX,PEXA Group Limited,ASX
@@ -6198,7 +6198,7 @@ LXFR,Luxfer Holdings PLC,NYSE
 RM,Regional Management Corp,NYSE
 MEC,Mayville Engineering Company Inc,NYSE
 FET,Forum Energy Technologies Inc,NYSE
-OPAD,Offerpad Solutions Inc,NYSE
+OPAD,Offerpad Solutions Inc,Nasdaq
 CMCL,Caledonia Mining Corporation Plc,NYSE
 EPM,Evolution Petroleum Corporation,NYSE
 CPS,Cooper-Standard Holdings Inc,NYSE
@@ -6569,7 +6569,7 @@ KOPN,Kopin Corp,Nasdaq
 MRM.AX,Mma Offshore Ltd,ASX
 GBIO,Generation Bio Co,Nasdaq
 PLX,Protalix Biotherapeutics Inc,NYSE
-BCAB,Bioatla Inc,Nasdaq
+BCAB,Bioatla Inc,OTC Markets
 CMPX,Compass Therapeutics Inc,Nasdaq
 SEER,Seer Inc,Nasdaq
 LEVGQ,Lion Electric Co/The,OTC Markets
@@ -9967,7 +9967,7 @@ COPA.L,WisdomTree Copper,LSE
 SASU.L,iShares MSCI USA ESG Screened UCITS ETF,LSE
 EEDS.L,iShares MSCI USA ESG Enhanced UCITS ETF,LSE
 EMUU.L,iShares VII PLC - iShares MSCI EMU USD Hedged UCITS ETF,LSE
-ISAC.L,iShares MSCI ACWI UCITS ETF,LSE
+ISAC.L,iShares MSCI All Country World UCITS ETF,LSE
 HLQD.L,iShares $ Corp Bond Interest Rate Hedged UCITS ETF,LSE
 CCAU.L,iShares MSCI Canada UCITS ETF,LSE
 CEMA.L,iShares MSCI EM Asia UCITS ETF,LSE
@@ -10179,7 +10179,10 @@ WMFS.DE,Amundi MSCI World Small Cap ESG Broad Transition UCITS ETF ACC,Xetra ETF
 WEBN.DE,Amundi Prime All Country World UCITS ETF Acc,Xetra ETFs
 EQSP.DE,Amundi S&P 500 Equal Weight UCITS ETF Acc,Xetra ETFs
 WEBA.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
+WBLD.L,WisdomTree Europe Infrastructure UCITS ETF,LSE
+MINE.DE,CoinShares Bitcoin Mining UCITS ETF,Xetra ETFs
 EXUS.DE,Xtrackers MSCI World ex USA UCITS ETF,Xetra ETFs
+VWCE.DE,Vanguard FTSE All-World UCITS ETF,Xetra ETFs
 BVR.AX,Bellavista Resources Ltd,ASX
 DRO.AX,DroneShield Ltd,ASX
 VAU.AX,Vault Minerals Ltd,ASX
@@ -10238,6 +10241,7 @@ MEGU.DE,Amundi MSCI USA Mega Cap UCITS ETF Acc,Xetra ETFs
 WEBB.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
 HUKX.L,HSBC FTSE 100 UCITS ETF,LSE
 FSFL.L,Foresight Solar Fund Ltd,LSE
+FWRG.L,Invesco FTSE All-World UCITS ETF,LSE
 APMD, Apnimed Inc,Nasdaq
 VOGX,Vogenx,Nasdaq
 BRVE,"Braveheart Bio, Inc.",Nasdaq
@@ -10245,6 +10249,8 @@ ATTO,"Attovia Therapeutics, Inc.",Nasdaq
 SCTX,Scribe Therapeutics Inc,Nasdaq
 BLSM,"BlossomHill Therapeutics, Inc",Nasdaq
 LTGO,"Latigo Biotherapeutics, Inc",Nasdaq
+ADBT,Advasa Holdings Inc,Nasdaq
+APPTEST,Pre-IPO App Test,Nasdaq
 CSQR,"Csquare, Inc",NYSE
 STDN,"Standard Nuclear, Inc",NYSE
 JMKE,Jersey Mike’s Subs Inc,NYSE
@@ -10255,10 +10261,18 @@ FOIL,Londian Wason New Energy Tech Inc,NYSE
 LYNX,Lyntris Inc,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
 0625.HK,Shein Global Holdings,HKEX
+0501.HK,OmniVision Integrated Circuits Group Inc,HKEX
+9980.HK,Eastroc Beverage Group Co Ltd,HKEX
+2714.HK,Muyuan Foods Group Co Ltd,HKEX
+6809.HK,Montage Technology Co Ltd,HKEX
+2475.HK,Luxshare Precision Industry Co Ltd,HKEX
+3308.HK,Zhongji Innolight Co Ltd,HKEX
+3223.HK,Ingenic Semiconductor Co Ltd,HKEX
 BITA,iShares Bitcoin Premium Income ETF,Nasdaq
 QQQM,Invesco Nasdaq 100 ETF,Nasdaq
 IDEF,iShares Defense Industrials and Tech Active ETF,Nasdaq
 BLCR,iShares Large Cap Core Active ETF,Nasdaq
+LITP,Sprott Lithium Miners ETF,Nasdaq
 UFO,Procure Space ETF,Nasdaq
 DTCR,Global X Data Center & Digital Infrastructure ETF,Nasdaq
 DGRW,WisdomTree U.S. Quality Dividend Growth Fund,Nasdaq
@@ -10275,6 +10289,9 @@ CXSE,WisdomTree Trust WisdomTree China ex-State-Owned Enterprises Fund,Nasdaq
 HERO,Global X Video Games & Esports ETF,Nasdaq
 WDAF,WisdomTree Asia Defense Fund,Nasdaq
 CTEC,Global X ClimateTech ETF,Nasdaq
+ILIT,iShares Lithium Miners and Producers ETF,Nasdaq
+VBIL,Vanguard 0-3 Month Treasury Bill ETF,Nasdaq
+WGMI,CoinShares ETF Trust CoinShares Bitcoin Mining and Digital Power ETF,Nasdaq
 EUV,Corgi Lithography & Semiconductor Photonics ETF,NYSE
 CGGR,Capital Group Growth ETF,NYSE
 PYLD,PIMCO Multisector Bond Active ETF,NYSE
@@ -10282,7 +10299,9 @@ AVUV,Avantis U.S. Small Cap Value ETF,NYSE
 AVDE,Avantis International Equity ETF,NYSE
 AVEM,Avantis Emerging Markets Equity ETF,NYSE
 SGOV,iShares 0-3 Month Treasury Bond ETF,NYSE
+TAIL,Cambria Tail Risk ETF,NYSE
 KORU,Direxion Daily MSCI South Korea Bull 3X ETF,NYSE
+PULS,PGIM Ultra Short Bond ETF,NYSE
 SPDW,State Street SPDR Portfolio Developed World ex-US ETF,NYSE
 SPEM,State Street SPDR Portfolio Emerging Markets ETF,NYSE
 IAUM,iShares Gold Trust Micro,NYSE
@@ -10318,3 +10337,38 @@ HMWA.L,HSBC MSCI WORLD UCITS ETF,LSE
 HSTE.L,HSBC Hang Seng Tech UCITS ETF,LSE
 HNSC.L,HSBC Nasdaq Global Semiconductor UCITS ETF,LSE
 VWRA.L,Vanguard FTSE All-World UCITS ETF,LSE
+NATO.L,Future of Defence UCITS ETF,LSE
+RMAU.L,Royal Mint Responsibly Sourced Physical Gold ETC,LSE
+GEP.L,Lloyd Growth Equity UCITS ETF,LSE
+FEP.L,Lloyd Focused Equity UCITS ETF,LSE
+ARMY.L,Future of European Defence Screened UCITS ETF,LSE
+CPPR.L,Sprott Pure Play Copper Miners UCITS ETF,LSE
+ITEK.L,HAN-GINS Tech Megatrend Equal Weight UCITS ETF,LSE
+JURY.L,JURY Global High Dividend UCITS ETF,LSE
+MMLP.L,Alerian Midstream Energy Dividend UCITS ETF,LSE
+CO2U.L,SparkChange Physical Carbon EUA ETC,LSE
+YMAG.L,Yieldmax Big Tech Option Income UCITS ETF,LSE
+DRAM.L,Defiance Memory UCITS ETF,LSE
+URNJ.L,Sprott Junior Uranium Miners UCITS ETF,LSE
+SPUT.L,Sprott Physical Uranium ETC,LSE
+AIPO.L,Defiance AI & Power Infrastructure UCITS ETF,LSE
+DRON.L,Defiance Drone UCITS ETF,LSE
+RNTA.L,Amerant Latin American Debt UCITS ETF,LSE
+TRYP.L,US Global Investors Travel UCITS ETF,LSE
+CHPY.L,YieldMax Semiconductor Option Income UCITS ETF,LSE
+QUAD.L,Kotak Indo-Pacific Defence UCITS ETF,LSE
+AMAL.L,Saturna Al-Kawthar Global Focused Equity UCITS ETF,LSE
+WPAI.L,WisdomTree Physical AI Humanoids and Drones UCITS ETF,LSE
+WTVU.L,WisdomTree US Value UCITS ETF,LSE
+COCO.L,WisdomTree Cocoa,LSE
+COFF.L,WisdomTree Coffee,LSE
+CORN.L,WisdomTree Corn,LSE
+COTN.L,WisdomTree Cotton,LSE
+AIGG.L,WisdomTree Grains,LSE
+SOYB.L,WisdomTree Soybeans,LSE
+SUGA.L,WisdomTree Sugar,LSE
+WEAT.L,WisdomTree Wheat,LSE
+GLRE.L,SS SPDR Dow Jones Global Real Estate UCITS ETF,LSE
+SXLB.L,SS SPDR S&P US Materials Select Sector UCITS ETF,LSE
+SXLC.L,SS SPDR S&P US Communication Services Select Sector UCITS ETF,LSE
+MXUS.L,Invesco MSCI USA UCITS ETF,LSE
