@@ -8,6 +8,13 @@ on:
   schedule:
     # Run nightly at 2 AM UTC for integration tests
     - cron: '0 2 * * *'
+  # gitleaks-action scopes its scan by event: push and pull_request get a
+  # --log-opts range, everything else scans full history (src/index.js routes
+  # workflow_dispatch and schedule through the same branch). So a dispatch is
+  # the only way to rehearse the nightly full-history secrets scan without
+  # waiting for 02:00 UTC, which is what this repo needed on 2026-09-10 when
+  # the gitleaks version pin had to be validated.
+  workflow_dispatch: {}
 
 permissions:
   contents: read
