@@ -30,6 +30,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
+          # The action defaults to gitleaks 8.24.3 (src/index.js: `GITLEAKS_VERSION
+          # || "8.24.3"`), which loads [[rules]] but silently ignores top-level
+          # [[allowlists]]. .gitleaks.toml uses only the plural form, so on 8.24.3
+          # both suppressions are dead: the scheduled full-history scan went red on
+          # 4 pre-existing findings (3 test fixtures under the `^tests?/` path
+          # allowlist, 1 sonarcloud.yml curl-auth-user under the scoped allowlist)
+          # every day from 2026-09-02. Push runs stayed green only because they
+          # scan the pushed range, not history. Pin a version that honours them.
+          GITLEAKS_VERSION: '8.30.1'
 
   test:
     runs-on: ubuntu-latest
