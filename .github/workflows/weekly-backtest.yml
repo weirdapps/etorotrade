@@ -84,11 +84,36 @@ jobs:
 
       - name: Commit backtest outputs
         run: |
-          git add yahoofinance/output/backtest_results.csv || true
-          git add yahoofinance/output/backtest_summary.csv || true
-          git add yahoofinance/output/backtest_threshold_report.csv || true
-          git add yahoofinance/output/backtest_report.json || true
-          git add data/committee/action_log.jsonl || true
+          # -f is required, and `|| true` was hiding why. Four of these five are
+          # ignored: the three backtest_*.csv by .gitignore:209, and
+          # backtest_report.json by .gitignore:202 (yahoofinance/output/* with
+          # only *.csv re-included). They are ignored on purpose, so a local
+          # backtest does not dirty the tree; publishing them is this workflow's
+          # entire job, and that is exactly what -f is for.
+          #
+          # `git add` on an ignored path exits 1 with "The following paths are
+          # ignored by one of your .gitignore files". The `|| true` swallowed it,
+          # nothing was staged, the next step reported "No changes to commit",
+          # and the run went green. Five consecutive weekly runs passed that way
+          # while delivering nothing, which is why the dashboard reads
+          # data:produced:backtest_report as failing with the workflow green.
+          #
+          # A missing artifact is now a visible warning rather than silence: if
+          # the backtest stops producing one of these, that is a finding, and the
+          # old form could not tell it apart from an ignored path.
+          for f in \
+            yahoofinance/output/backtest_results.csv \
+            yahoofinance/output/backtest_summary.csv \
+            yahoofinance/output/backtest_threshold_report.csv \
+            yahoofinance/output/backtest_report.json \
+            data/committee/action_log.jsonl
+          do
+            if [ -f "$f" ]; then
+              git add -f "$f"
+            else
+              echo "::warning::$f was not produced by this backtest run"
+            fi
+          done
 
           if git diff --staged --quiet; then
             echo "No changes to commit"
