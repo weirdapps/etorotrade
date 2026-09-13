@@ -29,6 +29,53 @@ REGION_BENCHMARKS: dict[str, str] = {
 
 DEFAULT_CACHE_DIR = Path.home() / ".weirdapps-trading" / "price_cache"
 
+# How far behind `end_date` a cached column may fall before it is refetched.
+#
+# Deliberately not zero. `end_date` is routinely a Saturday, every venue here
+# keeps its own holiday calendar, and Hong Kong and Xetra do not close on the
+# same days as New York. Demanding coverage to the exact day would refetch the
+# entire universe on every call, which is the opposite failure to the one below.
+# Five days spans a long weekend without spanning a market week.
+CACHE_STALE_TOLERANCE_DAYS = 5
+
+
+def _stale_columns(
+    cached: pd.DataFrame | None,
+    end_date: str,
+    tolerance_days: int = CACHE_STALE_TOLERANCE_DAYS,
+) -> set[str]:
+    """Cached tickers whose prices stop before `end_date` minus the tolerance.
+
+    A column that exists is not a column that is current, and until 2026-09-13
+    this service could not tell the two apart: `missing` was computed purely
+    from set membership, so a ticker was fetched exactly once and then never
+    again however old its data became.
+
+    The production cache showed what that costs. backtest_prices.parquet was
+    (216, 3556) with 3129 columns holding no valid price after 2026-05-27 and
+    394 columns entirely empty, while its mtime tracked the most recent weekly
+    run: the file was rewritten every week and its contents had not moved in
+    three and a half months. The backtest on top of it evaluated two tickers out
+    of 106.
+
+    An all-NaT column has no last_valid_index and reads as stale, which is the
+    right answer: we hold no price for it, so "covered" would be a lie.
+    """
+    if cached is None or cached.empty:
+        return set()
+    try:
+        cutoff = pd.Timestamp(end_date) - pd.Timedelta(days=tolerance_days)
+    except (ValueError, TypeError):
+        # An unparseable end_date must not silently disable the check; treat
+        # everything as stale and let the download decide.
+        return set(cached.columns)
+    stale = set()
+    for col in cached.columns:
+        last = cached[col].last_valid_index()
+        if last is None or pd.Timestamp(last) < cutoff:
+            stale.add(col)
+    return stale
+
 
 def _apply_data_fetch_substitutions(
     tickers: list[str],
@@ -119,11 +166,24 @@ class PriceService:
             if bm != self.default_benchmark and bm not in all_tickers:
                 all_tickers.append(bm)
 
-        # Check cache
+        # Check cache. Absent OR stale both count as missing: see _stale_columns.
         cached = self._load_cache()
         if cached is not None:
             cached_tickers = set(cached.columns)
-            missing = [t for t in all_tickers if t not in cached_tickers]
+            stale = _stale_columns(cached, end_date)
+            missing = [t for t in all_tickers if t not in cached_tickers or t in stale]
+            refreshed = [t for t in missing if t in cached_tickers]
+            if refreshed:
+                # Say it out loud. The whole failure was silent: a frozen cache
+                # and a healthy one produce identical logs and an identical
+                # exit code, and the weekly job reported status "complete" on
+                # two tickers out of 106 for months.
+                logger.info(
+                    "Refetching %d cached ticker(s) with no prices within %dd of %s",
+                    len(refreshed),
+                    CACHE_STALE_TOLERANCE_DAYS,
+                    end_date,
+                )
         else:
             missing = all_tickers
 
@@ -132,7 +192,14 @@ class PriceService:
             new_data = self._download_prices(missing, start_date, end_date)
             if cached is not None and not new_data.empty:
                 prices = pd.concat([cached, new_data], axis=1)
-                prices = prices.loc[:, ~prices.columns.duplicated()]
+                # keep="last", and it is load-bearing. `cached` is concatenated
+                # first, so pandas' default keep="first" kept the STALE column
+                # and discarded the download that had just been made to replace
+                # it. A refetch changed nothing, which is why fixing the
+                # staleness check alone would have left the cache frozen: the
+                # right requests would have been issued and every answer thrown
+                # away. Found 2026-09-13, alongside the membership bug above.
+                prices = prices.loc[:, ~prices.columns.duplicated(keep="last")]
             elif not new_data.empty:
                 prices = new_data
             else:
