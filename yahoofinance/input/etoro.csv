@@ -1912,7 +1912,7 @@ VXX,iPath Series B S&P 500 VIX Short-Term FuturesTM ETN,CBOE
 AMZA,InfraCap MLP ETF,NYSE
 ARKF,ARK Blockchain & Fintech Innovation ETF,CBOE
 ARKK,ARK Innovation ETF,CBOE
-ARKW,ARK Next Generation Internet ETF,CBOE
+ARKW,ARK Next Generation Technology ETF,CBOE
 BAR,Graniteshares Gold Trust,NYSE
 BLOK,Amplify Blockchain Technology ETF,NYSE
 BLV,Vanguard Long-Term Bond ETF,NYSE
@@ -6373,7 +6373,7 @@ ALLK,Allakos Inc,Nasdaq
 TPST,Tempest Therapeutics Inc,Nasdaq
 CTT.AX,Cettire Ltd,ASX
 VNT.AX,Ventia Services Group Pty Lt,ASX
-BTAI,Bioxcel Therapeutics Inc,Nasdaq
+BTAIQ,Bioxcel Therapeutics Inc,OTC Markets
 BTBT,Bit Digital Inc,Nasdaq
 ORGO,Organogenesis Holdings Inc,Nasdaq
 SMRT,Smartrent Inc,NYSE
@@ -7450,7 +7450,7 @@ BKY.L,Berkeley Energia Ltd,LSE
 CGH.L,Chaarat Gold Holdings Ld,LSE
 DKE.L,Dukemount Capital Plc,LSE
 TBLD.L,Tinybuild Inc.,LSE AIM
-WRKS.L,Theworks.Co.Uk Plc,LSE AIM
+WRKS.L,TheWorks PLC,LSE AIM
 CAU.L,Centaur Media Plc,LSE
 OMI.L,Orosur Mining Inc,LSE
 EST.L,East Star Resources Plc,LSE
@@ -8752,12 +8752,12 @@ ALHRG.PA,Herige SA,Euronext Paris
 CEN.PA,Groupe Crit SA,Euronext Paris
 ALKEY.PA,Keyrus SA,Euronext Paris
 CNDF.PA,Caisse Reg Credit Agric Mut Nord France,Euronext Paris
-PERR.PA,Gerard Perrier Industrie SA,Euronext Paris
+ALPER.PA,Gerard Perrier Industrie SA,Euronext Paris
 ALNRG.PA,Energisme SA,Euronext Paris
 ALSGD.PA,Spineguard SA,Euronext Paris
 ALPVL.PA,Plastiques du Val de Loire SA,Euronext Paris
 GUI.PA,Guillemot Corporation SA,Euronext Paris
-LHYFE.PA,Lhyfe SA,Euronext Paris
+ALHYF.PA,Lhyfe SA,Euronext Paris
 ALMOU.PA,Moulinvest SA,Euronext Paris
 ALSEN.PA,Sensorion SA,Euronext Paris
 ALPDX.PA,Piscines Desjoyaux SA,Euronext Paris
@@ -10251,6 +10251,8 @@ BLSM,"BlossomHill Therapeutics, Inc",Nasdaq
 LTGO,"Latigo Biotherapeutics, Inc",Nasdaq
 ADBT,Advasa Holdings Inc,Nasdaq
 APPTEST,Pre-IPO App Test,Nasdaq
+ANTH,Anthropic,Nasdaq
+OPENAI,OpenAI Group,Nasdaq
 CSQR,"Csquare, Inc",NYSE
 STDN,"Standard Nuclear, Inc",NYSE
 JMKE,Jersey Mike’s Subs Inc,NYSE
