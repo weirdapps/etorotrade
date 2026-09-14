@@ -706,6 +706,15 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
         df.get("TGT", df.get("TARGET", pd.Series([np.nan] * len(df), index=df.index))),
     )
     target_series = pd.to_numeric(target_raw_col, errors="coerce").fillna(np.nan)
+
+    # Sector rides along for the same reason, though it is NOT the same defect:
+    # there is no short display name for it, "sector"/"SECTOR" was the whole
+    # chain and it was correct. It is collapsed here because it sat in the same
+    # repeated four-line block at six of the call sites, and leaving six copies
+    # of it while deleting sixteen copies of price and target would keep the
+    # shape this commit exists to remove. Not coerced to numeric, unlike the two
+    # above: it is a label.
+    sector_series = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
     dma200_raw = df.get(
         "two_hundred_day_avg", df.get("200DMA", pd.Series([np.nan] * len(df), index=df.index))
     )
@@ -1186,10 +1195,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
 
                 row_price = price_series.loc[idx] if idx in price_series.index else None
                 row_target = target_series.loc[idx] if idx in target_series.index else None
-                sector_raw = df.get(
-                    "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
-                )
-                row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+                row_sector = sector_series.loc[idx] if idx in sector_series.index else None
                 log_signal(
                     ticker=ticker,
                     signal="S",
@@ -1233,10 +1239,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
 
                 row_price = price_series.loc[idx] if idx in price_series.index else None
                 row_target = target_series.loc[idx] if idx in target_series.index else None
-                sector_raw = df.get(
-                    "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
-                )
-                row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+                row_sector = sector_series.loc[idx] if idx in sector_series.index else None
 
                 log_signal(
                     ticker=ticker,
@@ -1381,10 +1384,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
 
                         row_price = price_series.loc[idx] if idx in price_series.index else None
                         row_target = target_series.loc[idx] if idx in target_series.index else None
-                        sector_raw = df.get(
-                            "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
-                        )
-                        row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+                        row_sector = sector_series.loc[idx] if idx in sector_series.index else None
 
                         log_signal(
                             ticker=ticker,
@@ -1456,10 +1456,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
 
                         row_price = price_series.loc[idx] if idx in price_series.index else None
                         row_target = target_series.loc[idx] if idx in target_series.index else None
-                        sector_raw = df.get(
-                            "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
-                        )
-                        row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+                        row_sector = sector_series.loc[idx] if idx in sector_series.index else None
 
                         log_signal(
                             ticker=ticker,
@@ -1634,10 +1631,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
 
                     row_price = price_series.loc[idx] if idx in price_series.index else None
                     row_target = target_series.loc[idx] if idx in target_series.index else None
-                    sector_raw = df.get(
-                        "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
-                    )
-                    row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+                    row_sector = sector_series.loc[idx] if idx in sector_series.index else None
 
                     log_signal(
                         ticker=ticker,
@@ -2033,10 +2027,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             # Get price data if available
             row_price = price_series.loc[idx] if idx in price_series.index else None
             row_target = target_series.loc[idx] if idx in target_series.index else None
-            sector_raw = df.get(
-                "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
-            )
-            row_sector = sector_raw.loc[idx] if idx in sector_raw.index else None
+            row_sector = sector_series.loc[idx] if idx in sector_series.index else None
 
             # Dual-track signal system: track + independent holding horizon.
             from trade_modules.conviction_sizer import suggested_signal_horizon

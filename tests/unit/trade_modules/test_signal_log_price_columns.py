@@ -157,6 +157,60 @@ class TestTheNamesThatAlreadyWorkedKeepWorking:
         assert records[0].price_at_signal is None
 
 
+class TestEveryCallSiteAndNotJustTheEquityOne:
+    """Ten call sites carried the defect and two of them were exercised.
+
+    That ratio is the reason it survived: the equity paths get tested, the
+    asset-type branches above them do not, and all ten had drifted identically.
+    A fix verified on one path is a fix verified on the one path, so these drive
+    the branches calculate_action_vectorized picks BEFORE it reaches the equity
+    logic, by ticker, which is the only input classify_asset_type reads.
+    """
+
+    def test_a_bitcoin_proxy_buy_records_its_price(self):
+        """MSTR with momentum and analyst support clears the btc-proxy BUY."""
+        records = _run(
+            {
+                "ticker": "MSTR",
+                "PRC": PRICE,
+                "TGT": TARGET,
+                "pct_from_52w_high": 95.0,
+                "two_hundred_day_avg": 100.0,
+            }
+        )
+        assert records, "the bitcoin-proxy branch was not reached"
+        assert records[0].price_at_signal == pytest.approx(PRICE)
+
+    def test_a_bitcoin_proxy_sell_records_its_price(self):
+        """The same branch's other arm: momentum at or under the sell threshold."""
+        records = _run(
+            {
+                "ticker": "MSTR",
+                "PRC": PRICE,
+                "TGT": TARGET,
+                "pct_from_52w_high": 10.0,
+                "two_hundred_day_avg": 100.0,
+            }
+        )
+        assert records, "the bitcoin-proxy branch was not reached"
+        assert records[0].signal == "S"
+        assert records[0].price_at_signal == pytest.approx(PRICE)
+
+    def test_a_crypto_signal_records_its_price(self):
+        """asset_type in (crypto, commodity) has its own log_signal call."""
+        records = _run(
+            {
+                "ticker": "BTC-USD",
+                "PRC": PRICE,
+                "TGT": TARGET,
+                "pct_from_52w_high": 95.0,
+                "two_hundred_day_avg": 100.0,
+            }
+        )
+        assert records, "the crypto/commodity branch was not reached"
+        assert records[0].price_at_signal == pytest.approx(PRICE)
+
+
 class TestTheChainIsSpelledOnce:
     """The duplication is the defect; the missing key was only its symptom.
 
