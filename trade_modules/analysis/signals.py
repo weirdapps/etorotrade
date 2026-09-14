@@ -681,9 +681,31 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
     # Used for continuous BUY scoring instead of binary above/below
     price_raw_col = df.get(
         "price",
-        df.get("PRC", df.get("current_price", pd.Series([np.nan] * len(df), index=df.index))),
+        df.get(
+            "PRC",
+            df.get(
+                "PRICE",
+                df.get("current_price", pd.Series([np.nan] * len(df), index=df.index)),
+            ),
+        ),
     )
     price_series = pd.to_numeric(price_raw_col, errors="coerce").fillna(np.nan)
+
+    # Analyst target price, resolved here for the same reason price is: the ten
+    # log_signal call sites below used to each re-resolve these two inline, and
+    # every one of those copies stopped at "price"/"PRICE" and
+    # "target_price"/"TARGET". The frame they run against carries the SHORT
+    # display names -- config.py:495-496 rename PRICE to PRC and TARGET_PRICE to
+    # TGT, and they are the 4th and 5th columns of yahoofinance/output/etoro.csv
+    # -- so all sixteen lookups missed and logged None. signal_log.jsonl carried
+    # a null price_at_signal on all 6548 records it had written by 2026-09-14,
+    # which left BacktestEngine rejecting almost every signal as no_price_data.
+    # One chain each, spelled once, is the fix; the inline copies are gone.
+    target_raw_col = df.get(
+        "target_price",
+        df.get("TGT", df.get("TARGET", pd.Series([np.nan] * len(df), index=df.index))),
+    )
+    target_series = pd.to_numeric(target_raw_col, errors="coerce").fillna(np.nan)
     dma200_raw = df.get(
         "two_hundred_day_avg", df.get("200DMA", pd.Series([np.nan] * len(df), index=df.index))
     )
@@ -871,11 +893,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                         try:
                             from trade_modules.signal_tracker import log_signal
 
-                            price_raw = df.get(
-                                "price",
-                                df.get("PRICE", pd.Series([None] * len(df), index=df.index)),
-                            )
-                            row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                            row_price = price_series.loc[idx] if idx in price_series.index else None
                             log_signal(
                                 ticker=ticker,
                                 signal=actions.loc[idx],
@@ -907,11 +925,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                         try:
                             from trade_modules.signal_tracker import log_signal
 
-                            price_raw = df.get(
-                                "price",
-                                df.get("PRICE", pd.Series([None] * len(df), index=df.index)),
-                            )
-                            row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                            row_price = price_series.loc[idx] if idx in price_series.index else None
                             log_signal(
                                 ticker=ticker,
                                 signal="S",
@@ -1000,10 +1014,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                 try:
                     from trade_modules.signal_tracker import log_signal
 
-                    price_raw = df.get(
-                        "price", df.get("PRICE", pd.Series([None] * len(df), index=df.index))
-                    )
-                    row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                    row_price = price_series.loc[idx] if idx in price_series.index else None
                     log_signal(
                         ticker=ticker,
                         signal=actions.loc[idx],
@@ -1048,10 +1059,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                 try:
                     from trade_modules.signal_tracker import log_signal
 
-                    price_raw = df.get(
-                        "price", df.get("PRICE", pd.Series([None] * len(df), index=df.index))
-                    )
-                    row_price = price_raw.loc[idx] if idx in price_raw.index else None
+                    row_price = price_series.loc[idx] if idx in price_series.index else None
                     log_signal(
                         ticker=ticker,
                         signal="H",
@@ -1176,14 +1184,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             try:
                 from trade_modules.signal_tracker import log_signal
 
-                price_raw = df.get(
-                    "price", df.get("PRICE", pd.Series([None] * len(df), index=df.index))
-                )
-                row_price = price_raw.loc[idx] if idx in price_raw.index else None
-                target_raw = df.get(
-                    "target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index))
-                )
-                row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                row_price = price_series.loc[idx] if idx in price_series.index else None
+                row_target = target_series.loc[idx] if idx in target_series.index else None
                 sector_raw = df.get(
                     "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
                 )
@@ -1229,14 +1231,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             try:
                 from trade_modules.signal_tracker import log_signal
 
-                price_raw = df.get(
-                    "price", df.get("PRICE", pd.Series([None] * len(df), index=df.index))
-                )
-                row_price = price_raw.loc[idx] if idx in price_raw.index else None
-                target_raw = df.get(
-                    "target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index))
-                )
-                row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                row_price = price_series.loc[idx] if idx in price_series.index else None
+                row_target = target_series.loc[idx] if idx in target_series.index else None
                 sector_raw = df.get(
                     "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
                 )
@@ -1383,15 +1379,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                     try:
                         from trade_modules.signal_tracker import log_signal
 
-                        price_raw = df.get(
-                            "price", df.get("PRICE", pd.Series([None] * len(df), index=df.index))
-                        )
-                        row_price = price_raw.loc[idx] if idx in price_raw.index else None
-                        target_raw = df.get(
-                            "target_price",
-                            df.get("TARGET", pd.Series([None] * len(df), index=df.index)),
-                        )
-                        row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                        row_price = price_series.loc[idx] if idx in price_series.index else None
+                        row_target = target_series.loc[idx] if idx in target_series.index else None
                         sector_raw = df.get(
                             "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
                         )
@@ -1465,15 +1454,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                     try:
                         from trade_modules.signal_tracker import log_signal
 
-                        price_raw = df.get(
-                            "price", df.get("PRICE", pd.Series([None] * len(df), index=df.index))
-                        )
-                        row_price = price_raw.loc[idx] if idx in price_raw.index else None
-                        target_raw = df.get(
-                            "target_price",
-                            df.get("TARGET", pd.Series([None] * len(df), index=df.index)),
-                        )
-                        row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                        row_price = price_series.loc[idx] if idx in price_series.index else None
+                        row_target = target_series.loc[idx] if idx in target_series.index else None
                         sector_raw = df.get(
                             "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
                         )
@@ -1650,15 +1632,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                 try:
                     from trade_modules.signal_tracker import log_signal
 
-                    price_raw = df.get(
-                        "price", df.get("PRICE", pd.Series([None] * len(df), index=df.index))
-                    )
-                    row_price = price_raw.loc[idx] if idx in price_raw.index else None
-                    target_raw = df.get(
-                        "target_price",
-                        df.get("TARGET", pd.Series([None] * len(df), index=df.index)),
-                    )
-                    row_target = target_raw.loc[idx] if idx in target_raw.index else None
+                    row_price = price_series.loc[idx] if idx in price_series.index else None
+                    row_target = target_series.loc[idx] if idx in target_series.index else None
                     sector_raw = df.get(
                         "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
                     )
@@ -2056,14 +2031,8 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             from trade_modules.signal_tracker import log_signal
 
             # Get price data if available
-            price_raw = df.get(
-                "price", df.get("PRICE", pd.Series([None] * len(df), index=df.index))
-            )
-            row_price = price_raw.loc[idx] if idx in price_raw.index else None
-            target_raw = df.get(
-                "target_price", df.get("TARGET", pd.Series([None] * len(df), index=df.index))
-            )
-            row_target = target_raw.loc[idx] if idx in target_raw.index else None
+            row_price = price_series.loc[idx] if idx in price_series.index else None
+            row_target = target_series.loc[idx] if idx in target_series.index else None
             sector_raw = df.get(
                 "sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index))
             )
