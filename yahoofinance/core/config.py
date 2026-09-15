@@ -488,6 +488,12 @@ COLUMN_NAMES = {
     # Display column names - kept short to minimize table width
     "EARNINGS_DATE": "Earnings Date",
     "BUY_PERCENTAGE": "%B",  # Shortened from %BUY
+    # %BA is the ALL-ANALYST buy percentage. On an 'A' row it equals %B; on an 'E' row %B is
+    # the post-earnings subset's verdict and this is the full panel's. They are NOT the same
+    # denominator: EXEL reads %B 10 on 10 re-rated analysts while 19 cover it. See the capture
+    # in async_yahoo_finance.py for why the all-analyst figure had to be kept explicitly.
+    "BUY_PERCENTAGE_ALL": "%BA",
+    "TOTAL_RATINGS_ALL": "#TA",
     "DIVIDEND_YIELD_DISPLAY": "DV",  # Shortened from DIV%
     "COMPANY_NAME": "NAME",  # Shortened from COMPANY
     "TICKER": "TKR",  # Shortened from TICKER
@@ -553,8 +559,10 @@ STANDARD_DISPLAY_COLUMNS = [
     "TGT",  # Target price
     "UP%",  # Upside percentage
     "#T",  # Number of price targets
-    "%B",  # Buy percentage
+    "%B",  # Buy percentage (POST-EARNINGS subset where A == "E")
+    "%BA",  # Buy percentage, ALL analysts (equals %B where A == "A")
     "#A",  # Number of analysts
+    "#TA",  # Total ratings, all analysts
     "AM",  # Analyst momentum
     "A",  # Rating type
     "E",  # Earnings filter

@@ -209,6 +209,10 @@ def get_column_mapping() -> dict[str, str]:
             "earnings_date": "EARN",
             "analyst_count": "#T",
             "total_ratings": "#A",
+            # ALL-ANALYST twins. On an 'A' row these equal %B / #T; on an 'E' row %B and #A
+            # carry the post-earnings subset and these carry the full panel.
+            "buy_percentage_all": "%BA",
+            "total_ratings_all": "#TA",
             "action": "BS",
             "expected_return": "EXRET",
             "position_size": "SIZE",
@@ -233,6 +237,10 @@ def get_column_mapping() -> dict[str, str]:
             "earnings_date": "EARN",
             "analyst_count": "#T",
             "total_ratings": "#A",
+            # ALL-ANALYST twins. On an 'A' row these equal %B / #T; on an 'E' row %B and #A
+            # carry the post-earnings subset and these carry the full panel.
+            "buy_percentage_all": "%BA",
+            "total_ratings_all": "#TA",
             "action": "BS",
             "expected_return": "EXRET",
             "position_size": "SIZE",
