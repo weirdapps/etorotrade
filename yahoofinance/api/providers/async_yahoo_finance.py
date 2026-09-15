@@ -327,6 +327,13 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["analyst_count"] = analyst_data["analyst_count"]
             info["total_ratings"] = analyst_data["total_ratings"]
             info["buy_percentage"] = analyst_data["buy_percentage"]
+            # The ALL-ANALYST reading, captured before the post-earnings block below can
+            # overwrite buy_percentage/total_ratings. On an 'A' row these stay equal to their
+            # unsuffixed twins; on an 'E' row they are the only surviving record of what the
+            # full analyst panel says. See the block at `has_post_earnings_ratings` for why
+            # that mattered.
+            info["buy_percentage_all"] = analyst_data["buy_percentage"]
+            info["total_ratings_all"] = analyst_data["total_ratings"]
 
             # Calculate analyst momentum (3-month change in buy%)
             momentum_data = calculate_analyst_momentum(yticker)
@@ -350,6 +357,27 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
                 )
                 if post_earnings_result["has_ratings"]:
                     ratings_data = post_earnings_result["ratings_data"]
+                    # PRESERVE THE ALL-ANALYST READING BEFORE IT IS OVERWRITTEN.
+                    #
+                    # The two lines below replace buy_percentage and total_ratings with the
+                    # POST-EARNINGS subset: the analysts who have re-rated since the last
+                    # results. That is a deliberate freshness choice and it stays. What was not
+                    # deliberate is that the all-analyst buy_percentage, computed just above from
+                    # the full recommendations panel, was DESTROYED here rather than kept beside
+                    # it, so no consumer could ever recover it.
+                    #
+                    # The cost of that landed downstream. `analyst_count` is NOT overwritten, so
+                    # the CSV ends up carrying a post-earnings count (#A) next to an all-analyst
+                    # count (#T) and a buy% computed on the FIRST of the two. Altria reads 1 of
+                    # 10 re-rated since results and prints 10%, against 19 analysts covering it;
+                    # a consumer gating on "under 25% of analysts at buy" then refuses a name on
+                    # a denominator it cannot see. EXEL is the live case: buy% 10 on #A 10 while
+                    # #T is 19.
+                    #
+                    # Keeping both is additive: nothing that reads buy_percentage changes
+                    # behaviour, and a consumer that wants the coverage-wide figure now has one.
+                    # It is captured ABOVE, before this branch, so the field is populated on
+                    # every row rather than only on the E ones.
                     info["buy_percentage"] = ratings_data["buy_percentage"]
                     info["total_ratings"] = ratings_data["total_ratings"]
                     info["A"] = "E"
