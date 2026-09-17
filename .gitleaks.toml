@@ -96,6 +96,31 @@ regexes = [
     '''127\.0\.0\.1:.*''',
 ]
 
+# Scoped allowlist: silences ONE rule on ONE PATH, so etoro-position-export-header
+# keeps firing everywhere else in the repo.
+#
+# ACCEPTED BY THE OWNER 2026-09-17, in a full-estate audit that found 110 hits of
+# this rule in history, all under yahoofinance/snapshots/, spanning
+# positions_2026-05-01.csv to positions_2026-07-14.csv. They are the owner's own
+# dated trading positions on a PUBLIC repo. His standing line is that personal
+# positions are fine to expose and anything else is not, so this is accepted
+# rather than rewritten: `git filter-repo` plus a force-push on a public repo is
+# irreversible, and the content is neither secret nor current.
+#
+# Current state is already clean, which is why a path allowlist is safe:
+#   git ls-tree -r --name-only HEAD | grep -c 'yahoofinance/snapshots/'  ->  0
+#   git check-ignore -v yahoofinance/snapshots/                          ->  .gitignore:245
+# So nothing new can land here without someone first un-ignoring the directory.
+#
+# Scoped by PATH rather than by disabling the rule, and NOT pinned as 110
+# fingerprints, which would be unreadable and would go stale on any rebase. A
+# position export committed ANYWHERE ELSE still fails the scan, which is the
+# whole reason the owner wrote the rule.
+[[allowlists]]
+description = "Historical position exports, accepted by the owner 2026-09-17"
+rules = ["etoro-position-export-header"]
+paths = ['''^yahoofinance/snapshots/''']
+
 # Scoped allowlist: silences ONE rule on ONE file rather than globally, so the
 # curl-auth-user rule keeps working everywhere else in the repo.
 # sonarcloud.yml:87 is `curl -sS -u "${SONAR_TOKEN}:"`, a secret passed by

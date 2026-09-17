@@ -1,0 +1,29 @@
+# Commit-pinned exceptions. Each line must state WHY.
+#
+# ACCEPTED BY THE OWNER, 2026-09-17, during a full-estate audit. These are all
+# true positives against rules the owner wrote himself, and none of them is a
+# credential. The decision was accept rather than rewrite, because a
+# `git filter-repo` plus force-push on a PUBLIC repo is irreversible and the
+# content is neither secret nor current.
+#
+# The point of pinning them here rather than widening the rules is that both
+# rules stay LIVE. A new corporate address, or a position export committed
+# anywhere, still fails the scan. Only these four exact blobs are silent.
+#
+# The owner's standing line on this repo: personal trading positions are fine to
+# expose, anything else is not.
+
+# The corporate email address, in three files, cleaned from HEAD long ago
+# (`git grep -iE 'nbg\.gr' HEAD` returns nothing) but permanently in history on
+# a public repo. Earliest 2026-03-02. Accepted: the address is already public on
+# the owner's CV, so a history rewrite would buy nothing it does not already
+# have.
+9657359b73faba3ee7e8ee08978fc119f5ca8707:README.md:nbg-corporate-email:322
+642b5d7150cb1abd857919d3ecc4a23c20e64525:SECURITY.md:nbg-corporate-email:9
+e1a7406dc8fc9adde066ddb21c0a95f4a146a295:SECURITY.md:nbg-corporate-email:9
+7db89f923c9f5764ef83fa4b25716135159ca85d:scripts/briefing/email_sender.py:nbg-corporate-email:15
+
+# NOT listed here, on purpose: the 110 `etoro-position-export-header` hits under
+# yahoofinance/snapshots/. Those are path-allowlisted in .gitleaks.toml instead,
+# because pinning 110 fingerprints would be unreadable and would go stale the
+# moment anything is rebased. See the [allowlist] block there for the reasoning.
