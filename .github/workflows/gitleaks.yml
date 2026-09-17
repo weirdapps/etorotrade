@@ -37,4 +37,10 @@ concurrency:
 
 jobs:
   gitleaks:
-    uses: weirdapps/shared-workflows/.github/workflows/gitleaks.yml@main
+    # weirdapps/shared-workflows gitleaks.yml @main as of 2026-09-17.
+    # PINNED, not @main, deliberately: shared-workflows is PUBLIC, so an
+    # unpinned ref means anything that can push there silently changes what
+    # every repo in the estate scans with. That is a supply-chain hole in the
+    # one control meant to catch supply-chain problems. Dependabot bumps this.
+    # yamllint disable-line rule:line-length
+    uses: weirdapps/shared-workflows/.github/workflows/gitleaks.yml@d1cdfdd859d2159be27f3e0ae0805066b80d335e
