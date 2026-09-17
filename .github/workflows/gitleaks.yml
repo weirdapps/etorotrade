@@ -1,0 +1,40 @@
+name: Secret Scan
+
+# Full-history gitleaks scan, delegated to the shared reusable.
+#
+# GitHub's native secret scanning needs Advanced Security, which this plan does
+# not include for private repos, so on the private half of the estate this job is
+# the only server-side net there is. Pre-commit hooks do not close that gap: they
+# never run for a commit pushed by Actions, made on a machine where the hook was
+# never installed, or made with --no-verify. A live API key sat in another repo's
+# history for 105 days behind exactly that assumption.
+#
+# Scans the full history of the checked-out ref on every trigger, not just the
+# push range. See weirdapps/shared-workflows/.github/workflows/gitleaks.yml for
+# why that needs the pinned binary rather than gitleaks-action.
+#
+# History was proven clean BEFORE this file landed: 1589 commits, 0 findings,
+# gitleaks 8.30.1, 2026-09-17. A gate that lands red on day one teaches the
+# reader to ignore a red gate, which is the habit this exists to break.
+
+"on":
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    # 04:17 UTC Mondays. A repo that was clean at merge time does not stay clean:
+    # the rule set moves, and a value that was inert can be re-issued.
+    - cron: "17 4 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  # A full-history scan per push adds no signal over a burst of pushes.
+  group: gitleaks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    uses: weirdapps/shared-workflows/.github/workflows/gitleaks.yml@main
