@@ -16,7 +16,7 @@ threshold_suggestion,us_mega_BUY_min_roe,114.3,"current=8.0, improvement=+26.1%,
 threshold_suggestion,us_large_BUY_min_roe,43.4,"current=14.0, improvement=+8.7%, p=0.006330167901207107, FDR-significant",,98
 threshold_suggestion,us_mid_SELL_max_upside,34.4,"current=7.5, improvement=+91.4%, p=2.0884908735752106e-07, FDR-significant",,59
 threshold_suggestion,hk_large_BUY_min_upside,54.7,"current=18, improvement=+13.0%, p=0.04007165622897446, FDR-significant",,82
-regime_performance,risk_on_B,67.8,"mean_return=3.78%, alpha=1.24, alpha_hit_rate=55.3",,478
-regime_performance,risk_on_S,42.2,"mean_return=2.68%, alpha=0.09, alpha_hit_rate=47.0",,83
+regime_performance,risk_on_B,67.8,"mean_return=3.79%, alpha=1.24, alpha_hit_rate=55.3",,478
+regime_performance,risk_on_S,42.2,"mean_return=2.67%, alpha=0.08, alpha_hit_rate=47.0",,83
 regime_performance,neutral_B,74.1,"mean_return=4.87%, alpha=0.86, alpha_hit_rate=57.3",,239
 regime_performance,neutral_S,33.3,"mean_return=5.18%, alpha=1.14, alpha_hit_rate=41.0",,39

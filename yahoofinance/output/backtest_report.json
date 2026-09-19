@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-15T21:42:24.340798",
-  "generated_date": "2026-09-15",
+  "generated_at": "2026-09-19T09:34:14.132554",
+  "generated_date": "2026-09-19",
   "signal_backtest": {
     "status": "complete",
     "metrics": {
@@ -15,23 +15,23 @@
         "proven_signal": true
       },
       "t7_H": {
-        "count": 998,
-        "hit_rate": 63.8,
-        "hit_rate_ci_lo": 61.4,
-        "hit_rate_ci_hi": 66.2,
-        "alpha_hit_rate": 29.2,
-        "mean_return": 1.31,
+        "count": 1006,
+        "hit_rate": 64.1,
+        "hit_rate_ci_lo": 61.5,
+        "hit_rate_ci_hi": 66.7,
+        "alpha_hit_rate": 29.1,
+        "mean_return": 1.32,
         "avg_alpha": 0.4,
         "proven_signal": true
       },
       "t7_S": {
-        "count": 256,
-        "hit_rate": 51.6,
-        "hit_rate_ci_lo": 46.5,
-        "hit_rate_ci_hi": 57.0,
-        "alpha_hit_rate": 55.9,
-        "mean_return": -0.08,
-        "avg_alpha": -0.56,
+        "count": 263,
+        "hit_rate": 50.2,
+        "hit_rate_ci_lo": 45.2,
+        "hit_rate_ci_hi": 55.5,
+        "alpha_hit_rate": 55.6,
+        "mean_return": 0.01,
+        "avg_alpha": -0.54,
         "proven_signal": false
       },
       "t30_B": {
@@ -41,15 +41,15 @@
         "hit_rate_ci_hi": 74.3,
         "alpha_hit_rate": 56.0,
         "mean_return": 4.15,
-        "avg_alpha": 1.11,
+        "avg_alpha": 1.12,
         "proven_signal": true
       },
       "t30_H": {
         "count": 632,
         "hit_rate": 30.7,
-        "hit_rate_ci_lo": 27.8,
-        "hit_rate_ci_hi": 35.1,
-        "alpha_hit_rate": 15.0,
+        "hit_rate_ci_lo": 27.9,
+        "hit_rate_ci_hi": 35.2,
+        "alpha_hit_rate": 15.2,
         "mean_return": 3.74,
         "avg_alpha": 0.53,
         "proven_signal": true
@@ -57,10 +57,10 @@
       "t30_S": {
         "count": 122,
         "hit_rate": 39.3,
-        "hit_rate_ci_lo": 20.8,
+        "hit_rate_ci_lo": 21.7,
         "hit_rate_ci_hi": 54.2,
         "alpha_hit_rate": 45.1,
-        "mean_return": 3.48,
+        "mean_return": 3.47,
         "avg_alpha": 0.42,
         "proven_signal": false
       },
@@ -68,10 +68,10 @@
         "count": 103,
         "hit_rate": 68.0,
         "hit_rate_ci_lo": 63.7,
-        "hit_rate_ci_hi": 69.6,
+        "hit_rate_ci_hi": 69.7,
         "alpha_hit_rate": 58.0,
         "mean_return": 3.33,
-        "avg_alpha": 1.5,
+        "avg_alpha": 1.51,
         "proven_signal": true
       },
       "t60_H": {
@@ -80,8 +80,8 @@
         "hit_rate_ci_lo": 20.7,
         "hit_rate_ci_hi": 41.4,
         "alpha_hit_rate": 12.8,
-        "mean_return": 2.49,
-        "avg_alpha": 0.93,
+        "mean_return": 2.44,
+        "avg_alpha": 0.87,
         "proven_signal": true
       },
       "t60_S": {
@@ -90,8 +90,8 @@
         "hit_rate_ci_lo": 7.7,
         "hit_rate_ci_hi": 28.2,
         "alpha_hit_rate": 46.7,
-        "mean_return": 20.99,
-        "avg_alpha": -4.17,
+        "mean_return": 20.98,
+        "avg_alpha": -4.2,
         "proven_signal": true
       },
       "t90_S": {
@@ -100,7 +100,7 @@
         "hit_rate_ci_lo": 0.0,
         "hit_rate_ci_hi": 0.0,
         "alpha_hit_rate": null,
-        "mean_return": 28.76,
+        "mean_return": 27.98,
         "avg_alpha": null,
         "proven_signal": false
       }
@@ -439,11 +439,11 @@
     }
   },
   "scorecard": {
-    "buy_total": 149,
-    "buy_alpha_hit_rate_7d": 41.6,
-    "buy_alpha_hit_rate_30d": 54.4,
-    "buy_avg_alpha_7d": -1.06,
-    "buy_avg_alpha_30d": 0.27,
+    "buy_total": 93,
+    "buy_alpha_hit_rate_7d": 46.2,
+    "buy_alpha_hit_rate_30d": 55.9,
+    "buy_avg_alpha_7d": -0.89,
+    "buy_avg_alpha_30d": 0.92,
     "conviction_predictive": "False"
   },
   "calibration": {
@@ -457,15 +457,15 @@
     "buy_net_avg_alpha_t7": 0,
     "buy_net_alpha_hit_rate_t7": 0,
     "buy_count_t7": 1282,
-    "sell_hit_rate_t7": 51.6,
-    "sell_alpha_hit_rate_t7": 55.9,
-    "sell_avg_alpha_t7": -0.56,
+    "sell_hit_rate_t7": 50.2,
+    "sell_alpha_hit_rate_t7": 55.6,
+    "sell_avg_alpha_t7": -0.54,
     "sell_net_avg_alpha_t7": 0,
     "sell_net_alpha_hit_rate_t7": 0,
-    "sell_count_t7": 256,
+    "sell_count_t7": 263,
     "buy_hit_rate_t30": 69.9,
     "buy_alpha_hit_rate_t30": 56.0,
-    "buy_avg_alpha_t30": 1.11,
+    "buy_avg_alpha_t30": 1.12,
     "buy_net_avg_alpha_t30": 0,
     "buy_net_alpha_hit_rate_t30": 0,
     "sell_hit_rate_t30": 39.3,
@@ -475,13 +475,13 @@
     "sell_net_alpha_hit_rate_t30": 0,
     "buy_hit_rate_t60": 68.0,
     "buy_alpha_hit_rate_t60": 58.0,
-    "buy_avg_alpha_t60": 1.5,
+    "buy_avg_alpha_t60": 1.51,
     "buy_net_avg_alpha_t60": 0,
     "buy_net_alpha_hit_rate_t60": 0,
     "buy_count_t60": 103,
     "sell_hit_rate_t60": 17.9,
     "sell_alpha_hit_rate_t60": 46.7,
-    "sell_avg_alpha_t60": -4.17,
+    "sell_avg_alpha_t60": -4.2,
     "sell_net_avg_alpha_t60": 0,
     "sell_net_alpha_hit_rate_t60": 0,
     "sell_count_t60": 39,
@@ -574,14 +574,14 @@
   },
   "conviction_cells": {
     "total_observations": 4158,
-    "aggregate_spearman": 0.105,
-    "high_ic_cell_count": 4,
-    "low_ic_cell_count": 8,
-    "recommendation": "4 high-IC cells (|\u03c1|\u22650.3) \u2014 boost conviction weight in these cells. 8 low-IC cells (|\u03c1|<0.10) \u2014 damp conviction in these cells (treat as a coin flip). Aggregate \u03c1=+0.105 (n=4158)."
+    "aggregate_spearman": -0.054,
+    "high_ic_cell_count": 5,
+    "low_ic_cell_count": 6,
+    "recommendation": "5 high-IC cells (|\u03c1|\u22650.3) \u2014 boost conviction weight in these cells. 6 low-IC cells (|\u03c1|<0.10) \u2014 damp conviction in these cells (treat as a coin flip). Aggregate \u03c1=-0.054 (n=4158)."
   },
   "debate_scorecard_summary": {
     "control_n": 4087,
-    "verdict": "NEGATIVE_EDGE \u2014 weighted excess \u03b1 = -2.70pp. Debate adjustments are HARMFUL \u2014 flip the sign or disable."
+    "verdict": "POSITIVE_EDGE \u2014 weighted excess \u03b1 = +5.89pp. Debate is adding value."
   },
   "bayesian_likelihoods_summary": {
     "evidence_total": 4158,
