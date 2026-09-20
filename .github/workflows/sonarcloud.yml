@@ -9,6 +9,16 @@ on:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
+# Minimal token scope. Added 2026-09-20: this workflow had no
+# permissions: key, so GITHUB_TOKEN arrived with the repository default,
+# which is write across contents, issues, pull-requests and more.
+# pull-requests: write is kept on purpose: the SonarCloud action uses
+# GITHUB_TOKEN to decorate the pull request, and that is the one write
+# this job legitimately performs. contents stays read.
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   sonarcloud:
     if: ${{ !github.event.repository.private }}
