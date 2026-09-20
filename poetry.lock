@@ -6713,4 +6713,4 @@ smoketest = ["pytest", "pytest-rerunfailures"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "7c57959aee0918767bfe601fe5a7d83040ed1d6344481a3f17804f1046da5e27"
+content-hash = "029a9636050883ca4566ea8bd23c08bbc7b58e394eb29cd62394d294b51df056"

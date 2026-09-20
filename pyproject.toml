@@ -27,7 +27,7 @@ dependencies = [
     "numpy>=2.2.6,<3.0.0",
     "matplotlib>=3.4.0,<4.0.0",
     "yfinance==1.7.0",
-    "lxml>=6.1.1",  # yfinance declares lxml>=4.9.0 itself; floor raised to 6.1.1, the value the sibling pts-signals package declares (this repo locks 6.1.2, above it)
+    "lxml>=6.1.3",  # yfinance declares lxml>=4.9.0 itself; floor tracks the sibling pts-signals package (packages/signals/pyproject.toml:14), which is also what this repo locks
     "yahooquery>=2.3.7",
     # Deliberately UNCAPPED, unlike its pandas/numpy/matplotlib neighbours.
     # The old <3.0.0 arrived as house style in a6d608b2 with no comment, no
