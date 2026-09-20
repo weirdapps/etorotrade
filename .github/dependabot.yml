@@ -52,3 +52,34 @@ updates:
       github-actions:
         patterns:
           - "*"
+
+  # Two Dockerfiles, both `FROM python:3.11-slim` (Dockerfile:2 and
+  # .config/docker/Dockerfile:5). A base image is the one dependency that
+  # accumulates OS-level CVEs while the tag never changes, so without these
+  # entries the image silently rots: the pip ecosystem above sees the Python
+  # packages inside the image and nothing at all sees the image itself.
+  # Dependabot keys `docker` off the directory holding the Dockerfile, so the
+  # two locations need one entry each.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  - package-ecosystem: "docker"
+    directory: "/.config/docker"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
