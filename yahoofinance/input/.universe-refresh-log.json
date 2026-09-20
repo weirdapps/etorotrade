@@ -1,18 +1,22 @@
 {
-  "timestamp": "2026-09-13T22:51:37.741320+00:00",
-  "total_count": 10375,
-  "new_count": 5,
-  "removed_count": 3,
+  "timestamp": "2026-09-20T22:58:01.665178+00:00",
+  "total_count": 10385,
+  "new_count": 11,
+  "removed_count": 1,
   "sample_new": [
-    "ALHYF.PA",
-    "ALPER.PA",
-    "ANTH",
-    "BTAIQ",
-    "OPENAI"
+    "ACT0.DE",
+    "EDEL.DE",
+    "EEAP.DE",
+    "ETRA",
+    "HNUC",
+    "OIG",
+    "SKHY.24-7.",
+    "SPUN OFF 2550972D",
+    "VGLA.DE",
+    "VGSA.DE",
+    "VXUS.DE"
   ],
   "sample_removed": [
-    "BTAI",
-    "LHYFE.PA",
-    "PERR.PA"
+    "ACT.DE"
   ]
 }

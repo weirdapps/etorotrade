@@ -843,7 +843,7 @@ TPC,Tutor Perini Corp,NYSE
 PII,Polaris Industries Inc,NYSE
 RACE,Ferrari NV,NYSE
 NVR,NVR Inc,NYSE
-FWONA,Liberty Media Formula One Corp Series A ,Nasdaq
+FWONA,Liberty Media Corp,Nasdaq
 ENR,Energizer Holdings Inc,NYSE
 BLMN,Bloomin Brands Inc,Nasdaq
 WLK,Westlake Chemical Corp,NYSE
@@ -2520,7 +2520,7 @@ IONS,Ionis Pharmaceuticals,Nasdaq
 IPGP,Ipg Photonics Corp.,Nasdaq
 TT,Trane Technologies,NYSE
 JAZZ,Jazz Pharmaceuticals,Nasdaq
-KHC,Kraft Heinz Co,Nasdaq
+KHC,Kraft Heinz Co,NYSE
 KRO,Kronos Worldwide Inc,NYSE
 LAMR,Lamar Advertising Company,Nasdaq
 LBTYA,Liberty Global A,Nasdaq
@@ -6420,7 +6420,7 @@ CDAQF,Compass Digital Acquisition,OTC Markets
 NFSCF,Enphys Acquisition Corp,NYSE
 KIDZ,KIDZ AI Inc,Nasdaq
 NCK.AX,Nick Scali Ltd,ASX
-IVCBF,Investcorp Europe Acquisi-A,OTC Markets
+IVCBF,Invest Acquisition Corp,OTC Markets
 METV,Roundhill Ball Metaverse Etf,NYSE
 DRCT,Direct Digital Holdings In-A,Nasdaq
 OR,OR Royalties Ltd,NYSE
@@ -7851,7 +7851,7 @@ DBAN.DE,Deutsche Beteiligungs AG,FRA
 2GB.DE,2G Energy AG,FRA
 BDT.DE,Bertrandt AG,FRA
 D6H0.DE,Datagroup SE,FRA
-ACT.DE,Alzchem Group AG,FRA
+ACT0.DE,Alzchem Group AG,FRA
 RY4C.DE,Ryanair Holdings PLC,FRA
 VOS.DE,Vossloh AG,FRA
 INH.DE,Indus Holding AG,FRA
@@ -10253,6 +10253,10 @@ ADBT,Advasa Holdings Inc,Nasdaq
 APPTEST,Pre-IPO App Test,Nasdaq
 ANTH,Anthropic,Nasdaq
 OPENAI,OpenAI Group,Nasdaq
+SKHY.24-7.,SK hynix 24/7,
+HNUC,Holtec Nuclear Corporation,Nasdaq
+OIG,Orion180 Insurance Group Inc,Nasdaq
+ETRA,"Electra Therapeutics, Inc",Nasdaq
 CSQR,"Csquare, Inc",NYSE
 STDN,"Standard Nuclear, Inc",NYSE
 JMKE,Jersey Mike’s Subs Inc,NYSE
@@ -10260,6 +10264,7 @@ REF,Reformation Inc,NYSE
 ADIG,ADI Global Distribution Inc,NYSE
 IMC,IMC Rare Earths Ltd,NYSE
 FOIL,Londian Wason New Energy Tech Inc,NYSE
+SPUN OFF 2550972D,Spun off 2550972D,NYSE
 LYNX,Lyntris Inc,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
 0625.HK,Shein Global Holdings,HKEX
@@ -10294,6 +10299,8 @@ CTEC,Global X ClimateTech ETF,Nasdaq
 ILIT,iShares Lithium Miners and Producers ETF,Nasdaq
 VBIL,Vanguard 0-3 Month Treasury Bill ETF,Nasdaq
 WGMI,CoinShares ETF Trust CoinShares Bitcoin Mining and Digital Power ETF,Nasdaq
+EDEL.DE,BNP Paribas Easy MSCI ACWI UCITS ETF Acc,Xetra ETFs
+EEAP.DE,BNP Paribas Easy MSCI World ex USA UCITS ETF Cap,Xetra ETFs
 EUV,Corgi Lithography & Semiconductor Photonics ETF,NYSE
 CGGR,Capital Group Growth ETF,NYSE
 PYLD,PIMCO Multisector Bond Active ETF,NYSE
@@ -10374,3 +10381,6 @@ GLRE.L,SS SPDR Dow Jones Global Real Estate UCITS ETF,LSE
 SXLB.L,SS SPDR S&P US Materials Select Sector UCITS ETF,LSE
 SXLC.L,SS SPDR S&P US Communication Services Select Sector UCITS ETF,LSE
 MXUS.L,Invesco MSCI USA UCITS ETF,LSE
+VGLA.DE,Vanguard FTSE Global All-Cap UCITS ETF USD Acc,Xetra ETFs
+VGSA.DE,Vanguard FTSE Global Small-Cap UCITS ETF USD Acc,Xetra ETFs
+VXUS.DE,Vanguard FTSE All-World Ex-US UCITS ETF USD Acc,Xetra ETFs
