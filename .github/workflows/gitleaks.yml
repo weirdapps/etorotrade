@@ -43,4 +43,4 @@ jobs:
     # every repo in the estate scans with. That is a supply-chain hole in the
     # one control meant to catch supply-chain problems. Dependabot bumps this.
     # yamllint disable-line rule:line-length
-    uses: weirdapps/shared-workflows/.github/workflows/gitleaks.yml@d1cdfdd859d2159be27f3e0ae0805066b80d335e
+    uses: weirdapps/shared-workflows/.github/workflows/gitleaks.yml@bc40a10151c193eddd62f6fcd42d1670c1c1a3e1
