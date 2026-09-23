@@ -1,235 +1,57 @@
-"""Tests for scripts/validate_brief.py.
+"""scripts/validate_brief.py is a pointer to the ported validator in plessas-trading-stack.
 
-The validator cross-checks every numerical claim in a midday-brief draft
-against the yfinance market snapshot. It must reject invented numbers
-without flagging legitimate news-sourced data.
-
-Regression context (2026-05-12): the validator false-positived on
-stock-specific percentages cited next to a $TICKER (e.g. "$NWG.L -4.7%")
-and on market-cap notation like "$4T". Both came from MCP news, not from
-the snapshot, and both should be skipped — only macro indices, futures,
-commodities, FX, and yields are snapshot-validatable.
+The validator's logic, and the regression cases this file used to pin (2026-05-12 ticker and
+market-cap false positives, 2026-08-07 directional claims), moved with it to
+plessas-trading-stack/plugins/etoro-social/tests/test_validate_brief.py, where that repo's CI
+runs them. What is left to test here is the pointer's one promise: it never passes on its own.
 """
 
-import importlib.util
+import subprocess
+import sys
 from pathlib import Path
-
-import pytest
 
 SCRIPT_PATH = Path(__file__).parent.parent.parent.parent / "scripts" / "validate_brief.py"
 
 
-@pytest.fixture(scope="module")
-def vb():
-    spec = importlib.util.spec_from_file_location("validate_brief", SCRIPT_PATH)
-    assert spec is not None and spec.loader is not None
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+def test_the_pointer_holds_no_validation_logic():
+    src = SCRIPT_PATH.read_text()
+    assert "DISPLAY_TO_TICKER" not in src and "def validate(" not in src
 
 
-@pytest.fixture
-def snapshot():
-    """Minimal snapshot mirroring the 2026-05-12 run."""
-    return {
-        "instruments": {
-            "^GDAXI": {"price": 24087.91, "prev_close": 24350.28, "change_pct": -1.08},
-            "^FCHI": {"price": 8008.94, "prev_close": 8056.38, "change_pct": -0.59},
-            "^STOXX": {"price": 608.86, "prev_close": 612.79, "change_pct": -0.64},
-            "^FTSE": {"price": 10231.34, "prev_close": 10269.4, "change_pct": -0.37},
-            "^N225": {"price": 62742.57, "prev_close": 62417.88, "change_pct": 0.52},
-            "^KS11": {"price": 7643.15, "prev_close": 7822.24, "change_pct": -2.29},
-            "BZ=F": {"price": 107.84, "prev_close": 104.20, "change_pct": 3.49},
-            "CL=F": {"price": 101.83, "prev_close": 98.10, "change_pct": 3.80},
-        }
-    }
+def test_with_the_stack_absent_the_pointer_REFUSES_with_exit_2(tmp_path):
+    """Exit 2 is the validator's usage-error code; every caller reads non-zero as not passed."""
+    post, snap = tmp_path / "post.txt", tmp_path / "snap.json"
+    post.write_text("S&P futures +0.90%.")
+    snap.write_text('{"instruments": {}}')
+    r = subprocess.run(
+        [sys.executable, str(SCRIPT_PATH), str(post), str(snap)],
+        env={"HOME": str(tmp_path / "no-stack-here"), "PATH": "/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert r.returncode == 2
+    assert "moved to plessas-trading-stack" in r.stderr
 
 
-class TestTickerAttributedPercentages:
-    """Percentages cited next to a $TICKER are news-sourced (came from MCP
-    news_reader) and not validatable against the macro snapshot. Skip them."""
-
-    def test_uk_bank_moves_are_skipped(self, vb, snapshot):
-        text = (
-            "UK political crisis. $NWG.L -4.7%, $LLOY.L -4.3%, $BARC.L -4.1%. "
-            "Sterling and gilts both wobbling."
-        )
-        result = vb.validate(text, snapshot)
-        assert not result["pct_errors"], (
-            f"Ticker-attributed percentages should be skipped, got: {result['pct_errors']}"
-        )
-
-    def test_ticker_with_plus_percentage(self, vb, snapshot):
-        text = "Memory rally continues; $MU +37% on the week."
-        result = vb.validate(text, snapshot)
-        assert not result["pct_errors"]
-
-    def test_distant_ticker_does_not_attribute(self, vb, snapshot):
-        # Ticker far from the percentage — should NOT attribute.
-        # -9.9% is not in the snapshot and not in news context, so this should fail.
-        text = (
-            "$NVDA had a rough day on the open. Sector rotation playing out "
-            "through midday across the tape with broader semiconductor "
-            "weakness pulling the cohort lower. The print landed at -9.9% "
-            "by lunchtime."
-        )
-        result = vb.validate(text, snapshot)
-        assert result["pct_errors"], "Distant ticker should not whitelist the percentage"
-
-
-class TestMarketCapSuffix:
-    """$NT / $NB / $NM is market-cap notation, not a price. Skip."""
-
-    def test_dollar_4t_is_not_a_price(self, vb, snapshot):
-        text = "$AVGO market is its own gravity now; the >$4T cap dwarfs everything else."
-        result = vb.validate(text, snapshot)
-        assert not result["price_errors"], (
-            f"$4T cap notation should be skipped, got: {result['price_errors']}"
-        )
-
-    def test_dollar_800b_is_not_a_price(self, vb, snapshot):
-        text = "$MU cleared $800B market cap this morning."
-        result = vb.validate(text, snapshot)
-        assert not result["price_errors"]
-
-    def test_dollar_50m_is_not_a_price(self, vb, snapshot):
-        text = "Buyback authorization lifted to $50M for the year."
-        result = vb.validate(text, snapshot)
-        assert not result["price_errors"]
-
-    def test_lowercase_4tn_is_not_a_price(self, vb, snapshot):
-        text = "$AVGO market cap pushed past $4tn this week."
-        result = vb.validate(text, snapshot)
-        assert not result["price_errors"]
-
-    def test_genuine_price_still_validates(self, vb, snapshot):
-        # Brent at $107.84 matches snapshot — should pass.
-        text = "Oil rips. Brent at $107.84, WTI at $101.83."
-        result = vb.validate(text, snapshot)
-        assert not result["price_errors"], (
-            f"Snapshot-matching prices should pass, got: {result['price_errors']}"
-        )
-
-    def test_invented_price_still_fails(self, vb, snapshot):
-        # Brent at $200 doesn't match snapshot ($107.84) — should fail.
-        text = "Oil rips to historic levels. Brent at $200 today."
-        result = vb.validate(text, snapshot)
-        assert result["price_errors"], "Invented price should be flagged"
-
-
-class TestSnapshotMatchingStillWorks:
-    """Regression guard: legitimate snapshot data must still validate."""
-
-    def test_index_percentages_match_snapshot(self, vb, snapshot):
-        text = (
-            "Asia: Nikkei +0.5%, KOSPI -2.3% on profit-taking. "
-            "Europe heavy: DAX -1.1%, CAC -0.6%, FTSE -0.4%, Stoxx 600 -0.6%."
-        )
-        result = vb.validate(text, snapshot)
-        assert not result["pct_errors"], (
-            f"Snapshot-matching index moves should pass, got: {result['pct_errors']}"
-        )
-
-    def test_invented_index_percentage_fails(self, vb, snapshot):
-        # DAX at +9.9% is nowhere in the snapshot — should fail.
-        text = "DAX ripped +9.9% on the open, blowing past every prior record."
-        result = vb.validate(text, snapshot)
-        assert result["pct_errors"], "Invented index move should be flagged"
-
-
-class TestDirectionalClaims:
-    """Regression context (2026-08-07): the brief published "$TEAM sank as profit
-    fears outran AI enthusiasm" while Atlassian was +32% pre-market on earnings.
-
-    The claim was paraphrased from a stale Google News headline describing the
-    previous session. Nothing in the pipeline held a TEAM price (the snapshot
-    carries 20 macro instruments only), and the validator checked numbers, so a
-    directional verb carrying no digits passed unexamined.
-    """
-
-    def test_sank_when_stock_rose_is_rejected(self, vb, snapshot):
-        text = "$TEAM sank as profit fears outran AI enthusiasm. $NVDA."
-        result = vb.validate(text, snapshot, quote_moves={"TEAM": 32.16})
-        assert [e["ticker"] for e in result["direction_errors"]] == ["TEAM"]
-        assert result["direction_errors"][0]["actual_pct"] == 32.16
-        assert not result["passed"]
-
-    def test_sank_when_stock_fell_is_accepted(self, vb, snapshot):
-        text = "$TEAM sank as profit fears outran AI enthusiasm."
-        result = vb.validate(text, snapshot, quote_moves={"TEAM": -2.78})
-        assert not result["direction_errors"]
-
-    def test_noun_form_before_ticker_is_detected(self, vb, snapshot):
-        text = "The selloff in $TEAM continued into a second session."
-        result = vb.validate(text, snapshot, quote_moves={"TEAM": 32.16})
-        assert [e["ticker"] for e in result["direction_errors"]] == ["TEAM"]
-
-    def test_flat_move_is_not_an_inversion(self, vb, snapshot):
-        # Imprecise wording on a 0.2% move is not a factual inversion.
-        text = "$TEAM slipped in quiet trade."
-        result = vb.validate(text, snapshot, quote_moves={"TEAM": 0.2})
-        assert not result["direction_errors"]
-
-    def test_ticker_without_direction_word_is_skipped(self, vb, snapshot):
-        text = "AI capex is being rebuilt in silicon. $NVDA $TEAM."
-        result = vb.validate(text, snapshot, quote_moves={"NVDA": -8.0, "TEAM": 32.16})
-        assert not result["direction_errors"]
-
-    def test_direction_word_in_next_sentence_does_not_attach(self, vb, snapshot):
-        text = "AI capex is being rebuilt in silicon. $NVDA. Gold rose to a record."
-        result = vb.validate(text, snapshot, quote_moves={"NVDA": -8.0})
-        assert not result["direction_errors"]
-
-    def test_missing_quote_does_not_block_the_post(self, vb, snapshot):
-        # yfinance being unavailable must not kill the day's brief.
-        text = "$TEAM sank as profit fears outran AI enthusiasm."
-        result = vb.validate(text, snapshot, quote_moves={})
-        assert not result["direction_errors"]
-
-    def test_unchecked_tickers_are_reported(self, vb, snapshot):
-        text = "$TEAM sank as profit fears outran AI enthusiasm."
-        result = vb.validate(text, snapshot, quote_moves={})
-        assert result["directions_unchecked"] == ["TEAM"]
-
-
-class TestQuoteMoveSelection:
-    """The inverted claim traced to a session mismatch: Atlassian was -2.78% in
-    Thursday's regular session and +32.16% in Friday's pre-market after earnings.
-    A midday-Athens brief describes the extended session, not the last close."""
-
-    def test_premarket_move_is_preferred_over_regular_session(self, vb):
-        info = {"preMarketChangePercent": 32.16, "regularMarketChangePercent": -2.78}
-        assert vb.move_from_quote(info) == 32.16
-
-    def test_postmarket_move_is_preferred_over_regular_session(self, vb):
-        info = {"postMarketChangePercent": -6.4, "regularMarketChangePercent": 1.1}
-        assert vb.move_from_quote(info) == -6.4
-
-    def test_regular_move_used_when_no_extended_session(self, vb):
-        # European names trade during an Athens midday post, no pre/post session.
-        info = {"preMarketChangePercent": None, "regularMarketChangePercent": 1.5}
-        assert vb.move_from_quote(info) == 1.5
-
-    def test_returns_none_when_quote_is_empty(self, vb):
-        assert vb.move_from_quote({}) is None
-
-
-class TestRealWorldDraft:
-    """The 2026-05-12 brief that triggered this fix should now pass."""
-
-    def test_full_post_passes(self, vb, snapshot):
-        post = (
-            "𝗠𝗶𝗱𝗱𝗮𝘆 𝗯𝗿𝗶𝗲𝗳 | 𝗧𝘂𝗲𝘀𝗱𝗮𝘆 𝟭𝟮 𝗠𝗮𝘆\n\n"
-            "Asia mixed. Nikkei +0.5%, Hang Seng -0.2%, KOSPI -2.3%.\n\n"
-            "Europe is heavy. Stoxx 600 -0.6%, DAX -1.1%, CAC -0.6%, FTSE -0.4%.\n\n"
-            "1. Brent +3.5% to $107.84, WTI +3.8% to $101.83. "
-            "Energy bid: $XOM, $CVX, $SHEL.L, $BP.L all working.\n\n"
-            "2. UK crisis. $NWG.L -4.7%, $LLOY.L -4.3%, $BARC.L -4.1%.\n\n"
-            "3. $MU cleared $800B market cap, +37% on the week.\n\n"
-            "$AVGO and the >$4T cap is its own gravity now.\n"
-        )
-        result = vb.validate(post, snapshot)
-        assert result["passed"], (
-            f"Post should pass: pct_errors={result['pct_errors']}, "
-            f"price_errors={result['price_errors']}, ticker_errors={result['ticker_errors']}"
-        )
+def test_the_pointer_forwards_its_arguments_and_exit_code(tmp_path):
+    target = (
+        tmp_path
+        / "SourceCode"
+        / "plessas-trading-stack"
+        / "plugins"
+        / "etoro-social"
+        / "scripts"
+        / "validate_brief.py"
+    )
+    target.parent.mkdir(parents=True)
+    target.write_text("import sys; print('forwarded', sys.argv[1:]); sys.exit(1)\n")
+    r = subprocess.run(
+        [sys.executable, str(SCRIPT_PATH), "a.txt", "b.json"],
+        env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert r.returncode == 1
+    assert "forwarded ['a.txt', 'b.json']" in r.stdout
