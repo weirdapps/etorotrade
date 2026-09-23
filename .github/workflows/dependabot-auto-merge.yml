@@ -13,7 +13,7 @@ jobs:
     # checks and merges once they are green. Majors stay open for review.
     # weirdapps/shared-workflows dependabot-auto-merge.yml @main as of 2026-08-17
     # yamllint disable-line rule:line-length
-    uses: weirdapps/shared-workflows/.github/workflows/dependabot-auto-merge.yml@738cb3809962f7a025db67266dad072166b7549b
+    uses: weirdapps/shared-workflows/.github/workflows/dependabot-auto-merge.yml@d6d3dd962e803eaeb56330fff30db2757a996990
     with:
       # pip is excluded deliberately. This repo's source of truth is
       # poetry.lock, but pip-Dependabot edits only the DERIVED
