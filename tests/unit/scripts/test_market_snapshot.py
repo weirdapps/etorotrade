@@ -159,6 +159,29 @@ def test_an_unmatched_rolling_quote_is_left_out_not_guessed(market):
     assert any(e.startswith("BZ=F (Brent crude)") for e in snap["errors"])
 
 
+def test_a_candidate_that_raises_is_skipped_not_fatal(market, monkeypatch):
+    frames, _, snapshot = market
+    ny = "America/New_York"
+    frames["ES=F", "1d"] = daily(
+        ny, [("2026-09-23", 7830.0, 7772.5), ("2026-09-24", 7774.75, 7732.75)]
+    )
+    frames["ESZ26.CME", "1d"] = daily(
+        ny, [("2026-09-23", 7830.0, 7772.5), ("2026-09-24", 7774.75, 7732.75)]
+    )
+    served = ms._history
+
+    def history(symbol, period="5d", interval="1d"):
+        if symbol == "ESU26.CME":
+            raise RuntimeError("Quote not found for symbol: ESU26.CME")
+        return served(symbol, period=period, interval=interval)
+
+    monkeypatch.setattr(ms, "_history", history)
+
+    es = snapshot({"ES=F": "S&P 500 futures"})["instruments"]["ES=F"]
+
+    assert (es["contract"], es["change_pct"]) == ("ESZ26.CME", -0.51)
+
+
 # --- FX --------------------------------------------------------------------------------------
 
 

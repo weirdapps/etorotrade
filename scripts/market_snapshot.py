@@ -104,7 +104,10 @@ def _same_contract(ticker: str, hist) -> tuple:
     last_date = hist.index[-1].date()
     best = None
     for symbol in _dated_contracts(ticker, last_date):
-        dated = _history(symbol, period="5d")
+        try:
+            dated = _history(symbol, period="5d")
+        except Exception:
+            continue  # an unlisted or expired symbol must not sink the instrument
         if len(dated) < 2 or dated.index[-1].date() != last_date:
             continue  # no data, or an expired contract's stale history
         gap = abs(float(dated["Close"].iloc[-1]) - last) / last
@@ -131,7 +134,10 @@ def _skipped_session_close(ticker: str, prev_date, last_date):
     ]
     if not gaps:
         return None
-    bars = _history(ticker, period="5d", interval="30m")
+    try:
+        bars = _history(ticker, period="5d", interval="30m")
+    except Exception:
+        return None
     if bars.empty:
         return None
     for day in reversed(gaps):
