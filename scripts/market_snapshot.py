@@ -72,9 +72,11 @@ CONTRACT_WINDOW_MONTHS = 5
 #: (Brent Nov/Dec was ~5% on 24 Sep 2026); where they are not, either match is a same-contract move.
 CONTRACT_MATCH_TOLERANCE = 0.005
 
-#: Instruments with no bar before their session opens, and its local opening time. At 14:00
-#: Athens the latest ^TNX bar is always the previous US session, which is not a holiday.
-SESSION_OPEN = {"^TNX": ("America/New_York", 8, 0)}
+#: Instruments with no bar before their session opens, and the local time by which the day's
+#: first bar is always in. Yahoo's first ^TNX bar lands around 08:20 New York, and 14:00 Athens
+#: is 08:00 there in the weeks the EU and US summer-time calendars differ, so the bound is the
+#: 09:30 cash open. Before it, the latest ^TNX bar is the previous session, not a holiday.
+SESSION_OPEN = {"^TNX": ("America/New_York", 9, 30)}
 
 
 def _history(symbol: str, **kwargs):

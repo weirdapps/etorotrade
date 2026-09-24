@@ -286,6 +286,22 @@ def test_the_us_yield_before_the_us_session_is_pre_open_not_a_holiday(market):
     assert snap["holidays_detected"] == []
 
 
+def test_pre_open_holds_in_the_weeks_the_dst_calendars_differ(market):
+    """Europe leaves summer time on 25 Oct 2026, the US on 1 Nov: 14:03 Athens is 08:03 in
+    New York that week, and Yahoo's first ^TNX bar lands around 08:20."""
+    frames, _, snapshot = market
+    frames["^TNX", "1d"] = daily(
+        "America/Chicago", [("2026-10-23", 4.90, 4.91), ("2026-10-26", 4.91, 4.93)]
+    )
+
+    snap = snapshot(
+        {"^TNX": "10Y UST yield"}, now=datetime(2026, 10, 27, 12, 3, tzinfo=timezone.utc)
+    )
+
+    assert snap["instruments"]["^TNX"]["status"] == "pre-open"
+    assert snap["holidays_detected"] == []
+
+
 def test_no_bar_after_the_session_opened_is_still_a_holiday(market):
     frames, _, snapshot = market
     _tnx_after_close(frames)
