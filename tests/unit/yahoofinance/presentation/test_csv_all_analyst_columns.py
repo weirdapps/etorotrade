@@ -45,14 +45,40 @@ def test_format_dataframe_maps_all_analyst_fields():
     assert df["#TA"].iloc[0] == 14
 
 
-def test_zero_all_analyst_values_render_as_dash_like_their_twins():
+def test_zero_all_analyst_buy_ratio_is_a_value_and_zero_ratings_is_unknown():
     row = _row(buy_percentage=0, total_ratings=0, buy_percentage_all=0, total_ratings_all=0)
     df = format_dataframe(pd.DataFrame([row]), truncate_name=False)
 
+    # A genuine 0% buy ratio is a value. "--" reads as unknown, and a reader
+    # that skips unknowns would let the name through a low-buy screen.
+    assert df["%BA"].iloc[0] == "0%"
+    # Zero ratings means no reading at all, so it stays unknown.
+    assert df["#TA"].iloc[0] == "--"
+    # The older twins keep their existing behaviour.
     assert df["%B"].iloc[0] == "--"
     assert df["#A"].iloc[0] == "--"
+
+
+def test_missing_all_analyst_buy_ratio_stays_unknown():
+    df = format_dataframe(pd.DataFrame([_row(buy_percentage_all=None)]), truncate_name=False)
+
     assert df["%BA"].iloc[0] == "--"
-    assert df["#TA"].iloc[0] == "--"
+
+
+def test_written_csv_carries_zero_all_analyst_buy_ratio(tmp_path):
+    save_to_csv(
+        [_row(buy_percentage_all=0, total_ratings_all=0)],
+        "etoro.csv",
+        output_dir=str(tmp_path),
+        _format_dataframe_fn=lambda df: format_dataframe(df, truncate_name=False),
+        _add_position_size_fn=add_position_size_column,
+        _sort_market_data_fn=sort_market_data,
+    )
+
+    written = pd.read_csv(tmp_path / "etoro.csv", keep_default_na=False)
+
+    assert written["%BA"].iloc[0] == "0%"
+    assert written["#TA"].iloc[0] == "--"
 
 
 def test_format_dataframe_keeps_all_analyst_display_columns():

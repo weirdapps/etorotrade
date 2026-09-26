@@ -266,7 +266,6 @@ def format_dataframe(df: pd.DataFrame, truncate_name: bool = True) -> pd.DataFra
         COLUMN_NAMES["ANALYST_COUNT"],
         COLUMN_NAMES["BUY_PERCENTAGE"],
         COLUMN_NAMES["TOTAL_RATINGS"],
-        COLUMN_NAMES["BUY_PERCENTAGE_ALL"],
         COLUMN_NAMES["TOTAL_RATINGS_ALL"],
         "SI",
         COLUMN_NAMES["DIVIDEND_YIELD_DISPLAY"],
@@ -452,6 +451,10 @@ def format_dataframe(df: pd.DataFrame, truncate_name: bool = True) -> pd.DataFra
                         formatted_values.append("--")
                     elif value == 0 and col in zero_to_dash_cols:
                         formatted_values.append("--")
+                    elif value == 0 and col == COLUMN_NAMES["BUY_PERCENTAGE_ALL"]:
+                        # A genuine 0% all-analyst buy ratio is a value, not unknown.
+                        # A missing ratio arrives as None/NaN and is handled above.
+                        formatted_values.append("0%")
                     elif isinstance(value, int | float) and value != 0:
                         formatted_values.append(
                             format_number(
