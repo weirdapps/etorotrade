@@ -72,6 +72,8 @@ def format_dataframe(df: pd.DataFrame, truncate_name: bool = True) -> pd.DataFra
         "analyst_count": COLUMN_NAMES["ANALYST_COUNT"],  # #T
         "total_ratings": COLUMN_NAMES["TOTAL_RATINGS"],  # #A
         "buy_percentage": COLUMN_NAMES["BUY_PERCENTAGE"],  # %B
+        "buy_percentage_all": COLUMN_NAMES["BUY_PERCENTAGE_ALL"],  # %BA
+        "total_ratings_all": COLUMN_NAMES["TOTAL_RATINGS_ALL"],  # #TA
         "market_cap_fmt": "CAP",
         "market_cap": "CAP",
         "pe_trailing": "PET",
@@ -102,6 +104,8 @@ def format_dataframe(df: pd.DataFrame, truncate_name: bool = True) -> pd.DataFra
         COLUMN_NAMES["ANALYST_COUNT"]: COLUMN_NAMES["ANALYST_COUNT"],
         COLUMN_NAMES["TOTAL_RATINGS"]: COLUMN_NAMES["TOTAL_RATINGS"],
         COLUMN_NAMES["BUY_PERCENTAGE"]: COLUMN_NAMES["BUY_PERCENTAGE"],
+        COLUMN_NAMES["BUY_PERCENTAGE_ALL"]: COLUMN_NAMES["BUY_PERCENTAGE_ALL"],
+        COLUMN_NAMES["TOTAL_RATINGS_ALL"]: COLUMN_NAMES["TOTAL_RATINGS_ALL"],
         "CAP": "CAP",
         "PET": "PET",
         "PEF": "PEF",
@@ -242,6 +246,7 @@ def format_dataframe(df: pd.DataFrame, truncate_name: bool = True) -> pd.DataFra
         "TGT": "target_price",  # Target
         "UP%": "upside",  # Upside
         "%B": "buy_percentage",  # Buy percentage
+        "%BA": "buy_percentage",  # Buy percentage, all analysts
         "B": "beta",  # Beta
         "PET": "pe_trailing",
         "PEF": "pe_forward",
@@ -261,6 +266,8 @@ def format_dataframe(df: pd.DataFrame, truncate_name: bool = True) -> pd.DataFra
         COLUMN_NAMES["ANALYST_COUNT"],
         COLUMN_NAMES["BUY_PERCENTAGE"],
         COLUMN_NAMES["TOTAL_RATINGS"],
+        COLUMN_NAMES["BUY_PERCENTAGE_ALL"],
+        COLUMN_NAMES["TOTAL_RATINGS_ALL"],
         "SI",
         COLUMN_NAMES["DIVIDEND_YIELD_DISPLAY"],
     ]
