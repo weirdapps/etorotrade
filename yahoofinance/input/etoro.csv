@@ -891,7 +891,7 @@ XYZ,Block Inc.,NYSE
 MTCH,"Match Group, Inc",Nasdaq
 SEDG,SolarEdge Technologies,Nasdaq
 FIT,Fitbit,NYSE
-NTDOY,Nintendo CO Ltd-ADR,OTC Markets
+NTDOY,Nintendo CO Ltd-ADR,Nasdaq
 REGN,Regeneron Pharmaceuticals Inc,Nasdaq
 SGMOQ,Sangamo Therapeutics Inc,OTC Markets
 NTLA,Intellia Therapeutics Inc,Nasdaq
@@ -3557,7 +3557,7 @@ CLOU,Global X Cloud Computing ETF,Nasdaq
 CRIS,Curis Inc,Nasdaq
 CRSP,CRISPR Therapeutics AG,Nasdaq
 CRVS,Corvus Pharmaceuticals Inc,Nasdaq
-DOMO,Domo Inc,Nasdaq
+HUCK,Huckleberry ai Inc,Nasdaq
 DVY,iShares Select Dividend ETF,Nasdaq
 EH,EHang Holdings Ltd-ADR,Nasdaq
 EOLS,Evolus Inc,Nasdaq
@@ -5647,7 +5647,7 @@ DCPH,Deciphera Pharmaceuticals Inc,Nasdaq
 ACRS,Aclaris Therapeutics Inc,Nasdaq
 FWRG,First Watch Restaurant Group Inc,Nasdaq
 EWCZ,European Wax Center Inc,Nasdaq
-CSAN,Cosan SA,NYSE
+CSANY,Cosan SA,Nasdaq
 IMXI,International Money Express Inc,Nasdaq
 LEU,Centrus Energy Corp,NYSE
 MRC,Mrc Global Inc,NYSE
@@ -6018,7 +6018,7 @@ STOK,Stoke Therapeutics Inc,Nasdaq
 NVCT,Nuvectis Pharma Inc,Nasdaq
 ZVRA,Zevra Therapeutics Inc,Nasdaq
 STHO,Star Holdings,Nasdaq
-INVE,Identiv Inc,Nasdaq
+INVE,INVE Technologies Inc,Nasdaq
 KRNL,Kernel Group Holdings Inc,Nasdaq
 VRCA,Verrica Pharmaceuticals Inc,Nasdaq
 RPTX,Repare Therapeutics Inc,Nasdaq
@@ -8960,7 +8960,7 @@ FIG,Figma Inc,NYSE
 BLSH,Bullish,NYSE
 MIAX,Miami International Holdings Inc,NYSE
 CLS,Celestica Inc,NYSE
-WCPRF,Whitecap Resources Inc,OTC Markets
+WCPRF,Whitecap Resources Inc,Nasdaq
 CMBT,CMB Tech NV,NYSE
 BHVN,Biohaven Ltd,NYSE
 STUB,"StubHub Holdings, Inc",NYSE
@@ -9388,7 +9388,7 @@ AGMH,AGM Group Holdings Inc,Nasdaq
 ABTC,American Bitcoin Corp,Nasdaq
 DFLI,Dragonfly Energy Holdings Corp,Nasdaq
 LTBR,Lightbridge Corp,Nasdaq
-HWH,HWH International Inc,Nasdaq
+ESYN,EnerSyn Global Inc,Nasdaq
 DMRA,Damora Therapeutics Inc,Nasdaq
 NIKI,Niki BioSolutions Inc,Nasdaq
 ATYR,aTyr Pharma Inc,Nasdaq
@@ -9833,7 +9833,7 @@ USDB.AS,iShares US Large Cap Deep Buffer UCITS ETF,Euronext Amsterdam
 IESE.AS,iShares MSCI Europe SRI UCITS ETF EUR (Acc),Euronext Amsterdam
 CSH.PA,Amundi EUR Overnight Return UCITS ETF,Euronext Paris
 WLDHC.PA,Amundi MSCI World II UCITS ETF EUR Hedged Acc,Euronext Paris
-ACWI.PA,Amundi MSCI All Country World UCITS ETF EUR Acc,Euronext Paris
+ACWI.PA,Amundi MSCI All Country World Swap UCITS ETF EUR Acc,Euronext Paris
 TNOW.PA,Amundi MSCI World Information Technology UCITS ETF EUR Acc,Euronext Paris
 HLTW.PA,Amundi MSCI World Health Care UCITS ETF EUR Acc,Euronext Paris
 EPRA.PA,Amundi Index FTSE EPRA NAREIT Global UCITS ETF DR (C),Euronext Paris
@@ -9924,7 +9924,7 @@ LUXU.L,Amundi S&P Global Luxury UCITS ETF - USD (C),LSE
 100H.L,Amundi FTSE 100 UCITS ETF USD Hedged Acc,LSE
 MSEU.L,Amundi EURO STOXX 50 II UCITS ETF USD Hedged Acc,LSE
 TPHU.L,Amundi Japan Topix UCITS ETF - DAILY HEDGED USD (C),LSE
-EMXC.L,Amundi MSCI Emerging Ex China UCITS ETF Acc,LSE
+EMXC.L,Amundi MSCI Emerging Ex China Swap,LSE
 CI2U.L,Amundi MSCI India UCITS ETF - USD (C),LSE
 ALAU.L,Amundi MSCI Em Latin America UCITS ETF - USD (C),LSE
 CC1U.L,Amundi MSCI China Tech UCITS ETF USD,LSE
@@ -10253,7 +10253,7 @@ ADBT,Advasa Holdings Inc,Nasdaq
 APPTEST,Pre-IPO App Test,Nasdaq
 ANTH,Anthropic,Nasdaq
 OPENAI,OpenAI Group,Nasdaq
-SKHY.24-7.,SK hynix 24/7,
+ADRX,"ADARx Pharmaceuticals, Inc",Nasdaq
 HNUC,Holtec Nuclear Corporation,Nasdaq
 OIG,Orion180 Insurance Group Inc,Nasdaq
 ETRA,"Electra Therapeutics, Inc",Nasdaq
