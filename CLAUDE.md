@@ -91,7 +91,7 @@ yahoofinance/output/        # CSV + HTML reports land here
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | push/PR/nightly | Test matrix (3.10–3.12), bandit, safety, flake8, mypy, coverage → SonarCloud |
+| `ci.yml` | push/PR/nightly | Test matrix (3.10–3.12), bandit, flake8, mypy, coverage → SonarCloud |
 | `daily-signals.yml` | daily ~22:00 UTC | Runs full signal pipeline, commits output CSVs |
 | `weekly-backtest.yml` | weekly | T+7/T+30 backtest validation |
 | `weekly-universe-refresh.yml` | weekly | Refreshes the ~4,000-ticker universe |

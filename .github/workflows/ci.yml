@@ -84,10 +84,6 @@ jobs:
           bandit -r yahoofinance/ trade_modules/ -f json -o bandit-report.json
           echo "Security scan completed. Check artifacts for details."
 
-      - name: Safety check for vulnerabilities
-        continue-on-error: true
-        run: safety check
-
       # Ruff replaced flake8 here on 2026-09-03. The old step gated only on
       # E9,F63,F7,F82 (syntax errors and undefined names) and ran everything else
       # under --exit-zero, so no style or import-order problem could ever fail CI.
