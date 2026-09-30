@@ -241,7 +241,7 @@ Nine workflow files in `.github/workflows/`:
 
 | Workflow | Schedule | Purpose |
 |---|---|---|
-| `ci.yml` | push, PR, nightly 02:00 UTC | Test matrix (3.10, 3.11, 3.12), bandit, safety, flake8, mypy, coverage, quality-gates, lockfile-sync, yfinance-compat smoke test |
+| `ci.yml` | push, PR, nightly 02:00 UTC | Test matrix (3.10, 3.11, 3.12), bandit, flake8, mypy, coverage, quality-gates, lockfile-sync, yfinance-compat smoke test |
 | `codeql.yml` | push to master, PR, Mon 06:00 UTC | GitHub CodeQL static analysis |
 | `sonarcloud.yml` | push, PR | Quality gate on SonarCloud (project `weirdapps_etorotrade`) |
 | `daily-signals.yml` | daily 22:00 UTC | Full universe scan in 6 parallel shards, merges + commits `etoro.csv` and derived buy/sell/hold |
