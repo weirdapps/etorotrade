@@ -3503,7 +3503,7 @@ PAYS,Paysign Inc,Nasdaq
 PHUN,Phunware Inc,Nasdaq
 PLUG,Plug Power Inc,Nasdaq
 PRPO,Precipio Inc,Nasdaq
-AIXC,AIxCrypto Holdings Inc,Nasdaq
+FFR,FF EAI Robotics Ecosystem Inc,Nasdaq
 SCTL,Recro Pharma Inc,Nasdaq
 RESN,Resonant Inc,Nasdaq
 RGLS,Regulus Therapeutics Inc,Nasdaq
@@ -5722,7 +5722,7 @@ HSAI,Hesai Group,Nasdaq
 SHEN,Shenandoah Telecommunications Company,Nasdaq
 IESC,IES Holdings Inc,Nasdaq
 MBIN,Merchants Bancorp,Nasdaq
-WALD,Waldencast plc,Nasdaq
+WALDF,Waldencast plc,Nasdaq
 USLM,United States Lime & Minerals Inc,Nasdaq
 SAFT,Safety Insurance Group Inc,Nasdaq
 SRCE,1st Source Corporation,Nasdaq
@@ -6061,7 +6061,7 @@ CAAP,Corporación América Airports SA,NYSE
 SGHC,Super Group SGHC Limited,NYSE
 TGS,Transportadora de Gas del Sur SA,NYSE
 AMK,AssetMark Financial Holdings Inc,NYSE
-GETY,Getty Images Holdings Inc,NYSE
+GETY,Getty Images Holdings Inc,OTC Markets
 VVX,V2X Inc,NYSE
 SWI,SolarWinds Corporation,NYSE
 CMTG,Claros Mortgage Trust Inc,NYSE
@@ -6327,7 +6327,7 @@ LLAP,Terran Orbital Corp,NYSE
 RGTI,Rigetti Computing Inc,Nasdaq
 ASRT,Assertio Holdings Inc,Nasdaq
 MTC,Mmtec Inc,Nasdaq
-GWH,Ess Tech Inc,NYSE
+GWHT,Ess Tech Inc,NYSE
 GDHG,Golden Heaven Group Holdings,Nasdaq
 EOSE,Eos Energy Enterprises Inc,Nasdaq
 LILMF,Lilium Nv,OTC Markets
@@ -6421,7 +6421,7 @@ NFSCF,Enphys Acquisition Corp,NYSE
 KIDZ,KIDZ AI Inc,Nasdaq
 NCK.AX,Nick Scali Ltd,ASX
 IVCBF,Invest Acquisition Corp,OTC Markets
-METV,Roundhill Ball Metaverse Etf,NYSE
+METV,Roundhill Metaverse ETF,NYSE
 DRCT,Direct Digital Holdings In-A,Nasdaq
 OR,OR Royalties Ltd,NYSE
 PGF,Invesco Financial Preferred,NYSE
@@ -8013,7 +8013,7 @@ E4C.DE,Ecotel Communication AG,FRA
 N4G0.DE,Naga Group AG,FRA
 SYZ.DE,Syzygy AG,FRA
 SHWK.DE,SHS Viveon AG,FRA
-MA10.DE,Binect AG,FRA
+MA10.DE,Maxx26 AG,FRA
 81D.DE,Beaconsmind AG,FRA
 FC9.DE,FCR Immobilien AG,FRA
 NN6.DE,NanoRepro AG,FRA
@@ -9400,7 +9400,7 @@ SPRC,Scisparc Ltd,Nasdaq
 SDM,Smart Digital Group Ltd,Nasdaq
 SONN,Sonnet Biotherapeutics Holdings Inc,Nasdaq
 SPRB,Spruce Biosciences Inc,Nasdaq
-BNC,CEA Industries Inc,Nasdaq
+BNC,BNB Standard Corp,Nasdaq
 AIRE,reAlpha Tech Corp,Nasdaq
 TIC,Acuren Corp,NYSE
 AEXA,American Exceptionalism Acquisition Corp A,NYSE
@@ -9718,6 +9718,7 @@ B28X.L,Invesco BulletShares 2028 USD Corporate Bond UCITS ETF GBP Hdg Acc,LSE
 3436.T,Sumco Corp,Tokyo Stock Exchange
 3289.T,Tokyu Fudosan Holdings Corp,Tokyo Stock Exchange
 285A.T,Kioxia Holdings Corp,Tokyo Stock Exchange
+646A.T,Crasus Chemical Inc,Tokyo Stock Exchange
 LMRI,"Lumexa Imaging Holdings, Inc",Nasdaq
 WLTH,Wealthfront Corporation,Nasdaq
 MDLN,Medline Inc,Nasdaq
@@ -10253,10 +10254,13 @@ ADBT,Advasa Holdings Inc,Nasdaq
 APPTEST,Pre-IPO App Test,Nasdaq
 ANTH,Anthropic,Nasdaq
 OPENAI,OpenAI Group,Nasdaq
+OURA,Oura Inc,Nasdaq
+ACCV,Accelevation Holdings Corp,Nasdaq
 ADRX,"ADARx Pharmaceuticals, Inc",Nasdaq
 HNUC,Holtec Nuclear Corporation,Nasdaq
 OIG,Orion180 Insurance Group Inc,Nasdaq
 ETRA,"Electra Therapeutics, Inc",Nasdaq
+VUECF,Verdera Energy Corp,OTC Markets
 CSQR,"Csquare, Inc",NYSE
 STDN,"Standard Nuclear, Inc",NYSE
 JMKE,Jersey Mike’s Subs Inc,NYSE
@@ -10264,6 +10268,7 @@ REF,Reformation Inc,NYSE
 ADIG,ADI Global Distribution Inc,NYSE
 IMC,IMC Rare Earths Ltd,NYSE
 FOIL,Londian Wason New Energy Tech Inc,NYSE
+VYLR,VYLOR INC,NYSE
 SPUN OFF 2550972D,Spun off 2550972D,NYSE
 LYNX,Lyntris Inc,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
@@ -10275,6 +10280,7 @@ LYNX,Lyntris Inc,NYSE
 2475.HK,Luxshare Precision Industry Co Ltd,HKEX
 3308.HK,Zhongji Innolight Co Ltd,HKEX
 3223.HK,Ingenic Semiconductor Co Ltd,HKEX
+6680.HK,JL MAG Rare-Earth Co. Ltd,HKEX
 BITA,iShares Bitcoin Premium Income ETF,Nasdaq
 QQQM,Invesco Nasdaq 100 ETF,Nasdaq
 IDEF,iShares Defense Industrials and Tech Active ETF,Nasdaq

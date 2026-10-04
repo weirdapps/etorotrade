@@ -1,18 +1,22 @@
 {
-  "timestamp": "2026-09-27T23:38:18.983321+00:00",
-  "total_count": 10385,
-  "new_count": 4,
-  "removed_count": 4,
+  "timestamp": "2026-10-04T23:48:57.473148+00:00",
+  "total_count": 10391,
+  "new_count": 9,
+  "removed_count": 3,
   "sample_new": [
-    "ADRX",
-    "CSANY",
-    "ESYN",
-    "HUCK"
+    "646A.T",
+    "6680.HK",
+    "ACCV",
+    "FFR",
+    "GWHT",
+    "OURA",
+    "VUECF",
+    "VYLR",
+    "WALDF"
   ],
   "sample_removed": [
-    "CSAN",
-    "DOMO",
-    "HWH",
-    "SKHY.24-7."
+    "AIXC",
+    "GWH",
+    "WALD"
   ]
 }
