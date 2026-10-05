@@ -373,6 +373,7 @@
   "6645.T": "2001-01-04T00:00:00",
   "6656.HK": "2026-04-16T00:00:00",
   "6674.T": "2000-01-04T00:00:00",
+  "6680.HK": "2022-01-14T00:00:00",
   "6690.HK": "2020-12-23T00:00:00",
   "6701.T": "2000-01-04T00:00:00",
   "6702.T": "2000-01-04T00:00:00",
@@ -10921,7 +10922,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-10-04T01:45:21",
+ "generated_at": "2026-10-05T01:51:46",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
