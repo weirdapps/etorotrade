@@ -4483,14 +4483,14 @@ six = ">=1.5"
 
 [[package]]
 name = "python-dotenv"
-version = "1.2.3"
+version = "1.2.4"
 description = "Read key-value pairs from a .env file and set them as environment variables"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "python_dotenv-1.2.3-py3-none-any.whl", hash = "sha256:904552145e8bfed22162c09dab1c2b9b54fefa7b23ba780f4f26ca0316b0f0d9"},
-    {file = "python_dotenv-1.2.3.tar.gz", hash = "sha256:a20a594dabeaa385725aa239d5244871c143ecb356add8a20fcf23773a6c3a35"},
+    {file = "python_dotenv-1.2.4-py3-none-any.whl", hash = "sha256:42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc"},
+    {file = "python_dotenv-1.2.4.tar.gz", hash = "sha256:f0d53e69935a851c0dcc78f3ab7aaccd8cabef0b92382b576b824212902873c0"},
 ]
 
 [package.extras]
@@ -5231,14 +5231,14 @@ test = ["Cython", "array-api-strict (>=2.3.1)", "asv", "gmpy2", "hypothesis (>=6
 
 [[package]]
 name = "selenium"
-version = "4.49.0"
+version = "4.50.0"
 description = "Official Python bindings for Selenium WebDriver"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "selenium-4.49.0-py3-none-any.whl", hash = "sha256:0d1de9ec6977aa2d5f766d923d5076fdffa91681a8d4ffc9e3381a36839a20f2"},
-    {file = "selenium-4.49.0.tar.gz", hash = "sha256:c9d91274e5f55835e12b524adf1f231739ea811a8866d810e5bb42ba87cd8eda"},
+    {file = "selenium-4.50.0-py3-none-any.whl", hash = "sha256:f724a38a7fd8b0561c6767c620bd9b2c7bd8012d4cb664b2ad23064e5d67d0df"},
+    {file = "selenium-4.50.0.tar.gz", hash = "sha256:80402fb6f48e0ee2183ec1d58b257a593dcd5c8130c1e6419ee7509f2128be5d"},
 ]
 
 [package.dependencies]
