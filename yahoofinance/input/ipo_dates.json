@@ -10387,6 +10387,7 @@
   "VXUS": "2011-01-28T00:00:00",
   "VXX": "2018-01-25T00:00:00",
   "VYGR": "2015-11-11T00:00:00",
+  "VYLR": "2026-10-01T00:00:00",
   "VYNE": "2026-07-27T00:00:00",
   "VYX": "1996-12-11T00:00:00",
   "VZ": "1983-11-21T00:00:00",
@@ -10922,7 +10923,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-10-05T01:51:46",
+ "generated_at": "2026-10-06T03:28:14",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
