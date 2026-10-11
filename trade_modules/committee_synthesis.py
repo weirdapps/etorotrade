@@ -127,6 +127,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from trade_modules.analysis.analyst_momentum import am_share_pp
+
 logger = logging.getLogger(__name__)
 
 __version__ = "v45.0"
@@ -3888,6 +3890,8 @@ def synthesize_stock(
         "pet": pet,
         "price": sig_data.get("price", 0),  # CIO v17.0: for evaluate_recent() returns
         "am": sig_data.get("am", 0),  # CIO v35.0: analyst momentum for grid display
+        # AM is a net analyst COUNT; narrative thresholds read it as buy-share pp of #T.
+        "am_pp": am_share_pp(sig_data.get("am"), sig_data.get("num_targets")),
         "entry_timing": entry_timing,  # CIO v20.0 D9
         "entry_note": entry_note,  # CIO v20.0 D9
         "position_size_pct": position_size_pct,  # CIO v20.0 D8

@@ -335,7 +335,7 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
             info["buy_percentage_all"] = analyst_data["buy_percentage"]
             info["total_ratings_all"] = analyst_data["total_ratings"]
 
-            # Calculate analyst momentum (3-month change in buy%)
+            # Calculate analyst momentum (net change in buy-rated analysts over 3 months)
             momentum_data = calculate_analyst_momentum(yticker)
             info["analyst_momentum"] = momentum_data["analyst_momentum"]
             info["analyst_count_trend"] = momentum_data["analyst_count_trend"]

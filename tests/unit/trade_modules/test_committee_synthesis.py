@@ -20,6 +20,8 @@ Tests cover all 8 public functions:
 11. compute_changes — previous-run comparison
 """
 
+import math
+
 import pytest
 
 from trade_modules.committee_synthesis import (
@@ -922,6 +924,33 @@ class TestSynthesizeStock:
             "rsi": rsi,
             "macd_signal": macd,
         }
+
+    def _am_entry(self, am, num_targets):
+        sig = {**self._make_sig_data(), "am": am, "num_targets": num_targets}
+        return synthesize_stock(
+            ticker="AMCT",
+            sig_data=sig,
+            fund_data=self._make_fund_data(),
+            tech_data=self._make_tech_data(),
+            macro_fit="NEUTRAL",
+            census_alignment="NEUTRAL",
+            div_score=0,
+            census_ts_trend="stable",
+            news_impact="NEUTRAL",
+            risk_warning=False,
+            sector="Technology",
+            sector_median_exret=15,
+            sector_rankings={},
+            position_limit=3.5,
+        )
+
+    def test_entry_carries_am_as_share_of_coverage(self):
+        """``am`` stays the displayed analyst COUNT; ``am_pp`` is it as buy-share pp of #T,
+        the scale the report's +/-10 narrative thresholds were written in."""
+        entry = self._am_entry(-2, 10)
+        assert entry["am"] == -2
+        assert entry["am_pp"] == pytest.approx(-20.0)
+        assert math.isnan(self._am_entry(-2, 0)["am_pp"])
 
     def test_strong_buy(self):
         """Stock with all bullish signals → BUY with high conviction."""

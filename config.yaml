@@ -23,6 +23,11 @@ universal_thresholds:
   small_cap_min_analysts: 6  # $2-5B requires 6+ analysts (institutional interest)
   min_analyst_count: 4  # $5B+ requires 4+ analysts (standard)
   min_price_targets: 4  # Standard price target requirement
+# Analyst momentum thresholds (min_/max_analyst_momentum, here and in trend_continuation /
+# dual_track) are in buy-share PERCENTAGE POINTS. The AM column is a net analyst COUNT since
+# 2026-07-30; signals.py restates it as 100 * AM / #T before any of these read it
+# (trade_modules/analysis/analyst_momentum.py). max_analyst_momentum is read only on the legacy
+# ANY-trigger path (use_signal_scoring: false).
 us_mega:
   buy:
     # US MEGA: Tightened per backtest (2026-05-31) — current thresholds produce

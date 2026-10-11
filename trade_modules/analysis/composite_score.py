@@ -47,7 +47,8 @@ def compute_composite_scores(
 
     Required columns (gracefully handles missing with NaN):
         momentum_12_1m: 12-1 month return (skip-month)
-        analyst_momentum: 3-month change in %BUY (AM field)
+        analyst_momentum: net change in buy-rated analysts over 3 months (AM field, a count;
+            ranked, so the scale does not matter)
         return_on_equity: ROE %
         debt_to_equity: D/E %
         fcf_yield: Free cash flow yield %
