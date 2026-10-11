@@ -26,6 +26,8 @@ from typing import Any
 
 import numpy as np
 
+from trade_modules.analysis.analyst_momentum import am_share_pp
+
 logger = logging.getLogger(__name__)
 
 # Primary: repo-local path (works in CI and local dev)
@@ -977,7 +979,7 @@ def check_kill_theses(
     Heuristic triggers:
         - signal_deteriorated: ticker signal changed to S (SELL)
         - price_collapsed: 52-week performance dropped below 40
-        - analyst_downgrade: analyst momentum (AM) strongly negative (< -5)
+        - analyst_downgrade: AM as a share of coverage (AM/#T) below -5pp
 
     Args:
         portfolio_signals_path: Path to portfolio.csv with current signals
@@ -1083,9 +1085,10 @@ def check_kill_theses(
             if perf_52w < 40:
                 triggers.append("price_collapsed")
 
-            # Analyst downgrade: AM strongly negative
-            am = _safe_float(signal_data.get("AM"), default=0.0)
-            if am < -5:
+            # Analyst downgrade: AM strongly negative. AM is a net analyst COUNT and the -5
+            # is buy-share pp, so restate it as a share of coverage (#T); unknown never fires.
+            am_pp = am_share_pp(signal_data.get("AM"), signal_data.get("#T"))
+            if am_pp < -5:
                 triggers.append("analyst_downgrade")
 
             # CIO Legacy D2: Evaluate custom conditions

@@ -21,6 +21,7 @@ from trade_modules import ipo_cache
 from trade_modules.trade_config import TradeConfig
 
 # Import tier utilities
+from .analyst_momentum import am_share_pp_series
 from .tiers import _parse_market_cap, _parse_percentage
 
 # Get logger for this module
@@ -721,12 +722,17 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
     dma200 = pd.to_numeric(dma200_raw, errors="coerce").fillna(np.nan)
     price_200dma_pct = (price_series / dma200) * 100  # e.g., 105 = 5% above 200DMA
 
-    # Analyst Momentum: 3-month change in buy percentage
+    # Analyst Momentum: AM is a net buy-rated analyst COUNT; every AM threshold below and in
+    # config.yaml is in buy-share percentage points, so restate it as a share of coverage
+    # (internal analyst_count == display #T) before anything reads it.
     # Fallback to "AM" (short display name from table_renderer)
     amom_raw = df.get(
         "analyst_momentum", df.get("AM", pd.Series([np.nan] * len(df), index=df.index))
     )
-    amom = pd.to_numeric(amom_raw, errors="coerce").fillna(np.nan)
+    am_coverage_raw = df.get(
+        "analyst_count", df.get("#T", df.get("# T", pd.Series([np.nan] * len(df), index=df.index)))
+    )
+    amom = am_share_pp_series(amom_raw, am_coverage_raw)
 
     # Sector-Relative Valuation: PE vs sector median
     # NOTE: "P/S" in output is price-to-sales ratio, NOT pe_vs_sector - do not fallback to it

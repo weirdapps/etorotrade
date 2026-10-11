@@ -5415,7 +5415,9 @@ def generate_report_html_v2(
             _am = float(_am) if _am else 0
         except (ValueError, TypeError):
             _am = 0
-        if _am >= 10:
+        # AM is a net analyst COUNT; the +/-10 is buy-share pp of #T (unknown never fires).
+        _am_pp = sf(en.get("am_pp"), float("nan"))
+        if _am_pp >= 10:
             parts.append(f"Analyst momentum AM {_am:+.0f}")
         ts = en.get("tech_signal", "")
         if ts == "ENTER_NOW":
@@ -5541,7 +5543,9 @@ def generate_report_html_v2(
             _am = float(_am) if _am else 0
         except (ValueError, TypeError):
             _am = 0
-        if _am <= -10:
+        # AM is a net analyst COUNT; the +/-10 is buy-share pp of #T (unknown never fires).
+        _am_pp = sf(en.get("am_pp"), float("nan"))
+        if _am_pp <= -10:
             parts.append(f"Negative analyst momentum AM {_am:+.0f}")
         # Short interest elevated
         si = en.get("short_interest_pct")
@@ -5962,7 +5966,7 @@ def generate_report_html_v2(
             f'<span style="font-weight:700;color:{_TX};letter-spacing:0.5px;">How to read:</span> '
             f"Conv = conviction (0&ndash;100, higher = stronger view). "
             f"%BUY = analyst buy consensus. "
-            f"AM = analyst momentum (3-month change in buy%, in percentage points). "
+            f"AM = analyst momentum (net change in buy-rated analysts over 3 months, a count). "
             f"EXRET = expected return (upside &times; %buy/100). "
             f"Size = recommended position change as % of portfolio.</div>"
         )

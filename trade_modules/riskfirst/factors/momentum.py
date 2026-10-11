@@ -11,7 +11,7 @@ and replace the proxy with the proper vol-scaled 12-1 momentum signal.
 
 Proxy inputs (from contract in factors/__init__.py):
     52W  — % of 52-week high (higher = stronger recent price momentum)
-    AM   — analyst momentum in pp (higher = improving analyst sentiment)
+    AM   : analyst momentum, a net analyst count (higher = improving analyst sentiment)
 
 Composite = mean of zscore(52W) and zscore(AM), computed row-wise and skipping
 NaN so that a row missing one component still gets a score from the other.
@@ -37,7 +37,7 @@ def compute(df: pd.DataFrame) -> pd.Series:
     ----------
     df:
         Universe DataFrame indexed by ticker.  Must contain at least one of
-        ``52W`` (% of 52-week high) or ``AM`` (analyst momentum in pp).
+        ``52W`` (% of 52-week high) or ``AM`` (analyst momentum, a net analyst count; z-scored, so scale-free).
         Any other columns are ignored.
 
     Returns

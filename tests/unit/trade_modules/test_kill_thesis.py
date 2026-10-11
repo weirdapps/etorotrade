@@ -433,6 +433,33 @@ class TestCheckKillTheses:
         assert len(result["triggered_theses"]) == 1
         assert "analyst_downgrade" in result["triggered_theses"][0]["triggers"]
 
+    def test_analyst_downgrade_reads_share_of_coverage(self, kill_thesis_path, portfolio_csv_path):
+        """AM is a net analyst COUNT; the -5 trigger is in buy-share pp, so it reads AM/#T.
+
+        THIN: 1 of 10 buy-rated analysts gone is -10pp and fires (the raw -1 never did).
+        WIDE: 4 of 80 gone is -5pp, not below -5, and stays quiet.
+        """
+        log_kill_theses(
+            _RECENT_DATE,
+            [_make_thesis("THIN", "Analysts leave"), _make_thesis("WIDE", "Analysts leave")],
+            log_path=kill_thesis_path,
+        )
+        _write_portfolio_csv(
+            portfolio_csv_path,
+            [
+                "THIN,Thin Co,5.0B,30.00,35.00,16.7%,10,55%,10,-1,A,9.2%,0.6,60,N,15.0,14.0,2.0,1.0,1.0%,3.0%,8.0,-2.0,12.0,40.0,2.5%,04/20,8k,H",
+                "WIDE,Wide Co,5.0B,30.00,35.00,16.7%,80,55%,80,-4,A,9.2%,0.6,60,N,15.0,14.0,2.0,1.0,1.0%,3.0%,8.0,-2.0,12.0,40.0,2.5%,04/20,8k,H",
+            ],
+        )
+
+        result = check_kill_theses(
+            portfolio_signals_path=portfolio_csv_path,
+            log_path=kill_thesis_path,
+        )
+
+        fired = {t["ticker"]: t["triggers"] for t in result["triggered_theses"]}
+        assert fired == {"THIN": ["analyst_downgrade"]}
+
     def test_multiple_triggers_on_same_thesis(self, kill_thesis_path, portfolio_csv_path):
         """Multiple triggers fire on the same thesis."""
         log_kill_theses(
