@@ -8896,6 +8896,7 @@
   "SKWD": "2023-01-13T00:00:00",
   "SKY": "1973-05-03T00:00:00",
   "SKYA": "2022-04-14T00:00:00",
+  "SKYD": "2005-12-05T00:00:00",
   "SKYE": "2015-01-06T00:00:00",
   "SKYH": "2020-12-08T00:00:00",
   "SKYQ": "2024-10-10T00:00:00",
@@ -10924,7 +10925,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-10-11T02:05:17",
+ "generated_at": "2026-10-12T02:26:22",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
