@@ -1761,6 +1761,7 @@ UBSGE.SW,UBS Group AG,SIX
 LISN.SW,Chocoladefabriken Lindt & Spruengli AG,SIX
 SQN.SW,Swissquote Group Holding SA,SIX
 SMG.SW,SMG Swiss Marketplace Group AG,SIX
+SW2CHB.SW,UBS ETF (LU) MSCI Switzerland 20/35 UCITS ETF A-acc (CHF),SIX
 PPGN.SW,PolyPeptide Group AG,SIX
 CS.ST,CoinShares International Limited,Stockholm Stock Exchange
 ERIC-B.ST,Telefonaktiebolaget LM Ericsson,Stockholm Stock Exchange
@@ -4713,7 +4714,7 @@ VIK,Viking Holdings Ltd,NYSE
 GGL,Games Global Ltd,NYSE
 NVL,Novelis Inc,NYSE
 ZK,ZEEKR Intelligent Technology Holding Limited,NYSE
-LB,LandBridge Company LLC,NYSE
+LB,LandBridge Corporation,NYSE
 TBN,Tamboran Resources Corporation,NYSE
 SEG,Seaport Entertainment Group In,NYSE
 AMTM,Amentum Holdings Inc,NYSE
@@ -4917,7 +4918,6 @@ TCBI,Texas Capital Bancshares Inc.,
 IOVA,Iovance Biotherapeutics Inc.,Nasdaq
 FLGT,Fulgent Genetics Inc.,Nasdaq
 CVLT,Commvault Systems Inc.,Nasdaq
-AXNX,Axonics Inc.,Nasdaq
 NWE,NorthWestern Corporation,Nasdaq
 SJI,South Jersey Industries Inc.,NYSE
 CCXI,ChemoCentryx Inc.,Nasdaq
@@ -6079,7 +6079,7 @@ CVII,Churchill Capital Corp VII,Nasdaq
 CEPU,Central Puerto SA,NYSE
 BCSF,Bain Capital Specialty Finance Inc,NYSE
 AHRT,AH Realty Trust Inc,NYSE
-OBK,Origin Bancorp Inc,NYSE
+OBK,Origin Bancorp Inc,
 REVG,REV Group Inc,NYSE
 BRDG,Bridge Investment Group Holdings Inc,NYSE
 NX,Quanex Building Products Corporation,NYSE
@@ -6339,7 +6339,7 @@ GRTSQ,Gritstone Bio Inc,Nasdaq
 RMS.AX,Ramelius Resources Ltd,ASX
 RXT,Rackspace Technology Inc,Nasdaq
 TSHA,Taysha Gene Therapies Inc,Nasdaq
-NXDR,Nextdoor Holdings Inc,NYSE
+NXDR,Nextdoor Holdings Inc,Nasdaq
 BBAI,Bigbear.Ai Holdings Inc,NYSE
 BIVI,Biovie Inc,Nasdaq
 ERAS,Erasca Inc,Nasdaq
@@ -7792,7 +7792,7 @@ FAB.DH,First Abu Dhabi Bank PJSC,Abu Dhabi
 ADIB.DH,Abu Dhabi Islamic Bank PJSC,Abu Dhabi
 2POINTZE.DH,Two Point Zero Group PJSC,Abu Dhabi
 APEX.DH,Apex Investment Company PJSC,Abu Dhabi
-EAND.DH,Emirates Telecommunications Group,Abu Dhabi
+ETISALAT.DH,Emirates Telecommunications Group,Abu Dhabi
 ADNOCGAS.DH,ADNOC Gas PLC,Abu Dhabi
 NMDC.DH,NMDC Group PJSC,Abu Dhabi
 PALMS.DH,Palms Sports PrJSC,Abu Dhabi
@@ -8017,7 +8017,7 @@ MA10.DE,Maxx26 AG,FRA
 FC9.DE,FCR Immobilien AG,FRA
 NN6.DE,NanoRepro AG,FRA
 2INV.DE,2Invest AG,FRA
-FPH.DE,Francotyp Postalia Holding AG,FRA
+FPH0.DE,Francotyp Postalia Holding AG,FRA
 SLL.DE,Schoeller-Bleckmann Oilfield Equipment AG,FRA
 CA1.DE,Circus SE,FRA
 MS1.DE,Marley Spoon Group SE,FRA
@@ -9319,6 +9319,7 @@ AMV0.DE,Aumovio SE,FRA
 TKMS.DE,Tkms AG& Co KGaA,FRA
 RACE.MI,Ferrari NV,Borsa Italiana
 EASOR.HE,Easor Oyj,Helsinki Stock Exchange
+NOV.DE,Novo Nordisk A/S,FRA
 ADCBRI.DH,Locked for Abu Dhabi Rights,Abu Dhabi
 KWEB.DH,KraneShares CSI China Internet ETF,Abu Dhabi
 KRBN.DH,KraneShares Global Carbon Strategy ETF,Abu Dhabi
@@ -10244,6 +10245,7 @@ WEBB.DE,Amundi US Tech 100 Equal Weight UCITS ETF DR - USD,Xetra ETFs
 HUKX.L,HSBC FTSE 100 UCITS ETF,LSE
 FSFL.L,Foresight Solar Fund Ltd,LSE
 FWRG.L,Invesco FTSE All-World UCITS ETF,LSE
+CGEO.L,Georgia Capital PLC,LSE
 APMD, Apnimed Inc,Nasdaq
 VOGX,Vogenx,Nasdaq
 BRVE,"Braveheart Bio, Inc.",Nasdaq
@@ -10306,6 +10308,8 @@ CNXU,Conexeu Sciences Inc,Nasdaq
 TRBG,Turbogen Ltd,Nasdaq
 BVC,BitVentures Ltd,Nasdaq
 AIOK,AI OKTO Corp,Nasdaq
+CTY US,"City Therapeutics, Inc",Nasdaq
+IAM,"Iambic Therapeutics, Inc",Nasdaq
 VUECF,Verdera Energy Corp,OTC Markets
 CSQR,"Csquare, Inc",NYSE
 STDN,"Standard Nuclear, Inc",NYSE
@@ -10326,6 +10330,8 @@ PRSU,"Pursuit Attractions and Hospitality, Inc.",NYSE
 ASBH,American Savings Bank NA,NYSE
 NVRI,Enviri Corp (Delaware),NYSE
 FCBM,First Carolina Financial Services Inc,NYSE
+NSCL,Nscale,NYSE
+SKYD/WS,Skydance Corp Warrant,NYSE
 LYNX,Lyntris Inc,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
 0625.HK,Shein Global Holdings,HKEX
@@ -10405,6 +10411,7 @@ SEMI,Columbia Select Technology ETF,NYSE
 KGRN,KraneShares MSCI China Clean Technology Index ETF,NYSE
 DVYA,iShares Asia/Pacific Dividend ETF,NYSE
 FLAX,Franklin FTSE Asia ex Japan ETF,NYSE
+OILK,ProShares K-1 Free Crude Oil ETF,NYSE
 HMWA.L,HSBC MSCI WORLD UCITS ETF,LSE
 HSTE.L,HSBC Hang Seng Tech UCITS ETF,LSE
 HNSC.L,HSBC Nasdaq Global Semiconductor UCITS ETF,LSE
