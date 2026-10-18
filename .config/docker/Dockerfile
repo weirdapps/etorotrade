@@ -2,7 +2,7 @@
 # requires-python = ">=3.10,<4.0", so `pip install -e .` fails on metadata
 # alone. Nothing in CI builds this file, which is why it went unnoticed.
 # Matched to the root Dockerfile.
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
