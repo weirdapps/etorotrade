@@ -8,7 +8,7 @@ version = "2.0.0"
 description = "Market analysis and portfolio management tool using Yahoo Finance data"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.11,<4.0"
 authors = [
     {name = "plessas"},
 ]
@@ -17,7 +17,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Financial and Insurance Industry",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Office/Business :: Financial :: Investment",
@@ -181,9 +180,9 @@ line-length = 100
 # first run, against 1 real source file), which would make the CI format gate police
 # documentation prose. Docs are not the formatter's business.
 extend-exclude = ["**/*.md"]
-# Match CI matrix (test job runs Python 3.10). Setting to py311 caused ruff
-# to auto-apply UP017 (datetime.UTC alias) which is 3.11+ only and broke
-# pytest collection on 3.10 runners.
+# Python 3.10 left the CI matrix on 2026-10-25 (Pillow 13, the fix for a critical
+# advisory, needs 3.11). Kept at py310 so that security bump did not also carry a
+# repo-wide ruff UP rewrite; py310 output is valid 3.11+.
 target-version = "py310"
 
 [tool.ruff.lint]
