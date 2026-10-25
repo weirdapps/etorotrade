@@ -4101,7 +4101,7 @@ WMC,Western Asset Mortgage Capital Corp,NYSE
 ZH,Zhihu Inc-ADR,NYSE
 WPM,Wheaton Precious Metals Corp,NYSE
 CPNG,Coupang Inc.,NYSE
-ELME,Elme Communities,NYSE
+ELME,Elme Communities,OTC Markets
 WRI,Weingarten Realty Investors,NYSE
 WTI,W&T Offshore Inc,NYSE
 TKO,TKO Group Holdings Inc,NYSE
@@ -4632,7 +4632,7 @@ JTKWY,Just Eat Takeaway.com NV-ADR,OTC Markets
 HSKA,Heska Corporation,Nasdaq
 CENTA,Central Garden & Pet Company,Nasdaq
 BCPC,Balchem Corporation,Nasdaq
-JKS,JinkoSolar Holding Co Ltd-ADR,NYSE
+JKS,Jinko Holdings Ltd,NYSE
 BCE,BCE Inc,NYSE
 IHG,InterContinental Hotels Group PLC-ADR,NYSE
 SNFI,Stark Novus Financial Inc,OTC Markets
@@ -5429,7 +5429,7 @@ EQRX,Eqrx Inc,Nasdaq
 XHR,Xenia Hotels & Resorts Inc,NYSE
 RUSHA,Rush Enterprises Inc,Nasdaq
 ARQT,Arcutis Biotherapeutics Inc,Nasdaq
-IBOC,International Bancshares Corporation,Nasdaq
+IBOC,International Bancshares Corporation,
 MYGN,Myriad Genetics Inc,Nasdaq
 HEES,H&E Equipment Services Inc,Nasdaq
 NVEE,Nv5 Global Inc,Nasdaq
@@ -5786,7 +5786,7 @@ GSBC,Great Southern Bancorp Inc,Nasdaq
 CCAP,Crescent Capital BDC Inc,Nasdaq
 HFWA,Heritage Financial Corporation,Nasdaq
 ATRI,Atrion Corporation,Nasdaq
-CECO,CECO Environmental Corp,Nasdaq
+CECO,CECO Environmental Corp,
 TIPT,Tiptree Inc,Nasdaq
 QNST,QuinStreet Inc,Nasdaq
 KIDS,OrthoPediatrics Corp,Nasdaq
@@ -6060,7 +6060,7 @@ CAAP,Corporación América Airports SA,NYSE
 SGHC,Super Group SGHC Limited,NYSE
 TGS,Transportadora de Gas del Sur SA,NYSE
 AMK,AssetMark Financial Holdings Inc,NYSE
-GETY,Getty Images Holdings Inc,OTC Markets
+GETYQ,Getty Images Holdings Inc,OTC Markets
 VVX,V2X Inc,NYSE
 SWI,SolarWinds Corporation,NYSE
 CMTG,Claros Mortgage Trust Inc,NYSE
@@ -6403,7 +6403,7 @@ IREN,Iris Energy Ltd,Nasdaq
 UIS,Unisys Corp,NYSE
 OPTX,Syntec Optics Holdings Inc,Nasdaq
 AONC,American Oncology Network In,Nasdaq
-SOAR,Volato Group Inc,NYSE
+SOAR,SOAR AI Inc,NYSE
 INTS,Intensity Therapeutics Inc,Nasdaq
 SILV,Silvercrest Metals Inc,NYSE
 ENGN,enGene Therapeutics Inc,Nasdaq
@@ -8706,7 +8706,7 @@ VIL.PA,Viel et Compagnie SA,Euronext Paris
 BIG.PA,Bigben Interactive SA,Euronext Paris
 CBOT.PA,Cbo Territoria SA,Euronext Paris
 ELEC.PA,Electricite de Strasbourg SA,Euronext Paris
-CRI.PA,Chargeurs SA,Euronext Paris
+BGO.PA,Belgrano,Euronext Paris
 IVA.PA,Inventiva SA,Euronext Paris
 CRBP2.PA,Caisse Regionale de Credit Agricole Mutuel Brie Picardie,Euronext Paris
 ALSTI.PA,Stif France SAS,Euronext Paris
@@ -9323,6 +9323,8 @@ NOV.DE,Novo Nordisk A/S,FRA
 ADCBRI.DH,Locked for Abu Dhabi Rights,Abu Dhabi
 KWEB.DH,KraneShares CSI China Internet ETF,Abu Dhabi
 KRBN.DH,KraneShares Global Carbon Strategy ETF,Abu Dhabi
+TALABAT.AE,Talabat Holding PLC,DFM
+SPACE42.DH,Space42 PLC,Abu Dhabi
 GLIBK,GCI Liberty Inc,Nasdaq
 GLIBA,Liberty Capital Corp,Nasdaq
 XXI,Twenty One Capital Inc,Nasdaq
@@ -9919,7 +9921,7 @@ ELLE.L,Amundi Global Gender Equality UCITS ETF Acc,LSE
 CWEU.L,Amundi Global Bioenergy UCITS ETF USD Acc,LSE
 MOBI.L,Amundi MSCI Future Mobility ESG Screened UCITS ETF Acc,LSE
 UNIC.L,Amundi MSCI Disruptive Technology UCITS ETF Acc,LSE
-GENY.L,Amundi MSCI Millennials UCITS ETF Acc,LSE
+GENY.L,Amundi Global Sport and eSport,LSE
 CATP.L,Amundi MSCI World Catholic Principles UCITS ETF Acc,LSE
 LUXU.L,Amundi S&P Global Luxury UCITS ETF - USD (C),LSE
 100H.L,Amundi FTSE 100 UCITS ETF USD Hedged Acc,LSE
@@ -10370,6 +10372,20 @@ WGMI,CoinShares ETF Trust CoinShares Bitcoin Mining and Digital Power ETF,Nasdaq
 EDEL.DE,BNP Paribas Easy MSCI ACWI UCITS ETF Acc,Xetra ETFs
 EEAP.DE,BNP Paribas Easy MSCI World ex USA UCITS ETF Cap,Xetra ETFs
 QQQI,NEOS Nasdaq-100 High Income ETF,Nasdaq
+GPIX,Goldman Sachs S&P 500 Premium Income ETF,Nasdaq
+GPIQ,Goldman Sachs Nasdaq-100 Premium Income ETF,Nasdaq
+CEPI,REX Crypto Equity Premium Income ETF,Nasdaq
+MLPI,NEOS MLP & Energy Infrastructure High Income ETF,NYSE
+XLUI,State Street Utilities Select Sector SPDR Premium Income ETF,NYSE
+IWMI,NEOS Russell 2000 High Income ETF,NYSE
+XLFI,State Street Financial Select Sector SPDR Premium Income ETF,NYSE
+SOXY,YieldMax Target 12 Semiconductor Option Income ETF,NYSE
+HAKY,Amplify HACK Cybersecurity Covered Call ETF,NYSE
+BTCI,NEOS Bitcoin High Income ETF,NYSE
+BITY,Amplify Bitcoin 2% Monthly Option Income ETF,NYSE
+SPCI,Tuttle Capital Space Industry Income Blast ETF,NYSE
+AINT,FINQ DOLLAR NEUTRAL US Large Cap AI-Managed Equity ETF,NYSE
+AIUP,FINQ FIRST US Large Cap AI-Managed Equity ETF,NYSE
 EUV,Corgi Lithography & Semiconductor Photonics ETF,NYSE
 CGGR,Capital Group Growth ETF,NYSE
 PYLD,PIMCO Multisector Bond Active ETF,NYSE
@@ -10412,6 +10428,14 @@ KGRN,KraneShares MSCI China Clean Technology Index ETF,NYSE
 DVYA,iShares Asia/Pacific Dividend ETF,NYSE
 FLAX,Franklin FTSE Asia ex Japan ETF,NYSE
 OILK,ProShares K-1 Free Crude Oil ETF,NYSE
+IDVO,Amplify CWP International Enhanced Dividend Income ETF,NYSE
+XLVI,State Street Health Care Select Sector SPDR Premium Income ETF,NYSE
+SPYI,NEOS S&P 500 High Income ETF,NYSE
+DIVO,Amplify CWP Enhanced Dividend Income ETF,NYSE
+XLEI,State Street Energy Select Sector SPDR Premium Income ETF,NYSE
+QDVO,Amplify CWP Growth & Income ETF,NYSE
+IAUI,NEOS Gold High Income ETF,NYSE
+XLII,State Street Industrial Select Sector SPDR Premium Income ETF,NYSE
 HMWA.L,HSBC MSCI WORLD UCITS ETF,LSE
 HSTE.L,HSBC Hang Seng Tech UCITS ETF,LSE
 HNSC.L,HSBC Nasdaq Global Semiconductor UCITS ETF,LSE
