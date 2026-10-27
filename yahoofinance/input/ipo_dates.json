@@ -626,6 +626,7 @@
   "ACCL": "2025-10-17T00:00:00",
   "ACCO": "2005-08-17T00:00:00",
   "ACCS": "2008-01-23T00:00:00",
+  "ACCV": "2026-10-06T00:00:00",
   "ACDC": "2022-05-13T00:00:00",
   "ACE.MI": "1999-07-16T00:00:00",
   "ACE.ST": "2019-03-13T00:00:00",
@@ -10926,7 +10927,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-10-26T01:15:54",
+ "generated_at": "2026-10-27T02:36:50",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
