@@ -8715,6 +8715,7 @@
   "SENEA": "1998-06-03T00:00:00",
   "SENEB": "1980-03-17T00:00:00",
   "SEPL.L": "2014-04-09T00:00:00",
+  "SEPN": "2024-10-25T00:00:00",
   "SEQI.L": "2015-03-03T00:00:00",
   "SEQUA.BR": "2019-02-11T00:00:00",
   "SER": "2018-11-29T00:00:00",
@@ -10927,7 +10928,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-10-27T02:36:50",
+ "generated_at": "2026-10-28T02:23:40",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
