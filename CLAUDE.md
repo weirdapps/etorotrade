@@ -4,10 +4,10 @@ Market analysis and portfolio management tool that aggregates Yahoo Finance anal
 
 ## Tech Stack
 
-- Python >=3.10, <4.0 (CI matrix: 3.10, 3.11, 3.12)
+- Python >=3.11, <4.0 (CI matrix: 3.11, 3.12)
 - Key deps: `yfinance`, `yahooquery`, `pandas`, `numpy`, `pydantic`, `aiohttp`. **Versions are NOT restated here** — read `pyproject.toml`. This line used to carry pins and drifted to `yfinance==1.5.2` while the project was on 1.6.0, which is what a second copy of a version number always does.
 - Lockfiles: `requirements-lock.txt` (prod), `requirements-dev-lock.txt` (prod+dev), `requirements-smoketest-lock.txt`. A fourth, `requirements-universe-lock.txt`, is hand-maintained and NOT produced by `relock.sh`.
-- `pandas` is deliberately capped below 3.0: pandas 3 needs Python >=3.11 while this project still supports 3.10, and its new default `str` dtype silently no-ops the `dtype == "object"` guards in the signal path. See issue #213.
+- `pandas` is deliberately capped below 3.0: its new default `str` dtype silently no-ops the `dtype == "object"` guards in the signal path. See issue #213.
 
 ## Setup
 
@@ -77,11 +77,9 @@ yahoofinance/output/        # CSV + HTML reports land here
 
 **Lockfile pattern**: The committed `requirements-*-lock.txt` files are the source of truth for CI. After editing `pyproject.toml`, run `scripts/dev/relock.sh` to regenerate `poetry.lock` + all three lockfiles, then commit all five together.
 
-**portfolio.csv conflict**: `yahoofinance/output/portfolio.csv` is written by both the daily-signals GH Action and local runs — a persistent `UU` merge conflict. The worktree usually holds the freshest local data. Pull before running if you need the latest CI-generated signals.
-
 **Ticker substitutions**: eToro tickers don't always match yfinance. Check `ConfigManager.data_fetch_substitutions` in `trade_modules/config_manager.py` before assuming a symbol is unavailable. Add new mismatches there — callers pick it up automatically. Known: `LYXGRE.DE` → `GRE.PA`.
 
-**Census time-series tests**: Some tests use hardcoded dates that will trigger date-drift failures. See project memory `etorotrade_ci_pattern.md` in `claude-config/project-memory/etorotrade/`.
+**Census time-series tests**: Some tests use hardcoded dates that will trigger date-drift failures.
 
 **Portfolio performance**: Never calculate monthly returns from yfinance weighted averages — use the eToro tradeinfo API (`period=CurrMonth`). yfinance systematically undershoots (April 2026: +8.5% yfinance vs +12.43% actual).
 
@@ -91,17 +89,20 @@ yahoofinance/output/        # CSV + HTML reports land here
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | push/PR/nightly | Test matrix (3.10–3.12), bandit, flake8, mypy, coverage → SonarCloud |
+| `ci.yml` | push/PR/nightly | Test matrix (3.11, 3.12), bandit, ruff, mypy, coverage → SonarCloud |
 | `daily-signals.yml` | daily ~22:00 UTC | Runs full signal pipeline, commits output CSVs |
 | `weekly-backtest.yml` | weekly | T+7/T+30 backtest validation |
 | `weekly-universe-refresh.yml` | weekly | Refreshes the ~4,000-ticker universe |
-| `deps-refresh.yml` | weekly | Dependabot-style lockfile refresh |
+| `deps-refresh.yml` | monthly | Dependabot-style lockfile refresh |
 | `sonarcloud.yml` | push/PR | Quality gate (separate from CI) |
+| `codeql.yml` | push/PR/weekly | CodeQL analysis (Python) |
+| `gitleaks.yml` | push/PR/weekly | Secret scan |
+| `dependabot-relock.yml` | Dependabot PR | Re-exports the lockfiles against the PR's manifests |
+| `dependabot-auto-merge.yml` | Dependabot PR | Auto-merges eligible Dependabot PRs |
 
 SonarCloud project: `weirdapps_etorotrade`. SessionStart diagnostic is disabled (`hooks.json` emptied) — re-apply after plugin updates.
 
 ## eToro API
 
 Canonical domain: `https://www.etoro.com/api/public/v1`
-Legacy alias: `https://www.etoro.com/api/public/v1` (works but not canonical)
 Auth: X-API-KEY + X-USER-KEY (regular, not PERSONAL) + X-REQUEST-ID (UUID) + User-Agent
