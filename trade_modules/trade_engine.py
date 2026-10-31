@@ -162,7 +162,7 @@ class TradingEngine:
     # Use the async methods directly:
     #   - await analyze_market_opportunities(market_df, portfolio_df, notrade_path)
     #   - await process_ticker_batch(tickers, batch_size)
-    # See IMPROVEMENT_PLAN.md for details on this refactoring.
+    # See docs/archive/IMPROVEMENT_PLAN.md (archived on branch archive/plans-2026-10-31) for details on this refactoring.
 
     def load_portfolio(self, portfolio_file: str = None) -> pd.DataFrame:
         """Load portfolio from CSV file.
