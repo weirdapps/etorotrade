@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 #   - filter_buy_opportunities_wrapper
 #   - filter_sell_candidates_wrapper
 #   - filter_hold_candidates_wrapper
-# See IMPROVEMENT_PLAN.md for details on this refactoring.
+# See docs/archive/IMPROVEMENT_PLAN.md (archived on branch archive/plans-2026-10-31) for details on this refactoring.
 
 
 class AnalysisEngine:
