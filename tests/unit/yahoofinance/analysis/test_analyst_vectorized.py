@@ -200,17 +200,18 @@ class TestGetRecentChanges:
 
         analyzer = CompatAnalystData(mock_client)
 
-        import time
-
-        start = time.perf_counter()
-
-        with patch.object(analyzer, "fetch_ratings_data", return_value=large_ratings):
+        # iterrows is what made this slow before it was vectorized, so forbid it
+        # outright. (itertuples is not guarded: DataFrame.to_dict uses it
+        # internally.) A wall-clock limit is not used: under coverage on a
+        # shared CI runner this takes 300-400 ms with pandas 3 (about 15 ms
+        # locally), so a fixed limit fails at random.
+        iterrows_used = AssertionError("get_recent_changes must not use iterrows")
+        with (
+            patch.object(analyzer, "fetch_ratings_data", return_value=large_ratings),
+            patch.object(pd.DataFrame, "iterrows", side_effect=iterrows_used),
+        ):
             result = analyzer.get_recent_changes("TEST", days=365)
 
-        elapsed = time.perf_counter() - start
-
-        # Should complete quickly (< 300ms for 5000 rows, relaxed for CI environments)
-        assert elapsed < 0.3, f"Vectorized operation took {elapsed * 1000:.2f}ms (expected <300ms)"
         assert len(result) > 0
 
 
