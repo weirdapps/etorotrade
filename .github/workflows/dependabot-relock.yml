@@ -44,7 +44,9 @@ jobs:
   relock:
     name: relock
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # adopt_export_pins.py re-runs `poetry lock`, a full resolve that took
+    # 10+ min for the pandas 3.1 bump (runs cancelled at the old 10-min cap).
+    timeout-minutes: 30
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       - name: Checkout base (trusted — never the PR head)
