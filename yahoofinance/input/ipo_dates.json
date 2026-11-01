@@ -237,6 +237,7 @@
   "3099.T": "2001-01-01T00:00:00",
   "30IA.MI": "2024-09-02T00:00:00",
   "3289.T": "2013-10-01T00:00:00",
+  "3308.HK": "2026-07-30T00:00:00",
   "3311.HK": "2000-01-04T00:00:00",
   "3323.HK": "2006-03-23T00:00:00",
   "3328.HK": "2005-06-23T00:00:00",
@@ -10928,7 +10929,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-10-31T02:49:36",
+ "generated_at": "2026-11-01T02:05:26",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
