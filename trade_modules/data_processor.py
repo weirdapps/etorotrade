@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 # Import ticker normalization utilities
+from yahoofinance.utils.data.dtype_utils import is_text_series
 from yahoofinance.utils.data.ticker_utils import (
     get_ticker_for_display,
     process_ticker_input,
@@ -416,7 +417,7 @@ def clean_dataframe_for_output(df: pd.DataFrame) -> pd.DataFrame:
 
         # Replace NaN with "--" for string columns, 0 for numeric
         for col in result_df.columns:
-            if result_df[col].dtype == "object":
+            if is_text_series(result_df[col]):
                 result_df[col] = result_df[col].fillna("--")
             else:
                 result_df[col] = result_df[col].fillna(0)
