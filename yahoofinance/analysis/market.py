@@ -20,6 +20,7 @@ from trade_modules.trade_config import TradeConfig
 from ..api import AsyncFinanceDataProvider, FinanceDataProvider, get_provider
 from ..core.errors import YFinanceError
 from ..core.logging import get_logger
+from ..utils.data.dtype_utils import is_text_series
 from ..utils.data.ticker_utils import normalize_ticker
 from .market_filters import (
     filter_buy_opportunities_v2,
@@ -237,7 +238,7 @@ def get_short_interest_condition(
     if short_field in df.columns:
         # Convert percentage strings to float if needed
         si_values = df[short_field]
-        if si_values.dtype == "object":
+        if is_text_series(si_values):
             try:
                 # Handle percentage strings and 'nan' values
                 # First convert all values to string

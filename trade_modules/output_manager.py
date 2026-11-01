@@ -20,6 +20,7 @@ from yahoofinance.presentation.html import HTMLGenerator
 from yahoofinance.utils.data.asset_type_utils import (
     universal_sort_dataframe,
 )
+from yahoofinance.utils.data.dtype_utils import is_text_series
 from yahoofinance.utils.data.format_utils import format_position_size
 from yahoofinance.utils.data.ticker_utils import (
     get_ticker_for_display,
@@ -293,7 +294,7 @@ def _apply_color_to_dataframe(display_df: pd.DataFrame, color_code: str) -> pd.D
 
         # Apply color to all string columns
         for col in colored_df.columns:
-            if colored_df[col].dtype == "object":
+            if is_text_series(colored_df[col]):
                 colored_df[col] = (
                     colored_df[col]
                     .astype(str)

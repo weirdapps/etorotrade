@@ -16,6 +16,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from yahoofinance.utils.data.dtype_utils import is_text_series
+
 logger = logging.getLogger(__name__)
 
 
@@ -178,7 +180,7 @@ class PortfolioRiskAnalyzer:
 
         if weight_col:
             # Parse market cap if it's a string
-            if valid_df[weight_col].dtype == object:
+            if is_text_series(valid_df[weight_col]):
                 from .analysis.tiers import _parse_market_cap
 
                 valid_df["_weight"] = valid_df[weight_col].apply(_parse_market_cap)
@@ -261,7 +263,7 @@ class PortfolioRiskAnalyzer:
 
         if weight_col:
             # Parse market cap if string
-            if valid[weight_col].dtype == object:
+            if is_text_series(valid[weight_col]):
                 from .analysis.tiers import _parse_market_cap
 
                 valid["_weight"] = valid[weight_col].apply(_parse_market_cap)

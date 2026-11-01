@@ -13,6 +13,7 @@ import pandas as pd
 from trade_modules.trade_config import TradeConfig
 from yahoofinance.core.config import COLUMN_NAMES
 from yahoofinance.core.logging import get_logger
+from yahoofinance.utils.data.dtype_utils import is_text_series
 
 # Trading action constants
 BUY_ACTION = "B"
@@ -205,7 +206,7 @@ def format_numeric_values(df: pd.DataFrame, numeric_columns: list[str]) -> pd.Da
     for col in numeric_columns:
         if col in result_df.columns:
             # Handle percentage strings
-            if result_df[col].dtype == "object":
+            if is_text_series(result_df[col]):
                 result_df[col] = result_df[col].apply(
                     lambda x: float(x.replace("%", "")) if isinstance(x, str) and "%" in x else x
                 )

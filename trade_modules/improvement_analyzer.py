@@ -17,6 +17,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from yahoofinance.utils.data.dtype_utils import is_text_series
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,7 +109,7 @@ class ImprovementAnalyzer:
 
     def _to_numeric(self, series: pd.Series) -> pd.Series:
         """Convert string series to numeric."""
-        if series.dtype == object:
+        if is_text_series(series):
             series = series.str.replace("%", "").str.replace("--", "")
         return pd.to_numeric(series, errors="coerce")
 
