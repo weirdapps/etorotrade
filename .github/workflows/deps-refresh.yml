@@ -16,7 +16,9 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Install + full test suite alone runs ~18 min; the old 20-min cap left
+    # under a minute of headroom.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
