@@ -374,7 +374,7 @@ VSS,Vanguard FTSE All-World ex-US Small Capital Index Fund,NYSE
 GUNR,Northern Trust Morningstar Global Upstream Natural Resources ETF,NYSE
 IJS,iShares S&P Small-Cap 600 Value ETF,NYSE
 FNDF,Schwab Fundamental International Large Company Index ETF ,NYSE
-SPSB,SPDR Portfolio Short Term Corporate Bond ETF,NYSE
+SPSB,State Street SPDR Portfolio Short Term Corporate Bond Index ETF,NYSE
 SCHZ,Schwab U.S. Aggregate Bond ETF,NYSE
 IYW,iShares US Technology ETF,NYSE
 MOAT,VanEck Morningstar Wide Moat ETF,CBOE
@@ -2028,6 +2028,7 @@ AYEU.DE,iShares Smart City Infrastructure UCITS ETF,Xetra ETFs
 2BTC.DE,21Shares Bitcoin ETP,Xetra ETFs
 KALMAR.HE,Kalmar Oyj-B Share,Helsinki Stock Exchange
 LASTIK.HE,Luotea Oyj,Helsinki Stock Exchange
+WISA.HE,Wisa Group Oyj,Helsinki Stock Exchange
 SYENS.BR,Syensqo SA,Euronext Brussels
 JDEP.AS,JDE Peet's NV,Euronext Amsterdam
 ANTIN.PA,Antin Infrastructure Partners SAS,Euronext Paris
@@ -3989,7 +3990,7 @@ MITT,AG Mortgage Investment Trust Inc,NYSE
 MNRL,Brigham Minerals Inc,NYSE
 MPLX,MPLX LP,NYSE
 MR,Montage Resources Corp,NYSE
-MSGS,Madison Square Garden Sports Corp,NYSE
+MSGK,MSG Knickerbockers Corp,NYSE
 MT,ArcelorMittal ADR,NYSE
 MUFG,Mitsubishi UFJ Financial Group Inc-ADR,NYSE
 MUX,McEwen Mining Inc,NYSE
@@ -4191,7 +4192,7 @@ SCG.AX,Scentre Group ,ASX
 AMC.AX,Amcor plc,ASX
 OZL.AX,OZ Minerals Limited,ASX
 AGL.AX,AGL Energy Limited,ASX
-MFG.AX,Magellan Financial Group Limited,ASX
+BJY.AX,Barrenjoey Group Ltd,ASX
 IGO.AX,IGO Limited ,ASX
 AKE.AX,Allkem Limited,ASX
 BSL.AX,BlueScope Steel Limited,ASX
@@ -5398,7 +5399,7 @@ DRS,Leonardo Drs Inc,Nasdaq
 VCTR,Victory Capital Holdings Inc,Nasdaq
 PSMT,Pricesmart Inc,Nasdaq
 AVDL,Avadel Pharmaceuticals plc,Nasdaq
-MGPI,MGP Ingredients Inc,Nasdaq
+CASK,Sempreon Inc,Nasdaq
 PYCR,Paycor Hcm Inc,Nasdaq
 XPEL,Xpel Inc,Nasdaq
 ARI,Apollo Commercial Real Estate Finance Inc,NYSE
@@ -6448,7 +6449,7 @@ BWX,State Street SPDR Bloomberg International Treasury Bond ETF,NYSE
 SUSC,Ishares Esg Aware Usd Corpor,Nasdaq
 SVOL,Simplify Volatility Premium,NYSE
 VRP,Invesco Variable Rate Prefer,NYSE
-SPLB,SPDR Portfolio Long Term Corporate Bond ETF,NYSE
+SPLB,State Street SPDR Portfolio Long Term Corporate Bond Index ETF,NYSE
 UCON,First Trust Tcw Unconstraine,NYSE
 TLK,Telkom Indonesia Persero Tbk Pt,NYSE
 BOTZ,Global X Robotics & Artifici,Nasdaq
@@ -6458,7 +6459,7 @@ ECH,Ishares Msci Chile Etf,CBOE
 GOVI,Invesco Equal Weight 0-30 Yr,Nasdaq
 PBW,Invesco Wilderhill Clean Ene,NYSE
 DBD,Diebold Nixdorf Inc,NYSE
-CBND,SPDR Portfolio Corporate Bond ETF,NYSE
+CBND,State Street SPDR Portfolio Corporate Bond Index ETF,NYSE
 AIQ,Global X Art Intel & Tech,Nasdaq
 INFL,Horizon Kinetics Infl Benef,NYSE
 EWP,Ishares Msci Spain Etf,NYSE
@@ -6532,7 +6533,7 @@ EQWL,Invesco S&P 100 Equal Weight,NYSE
 XHB,SPDR S&P Homebuilders ETF,NYSE
 DPST,Direxion Daily Regional Banks Bull 3X ETF,NYSE
 ITB,Ishares U.S. Home Constructi,CBOE
-HYS,Pimco 0-5 Year H/Y Corp Bond,NYSE
+HYS,PIMCO 0-5 Year High Yield Corporate Bond Exchange-Traded Fund,NYSE
 PKW,Invesco Buyback Achievers Et,Nasdaq
 VTES,Vanguard Sh Term Tax-Ex Bond,NYSE
 SUB,Ishares Short-Term National,NYSE
@@ -8037,7 +8038,7 @@ BIO1.DE,Biotest AG,FRA
 SUR.DE,Surteco Group SE,FRA
 TGHN.DE,Logwin AG SA,FRA
 RSL2.DE,R Stahl AG,FRA
-CAP.DE,SCP Standard Capital Partners AG,FRA
+CAP.DE,VANEA AG,FRA
 UZU.DE,Uzin Utz SE,FRA
 V3V.DE,Vita 34 AG,FRA
 DAR.DE,Datron AG,FRA
@@ -8068,7 +8069,7 @@ MBK.DE,Merkur Privatbank KGaA,FRA
 XD4.DE,STRABAG SE,FRA
 AMA.DE,Altech Advanced Materials AG,FRA
 EBEN.DE,Aifinyo AG,FRA
-AMI.DE,Medondo Holding AG,FRA
+AMI0.DE,Medondo Holding AG,FRA
 ART.DE,Artnet AG,FRA
 ACX.DE,bet at home com AG,FRA
 P4O.DE,Plan Optik AG,FRA
@@ -8906,7 +8907,7 @@ ALEO2.PA,EO2 SA,Euronext Paris
 GEA.PA,Gea Grenobloise Electronique Automatisme SA,Euronext Paris
 ALRGR.PA,Rougier SA,Euronext Paris
 JBOG.PA,Bogart SA,Euronext Paris
-EFG.PA,Eagle Football Group SA,Euronext Paris
+OLG.PA,Olympique Lyonnais Groupe,Euronext Paris
 IAM.PA,Itissalat Al Maghrib Ste SA,Euronext Paris
 ALSMA.PA,SMAIO SA,Euronext Paris
 CBSM.PA,Soc Centrale Bois Scieries Manche SA,Euronext Paris
@@ -9357,7 +9358,7 @@ NTSK,"Netskope, Inc",Nasdaq
 PTRN,Pattern Group Inc,Nasdaq
 SOLS,Solstice Advanced Materi,Nasdaq
 FRMI,Fermi Inc,Nasdaq
-SLMT,Brera Holdings PLC,Nasdaq
+SLMT,Solmate Infrastructure PLC,Nasdaq
 UROY,Uranium Royalty Corp,Nasdaq
 ONDS,Ondas Inc,Nasdaq
 NNE,Nano Nuclear Energy Inc,Nasdaq
@@ -9815,6 +9816,7 @@ DNTH,Dianthus Therapeutics Inc,Nasdaq
 SION,Sionna Therapeutics Inc,Nasdaq
 ANDG,Andersen Group Inc,NYSE
 YSS,"York Space Systems, Inc",NYSE
+TKCC.DE,TK ACCELIS GROUP AG & CO KGA,FRA
 MICC.AS,MAGNUM ICE CREAM CO NV,Euronext Amsterdam
 CSG.AS,Czechoslovak Group,Euronext Amsterdam
 ITBL.MI,WisdomTree Multi Asset Issuer PLC,Borsa Italiana
@@ -9843,7 +9845,7 @@ EPRA.PA,Amundi Index FTSE EPRA NAREIT Global UCITS ETF DR (C),Euronext Paris
 ANRJ.PA,Amundi Global Hydrogen UCITS ETF - Acc,Euronext Paris
 CWE.PA,Amundi Global Bioenergy UCITS ETF EUR Acc,Euronext Paris
 H50E.L,HSBC Euro Stoxx 50 UCITS ETF,LSE
-CG1.PA,Amundi DAX UCITS ETF DR,Euronext Paris
+CG1.PA,Amundi Dax UCITS ETF,Euronext Paris
 CF1.PA,Amundi MSCI France UCITS ETF,Euronext Paris
 CS1.PA,Amundi IBEX 35 UCITS ETF Acc,Euronext Paris
 100H.PA,Amundi FTSE 100 UCITS ETF EUR Hedged Acc,Euronext Paris
@@ -10267,6 +10269,7 @@ OIG,Orion180 Insurance Group Inc,Nasdaq
 ETRA,"Electra Therapeutics, Inc",Nasdaq
 SGLA,Sino Green Land Corporation,OTC Markets
 NOPMF,Neo Performance Materials Inc,OTC Markets
+BBTX,"Bambusa Therapeutics, Inc.",Nasdaq
 OCTV,Octave Intelligence PLC,Nasdaq
 AYA,Aya Gold & Silver Inc (Quebec),Nasdaq
 IOND,Ionic Digital Inc,Nasdaq
@@ -10296,6 +10299,7 @@ PPHC,Public Policy Holding Company Inc,Nasdaq
 AIAI,AIAI Holdings Corp,Nasdaq
 QNBC,QNB Corp,Nasdaq
 TTGT,TechTarget Inc,Nasdaq
+ASPE,"Aspen Neuroscience, Inc.",Nasdaq
 SGC US,Superior Group of Companies Inc,Nasdaq
 QMLS,QumulusAI Inc,Nasdaq
 AIBZ,Bitzero Holdings Inc,Nasdaq
@@ -10322,6 +10326,7 @@ IMC,IMC Rare Earths Ltd,NYSE
 FOIL,Londian Wason New Energy Tech Inc,NYSE
 VYLR,VYLOR INC,NYSE
 GLAS,Glass House Brands Inc,NYSE
+OPAY,OPay Limited,NYSE
 OGC,OceanaGold Corp,NYSE
 SPUN OFF 2550972D,Spun off 2550972D,NYSE
 MDA,MDA Space Ltd.,NYSE
@@ -10335,6 +10340,7 @@ FCBM,First Carolina Financial Services Inc,NYSE
 NSCL,Nscale,NYSE
 SKYD/WS,Skydance Corp Warrant,NYSE
 LYNX,Lyntris Inc,NYSE
+MSGR,MSG RANGERS CORP-WI,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
 0625.HK,Shein Global Holdings,HKEX
 0501.HK,OmniVision Integrated Circuits Group Inc,HKEX
