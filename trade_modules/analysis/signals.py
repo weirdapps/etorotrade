@@ -716,6 +716,19 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
     # shape this commit exists to remove. Not coerced to numeric, unlike the two
     # above: it is a label.
     sector_series = df.get("sector", df.get("SECTOR", pd.Series([None] * len(df), index=df.index)))
+
+    def _row_price_target_sector(idx):
+        """(price, target, sector) at idx, None where a series lacks the row.
+
+        One lookup for every log_signal call site: the three-line stanza this
+        replaces was repeated at each of them, and a repeated copy is how one of
+        the sixteen inline price lookups drifted and logged None for months.
+        """
+        return tuple(
+            s.loc[idx] if idx in s.index else None
+            for s in (price_series, target_series, sector_series)
+        )
+
     dma200_raw = df.get(
         "two_hundred_day_avg", df.get("200DMA", pd.Series([np.nan] * len(df), index=df.index))
     )
@@ -1199,9 +1212,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             try:
                 from trade_modules.signal_tracker import log_signal
 
-                row_price = price_series.loc[idx] if idx in price_series.index else None
-                row_target = target_series.loc[idx] if idx in target_series.index else None
-                row_sector = sector_series.loc[idx] if idx in sector_series.index else None
+                row_price, row_target, row_sector = _row_price_target_sector(idx)
                 log_signal(
                     ticker=ticker,
                     signal="S",
@@ -1243,9 +1254,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             try:
                 from trade_modules.signal_tracker import log_signal
 
-                row_price = price_series.loc[idx] if idx in price_series.index else None
-                row_target = target_series.loc[idx] if idx in target_series.index else None
-                row_sector = sector_series.loc[idx] if idx in sector_series.index else None
+                row_price, row_target, row_sector = _row_price_target_sector(idx)
 
                 log_signal(
                     ticker=ticker,
@@ -1388,9 +1397,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                     try:
                         from trade_modules.signal_tracker import log_signal
 
-                        row_price = price_series.loc[idx] if idx in price_series.index else None
-                        row_target = target_series.loc[idx] if idx in target_series.index else None
-                        row_sector = sector_series.loc[idx] if idx in sector_series.index else None
+                        row_price, row_target, row_sector = _row_price_target_sector(idx)
 
                         log_signal(
                             ticker=ticker,
@@ -1460,9 +1467,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                     try:
                         from trade_modules.signal_tracker import log_signal
 
-                        row_price = price_series.loc[idx] if idx in price_series.index else None
-                        row_target = target_series.loc[idx] if idx in target_series.index else None
-                        row_sector = sector_series.loc[idx] if idx in sector_series.index else None
+                        row_price, row_target, row_sector = _row_price_target_sector(idx)
 
                         log_signal(
                             ticker=ticker,
@@ -1635,9 +1640,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
                 try:
                     from trade_modules.signal_tracker import log_signal
 
-                    row_price = price_series.loc[idx] if idx in price_series.index else None
-                    row_target = target_series.loc[idx] if idx in target_series.index else None
-                    row_sector = sector_series.loc[idx] if idx in sector_series.index else None
+                    row_price, row_target, row_sector = _row_price_target_sector(idx)
 
                     log_signal(
                         ticker=ticker,
@@ -2031,9 +2034,7 @@ def calculate_action_vectorized(df: pd.DataFrame, option: str = "market") -> pd.
             from trade_modules.signal_tracker import log_signal
 
             # Get price data if available
-            row_price = price_series.loc[idx] if idx in price_series.index else None
-            row_target = target_series.loc[idx] if idx in target_series.index else None
-            row_sector = sector_series.loc[idx] if idx in sector_series.index else None
+            row_price, row_target, row_sector = _row_price_target_sector(idx)
 
             # Dual-track signal system: track + independent holding horizon.
             from trade_modules.conviction_sizer import suggested_signal_horizon
