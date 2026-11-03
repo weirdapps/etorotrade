@@ -250,3 +250,101 @@ class TestTheChainIsSpelledOnce:
         src = self._source()
         assert '"PRC"' in src
         assert '"TGT"' in src
+
+
+class TestTheTwoSellSitesNothingReachedBefore:
+    """#256: the scored SELL and the pre-scoring SELL had never been exercised.
+
+    #255 fixed the null price at all ten log_signal sites but drove only eight of
+    them. These two frames reach the last two, each asserting on a field only
+    that site writes into sell_triggers, so a pass cannot come from the catch-all
+    call at the end of calculate_action_vectorized.
+    """
+
+    def test_a_scored_sell_records_its_price(self):
+        """Clear every gate in front of the score, then fail on the score alone.
+
+        buy% 70 with upside 0 keeps it out of the hard trigger (needs buy% <= 35
+        or upside <= -5), the soft trigger (needs buy% < 50, or negative upside
+        with buy% < 70), FULLY VALUED (needs buy% >= 80) and the quality override
+        (buy% >= 85). 52W at 30 is above the catastrophic-drawdown floor of 20.
+        What remains is deteriorating earnings (PEF/PET 1.5), a PET of 100,
+        negative ROE and D/E 400, which push the score over US-mega's 65.
+        The same frame at upside +5 / buy% 72 scores 64.5 and stays HOLD, which
+        is how narrow this branch is.
+        """
+        records = _run(
+            {
+                "PRC": PRICE,
+                "TGT": TARGET,
+                "upside": 0.0,
+                "buy_percentage": 70.0,
+                "EXRET": 0.0,
+                "pct_from_52w_high": 30.0,
+                "pe_forward": 150.0,
+                "pe_trailing": 100.0,
+                "return_on_equity": -5.0,
+                "debt_to_equity": 400.0,
+            }
+        )
+        assert records, "no signal was logged, so this asserts nothing"
+        assert records[0].signal == "S"
+        triggers = records[0].sell_triggers or []
+        assert any(t.startswith("earnings_deterioration") for t in triggers), (
+            f"sell_triggers {triggers} are not calculate_sell_score factors, so the "
+            "SCORED SELL site did not write this record"
+        )
+        assert "hard_trigger" not in triggers and "soft_trigger" not in triggers
+        assert records[0].price_at_signal == pytest.approx(PRICE)
+        assert records[0].target_price == pytest.approx(TARGET)
+
+    def test_a_pre_scoring_sell_records_its_price(self):
+        """config.yaml ships use_signal_scoring: true, so this branch is reached
+        only with a config that turns scoring off, which is what this does: the
+        real config, loaded as production loads it, with that one key flipped.
+
+        upside -5 is under US-mega's sell max_upside of 0; buy% 75 keeps it out
+        of FULLY VALUED (which needs buy% >= 80 at |upside| <= 3)."""
+        from trade_modules.yaml_config_loader import get_yaml_config
+
+        loader = get_yaml_config()
+        real = loader.load_config()
+        assert real.get("use_signal_scoring") is True, (
+            "config.yaml no longer enables scoring; this fixture's premise is stale"
+        )
+        with patch.object(
+            loader, "load_config", return_value={**real, "use_signal_scoring": False}
+        ):
+            records = _run(
+                {
+                    "PRC": PRICE,
+                    "TGT": TARGET,
+                    "upside": -5.0,
+                    "buy_percentage": 75.0,
+                    "EXRET": -3.75,
+                    "pct_from_52w_high": 60.0,
+                }
+            )
+        assert records, "no signal was logged, so this asserts nothing"
+        assert records[0].signal == "S"
+        assert "max_upside" in (records[0].sell_triggers or []), (
+            "max_upside is appended only by the pre-scoring branch, so without it "
+            "this record came from somewhere else"
+        )
+        assert records[0].price_at_signal == pytest.approx(PRICE)
+        assert records[0].target_price == pytest.approx(TARGET)
+
+
+class TestTheRowFieldStanzaIsSpelledOnce:
+    """#256: the price/target/sector stanza repeated at six call sites."""
+
+    def test_no_call_site_resolves_target_or_sector_inline(self):
+        from pathlib import Path
+
+        import trade_modules.analysis.signals as mod
+
+        src = Path(mod.__file__).read_text()
+        assert "if idx in target_series.index" not in src.replace(
+            "for s in (price_series, target_series, sector_series)", ""
+        )
+        assert "row_sector = sector_series.loc[idx]" not in src
