@@ -60,11 +60,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ml = [
-    "transformers>=4.30.0",
-    "torch>=2.0.0",
-    "scikit-learn>=1.3.0",
-]
+# No "ml" extra, on purpose (issue #312): torch's nvidia-* markers sent Poetry's
+# resolver into a marker-CNF blow-up that never finished. finBERT's packages
+# (torch, transformers, scikit-learn) live in requirements-ml.txt, unlocked;
+# install it by hand where sentiment scoring is wanted. Without it, finBERT
+# sentiment degrades silently (trade_modules/sentiment_analyzer.py).
 # Minimal "production + smoke test" extra used by the yfinance-compat CI job:
 # we want production deps installed against a clean lockfile, plus only the
 # bare minimum to RUN pytest on the smoke test. Keeps undeclared transitive

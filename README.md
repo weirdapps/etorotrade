@@ -64,6 +64,10 @@ cd etorotrade
 # Same install path CI uses. Poetry is NOT needed to install; only to change deps.
 python3 -m venv venv && source venv/bin/activate
 pip install --only-binary :all: --require-hashes -r requirements-dev-lock.txt
+
+# Optional: finBERT news sentiment. Unlocked and outside Poetry on purpose
+# (torch hung the resolver, issue #312). Without it, sentiment is skipped.
+pip install -r requirements-ml.txt
 ```
 
 Or run `scripts/dev/setup.sh`, which does the same and also installs pre-commit hooks and copies `.env.example` to `.env`.
