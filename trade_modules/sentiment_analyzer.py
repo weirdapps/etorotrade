@@ -112,6 +112,16 @@ def _load_model() -> bool:
 
             return True
 
+        except ImportError as e:
+            # Optional, unlocked packages (issue #312): absent by default, so no warning.
+            logger.info(
+                "finBERT sentiment disabled (%s); enable it with: pip install -r requirements-ml.txt",
+                e,
+            )
+            _model = None
+            _tokenizer = None
+            return False
+
         except Exception as e:
             logger.warning("Failed to load finBERT: %s", e)
             _model = None
