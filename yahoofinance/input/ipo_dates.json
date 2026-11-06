@@ -6760,6 +6760,7 @@
   "MSEX.L": "2015-01-30T00:00:00",
   "MSFT": "1986-03-13T00:00:00",
   "MSGE": "2023-04-17T00:00:00",
+  "MSGK": "2015-09-17T00:00:00",
   "MSGM": "2021-01-13T00:00:00",
   "MSGS": "2015-09-17T00:00:00",
   "MSGY": "2025-07-08T00:00:00",
@@ -10930,7 +10931,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-11-05T03:24:56",
+ "generated_at": "2026-11-06T03:24:04",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
