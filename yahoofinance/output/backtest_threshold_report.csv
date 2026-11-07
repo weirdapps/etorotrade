@@ -1,27 +1,27 @@
 section,item,value,detail,coverage,sample_size
-metric_predictiveness,upside,0.04,weak,100.0,1635
-metric_predictiveness,buy_percentage,0.093,weak,100.0,1635
-metric_predictiveness,exret,0.071,weak,100.0,1635
-metric_predictiveness,roe,0.087,weak,96.5,1577
-metric_predictiveness,debt_equity,0.131,weak,92.0,1505
-metric_predictiveness,pct_52w_high,0.051,weak,100.0,1635
-metric_predictiveness,pe_forward,0.155,moderate,100.0,1635
-metric_predictiveness,pe_trailing,0.06,weak,100.0,1635
+metric_predictiveness,upside,-0.007,weak,100.0,1779
+metric_predictiveness,buy_percentage,0.119,weak,100.0,1779
+metric_predictiveness,exret,0.031,weak,100.0,1779
+metric_predictiveness,roe,0.076,weak,96.3,1714
+metric_predictiveness,debt_equity,0.155,moderate,92.7,1649
+metric_predictiveness,pct_52w_high,0.108,weak,100.0,1779
+metric_predictiveness,pe_forward,0.149,weak,100.0,1779
+metric_predictiveness,pe_trailing,0.052,weak,100.0,1779
 metric_predictiveness,sentiment_score,,insufficient data,0.0,0
-sell_trigger_effectiveness,soft_trigger,53.8,"fires=80, avg_alpha=-0.28%",,80
+sell_trigger_effectiveness,soft_trigger,49.4,"fires=87, avg_alpha=0.05%",,87
 sell_trigger_effectiveness,momentum_based_crypto,18.8,"fires=32, avg_alpha=5.91%",,32
-threshold_suggestion,us_mega_BUY_min_upside,48.8,"current=10, improvement=+8.6%, p=0.006999736859993444, FDR-significant",,784
-threshold_suggestion,us_mega_BUY_min_roe,114.3,"current=8.0, improvement=+10.0%, p=0.005172956541364404, FDR-significant",,777
-threshold_suggestion,us_mega_SELL_max_upside,28.5,"current=0, improvement=+8.5%, p=0.9702683123731148, not-significant",,54
-threshold_suggestion,us_mid_BUY_min_upside,35.9,"current=18, improvement=+20.2%, p=1.2780074030160904e-06, FDR-significant",,105
-threshold_suggestion,us_mid_BUY_min_roe,24.2,"current=10.0, improvement=+28.8%, p=1.5425178023775743e-08, FDR-significant",,105
-threshold_suggestion,us_mid_SELL_max_upside,39.5,"current=7.5, improvement=+30.5%, p=0.04801176565626797, not-significant",,195
-threshold_suggestion,eu_large_BUY_min_upside,30.6,"current=12, improvement=+26.2%, p=0.01923865414210013, FDR-significant",,134
-threshold_suggestion,eu_mid_BUY_min_upside,5.3,"current=18, improvement=+9.0%, p=0.9999999999999291, not-significant",,75
-threshold_suggestion,hk_mega_BUY_min_upside,53.5,"current=15, improvement=+22.7%, p=0.15525232953950763, not-significant",,86
-threshold_suggestion,hk_mega_BUY_min_roe,20.5,"current=10.0, improvement=+18.6%, p=0.625370687619579, not-significant",,86
+threshold_suggestion,us_mega_BUY_min_upside,48.8,"current=10, improvement=+5.4%, p=0.03307629873069462, not-significant",,843
+threshold_suggestion,us_mega_BUY_min_roe,61.2,"current=8.0, improvement=+8.8%, p=9.471202376964971e-05, FDR-significant",,836
+threshold_suggestion,us_mega_SELL_max_upside,28.1,"current=0, improvement=+9.0%, p=0.9967720984450217, not-significant",,61
+threshold_suggestion,us_mid_BUY_min_upside,26.2,"current=18, improvement=+23.5%, p=9.707873687148094e-07, FDR-significant",,120
+threshold_suggestion,us_mid_BUY_min_roe,24.2,"current=10.0, improvement=+28.5%, p=1.1808135580437806e-09, FDR-significant",,120
+threshold_suggestion,us_mid_SELL_max_upside,32.5,"current=7.5, improvement=+29.1%, p=0.35074105017035684, not-significant",,213
+threshold_suggestion,eu_large_BUY_min_upside,31.6,"current=12, improvement=+26.0%, p=0.03299701722789905, not-significant",,141
+threshold_suggestion,hk_mega_BUY_min_upside,54.5,"current=15, improvement=+19.6%, p=0.3714146793645341, not-significant",,93
+threshold_suggestion,hk_mega_BUY_min_buy_percentage,93.0,"current=65, improvement=+5.9%, p=0.9789172780025245, not-significant",,93
+threshold_suggestion,hk_mega_BUY_min_roe,20.5,"current=10.0, improvement=+21.2%, p=0.625370687619579, not-significant",,93
 threshold_suggestion,hk_large_BUY_min_upside,47.5,"current=18, improvement=+11.5%, p=0.008766617649542452, FDR-significant",,86
-regime_performance,risk_on_B,52.4,"mean_return=0.45%, alpha=-0.84, alpha_hit_rate=46.6",,1258
-regime_performance,risk_on_S,42.0,"mean_return=2.18%, alpha=1.04, alpha_hit_rate=45.8",,262
-regime_performance,neutral_B,59.9,"mean_return=1.93%, alpha=-1.07, alpha_hit_rate=47.7",,377
-regime_performance,neutral_S,20.9,"mean_return=6.32%, alpha=3.44, alpha_hit_rate=28.4",,67
+regime_performance,risk_on_B,49.9,"mean_return=-0.23%, alpha=-1.13, alpha_hit_rate=45.4",,1394
+regime_performance,risk_on_S,39.0,"mean_return=2.76%, alpha=2.1, alpha_hit_rate=41.7",,300
+regime_performance,neutral_B,60.5,"mean_return=2.0%, alpha=-0.97, alpha_hit_rate=48.6",,385
+regime_performance,neutral_S,20.6,"mean_return=6.27%, alpha=3.42, alpha_hit_rate=27.9",,68
