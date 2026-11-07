@@ -6458,6 +6458,7 @@
   "MCS": "1980-03-17T00:00:00",
   "MCY": "1985-11-20T00:00:00",
   "MD": "1995-09-20T00:00:00",
+  "MDA": "2026-03-12T00:00:00",
   "MDAI": "2021-04-06T00:00:00",
   "MDB": "2017-10-19T00:00:00",
   "MDBH": "2023-09-21T00:00:00",
@@ -10931,7 +10932,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-11-06T03:24:04",
+ "generated_at": "2026-11-07T03:04:24",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
