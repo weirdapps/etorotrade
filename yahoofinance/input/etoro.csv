@@ -630,7 +630,7 @@ NAV,Navistar International Corp,NYSE
 CST,CST Brands Inc,NYSE
 STT,State Street Corp,NYSE
 UNM,Unum Group,NYSE
-HLT,Hilton Worldwide Holdings Inc,NYSE
+HLT,Hilton Worldwide Holdings Inc,Nasdaq
 PFG,Principal Financial Group Inc,Nasdaq
 RS,Reliance Steel And Aluminum Co,NYSE
 APD,Air Products & Chemicals Inc,NYSE
@@ -4915,7 +4915,7 @@ STEM,Stem Inc.,NYSE
 VRNT,Verint Systems Inc.,Nasdaq
 AHCO,AdaptHealth Corp.,Nasdaq
 WDFC,WD-40 Company,Nasdaq
-TCBI,Texas Capital Bancshares Inc.,
+TXCP,Texas Capital Bancshares Inc.,
 IOVA,Iovance Biotherapeutics Inc.,Nasdaq
 FLGT,Fulgent Genetics Inc.,Nasdaq
 CVLT,Commvault Systems Inc.,Nasdaq
@@ -5624,7 +5624,7 @@ INVX,Innovex International Inc,NYSE
 IMKTA,Ingles Markets Incorporated,Nasdaq
 TIGR,UP Fintech Holding Limited,Nasdaq
 KNTK,Kinetik Holdings Inc,NYSE
-PRM,Perimeter Solutions SA,NYSE
+PRM,Perimeter Group Inc,NYSE
 WINA,Winmark Corporation,Nasdaq
 OKLO,Oklo Inc,NYSE
 PDFS,PDF Solutions Inc,Nasdaq
@@ -9755,7 +9755,6 @@ LENZ,LENZ Therapeutics Inc,Nasdaq
 IMSR,Terrestrial Energy Inc,Nasdaq
 BETR,Better Home & Finance Holding Co,Nasdaq
 NB,NioCorp Developments Ltd,Nasdaq
-INDV,Indivior Pharmaceuticals Inc,Nasdaq
 INFQ,Infleqtion Inc,NYSE
 RZLV,Rezolve AI PLC,Nasdaq
 ABVX,Abivax SA,Nasdaq
@@ -9871,7 +9870,7 @@ CEM.PA,Amundi MSCI Europe Small Cap ESG Broad Transition UCITS ETF Acc,Euronext 
 MCEU.PA,Amundi MSCI Europe Momentum Factor UCITS ETF - EUR (C),Euronext Paris
 TUR.PA,Amundi MSCI Turkey UCITS ETF Acc,Euronext Paris
 CI2.PA,Amundi MSCI India UCITS ETF - EUR (C),Euronext Paris
-INDO.PA,Amundi MSCI Indonesia UCITS ETF Acc,Euronext Paris
+INDO.PA,MSCI Indonesia 20/35 CAPPED NET USD IND,Euronext Paris
 AASI.PA,Amundi MSCI Em Asia UCITS ETF - EUR (C),Euronext Paris
 ALAT.PA,Amundi MSCI EM Latin America UCITS ETF - EUR (C),Euronext Paris
 IX28.PA,iShares iBonds Dec 2028 Term ? Corp Crossover UCITS ETF,Euronext Paris
@@ -10484,3 +10483,463 @@ MXUS.L,Invesco MSCI USA UCITS ETF,LSE
 VGLA.DE,Vanguard FTSE Global All-Cap UCITS ETF USD Acc,Xetra ETFs
 VGSA.DE,Vanguard FTSE Global Small-Cap UCITS ETF USD Acc,Xetra ETFs
 VXUS.DE,Vanguard FTSE All-World Ex-US UCITS ETF USD Acc,Xetra ETFs
+AIQ.AX,Alternative Investment Trust,ASX
+BDCI.AX,Muzinich Global Income Fund-Active ETF,ASX
+CIEM.AX,Colchester Emerging Markets Bond Complex ETF,ASX
+CISB.AX,Colchester Global Government Bond Complex ETF,ASX
+GFXD.AX,Coolabah Active Global Bond Fund,ASX
+GHRP.AX,Global X S&P World EX Australia GARP Currency Hedged ETF,ASX
+GWTH.AX,Vaneck Msci International Growth Etf,ASX
+HHIF.AX,Hejaz High Innovation Active ETF,ASX
+HJHI.AX,Hejaz High Income Active ETF,ASX
+HTTP.AX,ETFS US Technology Currency Hedged ETF,ASX
+JGBL.AX,Janus Henderson Global Research-Engineered Equity Active ETF,ASX
+JHLO.AX,JPMorgan Global Select Equity Hedged Active ETF,ASX
+L1HI.AX,L1 Capital International Hedged Active ETF,ASX
+RSSL.AX,Global X Russell 2000 Etf/Australia,ASX
+SBSL.AX,State Street Blackstone Senior Loan AUD Hedged Active ETF,ASX
+SPHX.AX,Spheria Australian Smaller Companies ETF,ASX
+VBAL.AX,Vaneck Core + Diversified Balanced Active Etf,ASX
+VGRO.AX,Vaneck Core + Diversified Growth Active Etf,ASX
+WYNC.AX,iShares World Equity High Income Complex ETF,ASX
+ADEF.AX,Apostle Dundas Global Equity Fund/ETF,ASX
+AECV.AX,Betashares Australian Shares Catholic Values ETF,ASX
+ASUS.AX,Ausbil Active Sustainable Equity Fund ETF,ASX
+CD1.AX,CD Private Equity Fund I,ASX
+CD2.AX,CD Private Equity Fund II,ASX
+CD3.AX,CD Private Equity Fund III,ASX
+FIRE.AX,Firetrail Alpha Plus Fund ETF,ASX
+GECV.AX,Betashares Global Shares Catholic Values ETF,ASX
+GHIF.AX,Ausbil Global Essential Infrastructure Fund Hedged - Active ETF,ASX
+GIVE.AX,Perpetual ESG Australian Share Fund Managed Fund,ASX
+GSCF.AX,Ausbil Global SmallCap Fund - Active ETF,ASX
+GSUS.AX,Candriam Sustainable Global Equity Fund - Active ETF,ASX
+IIGF.AX,Intelligent Investor Aus Equity Growth Fund,ASX
+IISV.AX,Intelligent Investor Select Value Share Fund Managed Fund,ASX
+IMLC.AX,IML Concentrated Aus Share Fund - Active ETF,ASX
+IMPQ.AX,Perennial Better Future Active ETF,ASX
+INES.AX,Intelligent Investor Ethical Share Fund,ASX
+ISLM.AX,Hejaz Equities Fund,ASX
+L1IF.AX,L1IF AU L1 Capital International Fund Managed Fund,ASX
+LSGE.AX,Loomis Sayles Global Equity Fund Quoted Managed Fund,ASX
+MAET.AX,Munro Global Growth Fund Complex ETF,ASX
+MCCL.AX,Munro Climate Change Leaders Fund Active ETF,ASX
+MCGG.AX,Munro Concentrated Global Growth Fund Active ETF,ASX
+MIDS.AX,Antipodes Global SMID Fund,ASX
+MKAX.AX,Montaka Global Extension Fund Quoted Managed Hedge Fund,ASX
+MOGL.AX,Montaka Global Long Only Equities Fund Managed Fund,ASX
+NNUK.AX,Nanuk New World Fund Managed Fund,ASX
+NNWH.AX,Nanuk New World Fund Currency Hedged Active ETF,ASX
+PAXX.AX,Platinum Asia Fund Complex ETF,ASX
+PIXX.AX,Platinum International Fund ETF,ASX
+PWER.AX,First Sentier Global Listed Infrastructure Fund Hedged Active ETF,ASX
+QGFH.AX,Quay Global Real Estate Fund AUD Hedged Active ETF,ASX
+QGRU.AX,Quay Global Real Estate Fund Unhedged Active ETF,ASX
+RIIF.AX,Resolution Capital Global Listed Infrastructure Fund ETF,ASX
+S3GO.AX,Firetrail S3 Global Opps Fund Managed Fund,ASX
+VNGS.AX,Vaughan Nelson Global Equity SMID Fund - Active ETF,ASX
+WAVE.AX,Longwave Australian Small Companies Fund,ASX
+WCMQ.AX,WCM Quality Global Growth Fund - Active ETF,ASX
+XALG.AX,Alphinity Global Equity Fund Active ETF,ASX
+XASG.AX,Alphinity Global Sustainable Equity Fund Managed Fund,ASX
+AAA.AX,BetaShares Australian High Interest Cash ETF,ASX
+BGBL.AX,Betashares Global Shares ETF,ASX
+SUBD.AX,VanEck Australian Subordinated,ASX
+MMKT.AX,Betashares Australian Cash Plus Active ETF,ASX
+OZBD.AX,Betashares Australian Composite Bond Etf,ASX
+BILL.AX,iShares Core Cash ETF,ASX
+CRED.AX,Betashares Australian Investment Grade Corporate Bond Etf,ASX
+PGA1.AX,Plato Global Alpha Fund Complex ETF,ASX
+VBND.AX,Vanguard Global Aggregate Bond Index Fund Hedged ETF,ASX
+BSUB.AX,Betashares Australian Major Bank Subordinated Debt ETF,ASX
+QPON.AX,BetaShares Australian Bank Senior Floating Rate Bond ETF,ASX
+ASIA.AX,BetaShares Asia Technology Tigers ETF,ASX
+VGB.AX,Vanguard Australian Government Bond Index ETF,ASX
+HGBL.AX,Betashares Global Shares Etf Currency Hedged,ASX
+ETHI.AX,BetaShares Global Sustainability Leaders ETF,ASX
+MQSD.AX,Macquarie Subordinated Debt Fund,ASX
+HBRD.AX,Betashares Australian Credit Income Active ETF,ASX
+IEM.AX,iShares MSCI Emerging Markets ETF/AU,ASX
+GLIN.AX,Ishares Core Ftse Global Infrastructure Aud Hedged Etf,ASX
+SLF.AX,State Street SPDR S&P/ASX 200 Listed Property ETF,ASX
+IAF.AX,iShares CORE Composite Bond ETF,ASX
+IESG.AX,iShares Core MSCI Australia ESG ETF,ASX
+VVLU.AX,Vanguard Global Value Equity Active ETF,ASX
+DHHF.AX,BetaShares Diversified All Growth ETF,ASX
+BNDS.AX,Betashares Western Asset Australian Bond Active ETF,ASX
+HNDQ.AX,Betashares Nasdaq 100 Currency Hedged ETF,ASX
+QUS.AX,BetaShares S&P 500 Equal Weight ETF,ASX
+VLUE.AX,VanEck MSCI International Valu,ASX
+AGVT.AX,Betashares Australian Government Bond ETF,ASX
+AQLT.AX,BetaShares Australian Quality ETF,ASX
+BBOZ.AX,Betashares Australian Equities Strong Bear Complex ETF,ASX
+PGI2.AX,Plato Global Shares Income ETF,ASX
+HCRD.AX,Betashares Interest Rate Hedged Australian Investment Grade Corporate Bond Etf,ASX
+IWLD.AX,iShares Core MSCI World Ex Australia ESG ETF,ASX
+ISEC.AX,iShares Enhanced Cash ETF,ASX
+MVA.AX,VanEck Australian Property ETF,ASX
+VAF.AX,Vanguard Australian Fixed Interest Index ETF,ASX
+ALTB.AX,Ishares 15+ Year Australian Government Bond Etf,ASX
+FSUB.AX,Vaneck Australian Fixed Rate Subordinated Debt Etf,ASX
+LNAS.AX,Global X Ultra Long Nasdaq 100 Complex ETF,ASX
+BBUS.AX,Betashares US Equities Strong Bear Currency Hedged Complex ETF,ASX
+GEAR.AX,Betashares Geared Australian Equities Complex ETF,ASX
+MVR.AX,VanEck Australian Resources ET,ASX
+FANG.AX,Global X FANG+ ETF,ASX
+V1AC.AX,Vinva Global Alpha Fund Active ETF,ASX
+VAP.AX,Vanguard Australian Property Securities Index ETF,ASX
+IHVV.AX,iShares S&P 500 AUD Hedged ETF,ASX
+IFRA.AX,VanEck FTSE Global Infrastructure AUD Hedged ETF,ASX
+ILB.AX,iShares Government Inflation ETF,ASX
+QOZ.AX,Betashares Australia 200 Fundamental Value ETF,ASX
+OOO.AX,Betashares Crude Oil Index Currency Hedged Complex ETF,ASX
+MVW.AX,VanEck Australian Equal Weight,ASX
+FLOT.AX,VanEck Australian Floating Rat,ASX
+SFIF.AX,Seed Financial Income Fund Active ETF,ASX
+IJP.AX,iShares MSCI Japan ETF/AU,ASX
+REIT.AX,VanEck FTSE International Property AUD Hedged ETF,ASX
+SYI.AX,State Street SPDR MSCI Australia Select High Dividend Yield ETF,ASX
+QHAL.AX,VanEck MSCI International Quality AUD Hedged ETF,ASX
+ATEC.AX,BetaShares S&P/ASX Australian Technology ETF,ASX
+DIFF.AX,Perpetual Diversified Income Active ETF,ASX
+SNAS.AX,Global X Ultra Short Nasdaq 100 Complex ETF,ASX
+XGOV.AX,VanEck 10+ Year Australian Government Bond ETF,ASX
+DACE.AX,Dimensional Australian Core Equity Trust - Active ETF,ASX
+VGE.AX,Vanguard FTSE Emerging Markets ETF/Australia,ASX
+MQAE.AX,Macquarie Core Australian Equity Active Etf,ASX
+QSML.AX,VanEck Vectors MSCI International Small Companies Quality ETF,ASX
+QLTY.AX,BetaShares Global Quality Leaders ETF,ASX
+SEMI.AX,Global X Semiconductor ETF,ASX
+YMAX.AX,Betashares Australian Top 20 Equities Yield Maximiser Complex ETF,ASX
+VDHG.AX,Vanguard Diversified High Growth Index ETF,ASX
+MXT.AX,Metrics Master Income Trust,ASX
+HYGG.AX,Hyperion Global Growth Companies Fund Manage Fund,ASX
+IEU.AX,iShares Europe ETF/AU,ASX
+VSO.AX,Vanguard MSCI Australian Small Companies ETF,ASX
+GLPR.AX,Ishares Core Ftse Global Property EX Australia Aud Hedged Etf,ASX
+GXLD.AX,Global X Gold Bullion ETF,ASX
+QAU.AX,Betashares Gold Bullion Currency Hedged ETF,ASX
+FAIR.AX,BetaShares Australian Sustainability Leaders ETF,ASX
+OZR.AX,State Street SPDR S&P/ASX 200 Resources ETF,ASX
+GCI.AX,Gryphon Capital Income Trust,ASX
+GBND.AX,Betashares Global Green Bond Currency Hedged ETF,ASX
+IHWL.AX,iShares Core MSCI World ex Australia ESG AUD Hedged ETF,ASX
+HETH.AX,Betashares Global Sustainability Leaders Currency Hedged ETF,ASX
+GGOV.AX,Betashares US Treasury Bond 20+ Year Currency Hedged ETF,ASX
+HACK.AX,BetaShares Global Cybersecurity ETF,ASX
+GHHF.AX,Betashares Wealth Builder Diversified All Growth Geared 30-40% LVR Complex ETF,ASX
+IXJ.AX,iShares Global Healthcare ETF/AU,ASX
+ESTX.AX,Global X EURO STOXX 50 ETF,ASX
+RGB.AX,Russell Invest Aust Govt Bond ETF,ASX
+GLDN.AX,iShares Physical Gold ETF,ASX
+NUGG.AX,VanEck Gold Bullion ETF,ASX
+VDGR.AX,Vanguard Diversified Growth Index ETF,ASX
+DRUG.AX,Betashares Global Healthcare Currency Hedged ETF,ASX
+FHNG.AX,Global X Fang + Currency Hedged Etf,ASX
+QRE.AX,Betashares Australian Resources Sector ETF,ASX
+MVB.AX,VanEck Australian Banks ETF,ASX
+WDIV.AX,State Street SPDR S&P Global Dividend ETF/AU,ASX
+IKO.AX,iShares MSCI South Korea ETF/AU,ASX
+EMXC.AX,iShares MSCI Emerging Markets ex China ETF/Sydney,ASX
+VACF.AX,Vanguard Australian Corporate Fixed Interest Index ETF,ASX
+CRYP.AX,Betashares Crypto Innovators Etf,ASX
+XMET.AX,Betashares Critical Minerals ETF,ASX
+V500.AX,Vanguard S&P 500 US Shares Index ETF,ASX
+ILC.AX,iShares S&P/ASX 20 ETF,ASX
+GGUS.AX,Betashares Geared US Equities Currency Hedged Complex ETF,ASX
+BNKS.AX,Betashares Global Banks Currency Hedged ETF,ASX
+EX20.AX,BetaShares Australian Ex-20 Portfolio Diversifier ETF,ASX
+BHYB.AX,Betashares Australian Major Bank Hybrids Index ETF,ASX
+EXUS.AX,Betashares Global Shares Ex US ETF,ASX
+URNM.AX,Betashares Global Uranium ETF,ASX
+WIRE.AX,Global X Copper Miners ETF/Australia,ASX
+VIF.AX,Vanguard International Fixed Interest Index Hedged ETF,ASX
+IJR.AX,iShares Core S&P Small-Cap ETF/Australia,ASX
+GNDQ.AX,Betashares Wealth Builder Nasdaq 100 Geared 30-40% LVR Complex ETF,ASX
+VDAL.AX,Vanguard Diversified All Growth Index Etf,ASX
+ROYL.AX,Betashares Global Royalties ETF,ASX
+GCQF.AX,GCQ Global Equities Complex ETF,ASX
+BEMG.AX,Betashares MSCI Emerging Markets Complex ETF,ASX
+HYLD.AX,Betashares S&P Australian Shares High Yield ETF,ASX
+VISM.AX,Vanguard MSCI International Small Companies Index ETF,ASX
+GRNV.AX,VanEck MSCI Australian Sustain,ASX
+EMKT.AX,VanEck MSCI Multifactor Emergi,ASX
+F100.AX,Betashares FTSE 100 ETF,ASX
+WBND.AX,Betashares Global Aggregate Bond Currency Hedged ETF,ASX
+PLUS.AX,VanEck Australian Corporate Bo,ASX
+IHD.AX,iShares S&P/ASX Dividend Opportunities ESG Screened ETF,ASX
+TOLL.AX,Betashares FTSE Global Infrastructure Shares Currency Hedged ETF,ASX
+QRI.AX,Qualitas Real Estate Income Fund,ASX
+IZZ.AX,iShares China Large-Cap ETF/Australia,ASX
+IACT.AX,iShares US Factor Rotation Active ETF,ASX
+PCI.AX,Perpetual Credit Income Trust,ASX
+WXOZ.AX,State Street SPDR S&P World ex Australia Carbon Aware ETF,ASX
+UMAX.AX,Betashares S&P 500 Yield Maximiser Complex ETF,ASX
+VAE.AX,Vanguard FTSE Asia ex-Japan Shares Index ETF,ASX
+VDCO.AX,Vanguard Diversified Conservative Index ETF,ASX
+HVST.AX,Betashares Australian Dividend Harvester Active ETF,ASX
+RDV.AX,Russell Invest High Div Aust Shares ETF,ASX
+HVLU.AX,VanEck MSCI International Value AUD Hedged ETF,ASX
+FUEL.AX,Betashares Global Energy Companies Currency Hedged ETF,ASX
+MSTR.AX,Morningstar International Shares Active ETF,ASX
+DFGH.AX,Dimensional Global Core Equity Trust - Active ETF,ASX
+FSML.AX,Firetrail AUST Small Companies Fund Active ETF,ASX
+USTB.AX,Global X US Treasury Bond Currency Hedged ETF,ASX
+IAA.AX,iShares Asia 50 ETF/AU,ASX
+HQUS.AX,Betashares S&P 500 Equal Weight Currency Hedged Etf,ASX
+AINF.AX,Global X Infrastructure Artificial Intelligence ETF,ASX
+JEME.AX,JPMorgan Emerging Markets Research Enhanced Index Equity Active ETF,ASX
+VESG.AX,Vanguard Ethically Conscious International Shares Index ETF,ASX
+CLDD.AX,BetaShares Cloud Computing ETF,ASX
+GXAI.AX,Global X Artificial Intelligence ETF,ASX
+GGBL.AX,Betashares Wealth Builder Global Shares Geared 30-40% LVR Complex ETF,ASX
+DAOR.AX,Aoris International Fund Class D Hedged Managed Fund/ETF,ASX
+AYLD.AX,Global X S&P/ASX 200 Covered Call Complex ETF,ASX
+VDBA.AX,Vanguard Diversified Balanced Index ETF,ASX
+IGB.AX,iShares Treasury ETF,ASX
+IHOO.AX,iShares Global 100 AUD Hedged ETF,ASX
+IUSG.AX,Ishares US Treasury Bond Aud Hedged Etf,ASX
+VBLD.AX,Vanguard Global Infrastructure Index ETF,ASX
+TBIL.AX,Vaneck 1-3 Month US Treasury Bond Etf,ASX
+MTUM.AX,Betashares Australian Momentum Etf,ASX
+DJRE.AX,State Street SPDR Dow Jones Global Real Estate ESG Tilted ETF,ASX
+VETH.AX,Vanguard Ethically Conscious Australian Shares ETF,ASX
+GARP.AX,Global X S&P World EX Australia Garp Etf,ASX
+ZYAU.AX,Global X S&P/ASX 200 High Dividend ETF,ASX
+GDX.AX,VanEck Gold Miners ETF,ASX
+HJPN.AX,Betashares Japan Currency Hedged ETF,ASX
+MNRS.AX,Betashares Global Gold Miners Currency Hedged ETF,ASX
+IJH.AX,iShares Core S&P Mid-Cap ETF/Australia,ASX
+QMIX.AX,State Street SPDR MSCI World Quality Mix ETF,ASX
+DAVA.AX,Dimensional Australian Value Trust - Active ETF,ASX
+AESG.AX,iShares Global Aggregate Bond ESG AUD Hedged ETF,ASX
+ARMR.AX,Betashares Global Defence Etf,ASX
+SMLL.AX,Betashares Australian Small Companies Select ETF,ASX
+VTEK.AX,Vanguard Global Technology Index Fund,ASX
+GOVT.AX,State Street SPDR S&P/ASX iBoxx Australian Government Bond ETF,ASX
+BANK.AX,Global X Australian Bank Credit Etf,ASX
+ROBO.AX,Global X ROBO Global Robotics & Automation ETF,ASX
+IVE.AX,iShares MSCI EAFE ETF/AU,ASX
+MVE.AX,VanEck S&P/ASX MidCap ETF,ASX
+ZYUS.AX,Global X S&P 500 High Yield Low Volatility ETF,ASX
+TECH.AX,Global X Morningstar Global Technology ETF,ASX
+ECRD.AX,Betashares Australian Enhanced Credit Income Complex ETF,ASX
+MICH.AX,Magellan Infrastructure Fund - Currency Hedged,ASX
+MQDB.AX,Macquarie Dynamic Bond Active ETF,ASX
+GOAT.AX,VanEck Dynamic International Equity ETF,ASX
+BCOM.AX,Global X Bloomberg Commodity Complex ETF,ASX
+MONY.AX,Vaneck Cash Plus Active ETF,ASX
+SFY.AX,State Street SPDR S&P/ASX 50 ETF,ASX
+GTUM.AX,Betashares Global Momentum ETF,ASX
+ICOR.AX,iShares Core Corporate Bond ETF,ASX
+IHHY.AX,iShares Global High Yield Bond AUD Hedged ETF,ASX
+ATOM.AX,Global X Uranium ETF/Australia,ASX
+IHEB.AX,iShares JP Morgan USD Emerging Markets Bond AUD Hedged ETF,ASX
+INCM.AX,Betashares S&P Global High Dividend Aristocrats ETF,ASX
+RCB.AX,Russell Invest Aust Select Corp Bond ETF,ASX
+KKC.AX,KKR Credit Income Fund,ASX
+QHSM.AX,VanEck MSCI International Small Companies Quality AUD Hedged ETF,ASX
+MVS.AX,VanEck Small Companies Masters,ASX
+VFLT.AX,Vanguard Australian Floating Rate Bond Index ETF,ASX
+AEBD.AX,Betashares Ethical Australian Composite Bond ETF,ASX
+VEQ.AX,Vanguard FTSE Europe Shares ETF,ASX
+VLC.AX,Vanguard MSCI Australian Large Companies ETF,ASX
+ESGI.AX,VanEck MSCI International Sust,ASX
+ISO.AX,iShares S&P/ASX Small Ordinaries ETF,ASX
+HEUR.AX,Betashares Europe Currency Hedged ETF,ASX
+U100.AX,Global X US 100 ETF,ASX
+RCAP.AX,Resolution Capital Global Property Securities Fund Managed Fund,ASX
+US10.AX,Betashares US Treasury Bond 7-10 Year Currency Hedged ETF,ASX
+RMBS.AX,Vaneck Australian RMBS ETF,ASX
+IHCB.AX,iShares Core Global Corporate Bond AUD Hedged ETF,ASX
+MQIO.AX,Macquarie Income Opportunities Active ETF,ASX
+GCAP.AX,VanEck Bentham Global Capital Securities Active ETF,ASX
+CIIH.AX,Clearbridge Global Infrastructure Income Fund Hedged Active Share,ASX
+MOT.AX,Metrics Income Opportunities Trust,ASX
+MA1.AX,MA CREDIT INCOME TRUST,ASX
+IXI.AX,iShares Global Consumer Staples ETF/AU,ASX
+AQTY.AX,VanEck MSCI Australian Quality Plus ETF,ASX
+DGCE.AX,Dimensional Global Core Equity Trust - Active ETF,ASX
+AVSV.AX,Avantis Global Small Cap Value Active ETF,ASX
+LEND.AX,Vaneck Global Listed Private Credit Aud Hedged Etf,ASX
+XARO.AX,Ardea Real Outcome Bond Complex ETF,ASX
+WVOL.AX,iShares MSCI World ex Australia Minimum Volatility ETF,ASX
+EBND.AX,VanEck Emerging Income Opportunities Active ETF,ASX
+ACDC.AX,Global X Battery Tech & Lithium ETF,ASX
+VIHY.AX,VANGUARD INTERNATIONAL SHARES HIGH YIELD ETF,ASX
+MOAT.AX,VanEck Morningstar Wide Moat E,ASX
+AUDS.AX,Betashares Strong Australian Dollar Complex ETF,ASX
+WXHG.AX,State Street SPDR S&P World ex Australia Carbon Aware Hedged ETF,ASX
+J100.AX,Global X Japan TOPIX 100 ETF,ASX
+G200.AX,Betashares Wealth Builder Australia 200 Geared 30-40% LVR Complex ETF,ASX
+USD.AX,BetaShares US Dollar ETF,ASX
+MHOT.AX,VanEck Morningstar Wide Moat AUD Hedged ETF,ASX
+SLVM.AX,Global X Silver Miners ETF/Australia,ASX
+HLTH.AX,VanEck Global Healthcare Leade,ASX
+GROW.AX,Schroder Real Return Managed Fund,ASX
+BBAB.AX,Betashares Geared Short Australian Government Bond Complex ETF,ASX
+MQEG.AX,Macquarie Core Global Equity Active ETF,ASX
+QMAX.AX,Betashares Nasdaq 100 Yield Maximiser Complex ETF,ASX
+OPH.AX,Ophir High Conviction Fund/LIT,ASX
+SMHG.AX,Vaneck Global Semiconductor Etf,ASX
+DCOR.AX,Daintree Core Income Fund Active ETF,ASX
+QFN.AX,BetaShares S&P/ASX Financial Sector ETF,ASX
+DZZF.AX,BetaShares Ethical Diversified High Growth ETF,ASX
+UTIP.AX,Betashares Inflation-Protected US Treasury Bond Currency Hedged ETF,ASX
+DRGN.AX,Global X China Tech Etf,ASX
+BAOR.AX,Aoris International Fund Class B Unhedged Managed Fund/ETF,ASX
+GPEQ.AX,Vaneck Global Listed Private Equity Etf,ASX
+IYLD.AX,iShares Yield Plus ETF,ASX
+GAME.AX,Betashares Video Games and ESports ETF,ASX
+VDIF.AX,Vanguard Diversified Income Etf,ASX
+ITEK.AX,iShares Nasdaq Top 30 ETF/ Australia,ASX
+5GOV.AX,VanEck 5-10 Year Australian Government Bond ETF,ASX
+AUMF.AX,iShares Edge MSCI Australia Multifactor ETF,ASX
+VCF.AX,Vanguard International Credit Securities Index Hedged ETF,ASX
+HQLT.AX,Betashares Global Quality Leaders Currency Hedged ETF,ASX
+IIND.AX,Betashares India Quality ETF,ASX
+JEPI.AX,JPMorgan Equity Premium Income Complex ETF,ASX
+GHLD.AX,Global X Gold Bullion Currency Hedged ETF,ASX
+CPPR.AX,ETFS Global Pure Play Copper Miners ETF,ASX
+DTEC.AX,Global X Defence Tech ETF,ASX
+CFLO.AX,Betashares Global Cash Flow Kings ETF,ASX
+BOND.AX,State Street SPDR S&P/ASX iBoxx Australian Bond ETF,ASX
+BEAR.AX,Betashares Australian Equities Bear Complex ETF,ASX
+NDIA.AX,Global X India Nifty 50 ETF,ASX
+FOOD.AX,Betashares Global Agriculture Companies Currency Hedged ETF,ASX
+MQYM.AX,Macquarie Global Yield Maximiser Active ETF,ASX
+CNEW.AX,VanEck China New Economy ETF,ASX
+AVTE.AX,Avantis Emerging Markets Equity Active ETF,ASX
+VEFI.AX,Vanguard Ethically Conscious Global Aggregate Bond Index Hedged ETF,ASX
+CLNE.AX,VanEck Global Clean Energy ETF,ASX
+ALFA.AX,VanEck Australian Long Short Complex ETF,ASX
+YANK.AX,Betashares Strong US Dollar Complex ETF,ASX
+RCKT.AX,Betashares Space Industry ETF,ASX
+RSM.AX,Russell Invest Aust Semi-Govt Bond ETF,ASX
+A300.AX,Global X Australia 300 ETF,ASX
+FRAR.AX,Franklin Australian Absolute Return Bond Fund Managed Fund,ASX
+DGGF.AX,Betashares Ethical Diversified Growth ETF,ASX
+CUIV.AX,Clearbridge Global Infrastructure Value Fund Active ETF,ASX
+MQHG.AX,Macquarie Core Global Equity Hedged Active ETF,ASX
+PAVE.AX,Global X US Infrastructure Development ETF/Australia,ASX
+QNTM.AX,Vaneck Quantum Etf,ASX
+QYLD.AX,Global X Nasdaq 100 Covered Call Complex ETF,ASX
+ERTH.AX,Climate Change Innovation ETF,ASX
+E200.AX,State Street SPDR S&P/ASX 200 ESG ETF,ASX
+RBTZ.AX,BetaShares Global Robotics And Artificial Intelligence ETF,ASX
+REV.AX,Revolution Private Credit Income Trust,ASX
+CURE.AX,Global X S&P Biotech ETF,ASX
+JHGA.AX,JPMorgan Global Equity Premium Income Hedged Complex ETF,ASX
+V5AH.AX,Vanguard S&P 500 US Shares Index Hedged ETF,ASX
+SPY.AX,State Street SPDR S&P 500 ETF Trust,ASX
+ULTB.AX,iShares 20+ Year US Treasury Bond AUD Hedged ETF,ASX
+RF1.AX,Regal Investment Fund,ASX
+JPEQ.AX,JPMorgan Nasdaq Equity Premium Income Complex ETF,ASX
+MQXS.AX,Macquarie Global Small Companies Active ETF,ASX
+FEIF.AX,Western Asset Enhanced Income Fund Active ETF,ASX
+WRLD.AX,Betashares Managed Risk Global Shares Complex ETF,ASX
+DFND.AX,Vaneck Global Defence Etf,ASX
+URAN.AX,Vaneck Uranium And Energy Innovation Etf,ASX
+AASF.AX,Airlie Australian Share Fund -- ETF Feeder,ASX
+BUGG.AX,Global X Cybersecurity ETF/Australia,ASX
+JREG.AX,JPMorgan Global Research Enhanced Index Equity Active ETF,ASX
+GMVW.AX,VanEck Geared Australian Equal Weight Complex ETF,ASX
+HGCQ.AX,GCQ Global Equities Hedged Complex ETF,ASX
+BBFD.AX,Betashares Geared Short US Treasury Bond Currency Hedged Complex ETF,ASX
+WEMG.AX,State Street SPDR S&P Emerging Markets Carbon Aware ETF,ASX
+CIVH.AX,Clearbridge Infrastructure Value Fund - Hedged Active ETF,ASX
+JRHG.AX,JPMorgan Global Research Enhanced Index Equity Hedged Active ETF,ASX
+DGVA.AX,Dimensional Global Value Trust - Active ETF,ASX
+WDMF.AX,iShares World Equity Factor ETF,ASX
+OPPT.AX,Magellan Global Opportunities Fund - Active ETF,ASX
+AGGG.AX,iShares Core Global Aggregate Bond AUD Hedged ETF,ASX
+OZXX.AX,Global X Australia Ex Financials & Resources ETF,ASX
+DRIV.AX,Betashares Electric Vehicles and FTR Mobility ETF,ASX
+OZF.AX,State Street SPDR S&P/ASX 200 Financials EX A-REIT ETF,ASX
+LPHD.AX,Loftus Peak Global Disruption Hedged Active ETF,ASX
+DGSM.AX,Dimensional Global Small Company Trust - Active ETF,ASX
+IBAL.AX,iShares Balanced ESG ETF,ASX
+JNDQ.AX,Betashares Nasdaq Next Gen 100 Etf,ASX
+IGRO.AX,iShares High Growth ESG ETF,ASX
+AUST.AX,Betashares Managed Risk Australian Shares Complex ETF,ASX
+RESM.AX,Vaneck Rare Earth And Strategic Metals EX China Etf,ASX
+JPHQ.AX,JPMorgan Nasdaq Equity Premium Income Hedged Complex ETF,ASX
+H100.AX,Betashares FTSE 100 Currency Hedged ETF,ASX
+DVHG.AX,Betashares Diversified High Growth ETF,ASX
+PCX.AX,Pengana Global Private Credit Trust,ASX
+WWWW.AX,ETFS US Technology ETF,ASX
+MQWS.AX,Macquarie Walter Scott Global Equity Active ETF,ASX
+MVOL.AX,iShares Edge MSCI Australia Minimum Volatility ETF,ASX
+SVNP.AX,Savana US Small Caps Active ETF,ASX
+FHCO.AX,Fidelity Australian High Conviction Active ETF,ASX
+GGFD.AX,Betashares Geared Long US Treasury Bond Currency Hedged Complex ETF,ASX
+QNDQ.AX,Betashares Nasdaq 100 Equal Weight ETF,ASX
+GGAB.AX,Betashares Geared Long Australian Government Bond Complex ETF,ASX
+SSO.AX,State Street SPDR S&P/ASX Small Ordinaries ETF,ASX
+RARI.AX,Russell Invest Aust Responsible Inv ETF,ASX
+EIGA.AX,Perennial Income Generator Active ETF,ASX
+ESPO.AX,VanEck Video Gaming and Esport,ASX
+DVGR.AX,Betashares Diversified Growth ETF,ASX
+INIF.AX,Intelligent Investor Aus Equity Income Fund,ASX
+GMTL.AX,Global X Rare Earth and Critical Metals ETF,ASX
+B1SM.AX,Bell Global Emerging Companies Fund,ASX
+AVNG.AX,Avantis Global Equity Active ETF,ASX
+ROAR.AX,LION ACTIVE ETF,ASX
+MQFI.AX,Macquarie Core Australian Bond Active ETF,ASX
+DBBF.AX,Betashares Ethical Diversified Balanced ETF,ASX
+CETF.AX,VanEck FTSE China A50 ETF,ASX
+LF1.AX,La Trobe Private Credit Fund,ASX
+LPGD.AX,Loftus Peak Global Disruption Fund/ETF,ASX
+JEGA.AX,JPMorgan Global Equity Premium Income Complex ETF,ASX
+ZILR.AX,ZILLER GLOBAL FUND ACTIVE ETF,ASX
+T3MP.AX,JPMorgan Climate Change Solutions Active ETF,ASX
+UYLD.AX,Global X S&P 500 Covered Call Complex ETF,ASX
+SBHI.AX,State Street Blackstone High Income AUD Hedged Active ETF,ASX
+CORE.AX,Schroder Global Core Fund - Active ETF,ASX
+MFOA.AX,Milford Australian Absolute Growth Hedge Fund,ASX
+FASI.AX,Fidelity Asia Active ETF,ASX
+SWTZ.AX,Switzer Dividend Growth Fund - Active ETF,ASX
+HMND.AX,Global X Humanoid Robotics ETF,ASX
+TCAP.AX,Ten Cap Alpha Plus Complex ETF,ASX
+ALPH.AX,Schroder Global Equity Alpha - Active ETF,ASX
+USIG.AX,Global X USD Corporate Bond Currency Hedged ETF,ASX
+HULK.AX,ETFS Magnificent 7+ Currency Hedged ETF,ASX
+COMP.AX,Betashares Bloomberg AusBond Composite ETF,ASX
+ISMD.AX,Global X MSCI International Small and Mid Cap ETF,ASX
+LEVR.AX,First Sentier Geared Australian Share Fund ETF,ASX
+FSCF.AX,First Sentier Active Cash Fund Active ETF,ASX
+FGSE.AX,Franklin Global Systematic Equity Fund Active ETF,ASX
+R3AL.AX,Martin Currie Real Income Fund - Active ETF,ASX
+DCRD.AX,Betashares Diversified Credit Income ETF,ASX
+JHPI.AX,JPMorgan Equity Premium Income Hedged Complex ETF,ASX
+31BB.AX,Betashares 2031 Fixed Term Corporate Bond Active ETF,ASX
+1GOV.AX,VanEck 1-5 Year Australian Government Bond ETF,ASX
+VOLT.AX,ETFS Global Lithium Miners ETF,ASX
+SKUK.AX,Hejaz Sukuk Active ETF Managed Fund,ASX
+KIT.AX,Kapstream Listed Trust,ASX
+VTKH.AX,VANGUARD GLOBAL TECHNOLOGY INDEX HEDGED ETF,ASX
+ICME.AX,iShares Credit Income Active ETF,ASX
+JGLO.AX,JPMorgan Global Select Equity Active ETF,ASX
+GRPA.AX,Global X S&P Australia GARP ETF,ASX
+FTPG.AX,Franklin Putnam Global Core Equity Fund,ASX
+AIX.AX,AIX Opportunities Trust,ASX
+EAFZ.AX,Ellerston Asia Growth Fund Complex ETF,ASX
+TCF.AX,360 Capital Mortgage REIT,ASX
+LRT.AX,Lowell Resources Fund,ASX
+FCAP.AX,Fidelity Global Future Leaders Active ETF,ASX
+ASAO.AX,abrdn Sustainable Asian Opportunities Active ETF Managed Fund,ASX
+VHGR.AX,Vaneck Core + Diversified High Growth Active Etf,ASX
+USHY.AX,Global X USD High Yield Bond Currency Hedged ETF,ASX
+CGHE.AX,Claremont Global Fund hedged Managed Fund,ASX
+MRE.AX,Metrics Real Estate Multi-Strategy Fund,ASX
+DVBA.AX,Betashares Diversified Balanced ETF,ASX
+AGX1.AX,Antipodes Global Shares EQMF ETF,ASX
+30BB.AX,Betashares 2030 Fixed Term Corporate Bond Active ETF,ASX
+GLOB.AX,Barrow Hanley Global Share Fund Managed Fund,ASX
+29BB.AX,Betashares 2029 Fixed Term Corporate Bond Active ETF,ASX
+28BB.AX,Betashares 2028 Fixed Term Corporate Bond Active ETF,ASX
+DN1.AX,Trustee For Dominion Income Trust 1/The,ASX
+GOOD.AX,Janus Henderson Sustainable Credit Active ETF,ASX
+FEMX.AX,Fidelity Global Emerging Markets Active ETF,ASX
+FUTR.AX,Janus Henderson Global Sustainable Equity Active ETF,ASX
+RGOS.AX,Russell SUST Global Opportunities Complex ETF,ASX
