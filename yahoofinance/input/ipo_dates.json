@@ -8860,6 +8860,7 @@
   "SIMA": "2024-08-30T00:00:00",
   "SIMO": "2005-06-30T00:00:00",
   "SINCH.ST": "2015-10-08T00:00:00",
+  "SIND": "2026-06-26T00:00:00",
   "SINT": "2014-02-13T00:00:00",
   "SINT.ST": "2002-06-12T00:00:00",
   "SION": "2025-02-07T00:00:00",
@@ -10932,7 +10933,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-11-09T02:58:33",
+ "generated_at": "2026-11-10T05:27:01",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
