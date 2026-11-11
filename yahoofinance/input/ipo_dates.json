@@ -9906,6 +9906,7 @@
   "TWR.AX": "1999-09-27T00:00:00",
   "TWST": "2018-10-31T00:00:00",
   "TX": "2006-02-01T00:00:00",
+  "TXCP": "2003-08-13T00:00:00",
   "TXG": "2019-09-12T00:00:00",
   "TXMD": "2007-05-09T00:00:00",
   "TXN": "1972-06-01T00:00:00",
@@ -10933,7 +10934,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-11-10T05:27:01",
+ "generated_at": "2026-11-11T03:13:03",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
