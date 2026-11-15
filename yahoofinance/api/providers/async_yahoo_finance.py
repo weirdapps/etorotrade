@@ -20,6 +20,7 @@ from ...utils.error_handling import with_retry
 from ...utils.market.ticker_utils import is_stock_ticker, validate_ticker  # Keep this import
 from ...utils.network.circuit_breaker import CircuitOpenError
 from ...utils.network.session_manager import get_shared_session
+from ...utils.network.yahoo_session import fetch_info_with_session_refresh
 from .async_modules import (
     POSITIVE_GRADES,
     calculate_analyst_momentum,
@@ -223,7 +224,10 @@ class AsyncYahooFinanceProvider(AsyncFinanceDataProvider):
 
             # Handle potential NoneType errors with info
             try:
-                ticker_info = yticker.info
+                # A 401 from Yahoo (lost session) rebuilds the session and fetches again
+                yticker, ticker_info = fetch_info_with_session_refresh(
+                    yticker, lambda: yf.Ticker(fetch_ticker)
+                )
                 # Check if ticker_info returns None
                 if ticker_info is None:
                     logger.warning(

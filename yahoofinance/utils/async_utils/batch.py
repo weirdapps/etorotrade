@@ -6,6 +6,7 @@ with concurrency control, progress reporting, and performance metrics.
 """
 
 import asyncio
+import math
 import time
 from collections.abc import Callable, Coroutine
 from typing import Any, TypeVar
@@ -22,6 +23,27 @@ logger = get_logger(__name__)
 
 # Global variable to store processing statistics for display after table
 _last_processing_stats = None
+
+
+def _is_unpriced(result: Any) -> bool:
+    """True for a ticker row that came back without a price.
+
+    Such a row is still returned (it is written as a blank row), but it is not a success: on
+    2026-11-15 a scan that had lost its Yahoo session reported "1821/1824 succeeded" over
+    thousands of blank rows. Results that carry no price field at all are not judged.
+    """
+    if not isinstance(result, dict):
+        return False
+    fields = [key for key in ("price", "current_price") if key in result]
+    if not fields:
+        return False
+    return all(_is_blank(result[key]) for key in fields)
+
+
+def _is_blank(value: Any) -> bool:
+    if value is None or value == "":
+        return True
+    return isinstance(value, float) and math.isnan(value)
 
 
 async def gather_with_concurrency(coros: list[Coroutine[Any, Any, T]], limit: int = 5) -> list[T]:
@@ -120,6 +142,7 @@ async def process_batch_async(
     total_batches = (total_items + batch_size - 1) // batch_size
     start_time = time.time()
     success_count = 0
+    unpriced_count = 0
     error_count = 0
     cache_hits = 0
 
@@ -148,7 +171,9 @@ async def process_batch_async(
         # Update progress bar description
         if show_progress:
             elapsed = time.time() - start_time
-            items_per_second = max((success_count + error_count) / max(elapsed, 0.1), 0.01)
+            items_per_second = max(
+                (success_count + unpriced_count + error_count) / max(elapsed, 0.1), 0.01
+            )
 
             # Show the last item being processed in the description with cleaner format
             current_item = batch[-1] if batch else ""
@@ -173,7 +198,10 @@ async def process_batch_async(
                 for item, result in zip(batch, batch_results, strict=False):
                     if result is not None:
                         results[item] = result
-                        success_count += 1
+                        if _is_unpriced(result):
+                            unpriced_count += 1
+                        else:
+                            success_count += 1
 
                         # Check if this was a cache hit
                         if isinstance(result, dict) and result.get("_cache_hit") is True:
@@ -206,7 +234,10 @@ async def process_batch_async(
                         error_count += 1
                     elif result is not None:
                         results[item] = result
-                        success_count += 1
+                        if _is_unpriced(result):
+                            unpriced_count += 1
+                        else:
+                            success_count += 1
 
                         # Check if this was a cache hit
                         if isinstance(result, dict) and result.get("_cache_hit") is True:
@@ -258,6 +289,7 @@ async def process_batch_async(
         "items_per_second": items_per_second,
         "seconds_per_item": seconds_per_item,
         "success_count": success_count,
+        "unpriced_count": unpriced_count,
         "error_count": error_count,
         "cache_hits": cache_hits,
         "show_progress": show_progress,
@@ -279,6 +311,7 @@ def display_processing_stats():
         if total > 0:
             print(
                 f"\n✅ Processing complete: {stats['success_count']}/{total} succeeded, "
+                f"{stats.get('unpriced_count', 0)} unpriced, "
                 f"{stats['error_count']} failed | {stats['elapsed']:.1f}s total ({stats['seconds_per_item']:.1f}s/ticker)"
             )
             if stats["cache_hits"] > 0:
