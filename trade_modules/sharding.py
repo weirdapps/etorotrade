@@ -82,3 +82,39 @@ def merge_shard_csvs(input_dir: str, output_path: str, pattern: str = "etoro_sha
     merged = merge_shard_frames(frames)
     merged.to_csv(output_path, index=False)
     return len(merged)
+
+
+#: The largest share of a shard's rows that may carry no price before the shard is read as
+#: DEGRADED rather than scanned.
+#:
+#: Measured on the committed ``etoro.csv`` vintages, 2026-10-21 to 2026-11-15. About 1,780 of
+#: ~10,900 names never price (16%), and round-robin sharding spreads them evenly, so a healthy
+#: shard sits near 0.16. On 2026-11-15 two of six shards lost their Yahoo session a third of the
+#: way through (10,421 "Invalid Crumb" 401s), wrote a blank row for every later name and still
+#: reported "1821/1824 succeeded": 3,874 blank rows that day against the usual 1,782, which
+#: over two 1,824-row shards is about 0.74 each. Four smaller days (2026-10-27, 10-30, 11-05,
+#: 11-14) added 372 to 1,187 blank names. 0.25 is about nine binomial standard deviations above
+#: a healthy shard, and catches a shard that lost 160 names or more. Per-shard shares on those
+#: days were not kept (artifacts live one day), so the limit is set from the totals.
+MAX_BLANK_PRICE_SHARE = 0.25
+
+#: How a row with no price is spelled in the scan's CSV.
+_BLANK_PRICE = {"", "--", "nan", "none"}
+
+
+def blank_price_counts(csv_path: str) -> tuple[int, int]:
+    """``(rows, rows_with_no_price)`` for one scan CSV. A file with no ``PRC`` column is all blank.
+
+    Read as text: the scan writes ``--`` for a missing figure, and letting pandas infer the
+    column would turn a fully blank one into floats and a mixed one into objects.
+    """
+    df = pd.read_csv(csv_path, dtype=str, keep_default_na=False)
+    if "PRC" not in df.columns:
+        return len(df), len(df)
+    blank = df["PRC"].str.strip().str.lower().isin(_BLANK_PRICE)
+    return len(df), int(blank.sum())
+
+
+def shard_is_degraded(rows: int, blank: int, max_share: float = MAX_BLANK_PRICE_SHARE) -> bool:
+    """True when a shard has no rows at all, or more blank prices than a healthy scan leaves."""
+    return rows <= 0 or blank / rows > max_share

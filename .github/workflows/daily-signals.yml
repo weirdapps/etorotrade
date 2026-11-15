@@ -54,9 +54,25 @@ jobs:
           SHARD_INDEX: ${{ matrix.shard }}  # SHARD_COUNT inherited from job env
         run: |
           echo "Scanning shard ${SHARD_INDEX}/${SHARD_COUNT}..."
+          out="etoro_shard_${SHARD_INDEX}.csv"
           python trade.py -o e
-          mv yahoofinance/output/etoro.csv "etoro_shard_${SHARD_INDEX}.csv"
-          echo "Shard ${SHARD_INDEX} complete: $(wc -l < etoro_shard_${SHARD_INDEX}.csv) lines"
+          mv yahoofinance/output/etoro.csv "$out"
+          # A scan that loses its Yahoo session keeps running, blanks every later row and exits
+          # 0 (2026-11-15: two shards, 2,092 names). Grade the slice; scan it once more in a
+          # fresh process, which opens a fresh session, with the on-disk cache cleared so no
+          # blank answer is replayed; keep whichever slice priced more names; and FAIL the
+          # shard if that one is still degraded. A failed shard stops the merge, so a damaged
+          # etoro.csv is never committed over the last good one.
+          if ! python scripts/shard_quality.py "$out"; then
+            echo "::warning::shard ${SHARD_INDEX} came back degraded; scanning it again"
+            rm -rf yahoofinance/data/cache
+            python trade.py -o e
+            mv yahoofinance/output/etoro.csv "retry_${out}"
+            best=$(python scripts/shard_quality.py --better "$out" "retry_${out}")
+            [ "$best" = "$out" ] || mv "retry_${out}" "$out"
+            python scripts/shard_quality.py "$out"
+          fi
+          echo "Shard ${SHARD_INDEX} complete: $(wc -l < "$out") lines"
           # IPO dates learned by this shard. Shards are contents:read and cannot
           # push, so they hand the deltas to the merge job, which owns the
           # committed yahoofinance/input/ipo_dates.json.

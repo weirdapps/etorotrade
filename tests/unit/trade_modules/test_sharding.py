@@ -13,9 +13,12 @@ import pandas as pd
 import pytest
 
 from trade_modules.sharding import (
+    MAX_BLANK_PRICE_SHARE,
     apply_shard_from_env,
+    blank_price_counts,
     merge_shard_csvs,
     merge_shard_frames,
+    shard_is_degraded,
     shard_tickers,
 )
 
@@ -177,3 +180,61 @@ def test_merge_shards_runs_as_script(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert out.exists()
+
+
+# --- shard quality: a scan that lost its session must not pass as scanned ------------------
+
+
+def _scan_csv(tmp_path, name, priced, blank):
+    rows = [f"P{i},Name {i},1B,{10 + i}.5" for i in range(priced)]
+    rows += [f"B{i},,--,--" for i in range(blank)]
+    path = tmp_path / name
+    path.write_text("TKR,NAME,CAP,PRC\n" + "\n".join(rows) + "\n")
+    return str(path)
+
+
+def test_blank_price_counts_reads_the_scans_own_blank_marker(tmp_path):
+    assert blank_price_counts(_scan_csv(tmp_path, "a.csv", priced=84, blank=16)) == (100, 16)
+
+
+def test_a_csv_with_no_price_column_is_all_blank(tmp_path):
+    path = tmp_path / "noprc.csv"
+    path.write_text("TKR,NAME\nAAA,x\nBBB,y\n")
+    assert blank_price_counts(str(path)) == (2, 2)
+
+
+def test_a_healthy_shard_passes_and_a_shard_that_lost_its_session_does_not():
+    # 2026-11-15: a healthy shard sits near 16% blank, the two that lost Yahoo near 74%.
+    assert not shard_is_degraded(1824, 297)
+    assert shard_is_degraded(1824, 1350)
+    assert shard_is_degraded(0, 0), "an empty shard is not a scanned one"
+    limit = int(1000 * MAX_BLANK_PRICE_SHARE)
+    assert not shard_is_degraded(1000, limit), "the limit itself passes"
+    assert shard_is_degraded(1000, limit + 1)
+
+
+def test_the_shard_quality_script_fails_a_degraded_slice_and_picks_the_better_retry(
+    tmp_path, capsys
+):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "shard_quality", Path(__file__).resolve().parents[3] / "scripts" / "shard_quality.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    good = _scan_csv(tmp_path, "good.csv", priced=84, blank=16)
+    bad = _scan_csv(tmp_path, "bad.csv", priced=26, blank=74)
+    assert mod.main([good]) == 0
+    assert mod.main([bad]) == 1
+    capsys.readouterr()
+
+    assert mod.main(["--better", bad, good]) == 0
+    assert capsys.readouterr().out.strip() == good
+    assert mod.main(["--better", good, bad]) == 0
+    assert capsys.readouterr().out.strip() == good
+    # A tie keeps the first: the retry has to be better to replace the original.
+    twin = _scan_csv(tmp_path, "twin.csv", priced=26, blank=74)
+    assert mod.main(["--better", bad, twin]) == 0
+    assert capsys.readouterr().out.strip() == bad
