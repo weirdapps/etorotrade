@@ -4,7 +4,7 @@ Market analysis and portfolio management tool that aggregates Yahoo Finance anal
 
 ## Tech Stack
 
-- Python >=3.11, <4.0 (CI matrix: 3.11, 3.12)
+- Python >=3.11.5, <4.0 (CI matrix: 3.11, 3.12)
 - Key deps: `yfinance`, `yahooquery`, `pandas`, `numpy`, `pydantic`, `aiohttp`. **Versions are NOT restated here** — read `pyproject.toml`. This line used to carry pins and drifted to `yfinance==1.5.2` while the project was on 1.6.0, which is what a second copy of a version number always does.
 - Lockfiles: `requirements-lock.txt` (prod), `requirements-dev-lock.txt` (prod+dev), `requirements-smoketest-lock.txt`. A fourth, `requirements-universe-lock.txt`, is hand-maintained and NOT produced by `relock.sh`.
 - `pandas` is deliberately capped below 3.0: its new default `str` dtype silently no-ops the `dtype == "object"` guards in the signal path. See issue #213.

@@ -8,7 +8,9 @@ version = "2.0.0"
 description = "Market analysis and portfolio management tool using Yahoo Finance data"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.11,<4.0"
+# 3.11.5, not 3.11: every soupsieve release clear of its open advisories needs it,
+# and a lower floor makes Poetry keep the vulnerable 2.10 for the 3.11 band.
+requires-python = ">=3.11.5,<4.0"
 authors = [
     {name = "plessas"},
 ]
