@@ -2729,9 +2729,9 @@ trio-websocket==0.12.2 ; python_full_version >= "3.11.5" and python_version < "4
 trio==0.35.0 ; python_full_version >= "3.11.5" and python_version < "4.0" \
     --hash=sha256:7efb295c78a0ecd1235c5759e620b5da564ca80d2efcb0055423588547248b96 \
     --hash=sha256:9a062a029487c1bdbcc1b2543b729a0bde857ce478b1512c84f391f628e0c5c9
-types-pyyaml==6.0.12.20261103 ; python_full_version >= "3.11.5" and python_version < "4.0" \
-    --hash=sha256:444654c61f635dab82c092a511aa96a0ce31164810784b9a37314e3e56532ac8 \
-    --hash=sha256:7a1b5f837881dd35d5448b5f18275164f89f206185e31e8eae6e0b42607bc001
+types-pyyaml==6.0.12.20261113 ; python_full_version >= "3.11.5" and python_version < "4.0" \
+    --hash=sha256:0828be2580fd94151182364f4d0158e4de62fdbeeb8d4296f7f7d2b6c22bb640 \
+    --hash=sha256:3600749e613748afdc4327f0b17c3296cf880cdbc7335f320007abd9dd815f67
 types-requests==2.33.0.20261030 ; python_full_version >= "3.11.5" and python_version < "4.0" \
     --hash=sha256:06cfc2e92399bf46eda78a65cd0e2203d29ebbeede78b4ab0a5922f749ce1492 \
     --hash=sha256:42d75eb02ed0f8220904c8fc08d3129742e7fce42fd5cf706395c8bb4c0ad990
