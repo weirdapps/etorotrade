@@ -9984,6 +9984,7 @@
   "UJO.L": "2013-07-30T00:00:00",
   "UK": "2019-11-07T00:00:00",
   "UKR.L": "2005-02-11T00:00:00",
+  "UKW.L": "2013-02-14T00:00:00",
   "UL": "1980-03-25T00:00:00",
   "UL.PA": "2023-04-14T00:00:00",
   "ULBI": "1992-12-23T00:00:00",
@@ -10934,7 +10935,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-11-15T16:07:49",
+ "generated_at": "2026-11-16T03:05:01",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
