@@ -865,9 +865,11 @@ GEF,Greif Inc,NYSE
 ATI,ATI Inc,NYSE
 BEAV,B/E Aerospace Inc,Nasdaq
 TAP,Molson Coors Brewing Co,NYSE
+AMC.L,Airtel Mobile Commerce NV,LSE
 CNO,CNO Financial Group Inc,NYSE
 CMG,Chipotle Mexican Grill Inc,NYSE
 AMT,American Tower Corp,NYSE
+UKW.L,Greencoat UK Wind PLC/Funds,LSE
 AFSI,AmTrust Financial Services Inc,Nasdaq
 BC,Brunswick Corp,NYSE
 PDCO,Patterson Companies Inc,Nasdaq
@@ -979,6 +981,7 @@ PSON.L,Pearson,LSE
 RKT.L,Reckitt Benckiser,LSE
 NWG.L,Natwest Group PLC,LSE
 RDSA.L,Royal Dutch Shell,LSE
+MORE.L,Smarter Web Co PLC/The,LSE
 REL.L,RELX PLC,LSE
 REX.L,REXAM,LSE
 RIO.L,Rio Tinto,LSE
@@ -4765,7 +4768,7 @@ BLD,TopBuild Corp.,NYSE
 DLB,Dolby Laboratories Inc.,NYSE
 ATR,AptarGroup Inc.,NYSE
 ZLAB,Zai Lab Limited-ADR,Nasdaq
-CFR,Cullen/Frost Bankers Inc.,NYSE
+CFR,Cullen/Frost Bankers Inc.,
 OGN,Organon & Co.,NYSE
 MEDP,Medpace Holdings Inc.,Nasdaq
 LEGN,Legend Biotech Corporation-ADR,Nasdaq
@@ -5234,7 +5237,7 @@ CRS,Carpenter Technology Corporation,NYSE
 GPOR,Gulfport Energy Corporation,NYSE
 BMEA,Biomea Fusion Inc,Nasdaq
 NSSC,Napco Security Technologies Inc,Nasdaq
-PSQH,Psq Holdings Inc,NYSE
+PSQH,Psq Holdings Inc,OTC Markets
 VTGN,Vistagen Therapeutics Inc,Nasdaq
 ACA,Arcosa Inc,NYSE
 PCT,PureCycle Technologies Inc,Nasdaq
@@ -5796,7 +5799,7 @@ HAYN,Haynes International Inc,Nasdaq
 CCB,Coastal Financial Corporation,Nasdaq
 HLVX,HilleVax Inc,Nasdaq
 DMRC,Digimarc Corp,Nasdaq
-OLMA,Olema Pharmaceuticals Inc,Nasdaq
+OLMA,Olema Oncology Inc,Nasdaq
 JRVR,James River Group Holdings Inc,Nasdaq
 MBWM,Mercantile Bank Corporation,Nasdaq
 NAMS,NewAmsterdam Pharma Company NV,Nasdaq
@@ -7545,7 +7548,6 @@ AEO.L,Aeorema Communications Plc,LSE AIM
 ZIN.L,Zinc Media Group Plc,LSE AIM
 ROQ.L,Roquefort Therapeutics Plc,LSE
 PNS.L,Panther Securities Plc,LSE
-MORE.L,Hostmore Plc,LSE
 CRTM.L,Critical Metals Plc,LSE
 KBT.L,K3 Business Technology Group Plc,LSE AIM
 INSG.L,Insig Ai Plc,LSE AIM
@@ -9321,6 +9323,7 @@ TKMS.DE,Tkms AG& Co KGaA,FRA
 RACE.MI,Ferrari NV,Borsa Italiana
 EASOR.HE,Easor Oyj,Helsinki Stock Exchange
 NOV.DE,Novo Nordisk A/S,FRA
+ABTG.MI,Alfio Bardolla Training Group Spa,Borsa Italiana
 ADCBRI.DH,Locked for Abu Dhabi Rights,Abu Dhabi
 KWEB.DH,KraneShares CSI China Internet ETF,Abu Dhabi
 KRBN.DH,KraneShares Global Carbon Strategy ETF,Abu Dhabi
@@ -10068,6 +10071,8 @@ WEXU.DE,Amundi MSCI World Ex USA UCITS ETF Acc,Xetra ETFs
 F50B.DE,Amundi Prime Global UCITS ETF Acc,Xetra ETFs
 XMEU.DE,Xtrackers MSCI Europe UCITS ETF,Xetra ETFs
 XXSC.DE,Xtrackers MSCI EUROPE SMALL CAP UCITS ETF,Xetra ETFs
+ARI.ESC,ESC APOLLO COMMERCIA,Nasdaq
+ELMES.ESC,Elme Communities Common Stock Reit Escrow Cusip,Nasdaq
 VGNT,Versigent Ltd,NYSE
 MAIR,Madison Air Solutions Corp,NYSE
 AVEX,AEVEX Corp,NYSE
@@ -10249,6 +10254,7 @@ HUKX.L,HSBC FTSE 100 UCITS ETF,LSE
 FSFL.L,Foresight Solar Fund Ltd,LSE
 FWRG.L,Invesco FTSE All-World UCITS ETF,LSE
 CGEO.L,Georgia Capital PLC,LSE
+PACW.L,Amundi Prime All Country World UCITS ETF,LSE
 APMD, Apnimed Inc,Nasdaq
 VOGX,Vogenx,Nasdaq
 BRVE,"Braveheart Bio, Inc.",Nasdaq
@@ -10256,9 +10262,10 @@ ATTO,"Attovia Therapeutics, Inc.",Nasdaq
 SCTX,Scribe Therapeutics Inc,Nasdaq
 BLSM,"BlossomHill Therapeutics, Inc",Nasdaq
 LTGO,"Latigo Biotherapeutics, Inc",Nasdaq
+ENVXW,ENOVIX CORP Warrant,Nasdaq
 ADBT,Advasa Holdings Inc,Nasdaq
 APPTEST,Pre-IPO App Test,Nasdaq
-ANTH,Anthropic,Nasdaq
+ANT,Anthropic,Nasdaq
 OPENAI,OpenAI Group,Nasdaq
 OURA,Oura Inc,Nasdaq
 ACCV,Accelevation Holdings Corp,Nasdaq
@@ -10302,11 +10309,13 @@ ASPE,"Aspen Neuroscience, Inc.",Nasdaq
 SGC US,Superior Group of Companies Inc,Nasdaq
 QMLS,QumulusAI Inc,Nasdaq
 AIBZ,Bitzero Holdings Inc,Nasdaq
+RZRA,Rezera Inc.,Nasdaq
 NGEN,NervGen Pharma Corp,Nasdaq
 YARW,"Yarrow Bioscience, Inc.",Nasdaq
 MSLE,Satellos Bioscience Inc.,Nasdaq
 LEE,Lee Enterprises Inc,Nasdaq
 VRXA,Veraxa Biotech AG,Nasdaq
+WWB,Windward Bio Group AG,Nasdaq
 CEPL,Capstone Energy+ Inc,Nasdaq
 PLYX,"Polaryx Therapeutics, Inc",Nasdaq
 CNXU,Conexeu Sciences Inc,Nasdaq
@@ -10326,6 +10335,7 @@ FOIL,Londian Wason New Energy Tech Inc,NYSE
 VYLR,VYLOR INC,NYSE
 GLAS,Glass House Brands Inc,NYSE
 OPAY,OPay Limited,NYSE
+VVVV,vVardis Holding AG,NYSE
 OGC,OceanaGold Corp,NYSE
 SPUN OFF 2550972D,Spun off 2550972D,NYSE
 MDA,MDA Space Ltd.,NYSE
@@ -10337,7 +10347,27 @@ ASBH,American Savings Bank NA,NYSE
 NVRI,Enviri Corp (Delaware),NYSE
 FCBM,First Carolina Financial Services Inc,NYSE
 NSCL,Nscale,NYSE
+CVR1,LockedForCVR1,Nasdaq
+CVR2,LockedForCVR2,Nasdaq
+CVR3,LockedForCVR3,Nasdaq
+CVR4,LockedForCVR4,Nasdaq
+CVR5,LockedForCVR5,Nasdaq
+CVR6,LockedForCVR6,Nasdaq
+CVR7,LockedForCVR7,Nasdaq
+CVR8,LockedForCVR8,Nasdaq
+CVR9,LockedForCVR9,Nasdaq
+CVR10,LockedForCVR10,Nasdaq
+CVR11,LockedForCVR11,Nasdaq
+CVR12,LockedForCVR12,Nasdaq
+CVR13,LockedForCVR13,Nasdaq
 SKYD/WS,Skydance Corp Warrant,NYSE
+CVR14,LockedForCVR14,Nasdaq
+CVR15,LockedForCVR15,Nasdaq
+CVR16,LockedForCVR16,NYSE
+CVR17,LockedForCVR17,NYSE
+CVR18,LockedForCVR18,NYSE
+CVR19,LockedForCVR19,NYSE
+CVR20,LockedForCVR20,NYSE
 LYNX,Lyntris Inc,NYSE
 MSGR,MSG RANGERS CORP-WI,NYSE
 2513.HK,Knowledge Atlas Technology JSC Ltd,HKEX
@@ -10391,6 +10421,9 @@ BITY,Amplify Bitcoin 2% Monthly Option Income ETF,NYSE
 SPCI,Tuttle Capital Space Industry Income Blast ETF,NYSE
 AINT,FINQ DOLLAR NEUTRAL US Large Cap AI-Managed Equity ETF,NYSE
 AIUP,FINQ FIRST US Large Cap AI-Managed Equity ETF,NYSE
+BCI,abrdn Bloomberg All Commodity Strategy K-1 Free ETF,NYSE
+DYNF,iShares U.S. Equity Factor Rotation Active ETF,NYSE
+VLUE,iShares MSCI USA Value Factor ETF,NYSE
 EUV,Corgi Lithography & Semiconductor Photonics ETF,NYSE
 CGGR,Capital Group Growth ETF,NYSE
 PYLD,PIMCO Multisector Bond Active ETF,NYSE
@@ -10480,6 +10513,7 @@ GLRE.L,SS SPDR Dow Jones Global Real Estate UCITS ETF,LSE
 SXLB.L,SS SPDR S&P US Materials Select Sector UCITS ETF,LSE
 SXLC.L,SS SPDR S&P US Communication Services Select Sector UCITS ETF,LSE
 MXUS.L,Invesco MSCI USA UCITS ETF,LSE
+AIGA.L,WisdomTree Agriculture,LSE
 VGLA.DE,Vanguard FTSE Global All-Cap UCITS ETF USD Acc,Xetra ETFs
 VGSA.DE,Vanguard FTSE Global Small-Cap UCITS ETF USD Acc,Xetra ETFs
 VXUS.DE,Vanguard FTSE All-World Ex-US UCITS ETF USD Acc,Xetra ETFs
