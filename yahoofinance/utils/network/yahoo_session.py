@@ -12,9 +12,15 @@ presenting the cookie Yahoo stopped accepting.
 This module notices the 401 on the call that hit it, discards the session, the cookie, the crumb
 and the persisted cookie, and lets that ticker be fetched again. Refreshes are bounded per
 process and backed off, so a hard block by Yahoo ends in blank rows, not in a loop.
+
+While one worker waits to rebuild, every other worker that is refused waits behind it, so the
+scan pauses through a block instead of writing blank rows. On 2026-11-17 Yahoo refused one
+runner for 17 minutes and another for 30; the defaults wait out a block of about 40 minutes, and
+a priced read after a rebuild restores the full allowance for the next block.
 """
 
 import functools
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -24,11 +30,17 @@ from ...core.logging import get_logger
 
 logger = get_logger(__name__)
 
-#: Session rebuilds allowed in one process. A healthy scan needs none.
-MAX_SESSION_REFRESHES = 3
+#: Rebuilds allowed in a row, with no priced read between them. A healthy scan needs none.
+MAX_SESSION_REFRESHES = 12
 
-#: Wait before the first rebuild; each later rebuild waits twice as long as the one before.
-REFRESH_BACKOFF_SECONDS = 5.0
+#: Wait before the first rebuild of a block; each later rebuild waits twice as long as the one
+#: before, up to MAX_BACKOFF_SECONDS. Twelve steps wait 2,565s (about 43 minutes) in all.
+REFRESH_BACKOFF_SECONDS = 15.0
+MAX_BACKOFF_SECONDS = 300.0
+
+#: Most time one process spends waiting on rebuilds, over all blocks. The shard job runs a scan
+#: twice under a 330-minute timeout, and a scan takes about 90 minutes without waits.
+MAX_WAIT_SECONDS = 3600.0
 
 _call_state = threading.local()
 
@@ -90,16 +102,22 @@ class YahooSessionRefresher:
         self,
         max_refreshes: int = MAX_SESSION_REFRESHES,
         backoff_seconds: float = REFRESH_BACKOFF_SECONDS,
+        max_backoff_seconds: float = MAX_BACKOFF_SECONDS,
+        max_wait_seconds: float = MAX_WAIT_SECONDS,
         reset: Callable[[], None] = reset_yfinance_session,
         sleep: Callable[[float], None] = time.sleep,
     ):
         self.max_refreshes = max_refreshes
+        self.max_backoff_seconds = max_backoff_seconds
+        self.max_wait_seconds = max_wait_seconds
         self.backoff_seconds = backoff_seconds
         self._reset = reset
         self._sleep = sleep
         self._lock = threading.Lock()
         self.generation = 0
         self.refreshes = 0
+        self.consecutive = 0  # rebuilds since the last priced read
+        self.waited = 0.0
 
     def refresh(self, seen_generation: int) -> bool:
         """Rebuild the session the caller saw fail; True when the caller should fetch again.
@@ -110,22 +128,50 @@ class YahooSessionRefresher:
         with self._lock:
             if self.generation != seen_generation:
                 return True
-            if self.refreshes >= self.max_refreshes:
+            if self.consecutive >= self.max_refreshes:
+                return False
+            delay = self.delay_for(self.consecutive)
+            if self.waited + delay > self.max_wait_seconds:
+                _notice(
+                    f"Yahoo refused the session (HTTP 401); the {self.max_wait_seconds:.0f}s "
+                    "wait allowance is spent, so later names may come back unpriced"
+                )
                 return False
             self.refreshes += 1
-            delay = self.backoff_seconds * 2 ** (self.refreshes - 1)
-            logger.warning(
+            self.consecutive += 1
+            self.waited += delay
+            _notice(
                 f"Yahoo refused the session (HTTP 401); rebuilding it in {delay:.0f}s "
-                f"(refresh {self.refreshes}/{self.max_refreshes})"
+                f"(step {self.consecutive}/{self.max_refreshes}, waited {self.waited:.0f}s "
+                f"of {self.max_wait_seconds:.0f}s)"
             )
             self._sleep(delay)
             try:
                 self._reset()
             except Exception as e:
-                logger.warning(f"Could not rebuild the Yahoo session: {type(e).__name__}: {e}")
+                _notice(f"Could not rebuild the Yahoo session: {type(e).__name__}: {e}")
                 return False
             self.generation += 1
             return True
+
+    def delay_for(self, step: int) -> float:
+        """The wait before rebuild number ``step`` (from 0) of one block."""
+        return min(self.backoff_seconds * 2**step, self.max_backoff_seconds)
+
+    def mark_healthy(self) -> None:
+        """A read was priced: the block is over, so the next one starts from the first step."""
+        if self.consecutive:
+            with self._lock:
+                if self.consecutive:
+                    _notice(f"Yahoo accepted the rebuilt session after {self.consecutive} step(s)")
+                    self.consecutive = 0
+
+
+def _notice(message: str) -> None:
+    # The scan's log level hides warnings in CI, where these matter most (2026-11-17: a block
+    # left no trace in the run log), so print them as well.
+    logger.warning(message)
+    print(message, file=sys.stderr, flush=True)
 
 
 _default_refresher: YahooSessionRefresher | None = None
@@ -163,6 +209,9 @@ def fetch_info_with_session_refresh(
             if not _call_state.auth_failed or not refresher.refresh(generation):
                 raise
         else:
-            if not _call_state.auth_failed or not refresher.refresh(generation):
+            if not _call_state.auth_failed:
+                refresher.mark_healthy()
+                return yticker, info
+            if not refresher.refresh(generation):
                 return yticker, info
         yticker = rebuild_ticker()

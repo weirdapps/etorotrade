@@ -296,3 +296,88 @@ def test_reset_discards_session_cookie_crumb_and_persisted_cookie(monkeypatch):
     assert data._cookie is None
     assert data._crumb is None
     assert stored == [("curlCffi", None)]
+
+
+# 2026-11-17: Yahoo refused shard 3's session for 17+ minutes at a time. Three rebuilds backed off
+# 5s, 10s and 20s were spent in the first 35 seconds, and every later name was written blank.
+# The refresher now waits out a block of that length, so the scan pauses instead of blanking.
+
+
+class _Block:
+    """A session refused until ``lifts_after`` rebuilds have happened."""
+
+    def __init__(self, fake, lifts_after):
+        self.fake = fake
+        self.lifts_after = lifts_after
+        self.resets = 0
+
+    def reset(self):
+        self.resets += 1
+        if self.resets >= self.lifts_after:
+            self.fake.restore()
+        YfData.cache_get.cache_clear()
+
+
+def test_backoff_is_capped(fake_yahoo):
+    fake = fake_yahoo(session_ok=False)
+    sleeps = []
+    refresher = YahooSessionRefresher(
+        max_refreshes=4,
+        backoff_seconds=5.0,
+        max_backoff_seconds=20.0,
+        max_wait_seconds=1000.0,
+        reset=lambda: None,
+        sleep=sleeps.append,
+    )
+
+    _fetch("AAPL", refresher)
+
+    assert sleeps == [5.0, 10.0, 20.0, 20.0]
+
+
+def test_total_wait_is_bounded(fake_yahoo):
+    fake = fake_yahoo(session_ok=False)
+    sleeps = []
+    refresher = YahooSessionRefresher(
+        max_refreshes=10,
+        backoff_seconds=5.0,
+        max_wait_seconds=12.0,
+        reset=lambda: None,
+        sleep=sleeps.append,
+    )
+
+    _, info = _fetch("AAPL", refresher)
+
+    assert "regularMarketPrice" not in info
+    assert sleeps == [5.0]  # a 10s wait would take the total past 12s
+
+
+def test_a_priced_read_restores_the_budget_for_the_next_block(fake_yahoo):
+    fake = fake_yahoo(session_ok=False)
+    block = _Block(fake, lifts_after=2)
+    sleeps = []
+    refresher = YahooSessionRefresher(
+        max_refreshes=2,
+        backoff_seconds=5.0,
+        max_wait_seconds=1000.0,
+        reset=block.reset,
+        sleep=sleeps.append,
+    )
+
+    _, info = _fetch("AAPL", refresher)
+    assert info["regularMarketPrice"] == 123.0
+
+    # A second block later in the scan gets the full per-block bound again, from the first step.
+    fake.session_ok = False
+    block.resets = 0
+    _, info = _fetch("MSFT", refresher)
+
+    assert info["regularMarketPrice"] == 123.0
+    assert sleeps == [5.0, 10.0, 5.0, 10.0]
+    assert refresher.refreshes == 4
+
+
+def test_defaults_wait_out_a_thirty_minute_block():
+    r = YahooSessionRefresher(reset=lambda: None, sleep=lambda s: None)
+    waits = [r.delay_for(step) for step in range(r.max_refreshes)]
+    assert 30 * 60 <= sum(waits) <= r.max_wait_seconds <= 60 * 60

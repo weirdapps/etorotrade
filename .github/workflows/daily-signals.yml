@@ -6,7 +6,9 @@ on:
     # 00:00 Athens (winter) / 01:00 (summer). The market scan is sharded across
     # parallel jobs so each finishes well under GitHub's hard 6h per-job cap;
     # the merge job recombines the slices, derives buy/sell/hold, and commits.
-    - cron: '0 22 * * *'
+    # Minute 17, not 0: GitHub queues top-of-the-hour schedules, and the 22:00 run
+    # started 1.5h to 6.3h late through November 2026 (04:20 UTC on 2026-11-17).
+    - cron: '17 22 * * *'
   workflow_dispatch: # Allow manual triggering
 
 # Prevent multiple runs from overlapping
