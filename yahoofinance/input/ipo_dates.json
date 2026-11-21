@@ -1264,6 +1264,7 @@
   "ANRJ.PA": "2010-09-28T00:00:00",
   "ANRO": "2024-02-02T00:00:00",
   "ANSC": "2026-07-17T00:00:00",
+  "ANT": "2026-11-19T00:00:00",
   "ANTIN.PA": "2021-09-24T00:00:00",
   "ANTO.L": "1988-07-01T00:00:00",
   "ANTX": "2022-03-25T00:00:00",
@@ -10937,7 +10938,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-11-20T05:17:47",
+ "generated_at": "2026-11-21T04:55:23",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
