@@ -5108,6 +5108,7 @@
   "HYQ.DE": "2007-10-29T00:00:00",
   "HYS": "2011-06-17T00:00:00",
   "HYSG.BR": "2001-04-17T00:00:00",
+  "HZN": "1973-02-22T00:00:00",
   "HZN.AX": "1988-01-29T00:00:00",
   "HZO": "1998-06-03T00:00:00",
   "IAEX.L": "2009-01-02T00:00:00",
@@ -10938,7 +10939,7 @@
   "ZYBT": "2025-01-07T00:00:00",
   "ZYME": "2017-04-28T00:00:00"
  },
- "generated_at": "2026-11-22T03:46:21",
+ "generated_at": "2026-11-23T04:19:52",
  "note": "Confirmed IPO/first-trade dates only. Failed probes are never recorded.",
  "schema_version": 1,
  "source": "yfinance Ticker.history(period='max') first bar"
