@@ -469,7 +469,7 @@ VLO,Valero Energy Corp,NYSE
 COR,Cencora Inc,NYSE
 FNMA,First Bancorp Inc Maine,Nasdaq
 KR,Kroger Co,NYSE
-GM,General Motors Co,NYSE
+GM,General Motors Co,Nasdaq
 ESRX,Express Scripts Holding Co,Nasdaq
 MPC,Marathon Petroleum Corporation,NYSE
 CAH,Cardinal Health Inc,NYSE
@@ -653,7 +653,7 @@ GNW,Genworth Financial Inc,NYSE
 EMN,Eastman Chemical Co,NYSE
 DF,Dean Foods Co,NYSE
 AZO,Autozone Inc,NYSE
-ACH,Accendra Health Inc,NYSE
+ACCH,Accendra Health Inc,OTC Markets
 HRL,Hormel Foods Corp,NYSE
 GME,GameStop Corp.,NYSE
 CNP,Centerpoint Energy Inc,NYSE
@@ -3460,7 +3460,7 @@ PUBM,PUBMATIC INC-CLASS A,Nasdaq
 DVAX,Dynavax Technologies Corp,Nasdaq
 EGAN,eGain Corp,Nasdaq
 EKSO,Ekso Bionics Holdings Inc,Nasdaq
-EVFM,Evofem Biosciences Inc,OTC Markets
+EVFMD,Evofem Biosciences Inc,OTC Markets
 APP,Applovin Corp,Nasdaq
 TTCFQ,Tattooed Chef Inc,Nasdaq
 FRSX,Foresight Autonomous Holdings Ltd-ADR,Nasdaq
@@ -3730,7 +3730,7 @@ PFLT,PennantPark Floating Rate Capital Ltd,Nasdaq
 PGEN,"Precigen, Inc.",Nasdaq
 PGNY,Progyny Inc,Nasdaq
 PINC,Premier Inc,Nasdaq
-PLCE,Children's Place Inc,Nasdaq
+PLCEQ,Children's Place Inc,OTC Markets
 PLYA,Playa Hotels & Resorts NV,Nasdaq
 PNNT,PennantPark Investment Corp,Nasdaq
 PPD,PPD Inc,Nasdaq
@@ -4325,7 +4325,7 @@ CKF.AX,Collins Foods Limited,ASX
 CGC.AX,Costa Group Holdings Limited,ASX
 GOZ.AX,Growthpoint Properties Australia,ASX
 EVT.AX,EVT Limited,ASX
-CMW.AX,Cromwell Property Group,ASX
+CMWDA.AX,Cromwell Property Group,ASX
 CQE.AX,Charter Hall Social Infrastructure REIT,ASX
 IMU.AX,Imugene Ltd,ASX
 FSS1,First Sydney stock,ASX
@@ -4862,7 +4862,7 @@ ABCL,AbCellera Biologics Inc.,Nasdaq
 KNBE,KnowBe4 Inc.,Nasdaq
 TRTN,Triton International Limited,NYSE
 FUL,H.B. Fuller Company,NYSE
-BKH,Black Hills Corporation,NYSE
+HZN,Black Hills Corporation,NYSE
 LOB,Live Oak Bancshares Inc.,Nasdaq
 SHOO,Steven Madden Ltd.,Nasdaq
 INDB,Independent Bank Corp.,Nasdaq
@@ -5184,7 +5184,7 @@ MSA,MSA Safety Incorporated,NYSE
 MNSO,MINISO Group Holding Limited,NYSE
 HAYW,Hayward Holdings Inc,NYSE
 SIGI,Selective Insurance Group Inc,Nasdaq
-MOD,Modine Manufacturing Company,NYSE
+MOD,Modexus Solutions Inc,NYSE
 STRL,Sterling Infrastructure Inc,Nasdaq
 SLF,Sun Life Financial Inc,NYSE
 MMSI,Merit Medical Systems Inc,Nasdaq
@@ -5671,7 +5671,7 @@ ASIX,Advansix Inc,NYSE
 PAX,Patria Investments Limited,Nasdaq
 AMPL,Amplitude Inc,Nasdaq
 CNDA,Concord Acquisition Corp II,OTC Markets
-MERC,Mercer International Inc,Nasdaq
+MERCQ,Mercer International Inc,OTC Markets
 AVPT,Avepoint Inc,Nasdaq
 DEWA.AE,Dubai Electricity and Water Authority PJSC,DFM
 EMIRATESNBD.AE,Emirates NBD Bank PJSC,DFM
@@ -6330,7 +6330,7 @@ LLAP,Terran Orbital Corp,NYSE
 RGTI,Rigetti Computing Inc,Nasdaq
 ASRT,Assertio Holdings Inc,Nasdaq
 MTC,Mmtec Inc,Nasdaq
-GWHT,Ess Tech Inc,OTC Markets
+GWHTQ,Ess Tech Inc,OTC Markets
 GDHG,Golden Heaven Group Holdings,Nasdaq
 EOSE,Eos Energy Enterprises Inc,Nasdaq
 LILMF,Lilium Nv,OTC Markets
@@ -8168,7 +8168,7 @@ FF24.DE,Fast Finance 24 Holding AG,FRA
 TLIK.DE,Teles AG,FRA
 MAK.DE,MATERNUS-Kliniken-AG,FRA
 RTV.DE,Your Family Entertainment AG,FRA
-UMD.DE,UMT United Mobility Technology AG,FRA
+WAI.DE,UMT United Mobility Technology AG,FRA
 PDA0.DE,Pro DV AG,FRA
 PAG.DE,PREOS Global Office Real Estate & Technology AG,FRA
 EFIT.DE,EasyMotionSkin Tec GmbH,FRA
@@ -9372,7 +9372,7 @@ IXHL,Incannex Healthcare Inc,Nasdaq
 FRMM,Forum Markets Inc,Nasdaq
 DFDV,DeFi Development Corp,Nasdaq
 MFP,Midera Food Processing Inc,Nasdaq
-DVLT,Datavault AI Inc,Nasdaq
+DVLT,Datavault AI Inc,OTC Markets
 NAVN,"Navan, Inc",Nasdaq
 BLLN,"BillionToOne, Inc.",Nasdaq
 LIDR,AEye Inc,Nasdaq
@@ -10265,7 +10265,7 @@ LTGO,"Latigo Biotherapeutics, Inc",Nasdaq
 ENVXW,ENOVIX CORP Warrant,Nasdaq
 ADBT,Advasa Holdings Inc,Nasdaq
 APPTEST,Pre-IPO App Test,Nasdaq
-ANT,Anthropic,Nasdaq
+ANT,"Anthropic, PBC",Nasdaq
 OPENAI,OpenAI Group,Nasdaq
 OURA,Oura Inc,Nasdaq
 ACCV,Accelevation Holdings Corp,Nasdaq
