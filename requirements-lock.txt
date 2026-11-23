@@ -2251,18 +2251,18 @@ scipy==1.18.1 ; python_version >= "3.12" and python_version < "4.0" \
     --hash=sha256:f29633129f9fa7e88a3f0fca835de2d030bfc9643f7799e1a0c46cee24d38fc7 \
     --hash=sha256:f55fa87b6c612ecd6b058f167c53231b1d14e412efe361d3d6e38b3631c73218 \
     --hash=sha256:fdaf5ea890a6183d0565f51a61799d67081bd5b1cf03c5f4b3fd3732108625c9
-selenium==4.53.0 ; python_full_version >= "3.11.5" and python_version < "4.0" \
-    --hash=sha256:efb45b129cbd7f46da99c82e7d327978bda29ed987223465c341f96404a86a2c \
-    --hash=sha256:f0906a56324f5dfb19b87971a7cfd2162ea473e5afa25ee458aaa5a3816b98ac
+selenium==4.54.0 ; python_full_version >= "3.11.5" and python_version < "4.0" \
+    --hash=sha256:8345ac0da0f62171f234baf4e2f7b85a92a5aafa47f9a5be281e3a94137dcd7a \
+    --hash=sha256:ed5ad5a8c77372ac824ed736ac627d02f41c5bf38be33467f15aaf5a4e038888
 sniffio==1.3.1 ; python_full_version >= "3.11.5" and python_version < "4.0" \
     --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
     --hash=sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc
 sortedcontainers==2.4.0 ; python_full_version >= "3.11.5" and python_version < "4.0" \
     --hash=sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88 \
     --hash=sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0
-soupsieve==4.1.2 ; python_full_version >= "3.11.5" and python_version < "4.0" \
-    --hash=sha256:96b4115212a3abee1f572d62da706cca090b088cb5effa278db5702122e63a2c \
-    --hash=sha256:c6539a2638f26991463527337e39d630e3cbb86d024f52282a510535b8a7e09f
+soupsieve==4.1.3 ; python_full_version >= "3.11.5" and python_version < "4.0" \
+    --hash=sha256:13f70186c8f40bf8d0ff7bbab09a18fb149600b465269207b5e5b588f55fda08 \
+    --hash=sha256:7a390d1a57d1ab7bb228531e9b8a750a5ebf87db774e0ef6faeeac057d22a5bf
 tabulate==0.10.0 ; python_full_version >= "3.11.5" and python_version < "4.0" \
     --hash=sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d \
     --hash=sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3
