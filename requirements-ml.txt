@@ -8,6 +8,6 @@
 #
 # Without these packages the analyzer returns no score and the signal pipeline
 # carries on unchanged.
-transformers>=5.22.2
+transformers>=5.23.0
 torch>=2.15.0
 scikit-learn>=1.9.1
